@@ -121,12 +121,13 @@ not an automated test.
 
 ## Parsing structure and precedence — Levels A/B
 
-Local `parse_file` is a line-oriented parser. It strips `#` comments, trims,
-recognizes sections, then stores qualified scalar keys or explicit `M[...]`
-entries. Duplicate scalar/moment keys become errors with source/line
-information. It is not a quoted-string language: a `#` is treated as a comment
-delimiter. Section occurrences are recorded, but repetition is rejected only
-where subsequent validators require it. `parse_size` uses unsigned conversion
+Local `parse_file` is a line-oriented parser. It strips `#` and `;` comments,
+trims, recognizes sections, then stores qualified scalar keys or explicit
+`M[...]` entries. Duplicate scalar/moment keys become errors with source/line
+information. It is not a quoted-string language: the first `#` or `;` on a line
+starts a comment wherever it appears, including inside a value. Section
+occurrences are recorded, but repetition is rejected only where subsequent
+validators require it. `parse_size` uses unsigned conversion
 with a negative-sign check; `parse_double` requires full finite conversion.
 List parsers reject empty entries/trailing commas; optional-bound lists
 additionally recognize `none`.
@@ -152,9 +153,10 @@ keys are allowed rather than overriding explicit data. Syntax and duplicate-key
 errors are still errors. Without explicit data, `parse_distribution`,
 `parse_mixture`, and `parse_independent_product` build typed specs. Numbered
 mixture components and product dimensions must be contiguous from zero.
-Family-specific allowed-key checks prevent parameters for one family silently
-configuring another, and `parse_mixture` reports the distribution and
-`number_density` keys at a mixture's own level, which its components replace.
+`parse_distribution` reports parameters of other families, which the chosen
+family would ignore (`reject_other_family_parameters`), and `parse_mixture`
+reports the distribution and `number_density` keys at a mixture's own level,
+which its components replace.
 
 `parse_explicit_tensor` validates rank/extents, checks extent-product overflow,
 and loops over explicit moments to validate rank, bounds, and finiteness,

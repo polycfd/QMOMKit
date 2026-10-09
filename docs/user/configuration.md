@@ -95,6 +95,20 @@ of its own. Indices in section names are written without leading zeros:
 are written in plain decimal notation, such as `2`, `-0.5`, or `1.0e-6`, and are
 read the same way whatever locale the host application uses.
 
+A comment starts with `#` or `;` and runs to the end of the line, on a line of
+its own or after a section header or value:
+
+```ini
+# Two-node case.
+[phase_space]   ; the backbone of every case
+node_counts = 2 # m0..m3 are needed
+```
+
+Everything from the first `#` or `;` on a line is removed before the line is
+read, and neither character can be quoted or escaped, so no value can contain
+them: `directory = run;1` sets the directory `run`. A value that a comment
+leaves empty, as in `directory = # later`, is an error.
+
 A configuration file stops at the numerical setup. Physics callbacks, model
 coefficients, meshes, boundary conditions, units, and the timestep loop are
 application code — see [Callbacks](callbacks.md).
@@ -282,6 +296,12 @@ weibull:     shape, scale
 These canonical family names are preferred. The parser also accepts
 `log-normal` and `log_normal` for `lognormal`, and `chi_squared` and
 `chisquared` for `chi-squared`.
+
+A family reads only its own parameters, so a parameter of another family, such
+as `shape` with `family = lognormal`, is reported as an error rather than
+ignored. This applies wherever a distribution is given: under `[initial]`, in a
+mixture component, and in an `[initial.dimension.N]` marginal, unless explicit
+`[moments]` are given, which take precedence over the initialization sections.
 
 All supplied distribution parameters must be finite. The remaining family
 constraints are:
@@ -636,6 +656,10 @@ support = bounded_interval
 lower = 0.0
 upper = 1.0
 ```
+
+Only `support = bounded_interval` reads `lower` and `upper`; under any other
+support, including the default `real_line`, either bound is reported as an
+error rather than ignored.
 
 For CQMOM, use coordinate-specific realizability settings for the individual
 phase-space coordinates that require checks. A zero-based coordinate suffix

@@ -732,6 +732,37 @@ bool parse_optional_positive_size(ParsedFile& parsed, const std::string& key, co
     return true;
 }
 
+// The parameters of every distribution family; each family reads only its own.
+const std::vector<std::string>& distribution_parameters()
+{
+    static const std::vector<std::string> parameters{"mean",  "standard_deviation", "mu_log", "sigma_log", "alpha", "beta", "shape",
+                                                     "scale", "degrees_of_freedom"};
+    return parameters;
+}
+
+bool is_distribution_parameter(const std::string& field)
+{
+    const std::vector<std::string>& parameters = distribution_parameters();
+    return std::find(parameters.begin(), parameters.end(), field) != parameters.end();
+}
+
+// A family reads only its own parameters, so a parameter of another family
+// under the same prefix would have no effect.
+void reject_other_family_parameters(ParsedFile& parsed, const std::string& key_prefix, const std::string& family,
+                                    const std::vector<std::string>& family_parameters, const std::string& source_name)
+{
+    for (const std::string& parameter : distribution_parameters())
+    {
+        const std::string key = key_prefix + "." + parameter;
+        const Entry* entry = find_entry(parsed, key);
+        if (entry != nullptr && std::find(family_parameters.begin(), family_parameters.end(), parameter) == family_parameters.end())
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, entry->line,
+                      "Key '" + key + "' has no effect with 'family = " + family + "'.");
+        }
+    }
+}
+
 std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, const std::string& key_prefix, const std::string& source_name)
 {
     const Entry* family_entry = require_entry(parsed, key_prefix + ".family", source_name);
@@ -743,6 +774,7 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
     const std::string family = family_entry->value;
     if (family == "normal")
     {
+        reject_other_family_parameters(parsed, key_prefix, family, {"mean", "standard_deviation"}, source_name);
         double mean = 0.0;
         double standard_deviation = 0.0;
         if (parse_required_double(parsed, key_prefix + ".mean", source_name, mean) &&
@@ -754,6 +786,7 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
     }
     if (family == "lognormal" || family == "log-normal" || family == "log_normal")
     {
+        reject_other_family_parameters(parsed, key_prefix, family, {"mu_log", "sigma_log"}, source_name);
         double normal_mean = 0.0;
         double normal_standard_deviation = 0.0;
         if (parse_required_double(parsed, key_prefix + ".mu_log", source_name, normal_mean) &&
@@ -765,6 +798,7 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
     }
     if (family == "beta")
     {
+        reject_other_family_parameters(parsed, key_prefix, family, {"alpha", "beta"}, source_name);
         double alpha = 0.0;
         double beta = 0.0;
         if (parse_required_double(parsed, key_prefix + ".alpha", source_name, alpha) &&
@@ -776,6 +810,7 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
     }
     if (family == "gamma")
     {
+        reject_other_family_parameters(parsed, key_prefix, family, {"shape", "scale"}, source_name);
         double shape = 0.0;
         double scale = 0.0;
         if (parse_required_double(parsed, key_prefix + ".shape", source_name, shape) &&
@@ -787,6 +822,7 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
     }
     if (family == "chi")
     {
+        reject_other_family_parameters(parsed, key_prefix, family, {"degrees_of_freedom"}, source_name);
         double degrees_of_freedom = 0.0;
         if (parse_required_double(parsed, key_prefix + ".degrees_of_freedom", source_name, degrees_of_freedom))
         {
@@ -796,6 +832,7 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
     }
     if (family == "chi-squared" || family == "chi_squared" || family == "chisquared")
     {
+        reject_other_family_parameters(parsed, key_prefix, family, {"degrees_of_freedom"}, source_name);
         double degrees_of_freedom = 0.0;
         if (parse_required_double(parsed, key_prefix + ".degrees_of_freedom", source_name, degrees_of_freedom))
         {
@@ -805,6 +842,7 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
     }
     if (family == "weibull")
     {
+        reject_other_family_parameters(parsed, key_prefix, family, {"shape", "scale"}, source_name);
         double shape = 0.0;
         double scale = 0.0;
         if (parse_required_double(parsed, key_prefix + ".shape", source_name, shape) &&
@@ -826,20 +864,16 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
 
 bool component_key_allowed(const std::string& key, const std::string& prefix)
 {
-    static const std::vector<std::string> fields{"family", "number_density", "mean",  "standard_deviation", "mu_log", "sigma_log", "alpha",
-                                                 "beta",   "shape",          "scale", "degrees_of_freedom"};
     if (key.rfind(prefix + ".", 0) != 0)
     {
         return false;
     }
     const std::string field = key.substr(prefix.size() + 1);
-    return std::find(fields.begin(), fields.end(), field) != fields.end();
+    return field == "family" || field == "number_density" || is_distribution_parameter(field);
 }
 
 bool marginal_key_allowed(const std::string& key, const std::string& prefix)
 {
-    static const std::vector<std::string> fields{"type", "family", "mean",  "standard_deviation", "mu_log", "sigma_log", "alpha",
-                                                 "beta", "shape",  "scale", "degrees_of_freedom"};
     if (key.rfind(prefix + ".", 0) != 0)
     {
         return false;
@@ -849,7 +883,7 @@ bool marginal_key_allowed(const std::string& key, const std::string& prefix)
         return true;
     }
     const std::string field = key.substr(prefix.size() + 1);
-    return std::find(fields.begin(), fields.end(), field) != fields.end();
+    return field == "type" || field == "family" || is_distribution_parameter(field);
 }
 
 bool has_explicit_qmom_moments(const ParsedFile& parsed)
@@ -864,26 +898,14 @@ bool has_explicit_cqmom_moments(const ParsedFile& parsed)
 
 std::vector<std::string> qmom_allowed_keys()
 {
-    return {"format_version",
-            "phase_space.names",
-            "phase_space.node_counts",
-            "phase_space.support_lower",
-            "phase_space.support_upper",
-            "qmom.adaptive",
-            "moments.values",
-            "initial.type",
-            "initial.family",
-            "initial.number_density",
-            "initial.maximum_order",
-            "initial.mean",
-            "initial.standard_deviation",
-            "initial.mu_log",
-            "initial.sigma_log",
-            "initial.alpha",
-            "initial.beta",
-            "initial.shape",
-            "initial.scale",
-            "initial.degrees_of_freedom"};
+    std::vector<std::string> allowed{
+        "format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive",
+        "moments.values", "initial.type",      "initial.family",          "initial.number_density",    "initial.maximum_order"};
+    for (const std::string& parameter : distribution_parameters())
+    {
+        allowed.push_back("initial." + parameter);
+    }
+    return allowed;
 }
 
 void append_time_integration_allowed_keys(std::vector<std::string>& allowed, const RealizabilitySettings realizability)
@@ -1734,6 +1756,17 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
             else
             {
                 policy.interval = BoundedInterval{lower, upper};
+            }
+        }
+    }
+    else
+    {
+        for (const std::string& key : {lower_key, upper_key})
+        {
+            if (const Entry* entry = find_entry(parsed, key); entry != nullptr)
+            {
+                add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, entry->line,
+                          "Key '" + key + "' has no effect unless 'support = bounded_interval'.");
             }
         }
     }

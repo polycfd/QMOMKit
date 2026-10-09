@@ -539,6 +539,76 @@ sigma_log = 0.25
                                 "Key 'initial.dimension.1.family' has no effect with 'type = mixture'"));
 }
 
+// A distribution family reads only its own parameters, so a parameter of
+// another family would have no effect. It is reported for every family, for a
+// single distribution, a mixture component and a CQMOM marginal.
+void test_distribution_parameters_of_another_family_are_reported()
+{
+    struct FamilyCase
+    {
+        std::string family;
+        std::string parameters;
+        std::string other_family_parameter;
+    };
+    const std::vector<FamilyCase> cases{
+        {"normal", "mean = 0.5\nstandard_deviation = 0.2\n", "shape"},
+        {"lognormal", "mu_log = -0.2\nsigma_log = 0.4\n", "mean"},
+        {"beta", "alpha = 2.0\nbeta = 3.0\n", "scale"},
+        {"gamma", "shape = 2.0\nscale = 0.4\n", "alpha"},
+        {"chi", "degrees_of_freedom = 3.0\n", "scale"},
+        {"chi-squared", "degrees_of_freedom = 3.0\n", "mean"},
+        {"weibull", "shape = 2.0\nscale = 0.4\n", "beta"},
+    };
+    for (const FamilyCase& family_case : cases)
+    {
+        const std::string text =
+            "[phase_space]\nnode_counts = 1\n[initial]\ntype = distribution\nfamily = " + family_case.family + "\n" + family_case.parameters;
+        assert(qmomkit::config::parse_qmom(text).ok());
+        const std::string with_other = text + family_case.other_family_parameter + " = 1.0\n";
+        const std::string message =
+            "Key 'initial." + family_case.other_family_parameter + "' has no effect with 'family = " + family_case.family + "'";
+        assert(has_message_fragment(qmomkit::config::parse_qmom(with_other), message));
+        assert(has_message_fragment(qmomkit::config::parse_qmom_initial_condition(with_other), message));
+    }
+
+    assert(has_message_fragment(qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1
+
+[initial]
+type = mixture
+
+[initial.mixture.component.0]
+family = gamma
+number_density = 1.5
+shape = 2.0
+scale = 0.4
+mean = 1.0
+)"),
+                                "Key 'initial.mixture.component.0.mean' has no effect with 'family = gamma'"));
+
+    assert(has_message_fragment(qmomkit::config::parse_cqmom_initial_condition(R"(
+[phase_space]
+node_counts = 1, 1
+
+[initial]
+type = independent_product
+number_density = 2.75
+
+[initial.dimension.0]
+family = normal
+mean = -0.4
+standard_deviation = 0.7
+
+[initial.dimension.1]
+family = lognormal
+mu_log = -0.3
+sigma_log = 0.25
+standard_deviation = 0.1
+)"),
+                                "Key 'initial.dimension.1.standard_deviation' has no effect with 'family = lognormal'"));
+}
+
 // cqmom.moment_storage selected between two moment representations. Only one
 // remains, so the key is no longer recognized and is rejected like any other
 // unknown key, through every CQMOM loader.
@@ -2298,6 +2368,47 @@ upper = 2.0
     assert(bounded.value().interval.has_value());
     assert_near(bounded.value().interval->lower, -1.0);
     assert_near(bounded.value().interval->upper, 2.0);
+}
+
+// Only a bounded interval reads lower and upper, so either bound under another
+// support, including the default one, would have no effect.
+void test_realizability_bounds_without_a_bounded_interval_are_reported()
+{
+    const std::string message = "has no effect unless 'support = bounded_interval'";
+    assert(has_message_fragment(qmomkit::config::parse_realizability_policy(R"(
+[time_integration.realizability]
+check_mode = final_only
+support = nonnegative
+lower = 5.0
+)"),
+                                "Key 'time_integration.realizability.lower' " + message));
+    assert(has_message_fragment(qmomkit::config::parse_realizability_policy(R"(
+[time_integration.realizability]
+check_mode = final_only
+support = real_line
+upper = 1.0
+)"),
+                                "Key 'time_integration.realizability.upper' " + message));
+    assert(has_message_fragment(qmomkit::config::parse_realizability_policy(R"(
+[time_integration.realizability]
+lower = 0.0
+)"),
+                                "Key 'time_integration.realizability.lower' " + message));
+    assert(has_message_fragment(qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.1]
+check_mode = final_only
+support = nonnegative
+upper = 1.0
+)"),
+                                "Key 'time_integration.realizability.1.upper' " + message));
+    assert(has_message_fragment(qmomkit::config::parse_qmom_phase_space_evolution_options(std::string(qmom_text) + R"(
+[time_integration.realizability]
+check_mode = final_only
+support = nonnegative
+lower = 5.0
+upper = 1.0
+)"),
+                                "Key 'time_integration.realizability.lower' " + message));
 }
 
 void test_coordinate_realizability_policies_parse_sparse_numbered_sections()
@@ -4438,6 +4549,7 @@ int main(const int argc, char** argv)
             {"qmom_mixture_initialization_matches_direct_api", test_qmom_mixture_initialization_matches_direct_api},
             {"mixture_zero_density_component_is_skipped", test_mixture_zero_density_component_is_skipped},
             {"mixture_level_distribution_keys_are_reported", test_mixture_level_distribution_keys_are_reported},
+            {"distribution_parameters_of_another_family_are_reported", test_distribution_parameters_of_another_family_are_reported},
             {"cqmom_rejects_the_removed_moment_storage_key", test_cqmom_rejects_the_removed_moment_storage_key},
             {"valid_cqmom_matches_programmatic_case", test_valid_cqmom_matches_programmatic_case},
             {"cqmom_independent_product_initialization_matches_direct_api", test_cqmom_independent_product_initialization_matches_direct_api},
@@ -4487,6 +4599,7 @@ int main(const int argc, char** argv)
             {"realizability_policy_defaults_to_disabled", test_realizability_policy_defaults_to_disabled},
             {"realizability_policy_parses_check_modes", test_realizability_policy_parses_check_modes},
             {"realizability_policy_parses_support_and_bounded_interval", test_realizability_policy_parses_support_and_bounded_interval},
+            {"realizability_bounds_without_a_bounded_interval_are_reported", test_realizability_bounds_without_a_bounded_interval_are_reported},
             {"coordinate_realizability_policies_parse_sparse_numbered_sections",
              test_coordinate_realizability_policies_parse_sparse_numbered_sections},
             {"quadrature_bounds_do_not_alter_coordinate_realizability_policy", test_quadrature_bounds_do_not_alter_coordinate_realizability_policy},

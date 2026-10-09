@@ -108,12 +108,13 @@ are the quadrature's absolute weights, so they carry the total number density,
 and an adaptive reconstruction passes only its active nodes.
 
 `CqmomSourceContext::moment` similarly uses exact required-index lookup first.
-`reconstructed_stage_quadrature` constructs a stage `CqmomCase`, reuses
-appropriate fixed metadata/active counts, and allows the internal adaptive
-reconstruction policy where configured. The cache belongs to this context and
-therefore this RK stage; it is not a global or whole-time-step cache. Missing
-stored moments are computed from that accepted quadrature, not added to the
-stage's tracked ODE vector.
+`reconstructed_stage_quadrature` constructs a stage `CqmomCase` and reuses the
+prepared metadata, with the active counts of the state as ceilings: an adaptive
+branch may lose nodes but gets no growth trial, as the QMOM context keeps its
+active node count, and grows only in the post-source inversion. The cache
+belongs to this context and therefore this RK stage; it is not a global or
+whole-time-step cache. Missing stored moments are computed from that accepted
+quadrature, not added to the stage's tracked ODE vector.
 
 `CqmomSourceContext::generalized_moment` additionally requires finite
 **nonnegative** exponents of matching dimension before generalized quadrature

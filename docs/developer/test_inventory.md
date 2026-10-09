@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 700 |
+| Unit logical tests | 702 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **936** |
+| **Runtime logical tests** | **938** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **937** |
+| **Total CTest registrations** | **939** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -1142,6 +1142,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_public_cqmom_advection_stage_preserves_topology` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_advection_stage_preserves_topology` | Checks that CQMOM advection stage preserves topology in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_moment_source_stage_adaptive_policy` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_moment_source_stage_adaptive_policy` | Verifies public CQMOM moment source stage adaptive policy. | — |
 | `unit_phase_space_evolution_public_cqmom_moment_source_stage_growth_is_limited_to_one_node` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_moment_source_stage_growth_is_limited_to_one_node` | Checks that CQMOM moment source stage growth is limited to one node in phase-space evolution. | — |
+| `unit_phase_space_evolution_public_cqmom_source_stage_quadrature_does_not_grow` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_source_stage_quadrature_does_not_grow` | Checks that the source-stage quadrature of an adaptive one-dimensional CQMOM state keeps its single active node in all three SSP-RK3 stages, although the later stage moments support more, and that the state grows by one node after the accepted step. | — |
+| `unit_phase_space_evolution_public_cqmom_source_closure_matches_qmom_in_one_dimension` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_source_closure_matches_qmom_in_one_dimension` | Checks that a source rate written over the nodes of the stage quadrature gives the same node count and moments, within 1e-12 relative, for a one-dimensional problem advanced as QMOM and as adaptive CQMOM. | — |
 | `unit_phase_space_evolution_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction` | Verifies that the public CQMOM moment-source stage canonicalizes an adaptive branch-count reduction. | — |
 | `unit_phase_space_evolution_public_cqmom_stage_composition_matches_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_stage_composition_matches_phase_space_evolution` | Checks that CQMOM stage composition matches phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_cqmom_phase_space_evolution_success_returns_no_diagnostic_quadrature` | `tests/unit/phase_space_evolution.cpp` | `cqmom_phase_space_evolution_success_returns_no_diagnostic_quadrature` | Verifies that successful CQMOM stages and macro steps leave the diagnostic quadrature empty and keep the accepted quadrature only in the returned state. | — |

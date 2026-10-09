@@ -176,8 +176,9 @@ public:
      * Visit the terminal nodes of the current source-stage CQMOM quadrature.
      *
      * During CQMOM phase-space source evolution, the quadrature is lazily
-     * reconstructed from the current SSP-RK stage using the state's active
-     * branch topology. The callback receives one global terminal weight and
+     * reconstructed from the current SSP-RK stage with the state's active
+     * branch counts as ceilings: an adaptive branch may have fewer nodes, never
+     * more. The callback receives one global terminal weight and
      * one phase-space-order coordinate vector per terminal node. The
      * coordinate reference is read-only and valid only for the duration of
      * that callback invocation.

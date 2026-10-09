@@ -2168,6 +2168,101 @@ void test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node()
     assert_cqmom_state_moments_match_quadrature(stage.state, stage.state.quadrature(), 5.0e-10);
 }
 
+// The source-stage quadrature of an adaptive CQMOM state keeps the active
+// branch counts of the state as ceilings, as the QMOM one keeps its active node
+// count: within the SSP-RK3 stages of a source step a branch may lose nodes but
+// not gain one, so the source closure keeps its structure throughout the step.
+// A branch grows only in the reconstruction after the accepted step.
+void test_public_cqmom_source_stage_quadrature_does_not_grow()
+{
+    constexpr std::size_t configured_node_count = 3;
+    const qmomkit::RawMomentTensor initial_moments = one_dimensional_cqmom_moments(configured_node_count, {0.0}, {1.0});
+    const qmomkit::RawMomentTensor target_moments = one_dimensional_cqmom_moments(configured_node_count, {-1.0, 0.25, 2.0}, {0.2, 0.3, 0.5});
+    const qmomkit::PhaseSpaceHierarchy hierarchy({configured_node_count});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
+    const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
+
+    // The later stages evaluate the source at moments of several weighted
+    // points, which would support more nodes than the single active one.
+    const qmomkit::CqmomMomentSource rate = source_from_to(initial_required, target_required);
+    std::size_t stages = 0;
+    std::size_t largest_stage_node_count = 0;
+    const qmomkit::CqmomMomentSource source = [&](const double time, const qmomkit::CqmomSourceContext& context)
+    {
+        std::size_t nodes = 0;
+        context.for_each_terminal_node([&nodes](double, const std::vector<double>&) { ++nodes; });
+        largest_stage_node_count = std::max(largest_stage_node_count, nodes);
+        ++stages;
+        return rate(time, context);
+    };
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult step =
+        qmomkit::advance_cqmom_moment_source(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, source);
+    assert(step.ok());
+    assert(stages == 3);
+    assert(largest_stage_node_count == 1);
+    assert(step.state.quadrature().total_nodes() == 2);
+}
+
+// The same one-dimensional problem gives QMOM and CQMOM the same source
+// closure. The source rate depends on the stage quadrature through its nodes,
+// and its later stages see moments that support more nodes than the active
+// one, so a stage quadrature that grew in one method would change its result.
+void test_public_cqmom_source_closure_matches_qmom_in_one_dimension()
+{
+    constexpr std::size_t configured_node_count = 3;
+    const std::vector<double> initial = raw_moments_1d({0.5}, {1.0}, 2 * configured_node_count);
+    const std::vector<double> target = raw_moments_1d({-1.0, 0.25, 2.0}, {0.2, 0.3, 0.5}, 2 * configured_node_count);
+    // dm_k/dt drives the moments towards `target` and removes number density at
+    // a rate proportional to the squared abscissa, evaluated over the nodes.
+    const auto rate = [&initial, &target](const std::size_t order, const std::function<void(const std::function<void(double, double)>&)>& nodes)
+    {
+        double removal = 0.0;
+        nodes([&removal, order](const double weight, const double abscissa)
+              { removal += weight * abscissa * abscissa * std::pow(abscissa, static_cast<int>(order)); });
+        return target[order] - initial[order] - removal;
+    };
+
+    const qmomkit::QmomMomentSource qmom_source = [&rate](double, const qmomkit::QmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size());
+        for (std::size_t order = 0; order < rates.size(); ++order)
+        {
+            rates[order] = rate(order, [&context](const std::function<void(double, double)>& visit) { context.for_each_node(visit); });
+        }
+        return qmomkit::QmomMomentRate{rates};
+    };
+    const qmomkit::CqmomMomentSource cqmom_source = [&rate](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size());
+        for (std::size_t position = 0; position < rates.size(); ++position)
+        {
+            rates[position] =
+                rate(context.index(position)[0], [&context](const std::function<void(double, double)>& visit)
+                     { context.for_each_terminal_node([&visit](const double weight, const std::vector<double>& x) { visit(weight, x[0]); }); });
+        }
+        return qmomkit::CqmomMomentRate{rates};
+    };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult qmom = qmomkit::advance_qmom_moment_source(
+        qmom_state_from_moments(initial, configured_node_count, {true, 1.0e-10, 1.0e-10, 1.0e-12}), 0.0, 0.5, qmom_source);
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({configured_node_count}));
+    const qmomkit::CqmomMomentData initial_required =
+        qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{2 * configured_node_count}, initial}, layout);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult cqmom =
+        qmomkit::advance_cqmom_moment_source(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 0.5, cqmom_source);
+
+    assert(qmom.ok());
+    assert(cqmom.ok());
+    assert(cqmom.state.quadrature().total_nodes() == qmom.state.active_node_count());
+    for (std::size_t position = 0; position < cqmom.state.moment_values().size(); ++position)
+    {
+        const double expected = qmom.state.moment_values()[cqmom.state.moment_indices()[position][0]];
+        assert(std::abs(cqmom.state.moment_values()[position] - expected) <= 1.0e-12 * std::max(1.0, std::abs(expected)));
+    }
+}
+
 void test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction()
 {
     constexpr std::size_t configured_node_count = 3;
@@ -4630,6 +4725,8 @@ int main(const int argc, char** argv)
             {"public_cqmom_advection_stage_preserves_topology", test_public_cqmom_advection_stage_preserves_topology},
             {"public_cqmom_moment_source_stage_adaptive_policy", test_public_cqmom_moment_source_stage_adaptive_policy},
             {"public_cqmom_moment_source_stage_growth_is_limited_to_one_node", test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node},
+            {"public_cqmom_source_stage_quadrature_does_not_grow", test_public_cqmom_source_stage_quadrature_does_not_grow},
+            {"public_cqmom_source_closure_matches_qmom_in_one_dimension", test_public_cqmom_source_closure_matches_qmom_in_one_dimension},
             {"public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction",
              test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction},
             {"public_cqmom_stage_composition_matches_phase_space_evolution", test_public_cqmom_stage_composition_matches_phase_space_evolution},

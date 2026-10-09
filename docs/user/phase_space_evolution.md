@@ -332,7 +332,9 @@ the current Runge-Kutta stage rather than the accepted state. Use:
   reconstruction may have fewer nodes than configured.
 
 The quadrature is built at most once per stage, however many of these requests
-a callback makes. A node visitor suits rates that depend on the abscissa in a
+a callback makes. It has at most the active nodes of the state: an adaptive
+reconstruction may drop nodes within a step but adds one only after the
+accepted step, so the closure keeps its structure throughout the step. A node visitor suits rates that depend on the abscissa in a
 way the transported moments cannot express, such as size-dependent growth. With
 a growth rate $G(x) = 0.1\sqrt{x}$, each node contributes
 $w_i\,k\,x_i^{k-1} G(x_i)$ to $\mathrm{d}M_k/\mathrm{d}t$:
@@ -427,7 +429,8 @@ Write the rate over moments with `context.moment(...)`, or over nodes with
 `context.for_each_terminal_node(...)`; there is no need to reconstruct a
 quadrature yourself, as the context does it for you when one is needed. As in
 the one-dimensional case, both require a `CqmomState` to evolve: the generic
-vector-based source update rejects them.
+vector-based source update rejects them, and each branch of the stage
+quadrature has at most the active nodes of the state's branch.
 
 The returned source values correspond to the context ordering. For entry `i`,
 compute the derivative for `context.index(i)` from the current state and write

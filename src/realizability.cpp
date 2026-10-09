@@ -2,6 +2,8 @@
 
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
+#include "internal/realizability.hpp"
+#include "qmomkit/realizability_policy.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -483,6 +485,18 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return state.result;
 }
 
+[[nodiscard]] const char* tolerance_error(const RealizabilityOptions& options)
+{
+    return std::isfinite(options.tolerance) && options.tolerance > 0.0 ? nullptr : "Realizability tolerance must be finite and positive.";
+}
+
+[[nodiscard]] const char* interval_error(const BoundedInterval interval)
+{
+    return std::isfinite(interval.lower) && std::isfinite(interval.upper) && interval.lower < interval.upper
+               ? nullptr
+               : "Bounded interval must have finite bounds with lower < upper.";
+}
+
 [[nodiscard]] RealizabilityResult validate_common_inputs(const MomentSet& moments, const RealizabilityOptions& options)
 {
     if (moments.empty())
@@ -493,10 +507,9 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     {
         return make_result(RealizabilityStatus::invalid_input, moments.size() - 1, "", 0, 0.0, 0.0, "Moment sequence contains a non-finite value.");
     }
-    if (!std::isfinite(options.tolerance) || options.tolerance <= 0.0)
+    if (const char* error = tolerance_error(options); error != nullptr)
     {
-        return make_result(RealizabilityStatus::invalid_input, moments.size() - 1, "", 0, 0.0, 0.0,
-                           "Realizability tolerance must be finite and positive.");
+        return make_result(RealizabilityStatus::invalid_input, moments.size() - 1, "", 0, 0.0, 0.0, error);
     }
     if (moments[0] < 0.0)
     {
@@ -821,10 +834,10 @@ RealizabilityResult check_realizability(const MomentSet& moments, const MomentSu
 RealizabilityResult check_realizability(const MomentSet& moments, const BoundedInterval interval, const RealizabilityOptions& options)
 {
     RealizabilityResult validation = validate_common_inputs(moments, options);
-    if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
+    if (const char* error = interval_error(interval); error != nullptr)
     {
         return make_result(RealizabilityStatus::invalid_input, moments.empty() ? 0 : moments.size() - 1, "bounded_interval", 0, 0.0,
-                           options.tolerance, "Bounded interval must have finite bounds with lower < upper.");
+                           options.tolerance, error);
     }
     if (validation.status != RealizabilityStatus::strictly_realizable)
     {
@@ -834,6 +847,31 @@ RealizabilityResult check_realizability(const MomentSet& moments, const BoundedI
     const TestedMoments tested = standardized_moments(moments);
     return with_support_context(check_hausdorff(tested.moments, tested.bound(interval.lower), tested.bound(interval.upper), options),
                                 MomentSupport::bounded_interval);
+}
+
+const char* internal::realizability_policy_error(const RealizabilityPolicy& policy)
+{
+    if (policy.check_mode == RealizabilityCheckMode::None)
+    {
+        return nullptr;
+    }
+    if (policy.check_mode != RealizabilityCheckMode::EveryStage && policy.check_mode != RealizabilityCheckMode::FinalOnly)
+    {
+        return "Unknown realizability check mode.";
+    }
+    if (const char* error = tolerance_error(policy.options); error != nullptr)
+    {
+        return error;
+    }
+    switch (policy.support)
+    {
+    case MomentSupport::real_line:
+    case MomentSupport::nonnegative:
+        return nullptr;
+    case MomentSupport::bounded_interval:
+        return policy.interval.has_value() ? interval_error(*policy.interval) : "A bounded-interval realizability policy requires an interval.";
+    }
+    return "Unknown moment support.";
 }
 
 } // namespace qmomkit

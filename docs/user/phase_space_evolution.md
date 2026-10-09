@@ -919,6 +919,16 @@ accepted phase-space evolution step. On failure, `result.message` and `result.di
 indicate whether the inversion, node advection, moment-source update, or
 moment reconstruction failed.
 
+An option that a stage cannot apply, such as a negative `min_time_step`, a
+non-positive node-advection tolerance, or a realizability policy with a bounded
+interval but no bounds, is reported as `invalid_input` before any stage runs and
+before any callback is called. A failure status of a stage therefore never
+stands for a mistake in the options, so retrying with a shorter time step is
+only worthwhile for the stage failures. Options that the stages of a call do not
+read, such as the source options of `advance_qmom_advection(...)`, the adaptive
+options of SSP-RK3 node advection, or a policy whose `check_mode` is `None`, are
+not checked.
+
 `result.final_time` is always the time of `result.state`. On success it is
 `time + time_step`. On failure the returned state is the input state, so
 `result.final_time` is the input `time`, whichever stage failed.

@@ -14,7 +14,13 @@ distinctions and concern below qualify what the implementation actually checks.
 The public overloads accept an inclusive sequence `m0..mN` and either a support
 enum or explicit interval. They are called directly by applications and by the
 runtime policy adapters. Common validation rejects empty/non-finite sequences
-and nonpositive/non-finite tolerance. Negative mass is `not_realizable`;
+and nonpositive/non-finite tolerance. The tolerance and interval rules live in
+`tolerance_error` and `interval_error`; `realizability_policy_error` applies
+them to a policy, which must also name a known check mode and, for a bounded
+interval, carry one. The moment-source update and phase-space evolution run it
+before any stage, so an invalid policy is invalid input rather than a rejection
+of the moments; a policy whose `check_mode` is `None` is never applied and not
+checked. Negative mass is `not_realizable`;
 exactly zero mass accepts only an exactly all-zero sequence, classified
 `boundary`. There is no near-zero-mass cutoff in this classifier.
 

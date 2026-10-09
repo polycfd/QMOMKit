@@ -783,7 +783,11 @@ information and is not an accepted phase-space evolution state.
 
 Status propagation follows subsystem ownership:
 
-- input validation failures become `invalid_input`;
+- input validation failures become `invalid_input`, including an option that a
+  stage of the call cannot apply: every entry point checks the options of the
+  stages it runs before the first one, with the rules the stages themselves
+  apply (`adaptive_rk_options_error`, the moment-source option validators and
+  `realizability_policy_error`), and ignores options its stages do not read;
 - failed initial or post-source reconstruction becomes `inversion_failed`;
 - node-advection integration failures become `advection_failed`;
 - raw-moment reconstruction exceptions become `moment_reconstruction_failed`;

@@ -216,6 +216,29 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
     }
 }
 
+const char* internal::adaptive_rk_options_error(const AdaptiveRkOptions& options)
+{
+    if (!std::isfinite(options.relative_tolerance) || !std::isfinite(options.absolute_tolerance) || options.relative_tolerance <= 0.0 ||
+        options.absolute_tolerance <= 0.0 || options.max_steps == 0)
+    {
+        return "Invalid embedded Runge-Kutta input.";
+    }
+    if ((!std::isfinite(options.initial_step) || options.initial_step <= 0.0) || !std::isfinite(options.max_step) || options.max_step < 0.0 ||
+        !std::isfinite(options.min_step) || options.min_step < 0.0)
+    {
+        return "Invalid embedded Runge-Kutta step-size option.";
+    }
+    // Only two explicit limits can contradict each other. A default max_step
+    // is the interval itself, and an interval shorter than min_step is taken
+    // as one step, so that a caller retrying with a shorter interval is not
+    // refused for it.
+    if (options.max_step > 0.0 && options.min_step > options.max_step)
+    {
+        return "Embedded Runge-Kutta min_step must not exceed max_step.";
+    }
+    return nullptr;
+}
+
 AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state, const double t0, const double t_bound, const OdeRhs& rhs,
                                        const EmbeddedRkMethod method, const AdaptiveRkOptions& options)
 {
@@ -233,26 +256,15 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     {
         return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta state must not be empty.");
     }
-    if (!internal::all_finite(initial_state) || !std::isfinite(t0) || !std::isfinite(t_bound) || !std::isfinite(options.relative_tolerance) ||
-        !std::isfinite(options.absolute_tolerance) || options.relative_tolerance <= 0.0 || options.absolute_tolerance <= 0.0 ||
-        options.max_steps == 0)
+    if (!internal::all_finite(initial_state) || !std::isfinite(t0) || !std::isfinite(t_bound))
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta input.");
     }
     // Validated before the empty-interval return below, so invalid options are
     // reported whether or not the interval is empty.
-    if ((!std::isfinite(options.initial_step) || options.initial_step <= 0.0) || !std::isfinite(options.max_step) || options.max_step < 0.0 ||
-        !std::isfinite(options.min_step) || options.min_step < 0.0)
+    if (const char* error = internal::adaptive_rk_options_error(options); error != nullptr)
     {
-        return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta step-size option.");
-    }
-    // Only two explicit limits can contradict each other. A default max_step
-    // is the interval itself, and an interval shorter than min_step is taken
-    // as one step, so that a caller retrying with a shorter interval is not
-    // refused for it.
-    if (options.max_step > 0.0 && options.min_step > options.max_step)
-    {
-        return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");
+        return invalid_embedded_rk_result(initial_state, t0, error);
     }
     if (t0 == t_bound)
     {

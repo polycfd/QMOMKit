@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace
@@ -595,6 +596,52 @@ void test_cqmom_moment_data_rk_failure_propagates_and_preserves_state()
     assert_vector_near(result.moments.values, initial.values, 1.0e-15);
 }
 
+// A coordinate policy that cannot be applied is invalid input before the
+// source is called, not a rejection of the moments. A policy that checks
+// nothing is not applied, so its settings are not read.
+void test_cqmom_invalid_coordinate_policies_are_invalid_input()
+{
+    const qmomkit::CqmomMomentData initial = create_coordinate_policy_moment_data(2);
+    std::size_t source_calls = 0;
+    const auto source = [&source_calls](double, const qmomkit::CqmomSourceContext& moments)
+    {
+        ++source_calls;
+        return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)};
+    };
+
+    qmomkit::RealizabilityPolicy bounded_without_interval;
+    bounded_without_interval.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    bounded_without_interval.support = qmomkit::MomentSupport::bounded_interval;
+    qmomkit::RealizabilityPolicy inverted_interval = bounded_without_interval;
+    inverted_interval.interval = qmomkit::BoundedInterval{1.0, 0.0};
+    qmomkit::RealizabilityPolicy zero_tolerance;
+    zero_tolerance.check_mode = qmomkit::RealizabilityCheckMode::EveryStage;
+    zero_tolerance.options.tolerance = 0.0;
+    const std::vector<std::pair<std::vector<std::optional<qmomkit::RealizabilityPolicy>>, std::string>> cases{
+        {{std::nullopt, bounded_without_interval},
+         "CQMOM coordinate 1 realizability policy: A bounded-interval realizability policy requires an interval."},
+        {{inverted_interval}, "CQMOM coordinate 0 realizability policy: Bounded interval must have finite bounds with lower < upper."},
+        {{zero_tolerance}, "CQMOM coordinate 0 realizability policy: Realizability tolerance must be finite and positive."},
+        {{std::nullopt, std::nullopt, qmomkit::RealizabilityPolicy{}},
+         "CQMOM coordinate realizability policy index is outside the phase-space dimension."},
+    };
+    for (const auto& [policies, message] : cases)
+    {
+        qmomkit::MomentSourceUpdateOptions options;
+        options.coordinate_realizability_policies = policies;
+        const qmomkit::CqmomMomentSourceUpdateResult result = qmomkit::advance_cqmom_moments_with_source(initial, 0.0, 0.2, source, options);
+        assert(result.status == qmomkit::MomentSourceUpdateStatus::invalid_input);
+        assert(result.message == message);
+        assert(source_calls == 0);
+    }
+
+    qmomkit::RealizabilityPolicy unapplied = bounded_without_interval;
+    unapplied.check_mode = qmomkit::RealizabilityCheckMode::None;
+    qmomkit::MomentSourceUpdateOptions options;
+    options.coordinate_realizability_policies = {unapplied};
+    assert(qmomkit::advance_cqmom_moments_with_source(initial, 0.0, 0.2, source, options).ok());
+}
+
 void test_cqmom_coordinate_final_only_policy_rejects_final_candidate()
 {
     qmomkit::CqmomMomentData initial = create_coordinate_policy_moment_data(2);
@@ -1022,6 +1069,7 @@ int main(const int argc, char** argv)
             {"cqmom_moment_data_rate_size_mismatch_fails", test_cqmom_moment_data_rate_size_mismatch_fails},
             {"cqmom_moment_data_non_finite_source_fails", test_cqmom_moment_data_non_finite_source_fails},
             {"cqmom_moment_data_rk_failure_propagates_and_preserves_state", test_cqmom_moment_data_rk_failure_propagates_and_preserves_state},
+            {"cqmom_invalid_coordinate_policies_are_invalid_input", test_cqmom_invalid_coordinate_policies_are_invalid_input},
             {"cqmom_coordinate_final_only_policy_rejects_final_candidate", test_cqmom_coordinate_final_only_policy_rejects_final_candidate},
             {"cqmom_coordinate_every_stage_policy_rejects_stage_candidate", test_cqmom_coordinate_every_stage_policy_rejects_stage_candidate},
             {"cqmom_coordinate_policies_check_configured_marginals_only", test_cqmom_coordinate_policies_check_configured_marginals_only},

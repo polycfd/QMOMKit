@@ -38,7 +38,7 @@ down where to look:
 
 | Status | Stage that failed | Usual cause |
 | --- | --- | --- |
-| `invalid_input` | Nothing ran | Sizes, counts, or non-finite values in what you supplied |
+| `invalid_input` | Nothing ran | Sizes, counts, or non-finite values in what you supplied, or an option a stage cannot apply |
 | `not_realizable` | QMOM inversion | The moments cannot come from a real distribution |
 | `qmom_failed` | A CQMOM marginal or conditional inversion | As above, inside one branch |
 | `conditional_moment_failed` | CQMOM conditioning | The conditional system could not be solved |

@@ -4,11 +4,13 @@
 #include "internal/checked_size.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/embedded_runge_kutta.hpp"
 #include "internal/moment_reconstruction.hpp"
 #include "internal/moment_source.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/qmom_state_access.hpp"
+#include "internal/realizability.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "qmomkit/multi_index.hpp"
 #include "qmomkit/quadrature.hpp"
@@ -154,6 +156,35 @@ void validate_qmom_input(const QmomState& state, const double t, const double ti
     if (!source)
     {
         throw std::invalid_argument("A moment-source callback must be provided for phase-space evolution.");
+    }
+}
+
+// Stage options are checked before any stage runs, so that a mistake in them is
+// invalid input rather than a failure of whichever stage reads them. Each entry
+// point checks only the options of the stages it runs.
+void validate_node_advection_options(const NodeAdvectionOptions& options)
+{
+    switch (options.scheme)
+    {
+    case NodeAdvectionScheme::rk23:
+    case NodeAdvectionScheme::rk45:
+        if (const char* error = internal::adaptive_rk_options_error(options.adaptive_options); error != nullptr)
+        {
+            throw std::invalid_argument(error);
+        }
+        return;
+    case NodeAdvectionScheme::ssp_rk3:
+        return;
+    }
+    throw std::invalid_argument("Unsupported node-advection scheme.");
+}
+
+void validate_qmom_source_options(const QmomPhaseSpaceEvolutionOptions& options)
+{
+    internal::validate_qmom_moment_source_options(options.source_options);
+    if (const char* error = internal::realizability_policy_error(options.realizability_policy); error != nullptr)
+    {
+        throw std::invalid_argument(std::string("QMOM realizability policy: ") + error);
     }
 }
 
@@ -630,6 +661,8 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomSta
     {
         validate_qmom_input(state, t, time_step, velocity, source, options.scheme);
         validate_boundary(boundary);
+        validate_node_advection_options(options.node_options);
+        validate_qmom_source_options(options);
     }
     catch (const std::exception& error)
     {
@@ -671,6 +704,7 @@ QmomPhaseSpaceEvolutionResult advance_qmom_advection(const QmomState& state, con
     try
     {
         validate_qmom_advection_input(state, t, time_step, velocity);
+        validate_node_advection_options(options.node_options);
     }
     catch (const std::exception& error)
     {
@@ -698,6 +732,7 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_moment_source_impl(const QmomS
     try
     {
         validate_qmom_moment_source_input(state, t, time_step, source, boundary);
+        validate_qmom_source_options(options);
     }
     catch (const std::exception& error)
     {
@@ -1066,6 +1101,8 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomS
     try
     {
         validate_cqmom_phase_space_evolution_input(state, t, time_step, velocity, source, boundary, options.scheme);
+        validate_node_advection_options(options.node_options);
+        internal::validate_cqmom_moment_source_options(options.source_options, state.hierarchy().number_of_dimensions());
     }
     catch (const std::exception& error)
     {
@@ -1126,6 +1163,7 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_advection(const CqmomState& state, 
     try
     {
         validate_cqmom_advection_input(state, t, time_step, velocity);
+        validate_node_advection_options(options.node_options);
     }
     catch (const std::exception& error)
     {
@@ -1150,6 +1188,7 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source_public_impl(const Cqm
     try
     {
         validate_cqmom_moment_source_input(state, t, time_step, source, boundary);
+        internal::validate_cqmom_moment_source_options(options.source_options, state.hierarchy().number_of_dimensions());
     }
     catch (const std::exception& error)
     {

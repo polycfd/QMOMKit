@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 697 |
+| Unit logical tests | 700 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **933** |
+| **Runtime logical tests** | **936** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **934** |
+| **Total CTest registrations** | **937** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -1062,6 +1062,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_moment_source_cqmom_moment_data_rate_size_mismatch_fails` | `tests/unit/moment_source.cpp` | `cqmom_moment_data_rate_size_mismatch_fails` | Verifies CQMOM moment data rate size mismatch fails. | — |
 | `unit_moment_source_cqmom_moment_data_non_finite_source_fails` | `tests/unit/moment_source.cpp` | `cqmom_moment_data_non_finite_source_fails` | Checks that moment-source integration detects the tested non-finite value and returns the documented failure. | — |
 | `unit_moment_source_cqmom_moment_data_rk_failure_propagates_and_preserves_state` | `tests/unit/moment_source.cpp` | `cqmom_moment_data_rk_failure_propagates_and_preserves_state` | Checks that moment data rk failure propagates and preserves state in moment-source integration. | — |
+| `unit_moment_source_cqmom_invalid_coordinate_policies_are_invalid_input` | `tests/unit/moment_source.cpp` | `cqmom_invalid_coordinate_policies_are_invalid_input` | Checks that a CQMOM coordinate policy with a bounded interval but no interval, an inverted interval, a non-positive tolerance, or an index beyond the dimensions is `invalid_input` with its message and without a source call, and that a policy whose `check_mode` is `None` is not read. | — |
 | `unit_moment_source_cqmom_coordinate_final_only_policy_rejects_final_candidate` | `tests/unit/moment_source.cpp` | `cqmom_coordinate_final_only_policy_rejects_final_candidate` | Checks that coordinate final only policy rejects final candidate in moment-source integration. | — |
 | `unit_moment_source_cqmom_coordinate_every_stage_policy_rejects_stage_candidate` | `tests/unit/moment_source.cpp` | `cqmom_coordinate_every_stage_policy_rejects_stage_candidate` | Checks that coordinate every stage policy rejects stage candidate in moment-source integration. | — |
 | `unit_moment_source_cqmom_coordinate_policies_check_configured_marginals_only` | `tests/unit/moment_source.cpp` | `cqmom_coordinate_policies_check_configured_marginals_only` | Verifies CQMOM coordinate policies check configured marginals only. | — |
@@ -1152,6 +1153,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_cqmom_macro_success_preserves_input_and_final_value_semantics` | `tests/unit/phase_space_evolution.cpp` | `cqmom_macro_success_preserves_input_and_final_value_semantics` | Checks that macro success preserves input and final value semantics in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | Checks that CQMOM boundary moment source stage matches phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_stage_irrelevant_options_are_ignored` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_stage_irrelevant_options_are_ignored` | Verifies public CQMOM stage irrelevant options are ignored. | — |
+| `unit_phase_space_evolution_public_qmom_invalid_stage_options_are_invalid_input` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_invalid_stage_options_are_invalid_input` | Checks that invalid node-advection options (tolerance, step sizes, scheme) and invalid source options (`min_time_step`, coordinate policies, realizability policy) are `invalid_input` from every QMOM entry point that runs the stage, with no failed stage, no callback call, and the input state at the input time; that an entry point not running the stage ignores them; and that SSP-RK3 advection and a policy that checks nothing do not read their settings. | — |
+| `unit_phase_space_evolution_public_cqmom_invalid_stage_options_are_invalid_input` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_invalid_stage_options_are_invalid_input` | Checks the same for CQMOM: invalid node-advection options, `min_time_step`, a coordinate policy beyond the dimensions and invalid coordinate policies are `invalid_input` before any callback from every entry point running the stage, and an unapplied coordinate policy is not read. | — |
 | `unit_phase_space_evolution_minimum_steps_above_the_stage_step_allow_host_retries` | `tests/unit/phase_space_evolution.cpp` | `minimum_steps_above_the_stage_step_allow_host_retries` | Checks that QMOM and CQMOM Strang steps succeed when their stages are shorter than an explicit node-advection `min_step` and source `min_time_step`, as a host retry with a smaller step produces. | — |
 | `unit_phase_space_evolution_advection_only_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `advection_only_matches_direct_operator_qmom` | Checks that advection only matches direct operator QMOM in phase-space evolution. | — |
 | `unit_phase_space_evolution_source_only_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `source_only_matches_direct_operator_qmom` | Checks that source only matches direct operator QMOM in phase-space evolution. | — |

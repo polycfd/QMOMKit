@@ -24,7 +24,11 @@ cmake --build build
 cmake --install build
 ```
 
-This writes to `install/` inside the repository:
+Unless you choose otherwise, the build type is `Release` (with a
+single-configuration generator) and the install prefix is `install/` in the
+top-level source directory; pass `-DCMAKE_BUILD_TYPE=...` or
+`-DCMAKE_INSTALL_PREFIX=...` to change them. By default this writes to
+`install/` inside the repository:
 
 ```text
 install/
@@ -64,6 +68,40 @@ allocated, so ordinary builds carry no cost. Numerical results are identical
 either way. See
 [performance instrumentation](../developer/performance_instrumentation.md) for
 what the counters record and how to read them.
+
+## Building QMOMKit inside another project
+
+The installed package above is the normal way to use QMOMKit. A project can
+also add the QMOMKit source tree to its own build, with `add_subdirectory(...)`
+or `FetchContent`, which adds it the same way, and link `qmomkit::qmomkit`
+directly. QMOMKit's defaults then apply to the whole project, because CMake has
+one cache for it:
+
+- If no build type is set and the generator builds a single configuration, the
+  build type of the whole project becomes `Release`. A multi-configuration
+  generator, such as Visual Studio, Xcode, or Ninja Multi-Config, is left
+  alone.
+- If no install prefix is set, the install prefix of the whole project becomes
+  `install/` in the project's own top-level source directory, not in QMOMKit's.
+  This also replaces a default prefix that the project sets for itself, from
+  `CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT`, before adding QMOMKit.
+- Installing the project also installs QMOMKit's headers, library, and CMake
+  package files into the project's prefix.
+
+Values given on the command line or in a preset, such as
+`-DCMAKE_BUILD_TYPE=Debug` or `-DCMAKE_INSTALL_PREFIX=/opt/my_application`, are
+kept, and so is a default build type that the project sets before adding
+QMOMKit. A default install prefix of the project's own has to be set after
+adding QMOMKit:
+
+```cmake
+add_subdirectory(external/QMOMKit)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Install path prefix" FORCE)
+endif()
+```
+
+QMOMKit's tests are built only when `QMOMKIT_BUILD_TESTS` is set.
 
 ## Build tests
 

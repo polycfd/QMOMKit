@@ -405,8 +405,9 @@ ConfigurationResult<T>
 ```
 
 where `value()` is valid only on success and `error()` contains the public
-diagnostic string on failure. Internally, parser failures are still assembled
-from `ConfigurationError` records carrying:
+diagnostic string on failure: the first problem found, as
+`<source>:<line>: <message>`. Internally, parser failures are assembled from
+`ConfigurationError` records, private to `configuration.cpp`, carrying:
 
 - an error code;
 - a source name;
@@ -471,11 +472,11 @@ Public configuration capabilities include:
 - `parse_realizability_policy(...)`, `load_realizability_policy(...)`, and
   `parse_coordinate_realizability_policies(...)`;
 - `parse_output_options(...)` and `load_output_options(...)`;
-- `ConfigurationResult<T>`, `ConfigurationError`, and
-  `ConfigurationErrorCode`.
+- `ConfigurationResult<T>`.
 
 Implementation details include:
 
+- `ConfigurationError` records and their `ConfigurationErrorCode`;
 - parser storage structures;
 - line tokenization;
 - section and key qualification;

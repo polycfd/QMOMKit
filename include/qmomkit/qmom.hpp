@@ -138,9 +138,10 @@ enum class StateCandidateStatus
 /**
  * A QMOM evolution state created from moments, or the reason none was.
  *
- * `state` holds the state only on success. `realizability` holds the verdict
- * of the requested realizability check, whether it accepted the moments or
- * not, and `reconstruction_status` the status of the quadrature
+ * `state` holds the state only on success: take it with `*state` and use it
+ * like a state from `QmomCase::initial_state()`. `realizability` holds the
+ * verdict of the requested realizability check, whether it accepted the
+ * moments or not, and `reconstruction_status` the status of the quadrature
  * reconstruction, when it ran.
  */
 struct QmomStateCandidate

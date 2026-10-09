@@ -137,8 +137,8 @@ and evidence](state_and_representations.md)
 | `CqmomQuadrature::adaptive_branch_counts_enabled` | [64](../../../include/qmomkit/cqmom.hpp#L64) |
 | `CqmomQuadrature::has_rectangular_storage` | [68](../../../include/qmomkit/cqmom.hpp#L68) |
 | `CqmomQuadrature::terminal_paths` | [72](../../../include/qmomkit/cqmom.hpp#L72) |
-| `CqmomResult::ok` | [387](../../../include/qmomkit/cqmom.hpp#L387) |
-| `CqmomStateCandidate::ok` | [294](../../../include/qmomkit/cqmom.hpp#L294) |
+| `CqmomResult::ok` | [388](../../../include/qmomkit/cqmom.hpp#L388) |
+| `CqmomStateCandidate::ok` | [295](../../../include/qmomkit/cqmom.hpp#L295) |
 | `CqmomQuadrature::hierarchy` | [44](../../../include/qmomkit/cqmom.hpp#L44) |
 
 ### `include/qmomkit/distributions.hpp`
@@ -235,7 +235,7 @@ evidence](state_and_representations.md)
 | `QmomState::maximum_node_count` | [89](../../../include/qmomkit/qmom.hpp#L89) |
 | `QmomState::qmom_options` | [94](../../../include/qmomkit/qmom.hpp#L94) |
 | `QmomState::abscissa_bounds` | [99](../../../include/qmomkit/qmom.hpp#L99) |
-| `QmomStateCandidate::ok` | [154](../../../include/qmomkit/qmom.hpp#L154) |
+| `QmomStateCandidate::ok` | [155](../../../include/qmomkit/qmom.hpp#L155) |
 
 ### `include/qmomkit/quadrature.hpp`
 

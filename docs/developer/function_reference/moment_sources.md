@@ -59,8 +59,10 @@ all RK stages and presents each stage's value vector in that layout to the
 callback. Stage values and returned rates must retain matching size and finite
 entries; a source cannot change hierarchy or moment indexing.
 
-`extract_coordinate_marginal` finds indices whose other exponents are zero,
-sorts by the selected coordinate order, and gathers their values. Upstream
+`extract_coordinate_marginal`, in `internal/cqmom_case.hpp` because
+`CqmomPreparedCase::state_candidate` checks the same marginals, finds indices
+whose other exponents are zero, sorts by the selected coordinate order, and
+gathers their values. Upstream
 canonical layout construction supplies the needed contiguous orders. It does
 not marginalize by summing unrelated stored mixed moments.
 `accepts_coordinate_realizability_policies` checks only coordinates with

@@ -276,9 +276,10 @@ private:
 /**
  * A CQMOM evolution state created from moments, or the reason none was.
  *
- * `state` holds the state only on success. When a coordinate realizability
- * check rejected the moments, `rejected_coordinate` names the coordinate and
- * `realizability` holds the verdict on its marginal moments.
+ * `state` holds the state only on success: take it with `*state` and use it
+ * like a state from `CqmomPreparedCase::initial_state()`. When a coordinate
+ * realizability check rejected the moments, `rejected_coordinate` names the
+ * coordinate and `realizability` holds the verdict on its marginal moments.
  * `reconstruction_status` holds the status of the quadrature reconstruction,
  * when it ran.
  */

@@ -116,15 +116,20 @@ private:
 /**
  * Outcome of creating an evolution state from moments.
  *
- * `invalid_input`: the moments cannot form a state with the settings of the
- * case, for example because they are too few or not finite.
- * `realizability_rejected`: the requested realizability check did not accept
- * the moments. `reconstruction_failed`: no quadrature could be reconstructed
- * from the moments.
+ * `empty`: the total number density is below the reconstruction cutoff
+ * (`QmomOptions::cutoff`), as in an empty cell, so there is nothing to
+ * reconstruct. `invalid_input`: the moments cannot form a state with the
+ * settings of the case, for example because they are too few or not finite,
+ * or the realizability policy is invalid, for example a bounded interval
+ * without bounds. `realizability_rejected`: the requested realizability check
+ * did not accept the moments. `reconstruction_failed`: no quadrature could be
+ * reconstructed from the moments, or the moments of the accepted quadrature
+ * exceed the range of a double.
  */
 enum class StateCandidateStatus
 {
     success,
+    empty,
     invalid_input,
     realizability_rejected,
     reconstruction_failed
@@ -170,9 +175,11 @@ struct QmomCase
      * Create an evolution state from other moments, with the node count,
      * options and abscissa bounds of this case; the moments of the case are
      * not used. This is how a host rebuilds the state of moments it changed
-     * itself, for example by transport in physical space. The quadrature is
-     * reconstructed once, the stored moments are those of the accepted
-     * quadrature, and a failure is reported in the result rather than thrown.
+     * itself, for example by transport in physical space. All moments must be
+     * finite, including those above order 2n - 1, which the reconstruction
+     * does not use. The quadrature is reconstructed once, the stored moments
+     * are those of the accepted quadrature, and a failure is reported in the
+     * result rather than thrown.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments) const;
 
@@ -180,14 +187,15 @@ struct QmomCase
      * Create an evolution state as above, after checking the moments against
      * `policy` unless its `check_mode` is `None`. The check accepts strictly
      * realizable moments, and boundary moments when `policy.accept_boundary`
-     * is set.
+     * is set. Moments too few for the node count are invalid input, checked
+     * or not.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments, const RealizabilityPolicy& policy) const;
 
     /**
      * Construct the accepted initial phase-space evolution state from the
-     * moments of this case: `state_candidate(moments)`, which throws
-     * `std::runtime_error` when no state can be created.
+     * moments of this case, throwing `std::runtime_error` when they cannot be
+     * reconstructed.
      */
     [[nodiscard]] QmomState initial_state() const;
 };

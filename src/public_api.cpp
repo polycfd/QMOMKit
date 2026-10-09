@@ -12,7 +12,9 @@
 #include "qmomkit/realizability_policy.hpp"
 #include "qmomkit/wheeler.hpp"
 
+#include <algorithm>
 #include <exception>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -155,12 +157,23 @@ QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const s
 
 namespace
 {
+// Whether moments hold no number density to reconstruct from, as in an empty
+// cell: the reconstruction refuses an m0 below its cutoff.
+[[nodiscard]] bool below_number_density_cutoff(const double m0, const QmomOptions& options)
+{
+    return m0 >= 0.0 && m0 < options.cutoff;
+}
+
 // The check is optional, and the quadrature it is followed by is the one the
-// state is built from, so the moments are inverted once.
+// state is built from, so the moments are inverted once. Moments too few for
+// the node count are left to the reconstruction, which reports them as invalid
+// input whether or not a check was requested.
 [[nodiscard]] QmomStateCandidate qmom_state_candidate(const QmomCase& qmom_case, const MomentSet& moments, const RealizabilityPolicy* const policy)
 {
     QmomStateCandidate candidate;
-    if (policy != nullptr && policy->check_mode != RealizabilityCheckMode::None)
+    const std::size_t node_count = qmom_case.node_count;
+    const bool enough_moments = node_count > 0 && node_count <= std::numeric_limits<std::size_t>::max() / 2 && moments.size() >= 2 * node_count;
+    if (policy != nullptr && policy->check_mode != RealizabilityCheckMode::None && enough_moments)
     {
         RealizabilityResult realizability = (policy->support == MomentSupport::bounded_interval && policy->interval.has_value())
                                                 ? check_realizability(moments, *policy->interval, policy->options)
@@ -178,35 +191,67 @@ namespace
         candidate.realizability = std::move(realizability);
     }
 
-    QmomResult quadrature = compute_qmom(moments, qmom_case.node_count, qmom_case.qmom_options, qmom_case.abscissa_bounds);
+    QmomResult quadrature = compute_qmom(moments, node_count, qmom_case.qmom_options, qmom_case.abscissa_bounds);
     candidate.reconstruction_status = quadrature.status;
     if (!quadrature.ok())
     {
-        candidate.status =
-            quadrature.status == QmomStatus::invalid_input ? StateCandidateStatus::invalid_input : StateCandidateStatus::reconstruction_failed;
+        if (quadrature.status == QmomStatus::invalid_input)
+        {
+            candidate.status = StateCandidateStatus::invalid_input;
+        }
+        else
+        {
+            candidate.status = below_number_density_cutoff(moments[0], qmom_case.qmom_options) ? StateCandidateStatus::empty
+                                                                                               : StateCandidateStatus::reconstruction_failed;
+        }
         candidate.message = std::move(quadrature.message);
         return candidate;
     }
-    candidate.state = internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), qmom_case.node_count, qmom_case.qmom_options,
-                                                                 qmom_case.abscissa_bounds);
+    try
+    {
+        candidate.state = internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), node_count, qmom_case.qmom_options,
+                                                                     qmom_case.abscissa_bounds);
+    }
+    catch (const std::overflow_error& error)
+    {
+        // The stored moments, those of the accepted quadrature, can exceed
+        // the range of a double although the given moments do not.
+        candidate.status = StateCandidateStatus::reconstruction_failed;
+        candidate.message = error.what();
+        return candidate;
+    }
     candidate.status = StateCandidateStatus::success;
     return candidate;
+}
+
+// Moments from outside the case must be finite throughout, including those
+// above order 2n - 1, which the reconstruction does not read.
+[[nodiscard]] QmomStateCandidate checked_qmom_state_candidate(const QmomCase& qmom_case, const MomentSet& moments,
+                                                              const RealizabilityPolicy* const policy)
+{
+    if (!internal::all_finite(moments.values()))
+    {
+        QmomStateCandidate candidate;
+        candidate.message = "Moment sequence contains non-finite values.";
+        return candidate;
+    }
+    return qmom_state_candidate(qmom_case, moments, policy);
 }
 } // namespace
 
 QmomStateCandidate QmomCase::state_candidate(const MomentSet& candidate_moments) const
 {
-    return qmom_state_candidate(*this, candidate_moments, nullptr);
+    return checked_qmom_state_candidate(*this, candidate_moments, nullptr);
 }
 
 QmomStateCandidate QmomCase::state_candidate(const MomentSet& candidate_moments, const RealizabilityPolicy& policy) const
 {
-    return qmom_state_candidate(*this, candidate_moments, &policy);
+    return checked_qmom_state_candidate(*this, candidate_moments, &policy);
 }
 
 QmomState QmomCase::initial_state() const
 {
-    QmomStateCandidate candidate = state_candidate(moments);
+    QmomStateCandidate candidate = qmom_state_candidate(*this, moments, nullptr);
     if (!candidate.ok())
     {
         throw std::runtime_error("QMOM initial state reconstruction failed: " + candidate.message);
@@ -309,18 +354,24 @@ namespace
     CqmomStateCandidate candidate;
     if (coordinate_policies != nullptr)
     {
+        // As in the moment-source update, any policy beyond the hierarchy is
+        // invalid, whatever its mode, before any coordinate is checked.
         const CqmomMomentLayout& layout = cqmom_case.moments.layout;
-        for (std::size_t coordinate = 0; coordinate < coordinate_policies->size(); ++coordinate)
+        const std::size_t dimensions = layout.hierarchy.number_of_dimensions();
+        for (std::size_t coordinate = dimensions; coordinate < coordinate_policies->size(); ++coordinate)
+        {
+            if ((*coordinate_policies)[coordinate].has_value())
+            {
+                candidate.message = "CQMOM coordinate realizability policy index is outside the phase-space dimension.";
+                return candidate;
+            }
+        }
+        for (std::size_t coordinate = 0; coordinate < std::min(dimensions, coordinate_policies->size()); ++coordinate)
         {
             const std::optional<RealizabilityPolicy>& policy = (*coordinate_policies)[coordinate];
             if (!policy.has_value() || policy->check_mode == RealizabilityCheckMode::None)
             {
                 continue;
-            }
-            if (coordinate >= layout.hierarchy.number_of_dimensions())
-            {
-                candidate.message = "CQMOM coordinate realizability policy index is outside the phase-space dimension.";
-                return candidate;
             }
             const MomentSet marginal(internal::extract_coordinate_marginal(cqmom_case.moments.values, layout, coordinate));
             RealizabilityResult realizability = (policy->support == MomentSupport::bounded_interval && policy->interval.has_value())
@@ -346,16 +397,35 @@ namespace
     candidate.reconstruction_status = accepted.status;
     if (!accepted.ok())
     {
-        candidate.status =
-            accepted.status == CqmomStatus::invalid_input ? StateCandidateStatus::invalid_input : StateCandidateStatus::reconstruction_failed;
+        if (accepted.status == CqmomStatus::invalid_input)
+        {
+            candidate.status = StateCandidateStatus::invalid_input;
+        }
+        else
+        {
+            const double m0 = cqmom_case.moments.moment(MultiIndex(cqmom_case.moments.layout.hierarchy.number_of_dimensions(), 0));
+            candidate.status =
+                below_number_density_cutoff(m0, cqmom_case.qmom_options) ? StateCandidateStatus::empty : StateCandidateStatus::reconstruction_failed;
+        }
         candidate.message = std::move(accepted.message);
         return candidate;
     }
-    CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
-    CqmomCase canonical_cqmom_case =
-        internal::with_moments(cqmom_case, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, cqmom_case.moments.layout));
-    candidate.state = internal::CqmomConstructionAccess::create_state(std::move(canonical_cqmom_case), std::move(active_counts),
-                                                                      std::move(accepted_quadrature), prepared_metadata_handle);
+    try
+    {
+        CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
+        CqmomCase canonical_cqmom_case =
+            internal::with_moments(cqmom_case, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, cqmom_case.moments.layout));
+        candidate.state = internal::CqmomConstructionAccess::create_state(std::move(canonical_cqmom_case), std::move(active_counts),
+                                                                          std::move(accepted_quadrature), prepared_metadata_handle);
+    }
+    catch (const std::overflow_error& error)
+    {
+        // The stored moments, those of the accepted quadrature, can exceed
+        // the range of a double although the given moments do not.
+        candidate.status = StateCandidateStatus::reconstruction_failed;
+        candidate.message = error.what();
+        return candidate;
+    }
     candidate.status = StateCandidateStatus::success;
     return candidate;
 }
@@ -371,7 +441,8 @@ namespace
 }
 
 // A candidate's moments come from outside the case, so they are validated
-// against its hierarchy before the reconstruction, which trusts them.
+// against its layout before the reconstruction, which trusts them. The layout
+// of a prepared case is already the required one of its hierarchy.
 [[nodiscard]] CqmomStateCandidate prepared_cqmom_state_candidate(const CqmomCase& base_cqmom_case,
                                                                  const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle,
                                                                  const CqmomMomentData& candidate_moments,
@@ -379,10 +450,11 @@ namespace
 {
     try
     {
-        internal::validate_cqmom_moment_data_matches_hierarchy(
-            candidate_moments, base_cqmom_case.moments.layout.hierarchy,
-            {"CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
-             "CQMOM moment data value count does not match its required CQMOM moment layout.", "CQMOM moment data values must be finite."});
+        const internal::CqmomMomentDataValidationMessages messages{
+            "CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
+            "CQMOM moment data value count does not match its required CQMOM moment layout.", "CQMOM moment data values must be finite."};
+        internal::validate_cqmom_moment_layout_matches_expected(candidate_moments.layout, base_cqmom_case.moments.layout, messages.fixed_layout);
+        internal::validate_cqmom_moment_values_match_layout(candidate_moments, messages);
     }
     catch (const std::invalid_argument& error)
     {

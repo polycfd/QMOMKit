@@ -40,4 +40,13 @@ CqmomCaseInitialState cqmom_case_initial_state = &qmomkit::CqmomCase::initial_st
 
 CqmomPreparedCaseInitialState cqmom_prepared_case_initial_state = &qmomkit::CqmomPreparedCase::initial_state;
 
+using CqmomStateCandidateCreation = qmomkit::CqmomStateCandidate (qmomkit::CqmomPreparedCase::*)(const qmomkit::CqmomMomentData&) const;
+
+using CqmomCheckedStateCandidateCreation = qmomkit::CqmomStateCandidate (qmomkit::CqmomPreparedCase::*)(
+    const qmomkit::CqmomMomentData&, const std::vector<std::optional<qmomkit::RealizabilityPolicy>>&) const;
+
+CqmomStateCandidateCreation cqmom_state_candidate_creation = &qmomkit::CqmomPreparedCase::state_candidate;
+
+CqmomCheckedStateCandidateCreation cqmom_checked_state_candidate_creation = &qmomkit::CqmomPreparedCase::state_candidate;
+
 } // namespace public_header_pins

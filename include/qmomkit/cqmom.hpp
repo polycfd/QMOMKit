@@ -335,10 +335,11 @@ public:
      * settings and branch structure of this case; the moments of the case are
      * not used. This is how a host rebuilds the state of moments it changed
      * itself, for example by transport in physical space. `candidate_moments`
-     * must have the required moment layout of the hierarchy, as
-     * `state.moment_indices()` lists it. The quadrature is reconstructed once,
-     * the stored moments are those of the accepted quadrature, and a failure is
-     * reported in the result rather than thrown.
+     * must have the required moment layout of the hierarchy: create it once
+     * with `create_cqmom_moment_layout(hierarchy())` and replace only the
+     * values for each call. The quadrature is reconstructed once, the stored
+     * moments are those of the accepted quadrature, and a failure is reported
+     * in the result rather than thrown.
      */
     [[nodiscard]] CqmomStateCandidate state_candidate(const CqmomMomentData& candidate_moments) const;
 
@@ -347,7 +348,9 @@ public:
      * of every coordinate that has a policy in `coordinate_policies`, unless
      * its `check_mode` is `None`. A check accepts strictly realizable moments,
      * and boundary moments when its `accept_boundary` is set. Mixed and
-     * conditional moments are not checked; the reconstruction tests them.
+     * conditional moments are not checked; the reconstruction tests them. A
+     * policy beyond the dimensions of the hierarchy is invalid input, as in
+     * the moment-source update.
      */
     [[nodiscard]] CqmomStateCandidate state_candidate(const CqmomMomentData& candidate_moments,
                                                       const std::vector<std::optional<RealizabilityPolicy>>& coordinate_policies) const;

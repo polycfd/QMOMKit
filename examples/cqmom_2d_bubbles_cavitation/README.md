@@ -73,13 +73,13 @@ QMOMKit itself treats them as generic phase-space coordinates.
 
 For a number density function $n(R,U)$, the raw (unnormalized) moments are
 
-$$
+```math
 \begin{aligned}
 M_{i,j}
 &=
 \int R^i U^j n(R,U)\,\mathrm{d}R\,\mathrm{d}U.
 \end{aligned}
-$$
+```
 
 Here $i$ is the order in radius and $j$ is the order in radial velocity.
 The zeroth moment $M_{0,0}$ is the total number density.
@@ -113,7 +113,7 @@ $$
 
 and
 
-$$
+```math
 \begin{aligned}
 \frac{\mathrm{d}U}{\mathrm{d}t}
 &=
@@ -131,7 +131,7 @@ $$
 -\frac{4}{\mathrm{Re}}\frac{U}{R}
 \right].
 \end{aligned}
-$$
+```
 
 The symbols are:
 
@@ -170,7 +170,7 @@ The configured marginals are:
 
 For the implemented log-normal parameterization,
 
-$$
+```math
 \begin{aligned}
 \mathbb{E}[R]
 &=
@@ -186,7 +186,7 @@ $$
 =
 1.
 \end{aligned}
-$$
+```
 
 Both executables are initialized based on the same sample of 10000 bubbles
 through the shared sampling helper. The CQMOM executable computes empirical raw

@@ -42,34 +42,45 @@ velocity alone do not describe the drag response of this non-spherical model:
 the drag correction also depends on the aspect ratio $\chi$.
 
 For a number-density distribution $n(d, \chi, u, v, w)$, the raw moments are
-$$M_{a,b,c,e,g} = \int d^a\chi^b u^c v^e w^g n(d,\chi,u,v,w) \,\mathrm{d}d\,\mathrm{d}\chi\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w. $$
+```math
+M_{a,b,c,e,g} = \int d^a\chi^b u^c v^e w^g n(d,\chi,u,v,w) \,\mathrm{d}d\,\mathrm{d}\chi\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
+```
 
 ## Particle phase-space model
 
 The particle callback returns rates for $(d, \chi, u, v, w)$. The prescribed
 carrier velocity is time dependent:
-$$\boldsymbol{U}_f(t) = (2\cos t,\;2\sin t,\;0)\ \mathrm{m/s}.$$
+```math
+\boldsymbol{U}_f(t) = (2\cos t,\;2\sin t,\;0)\ \mathrm{m/s}.
+```
 The carrier flow is host data, not part of the particle model: the drivers own
 it and pass it to the callback as described in
 [Supplying host data to a callback](#supplying-host-data-to-a-callback).
-With particle velocity $\boldsymbol{U}_p = (u,v,w)$, relative velocity
-$\boldsymbol{U}_{rel} = \boldsymbol{U}_f-\boldsymbol{U}_p$, and
-$$\mathrm{Re} = \frac{\rho_f |\boldsymbol{U}_{rel}|d}{\mu_f},$$
+With particle velocity $`\boldsymbol{U}_p = (u,v,w)`$, relative velocity
+$`\boldsymbol{U}_{rel} = \boldsymbol{U}_f-\boldsymbol{U}_p`$, and
+```math
+\mathrm{Re} = \frac{\rho_f |\boldsymbol{U}_{rel}|d}{\mu_f},
+```
 the shape-dependent drag factor is evaluated as
 
-$$K(\chi,\mathrm{Re}) = K_0(\chi) + 0.15\,\chi^{95.91}\mathrm{Re}^{0.687} + 0.2927\,(1-\chi)^{0.4374}\mathrm{Re}^{0.7512},$$
+```math
+K(\chi,\mathrm{Re}) = K_0(\chi) + 0.15\,\chi^{95.91}\mathrm{Re}^{0.687} + 0.2927\,(1-\chi)^{0.4374}\mathrm{Re}^{0.7512},
+```
 where $K_0$ is the creeping-flow shape factor of an oblate spheroid,
-$$K_0(\chi) = \frac{\frac{8}{3}\chi^{-1/3}}{\frac{2\chi}{1-\chi^2} + \frac{2(1-2\chi^2)}{(1-\chi^2)^{3/2}}\arctan\!\left(\frac{\sqrt{1-\chi^2}}{\chi}\right)}.$$
+```math
+K_0(\chi) = \frac{\frac{8}{3}\chi^{-1/3}}{\frac{2\chi}{1-\chi^2} + \frac{2(1-2\chi^2)}{(1-\chi^2)^{3/2}}\arctan\!\left(\frac{\sqrt{1-\chi^2}}{\chi}\right)}.
+```
 Both numerator and denominator vanish as $\chi \to 1$, so the implementation
 uses the sphere value $K_0 = 1$ whenever $|1-\chi| < 0.001$. The velocity rates
 use the drag rate
-$$
+```math
 \lambda = \frac{18\mu_fK}{\rho_p d^2}, \qquad
 \frac{\mathrm{d}\boldsymbol{U}_p}{\mathrm{d}t}
-= \lambda\boldsymbol{U}_{rel}-(0,0,g), $$
+= \lambda\boldsymbol{U}_{rel}-(0,0,g),
+```
 where $\lambda$ has units of $1/\mathrm{s}$ and is the inverse of the drag
 relaxation time, with $\rho_f = 1.2\ \mathrm{kg/m^3}$,
-$\mu_f = 1.8\times10^{-5}\ \mathrm{Pa\,s}$,
+$`\mu_f = 1.8\times10^{-5}\ \mathrm{Pa\,s}`$,
 $\rho_p = 2000\ \mathrm{kg/m^3}$ and $g = 9.81\ \mathrm{m/s^2}$.
 
 Diameter changes by an attrition rate with a saturated relative-speed response
@@ -186,7 +197,9 @@ In the MC simulation, one sampled recoil vector is added to one daughter and sub
 the other, so the pair has equal and opposite recoil.
 The CQMOM executable represents the same process as a moment source. At each
 source-stage terminal quadrature node it adds the breakage contribution
-$$\beta(d)\,[2\,\mathbb{E}(D^{a,b,c,e,g}) - P^{a,b,c,e,g}],$$
+```math
+\beta(d)\,[2\,\mathbb{E}(D^{a,b,c,e,g}) - P^{a,b,c,e,g}],
+```
 where $P$ is the parent monomial and the daughter expectation uses the
 equal-volume diameter, halved shape parameter, and centered Gaussian recoil
 moments.

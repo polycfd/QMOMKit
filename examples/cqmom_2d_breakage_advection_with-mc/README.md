@@ -160,9 +160,9 @@ $$
 In the direct MC driver, each sample breaks stochastically over the source
 step with probability
 
-$$
+```math
 1-\exp(-\lambda\,\Delta t).
-$$
+```
 
 When a sample breaks, the parent is replaced by two daughters with half the
 parent diameter and the same velocity.

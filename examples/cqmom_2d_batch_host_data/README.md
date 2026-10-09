@@ -115,9 +115,9 @@ $$
 
 with the travelling-wave carrier flow
 
-$$
+```math
 u_f(x,t) = \sin\!\big(2\pi(x - 0.5\,t)\big).
-$$
+```
 
 The moment source is binary fragmentation $d \to d/2$ at the local rate
 $\lambda_i$, leaving $u$ unchanged:
@@ -145,10 +145,7 @@ that each callback read its own location's entries:
   $m = M_{0,1}/M_{0,0}$ obeys $\dot m = u_f(x_i,t) - m$. With
   $\phi_i = 2\pi x_i$ and $\omega = \pi$, its exact solution is
 
-  $$
-  m(t) = m_p(t) + \big(m(0) - m_p(0)\big)e^{-t}, \qquad
-  m_p(t) = \frac{\sin(\phi_i - \omega t) + \omega\cos(\phi_i - \omega t)}{1 + \omega^2}.
-  $$
+  $$m(t) = m_p(t) + \big(m(0) - m_p(0)\big)e^{-t}, \qquad m_p(t) = \frac{\sin(\phi_i - \omega t) + \omega\cos(\phi_i - \omega t)}{1 + \omega^2}.$$
 
   The particles follow the flow damped and delayed: the periodic part $m_p$
   has amplitude $1/\sqrt{1+\pi^2} \approx 0.30$ and lags the flow by about

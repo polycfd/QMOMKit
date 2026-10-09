@@ -11,9 +11,9 @@ The coordinate order is volume $V$ in $\mathrm{m}^3$, temperature $T$ in K, and
 velocity components $(u,v,w)$ in $\mathrm{m/s}$. The raw number-density moments
 are
 
-$$
+```math
 M_{p,q,r,s,t}=\int V^pT^qu^rv^sw^t f(V,T,u,v,w)\,\mathrm{d}V\,\mathrm{d}T\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
-$$
+```
 
 Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle
 volume. The configuration uses two fixed CQMOM nodes in every dimension
@@ -40,35 +40,36 @@ The CQMOM path initializes from moments estimated from this ensemble; the MC
 path advances the ensemble itself. Both verify that tensor before evolution.
 The physical diameter used by the transport models is $d(V)=(6V/\pi)^{1/3}$.
 
-The carrier gas has $(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\
-\mathrm{Pa\,s})$, velocity $(2.0,1.5,0.8)$ m s$^{-1}$, thermal conductivity
-$0.026$ W m$^{-1}$ K$^{-1}$, Prandtl number $0.71$, and temperature $T_g=300$
-K. Particles have density $2000$ kg m$^{-3}$ and heat capacity $1000$ J
-kg$^{-1}$ K$^{-1}$. With $\boldsymbol{s}=\boldsymbol{U}_g-\boldsymbol{u}$, the
-phase-space callback uses
+The carrier gas has
+$`(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\ \mathrm{Pa\,s})`$,
+velocity $`(2.0,1.5,0.8)\ \mathrm{m\,s^{-1}}`$, thermal conductivity
+$`0.026\ \mathrm{W\,m^{-1}\,K^{-1}}`$, Prandtl number $0.71$, and temperature
+$T_g=300$ K. Particles have density $`2000\ \mathrm{kg\,m^{-3}}`$ and heat
+capacity $`1000\ \mathrm{J\,kg^{-1}\,K^{-1}}`$. With
+$\boldsymbol{s}=\boldsymbol{U}_g-\boldsymbol{u}$, the phase-space callback uses
 
-$$
+```math
 \mathrm{Re}=\frac{\rho_gd|\boldsymbol{s}|}{\mu_g},\qquad
 \frac{\mathrm{d}\boldsymbol{u}}{\mathrm{d}t}=
 \frac{3\rho_g}{4\rho_pd}\frac{24}{\mathrm{Re}}
 \left(1+0.15\,\mathrm{Re}^{0.687}\right)|\boldsymbol{s}|\boldsymbol{s},
-$$
+```
 
 and Ranz--Marshall heat transfer,
 
-$$
+```math
 \mathrm{Nu}=2+0.6\,\mathrm{Re}^{1/2}\mathrm{Pr}^{1/3},\qquad
 \frac{\mathrm{d}T}{\mathrm{d}t}=
 \frac{6k_g\mathrm{Nu}}{\rho_pc_pd^2}(T_g-T).
-$$
+```
 
 Temperature is expressed directly in K in this equation and in all moment
 indices; $\mathrm{d}V/\mathrm{d}t=0$.
 
 ## Breakage source and generalized moments
 
-Each parent breaks at $\beta=10$ s$^{-1}$ into two identical, equal-volume
-daughters with inherited velocity:
+Each parent breaks at $\beta=10\ \mathrm{s^{-1}}$ into two identical,
+equal-volume daughters with inherited velocity:
 
 $$
 V_d=\frac{V_p}{2},\qquad
@@ -94,10 +95,10 @@ $$
 
 It therefore needs $M_{4/3,0,0,0,0}$ and $M_{4/3,1,0,0,0}$ to evaluate and
 close the source of a tracked moment; it does not need them to reconstruct that
-tracked moment. Their units are respectively number density times m$^4$ and
-number density times m$^4$ K, so the factor $a$ supplies the inverse-length
-scale needed by the source. For $q=0$, the source reduces to
-$\beta(2^{1-p}-1)M_{p,0,r,s,t}$, preserving total volume.
+tracked moment. Their units are respectively number density times
+$\mathrm{m^4}$ and number density times $`\mathrm{m^4\,K}`$, so the factor $a$
+supplies the inverse-length scale needed by the source. For $q=0$, the source
+reduces to $\beta(2^{1-p}-1)M_{p,0,r,s,t}$, preserving total volume.
 
 ## Build and run
 

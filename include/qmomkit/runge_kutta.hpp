@@ -52,7 +52,8 @@ enum class SspRk3Status
  * If accept is supplied, each candidate step is tested after the full SSP-RK3
  * update. Rejected candidates are discarded, the timestep is halved, and the
  * step is retried from the original state, at most `max_retries` times and not
- * below `min_time_step`. With the default `max_retries = 0` a rejection is
+ * below `min_time_step`. A step already shorter than `min_time_step` is
+ * attempted but not halved. With the default `max_retries = 0` a rejection is
  * returned as `rejected_by_predicate` without a retry. An accepted step covers
  * `time_step_used`, which is shorter than the requested step after a retry. If
  * stage_accept is supplied, it is called for stage-1, stage-2, and final
@@ -135,12 +136,14 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  * `default_adaptive_initial_step`, in the units of the time argument, and may
  * be overridden. QMOMKit does not estimate it from derivatives or tolerances.
  *
- * `max_step <= 0.0` requests an automatically derived maximum step (the
- * integration interval length). `min_step <= 0.0` requests an automatically
+ * `max_step == 0.0` requests an automatically derived maximum step (the
+ * integration interval length). `min_step == 0.0` requests an automatically
  * derived, always-tiny minimum step of ten spacings of the double at the
  * current time; an explicit `min_step` below that is raised to it. An explicit
- * `min_step` must not exceed the effective maximum step, or the request is
- * rejected as invalid input.
+ * `min_step` must not exceed an explicit `max_step`, or the request is rejected
+ * as invalid input. An interval shorter than `min_step`, as a host retrying
+ * with a smaller outer step produces, is taken as one step, accepted if its
+ * error estimate is finite.
  *
  * When the error controller would require a step below the effective minimum,
  * a finite step at that minimum is accepted rather than failing. The step floor

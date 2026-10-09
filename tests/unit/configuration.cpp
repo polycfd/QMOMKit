@@ -225,7 +225,6 @@ void assert_realizability_policies_match(const qmomkit::RealizabilityPolicy& act
     assert(actual.support == expected.support);
     assert(actual.accept_boundary == expected.accept_boundary);
     assert_near(actual.options.tolerance, expected.options.tolerance);
-    assert(actual.options.relative_tolerance == expected.options.relative_tolerance);
     assert(actual.interval.has_value() == expected.interval.has_value());
     if (actual.interval.has_value())
     {
@@ -488,6 +487,56 @@ scale = 2.0
     assert_near(configured.value().moments[1], 6.0);
     assert_near(configured.value().moments[2], 24.0);
     assert_near(configured.value().moments[3], 144.0);
+}
+
+// A mixture takes each distribution and number density from its components,
+// so the same keys at the mixture's own level would have no effect. They are
+// reported for a QMOM mixture and for a CQMOM mixture marginal.
+void test_mixture_level_distribution_keys_are_reported()
+{
+    const std::string components = R"(
+[initial.mixture.component.0]
+family = gamma
+number_density = 1.5
+shape = 2.0
+scale = 0.4
+)";
+    for (const std::string& key : {std::string("number_density = 10.0"), std::string("mean = 3.0")})
+    {
+        const std::string text = "[phase_space]\nnode_counts = 1\n[initial]\ntype = mixture\n" + key + "\n" + components;
+        const std::string message = "Key 'initial." + key.substr(0, key.find(' ')) + "' has no effect with 'type = mixture'";
+        assert(has_message_fragment(qmomkit::config::parse_qmom(text), message));
+        assert(has_message_fragment(qmomkit::config::parse_qmom_initial_condition(text), message));
+    }
+    assert(qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\n[initial]\ntype = mixture\n" + components).ok());
+
+    const std::string cqmom_text = R"(
+[phase_space]
+node_counts = 1, 1
+
+[initial]
+type = independent_product
+number_density = 2.75
+
+[initial.dimension.0]
+family = normal
+mean = -0.4
+standard_deviation = 0.7
+
+[initial.dimension.1]
+type = mixture
+
+[initial.dimension.1.mixture.component.0]
+family = lognormal
+number_density = 1.5
+mu_log = -0.3
+sigma_log = 0.25
+)";
+    assert(qmomkit::config::parse_cqmom_initial_condition(cqmom_text).ok());
+    std::string with_family = cqmom_text;
+    with_family.insert(with_family.find("type = mixture\n") + std::string("type = mixture\n").size(), "family = normal\n");
+    assert(has_message_fragment(qmomkit::config::parse_cqmom_initial_condition(with_family),
+                                "Key 'initial.dimension.1.family' has no effect with 'type = mixture'"));
 }
 
 // cqmom.moment_storage selected between two moment representations. Only one
@@ -1930,6 +1979,66 @@ support = nonnegative
     assert(has_message_fragment(invalid, "phase-space rank 2"));
 }
 
+void test_huge_declared_extents_are_reported_as_incomplete()
+{
+    // The declared extents fix the size of the tensor, but only the supplied
+    // entries can fill it. Extents far beyond them are an incomplete tensor and
+    // are reported as one, not allocated: a 1e8 x 1e8 tensor would need 80 PB.
+    for (const auto& [extents, missing] : {std::pair{std::string("100000000, 100000000"), std::string("9999999999999999 of its 10000000000000000")},
+                                           std::pair{std::string("2, 1000000000000000"), std::string("1999999999999999 of its 2000000000000000")}})
+    {
+        const std::string text = "[phase_space]\nnode_counts = 1, 1\n[moments]\nextents = " + extents + "\nM[0,0] = 1.0\n";
+        const auto open_case = qmomkit::config::parse_cqmom(text);
+        const auto prepared_case = qmomkit::config::parse_cqmom_prepared(text);
+        assert(!open_case.ok());
+        assert(!prepared_case.ok());
+        const std::string message = "The full tensor of raw moments is incomplete; it is missing " + missing + " entries.";
+        assert(has_message_fragment(open_case, message));
+        assert(has_message_fragment(prepared_case, message));
+    }
+}
+
+void test_declared_rank_bounds_coordinate_realizability_indices()
+{
+    // Options read from a file that declares its phase space reject a
+    // coordinate index beyond the rank, as the case loaders do, without sizing
+    // the policy vector by the index. An index of 1e11 would otherwise ask for
+    // about 6 TB.
+    const std::string policy = "]\ncheck_mode = final_only\nsupport = nonnegative\n";
+    for (const std::string index : {"2", "100000000000"})
+    {
+        const std::string text = "[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability." + index + policy;
+        const auto evolution_options = qmomkit::config::parse_cqmom_phase_space_evolution_options(text);
+        const auto policies = qmomkit::config::parse_coordinate_realizability_policies(text);
+        assert(!evolution_options.ok());
+        assert(!policies.ok());
+        assert(has_message_fragment(evolution_options, "coordinate index " + index + " is outside the configured phase-space rank 2"));
+        assert(has_message_fragment(policies, "coordinate index " + index + " is outside the configured phase-space rank 2"));
+    }
+
+    const std::string within_rank_text = "[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability.1" + policy;
+    const auto within_rank = qmomkit::config::parse_cqmom_phase_space_evolution_options(within_rank_text);
+    const auto within_rank_policies = qmomkit::config::parse_coordinate_realizability_policies(within_rank_text);
+    assert(within_rank.ok());
+    assert(within_rank_policies.ok());
+    assert(within_rank.value().source_options.coordinate_realizability_policies.size() == 2);
+    assert(within_rank.value().source_options.coordinate_realizability_policies[1].has_value());
+    assert(within_rank_policies.value().size() == 2);
+    assert(within_rank_policies.value()[1].has_value());
+
+    // Every section is checked before the indices, as the case loaders do, so
+    // a section outside the rank with an invalid field is reported for that
+    // field first by every parser.
+    const std::string misspelled = "[phase_space]\nnode_counts = 2, 2\n[initial]\ntype = independent_product\nnumber_density = 1.0\n"
+                                   "[initial.dimension.0]\nfamily = normal\nmean = 0.0\nstandard_deviation = 1.0\n"
+                                   "[initial.dimension.1]\nfamily = gamma\nshape = 2.0\nscale = 1.0\n"
+                                   "[time_integration.realizability.2]\ncheck_mode = final_only\nsupport = nonnegativ\n";
+    const std::string support_message = "time_integration.realizability.2.support must be";
+    assert(has_message_fragment(qmomkit::config::parse_cqmom(misspelled), support_message));
+    assert(has_message_fragment(qmomkit::config::parse_cqmom_phase_space_evolution_options(misspelled), support_message));
+    assert(has_message_fragment(qmomkit::config::parse_coordinate_realizability_policies(misspelled), support_message));
+}
+
 void test_adaptive_cqmom_reduces_conditional_and_marginal_branches()
 {
     const std::vector<double> conditional_weights{0.2, 0.3, 0.5};
@@ -2159,14 +2268,12 @@ check_mode = final_only
 support = nonnegative
 accept_boundary = false
 tolerance = 1e-10
-relative_tolerance = false
 )");
     assert(final_only.ok());
     assert(final_only.value().check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
     assert(final_only.value().support == qmomkit::MomentSupport::nonnegative);
     assert(!final_only.value().accept_boundary);
     assert_near(final_only.value().options.tolerance, 1.0e-10);
-    assert(!final_only.value().options.relative_tolerance);
 }
 
 void test_realizability_policy_parses_support_and_bounded_interval()
@@ -2304,7 +2411,6 @@ support = bounded_interval
 lower = 0.0
 upper = 1.0
 tolerance = 1e-10
-relative_tolerance = false
 accept_boundary = false
 )";
     const std::string second = R"(
@@ -2326,7 +2432,6 @@ support = bounded_interval
 lower = 0.0
 upper = 1.0
 tolerance = 1e-10
-relative_tolerance = false
 accept_boundary = false
 )";
 
@@ -2489,6 +2594,15 @@ check_mode = final_only
 )");
     assert(!unknown_section.ok());
     assert(has_failure(unknown_section));
+
+    // The tolerance is always relative to the standardized matrices, so no key
+    // selects how it applies.
+    const auto mode_key = qmomkit::config::parse_realizability_policy(
+        "[time_integration.realizability]\ncheck_mode = final_only\nsupport = nonnegative\nrelative_tolerance = false\n");
+    assert(has_message_fragment(mode_key, "Unknown key 'time_integration.realizability.relative_tolerance'"));
+    const auto coordinate_mode_key = qmomkit::config::parse_coordinate_realizability_policies(
+        "[time_integration.realizability.0]\ncheck_mode = final_only\nsupport = nonnegative\nrelative_tolerance = false\n");
+    assert(has_message_fragment(coordinate_mode_key, "Unknown key 'time_integration.realizability.0.relative_tolerance'"));
 }
 
 void test_qmom_case_parsing_tolerates_realizability_policy_without_installing_it()
@@ -2544,7 +2658,6 @@ support = bounded_interval
 lower = -1.0
 upper = 1.0
 tolerance = 1.0e-12
-relative_tolerance = false
 accept_boundary = false
 )";
 
@@ -4324,6 +4437,7 @@ int main(const int argc, char** argv)
             {"all_supported_distribution_families_parse", test_all_supported_distribution_families_parse},
             {"qmom_mixture_initialization_matches_direct_api", test_qmom_mixture_initialization_matches_direct_api},
             {"mixture_zero_density_component_is_skipped", test_mixture_zero_density_component_is_skipped},
+            {"mixture_level_distribution_keys_are_reported", test_mixture_level_distribution_keys_are_reported},
             {"cqmom_rejects_the_removed_moment_storage_key", test_cqmom_rejects_the_removed_moment_storage_key},
             {"valid_cqmom_matches_programmatic_case", test_valid_cqmom_matches_programmatic_case},
             {"cqmom_independent_product_initialization_matches_direct_api", test_cqmom_independent_product_initialization_matches_direct_api},
@@ -4361,6 +4475,8 @@ int main(const int argc, char** argv)
             {"cqmom_independent_product_zero_density_skips_marginal_validation",
              test_cqmom_independent_product_zero_density_skips_marginal_validation},
             {"cqmom_adaptive_option_controls_the_reconstruction", test_cqmom_adaptive_option_controls_the_reconstruction},
+            {"huge_declared_extents_are_reported_as_incomplete", test_huge_declared_extents_are_reported_as_incomplete},
+            {"declared_rank_bounds_coordinate_realizability_indices", test_declared_rank_bounds_coordinate_realizability_indices},
             {"cqmom_prepared_case_parsing_validates_coordinate_realizability_rank",
              test_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank},
             {"adaptive_cqmom_reduces_conditional_and_marginal_branches", test_adaptive_cqmom_reduces_conditional_and_marginal_branches},

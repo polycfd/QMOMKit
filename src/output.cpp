@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -15,6 +16,33 @@ namespace qmomkit
 {
 namespace
 {
+
+// The files are read back as numbers, so they are written in the classic
+// locale whatever locale the application has installed globally: a decimal
+// point, and no digit grouping in node and path indices.
+[[nodiscard]] std::ofstream open_output_file(const std::filesystem::path& path)
+{
+    std::ofstream output(path);
+    output.imbue(std::locale::classic());
+    return output;
+}
+
+// Each write is flushed before it returns, so a failure to write it, such as a
+// full disk, is reported by the call that wrote it. Left in the buffer, it
+// would surface only at a later write or in the destructor, where it cannot be
+// reported, and the rows accepted since the last flush would be lost. A failed
+// stream is closed at once, so the bytes it refused are not written later, when
+// the writer is destroyed after space has become available; only the attempt
+// that closing itself makes can still write them. Every later write throws.
+void flush_or_throw(std::ofstream& output, const std::string& message)
+{
+    output.flush();
+    if (!output)
+    {
+        output.close();
+        throw std::runtime_error(message);
+    }
+}
 
 [[nodiscard]] std::string qmom_label(const std::size_t order)
 {
@@ -46,15 +74,15 @@ void write_column_header(std::ofstream& output, const std::size_t column_width, 
         output << ' ' << centered_column_label(label, column_width);
     }
     output << '\n';
-    if (!output)
-    {
-        throw std::runtime_error(std::string("Failed while writing ") + context + " header.");
-    }
+    flush_or_throw(output, std::string("Failed while writing ") + context + " header.");
 }
 
+// Labels are part of the file, so they are formatted in its classic locale too:
+// a generalized order 0.5 written as "0,5" would read as two orders.
 [[nodiscard]] std::string cqmom_label(const MultiIndexView index)
 {
     std::ostringstream label;
+    label.imbue(std::locale::classic());
     label << "M[";
     for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
     {
@@ -71,6 +99,7 @@ void write_column_header(std::ofstream& output, const std::size_t column_width, 
 [[nodiscard]] std::string generalized_moment_label(const std::vector<double>& orders)
 {
     std::ostringstream label;
+    label.imbue(std::locale::classic());
     label << "G[" << std::setprecision(17);
     for (std::size_t dimension = 0; dimension < orders.size(); ++dimension)
     {
@@ -297,7 +326,7 @@ MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const Ra
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, std::vector<std::size_t> extents,
                            std::vector<std::size_t> flat_indices, std::vector<std::string> labels,
                            std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision)
-    : output_(path), layout_(layout), extents_(std::move(extents)), flat_indices_(std::move(flat_indices)),
+    : output_(open_output_file(path)), layout_(layout), extents_(std::move(extents)), flat_indices_(std::move(flat_indices)),
       generalized_moment_orders_(std::move(generalized_moment_orders)), labels_(std::move(labels)), precision_(precision),
       column_width_(column_width_for(precision))
 {
@@ -314,8 +343,9 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, CqmomMomentLayout cqmom_layout,
                            std::vector<std::string> labels, std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision)
-    : output_(path), layout_(layout), cqmom_layout_(std::move(cqmom_layout)), generalized_moment_orders_(std::move(generalized_moment_orders)),
-      labels_(std::move(labels)), precision_(precision), column_width_(column_width_for(precision))
+    : output_(open_output_file(path)), layout_(layout), cqmom_layout_(std::move(cqmom_layout)),
+      generalized_moment_orders_(std::move(generalized_moment_orders)), labels_(std::move(labels)), precision_(precision),
+      column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -331,8 +361,9 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, std::vector<MultiIndex> state_indices,
                            std::vector<std::string> labels, std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision)
-    : output_(path), layout_(layout), state_indices_(std::move(state_indices)), generalized_moment_orders_(std::move(generalized_moment_orders)),
-      labels_(std::move(labels)), precision_(precision), column_width_(column_width_for(precision))
+    : output_(open_output_file(path)), layout_(layout), state_indices_(std::move(state_indices)),
+      generalized_moment_orders_(std::move(generalized_moment_orders)), labels_(std::move(labels)), precision_(precision),
+      column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -347,7 +378,7 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, RawMomentRequest request, std::vector<std::string> labels,
                            const std::size_t precision)
-    : output_(path), layout_(layout), raw_moment_request_(std::move(request)), labels_(std::move(labels)), precision_(precision),
+    : output_(open_output_file(path)), layout_(layout), raw_moment_request_(std::move(request)), labels_(std::move(labels)), precision_(precision),
       column_width_(column_width_for(precision))
 {
     if (!output_)
@@ -419,10 +450,7 @@ void MomentWriter::write_row(const double time, const std::vector<double>& value
         output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << values[flat_index];
     }
     output_ << '\n';
-    if (!output_)
-    {
-        throw std::runtime_error("Failed while writing moment output row.");
-    }
+    flush_or_throw(output_, "Failed while writing moment output row.");
 }
 
 void MomentWriter::write_aligned_row(const double time, const std::vector<double>& values, const std::vector<double>& generalized_values)
@@ -450,10 +478,7 @@ void MomentWriter::write_aligned_row(const double time, const std::vector<double
         output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << value;
     }
     output_ << '\n';
-    if (!output_)
-    {
-        throw std::runtime_error("Failed while writing moment output row.");
-    }
+    flush_or_throw(output_, "Failed while writing moment output row.");
 }
 
 void MomentWriter::write(const double time, const MomentSet& moments)
@@ -665,8 +690,8 @@ QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, 
 
 QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const QuadratureLayout layout, const std::size_t dimension_count,
                                    const std::size_t maximum_node_count, std::vector<std::string> labels, const std::size_t precision)
-    : output_(path), layout_(layout), dimension_count_(dimension_count), maximum_node_count_(maximum_node_count), labels_(std::move(labels)),
-      precision_(precision), column_width_(column_width_for(precision))
+    : output_(open_output_file(path)), layout_(layout), dimension_count_(dimension_count), maximum_node_count_(maximum_node_count),
+      labels_(std::move(labels)), precision_(precision), column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -705,10 +730,6 @@ void QuadratureWriter::write_row(const double time, const std::vector<std::size_
         output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << value;
     }
     output_ << '\n';
-    if (!output_)
-    {
-        throw std::runtime_error("Failed while writing quadrature output row.");
-    }
 }
 
 void QuadratureWriter::write_qmom_row(const double time, const std::vector<double>& weights, const std::vector<double>& abscissas)
@@ -747,6 +768,7 @@ void QuadratureWriter::write_qmom_row(const double time, const std::vector<doubl
         values[1] = abscissas[node];
         write_row(time, indices, values);
     }
+    flush_or_throw(output_, "Failed while writing quadrature output row.");
 }
 
 void QuadratureWriter::write(const double time, const Quadrature1D& quadrature)
@@ -837,6 +859,7 @@ void QuadratureWriter::write(const double time, const CqmomQuadrature& quadratur
         }
         write_row(time, indices, values);
     }
+    flush_or_throw(output_, "Failed while writing quadrature output row.");
 }
 
 } // namespace qmomkit

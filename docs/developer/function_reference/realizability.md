@@ -26,8 +26,8 @@ classification. This validation precedence is visible in source; the
 zero-measure/missing-interval combination has no targeted test identified in
 the relevant realizability tests.
 
-Positive-mass valid inputs are first passed through `tested_moments` (see
-below) and then dispatch to `check_hamburger`, `check_stieltjes`, or
+Positive-mass valid inputs are first passed through `standardized_moments`
+(see below) and then dispatch to `check_hamburger`, `check_stieltjes`, or
 `check_hausdorff`. Their status is a classification, not an exception-based
 numerical failure interface. Allocation/index exceptions are not generally
 caught by the public wrapper. The all-finite requirement is for the whole
@@ -39,15 +39,12 @@ Evidence:
 verification in
 [`realizability_analytical.cpp`](../../../tests/verification/realizability/realizability_analytical.cpp).
 
-## A — standardization: `tested_moments`, `standardized_moments`, `raw_moments`
+## A — standardization: `standardized_moments`
 
-`tested_moments` returns `standardized_moments` in relative-tolerance mode and
-`raw_moments` otherwise. Both produce a `TestedMoments` value: a
-`MomentSequence` of values with an absolute uncertainty per entry and an
-information scale, and the centre and power-of-two scale of the coordinate
-change. `raw_moments` keeps the moments and assigns zero uncertainty and an
-infinite information scale; `standardized_moments` sets the information scale
-to the standardized mass.
+`standardized_moments` produces a `TestedMoments` value: a `MomentSequence` of
+values with an absolute uncertainty per entry and an information scale, the
+standardized mass, and the centre and power-of-two scale of the coordinate
+change, through which `TestedMoments::bound` maps the support bounds.
 
 `standardized_moments` divides every moment by the power of two of `m0`,
 centres at `c = m1/m0` with the binomial sum, and scales the order-`k` entry by
@@ -112,8 +109,8 @@ spread on every support.
 `analyze_matrix` builds the Hankel matrix of a sequence, scans all entries for
 finiteness and the maximum absolute entry, and computes the infinity norm
 relative to that maximum, avoiding an overflowing raw row sum. The user
-threshold is either absolute `tolerance` or
-`tolerance*entry_scale*normalized_infinity_norm`; the roundoff allowance is
+threshold is `tolerance*entry_scale*normalized_infinity_norm`; the roundoff
+allowance is
 `1000*epsilon*entry_scale*normalized_infinity_norm`. The matrix tolerance adds
 the data uncertainty `delta` from `hankel_uncertainty` to the user threshold,
 and the zero band adds it to the roundoff allowance.
@@ -123,19 +120,23 @@ kernel](conditional_systems.md#shared-symmetric-eigenkernel) with its default
 options, which scales the matrix itself. An unconverged decomposition,
 non-finite eigenvalues or uncertainty, or an uncertainty that reaches the
 information scale of the sequence make the matrix indeterminate. Otherwise
-`classify_eigenvalue` assigns every eigenvalue to one class: negative below
-minus the tolerance, zero within the zero band, positive at or above the
-tolerance, ambiguous otherwise. Any negative eigenvalue makes the matrix not
-PSD; otherwise any ambiguous one makes it indeterminate; otherwise any zero one
+`classify_eigenvalue` assigns every eigenvalue to one class: zero within the
+zero band, which is tested first because the user threshold is smaller than
+the roundoff allowance for a tolerance below `1000*epsilon`; otherwise
+negative below minus the tolerance, positive at or above the tolerance, and
+ambiguous in between. Any negative eigenvalue makes the matrix not PSD;
+otherwise any ambiguous one makes it indeterminate; otherwise any zero one
 makes it a PSD boundary matrix; otherwise it is positive definite.
 
 The ambiguous class includes **small positive** eigenvalues, so its diagnostic
 says that an eigenvalue is within the numerical tolerance, without assigning a
 sign; the same message names the input precision, which covers the matrices
-whose uncertainty reaches the information scale. `numerical_rank` counts the positive class, and the range checks use the
-zero class as the kernel, so the definiteness decision, the rank and the kernel
-share one partition. `test_every_eigenvalue_is_classified` covers an
-ambiguous eigenvalue that is not the smallest;
+whose uncertainty reaches the information scale. `numerical_rank` counts the
+positive class, and the range checks use the zero class as the kernel, so the
+definiteness decision, the rank and the kernel share one partition.
+`test_every_eigenvalue_is_classified` covers an ambiguous eigenvalue that is
+not the smallest, and `test_tolerance_below_the_roundoff_resolves_no_finer` an
+eigenvalue within the roundoff below minus a tolerance of `1e-15`;
 `verify_near_boundary_and_scaling` checks both signs near zero, low-density
 non-diagonal matrices, and an overflowing raw row sum.
 
@@ -145,12 +146,13 @@ For a matrix not classified positive definite, the extension column must have
 small projection onto every eigenvector of the zero class.
 `projection_on_eigenvector` sums a column dot product; the outer loop retains
 the maximum absolute projection. `kernel_projection_tolerance` sets the
-threshold: absolute tolerance, or the maximum of the matrix tolerance and
+threshold: the maximum of the matrix tolerance and
 `options.tolerance*vector_scale(extension)`, raised to ten times the data
 uncertainty of the projection, which is the column's own uncertainty plus its
-norm times the kernel rotation. The rotation is a Davis-Kahan bound, `delta`
-over the gap between the zero and positive classes, with the gap estimated
-from below as the smallest positive eigenvalue minus the zero band.
+norm times the kernel rotation. The
+rotation is a Davis-Kahan bound, `delta` over the gap between the zero and
+positive classes, with the gap estimated from below as the smallest positive
+eigenvalue minus the zero band.
 
 Projection above that threshold rejects the sequence; above `0.1*threshold`
 reports indeterminate; otherwise the extension is accepted as boundary. The

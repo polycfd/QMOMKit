@@ -181,9 +181,8 @@ Realizability on a support is invariant under an affine change of coordinate
 $y = (x - c)/s$ with $s > 0$, which maps the support to
 $\left[(a - c)/s, (b - c)/s\right]$. The moment and localizing matrices of
 $y$ are congruent to those of $x$, so by Sylvester's law of inertia the signs
-of their eigenvalues, and hence the classification, are unchanged. With
-`relative_tolerance = true`, the check therefore tests the standardized
-moments
+of their eigenvalues, and hence the classification, are unchanged. The check
+therefore tests the standardized moments
 
 $$\nu_k = \frac{1}{2^{e_0}\, s^k} \sum_{j=0}^{k} \binom{k}{j} (-c)^{k-j} m_j,
 \qquad c = \frac{m_1}{m_0},$$
@@ -194,9 +193,7 @@ $\mu_k$ that is resolved, otherwise $|c|$, or one if $c = 0$, so that a point
 mass is not stretched. The powers of two make the scalings exact. The relative
 tolerance then applies to the standardized matrices, and the classification
 depends neither on the location of the distribution, nor on the unit of its
-coordinate, nor on $m_0$. With `relative_tolerance = false`,
-the raw moments are tested and `tolerance` is an absolute eigenvalue
-threshold; this mode is not invariant.
+coordinate, nor on $m_0$.
 
 ### Input precision
 
@@ -234,10 +231,15 @@ $\zeta = 1000\,\varepsilon \lVert A \rVert + \delta$:
 
 | Class | Condition |
 |---|---|
-| negative | $\lambda < -\tau$ |
 | zero | $|\lambda| \le \zeta$ |
+| negative | otherwise, $\lambda < -\tau$ |
 | ambiguous | otherwise, $\lambda < \tau$ |
-| positive | $\lambda \ge \tau$ |
+| positive | otherwise |
+
+The conditions are tested in this order. The user threshold is smaller than
+the roundoff allowance for a tolerance below $1000\,\varepsilon$, and an
+eigenvalue within the roundoff of the eigen solve has no sign, so the zero band
+comes first.
 
 A matrix with a negative eigenvalue is not positive semidefinite; otherwise
 one with an ambiguous eigenvalue is `numerically_indeterminate`; otherwise one

@@ -38,7 +38,11 @@ struct OutputOptions
  *
  * The writer is application-controlled: construction opens exactly one file,
  * writes a header, and each `write(...)` call appends one time row. The writer
- * does not schedule output and is not used by numerical algorithms.
+ * does not schedule output and is not used by numerical algorithms. Numbers are
+ * written in the classic locale, whatever the global locale of the
+ * application. Each `write(...)` call flushes its row before it returns and
+ * throws `std::runtime_error` if the operating system refuses it, for example
+ * on a full disk; the writer is then closed, and every later write throws.
  *
  * The factory fixes the column schema, so it also fixes which `write(...)`
  * overloads the writer accepts. The pairing is one-to-one in the data argument:
@@ -179,7 +183,12 @@ private:
  *
  * The writer is application-controlled: construction opens exactly one file,
  * writes a header, and each `write(...)` call appends the full quadrature. QMOM
- * and CQMOM quadrature output use one row per active node.
+ * and CQMOM quadrature output use one row per active node. Numbers and indices
+ * are written in the classic locale, whatever the global locale of the
+ * application. Each `write(...)` call flushes its rows before it returns and
+ * throws `std::runtime_error` if the operating system refuses them, for
+ * example on a full disk; the writer is then closed, and every later write
+ * throws.
  */
 class QuadratureWriter
 {

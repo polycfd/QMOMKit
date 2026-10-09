@@ -17,12 +17,15 @@ the moments represented by a `QmomState` together with configured generalized
 columns. `MomentWriter::for_cqmom` selects tensor extents, selected indices, a
 required layout, a state with configured generalized columns, or a raw-moment
 request evaluated from quadrature. Labels retain selected order and duplicates.
-Constructors open/truncate the output stream, validate writer layout, and write
-the header. They do not reconstruct a configured case.
+Constructors open/truncate the output stream in the classic locale
+(`open_output_file`), validate writer layout, and write the header, whose
+labels are also formatted in the classic locale. They do not reconstruct a
+configured case.
 
 `write_row` checks time and value shape/finiteness and emits
-whitespace-separated fields with precision 17. `write_aligned_row` expects
-values already aligned with the writer's selected required/requested layout.
+whitespace-separated fields at the writer's precision, 17 by default.
+`write_aligned_row` expects values already aligned with the writer's selected
+required/requested layout.
 Public `write` overloads either select stored state or moment entries, evaluate
 configured generalized values from a supplied quadrature, or reconstruct a
 requested CQMOM moment from quadrature before writing. Each overload first
@@ -30,10 +33,13 @@ checks that the writer's layout matches its data argument; the map from
 overload to accepting factory is one-to-one, and `layout_mismatch_message`
 reports a mismatch by naming both the required and the actual factory. See the
 [factory pairing table](../output_design.md#moment-writer-factory-pairing).
-Runtime selection can fail after earlier fields were streamed; output is not
-transactional. Callers
-should not assume a failed write leaves the file unchanged or contains a
-complete final row.
+Every check of a moment row, or of the complete time block of a quadrature
+write, runs before its first character is written, and values computed for a
+row are computed before it as well, so a write rejected for its data leaves the
+file unchanged. A write that the operating system refuses throws after the
+flush and closes the stream at once, so the refused bytes are not written later,
+except by the attempt that closing itself makes, and every later write throws;
+the file may then end in a partial row.
 
 `QuadratureWriter::for_qmom` stores maximum node capacity; output may contain
 fewer nodes. `for_cqmom` stores hierarchy. QMOM `write_qmom_row` validates
@@ -52,15 +58,18 @@ Evidence: [output unit tests](../../../tests/unit/output.cpp) compare headers
 and rows, selected/raw requests, state-based generalized output, append
 sequences, adaptive nodes, and malformed data. The inspected fixed-output case
 uses identity conditioning. Tests whose expected rows copy the object's own
-paths cannot independently establish path/value alignment. No direct
-transaction guarantee is inferred from successful file comparisons.
+paths cannot independently establish path/value alignment.
+`rejected_rows_leave_the_file_unchanged` checks that rejected writes leave the
+file byte-identical, and `rows_that_cannot_be_stored_are_reported` that every
+write that returns is in the file.
 
 | Local helpers | Responsibility and semantics | Evidence |
 |---|---|---|
 | `qmom_label`, `cqmom_label`, `cqmom_abscissa_label` | Format order/coordinate metadata; labels do not impose physical units. | Output header tests |
 | `sequential_indices`, `flatten_selected_indices` | Build all-order selection or map checked multi-indices to flat offsets in request order. | Selected-output tests |
 | `qmom_labels`, `cqmom_labels`, `all_cqmom_labels`, `qmom_quadrature_labels`, `cqmom_quadrature_labels` | Construct header fields matching the selected writer layout. | Output header/row tests |
-| Writer constructors, `write_header`, `layout_mismatch_message`, forwarding `write` overloads | Own stream/layout and adapt supported input representations. Opening and row emission may have effects before a later exception. | Output failure tests, boundary caveat above |
+| `open_output_file`, `flush_or_throw` | Open the stream in the classic locale, so the global locale changes neither decimal point nor index digits; flush each row or quadrature block, and close the stream and throw if the operating system refuses it, so no accepted row is lost in the buffer and no refused one is written later. | `writers_ignore_the_global_locale`, `each_write_is_in_the_file_when_it_returns`, `rows_that_cannot_be_stored_are_reported` in output unit tests |
+| Writer constructors, `write_header`, `layout_mismatch_message`, forwarding `write` overloads | Own stream/layout and adapt supported input representations. Opening truncates the file before the constructor's later checks. | Output failure tests |
 
 ## Shared finite and shape validation — Levels A/C
 

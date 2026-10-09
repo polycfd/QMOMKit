@@ -275,8 +275,7 @@ void validate_request(const std::vector<double>& moments, const double t, const 
     {
         throw std::invalid_argument("Moment-source callback must be provided.");
     }
-    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0 ||
-        (options.ssp_rk3_options.min_time_step > 0.0 && time_step < options.ssp_rk3_options.min_time_step))
+    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0)
     {
         throw std::invalid_argument("Moment-source update timestep controls are invalid.");
     }
@@ -312,8 +311,7 @@ void validate_cqmom_source_update_controls(const double t, const double time_ste
     {
         throw std::invalid_argument("CQMOM source callback must be provided.");
     }
-    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0 ||
-        (options.ssp_rk3_options.min_time_step > 0.0 && time_step < options.ssp_rk3_options.min_time_step))
+    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0)
     {
         throw std::invalid_argument("CQMOM moment-source update timestep controls are invalid.");
     }

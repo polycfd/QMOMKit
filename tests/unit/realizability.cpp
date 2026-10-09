@@ -127,21 +127,39 @@ void test_even_order_hamburger_singular_kernel_consistency()
 
 void test_every_eigenvalue_is_classified()
 {
-    // Two points at -1e-5 and 1e-5 give H_2 with eigenvalues of about 1, 1e-10
-    // and 0. Under an absolute tolerance of 1e-8 the eigenvalue 1e-10 is
-    // neither zero nor positive, so the sequence is indeterminate although the
-    // smallest eigenvalue alone would make it boundary.
-    const MomentSet moments{1.0, 0.0, 1.0e-10, 0.0, 1.0e-20, 0.0};
-    RealizabilityOptions absolute;
-    absolute.tolerance = 1.0e-8;
-    absolute.relative_tolerance = false;
-    const auto result = qmomkit::check_realizability(moments, MomentSupport::real_line, absolute);
+    // Two points at -1 and 1 give, standardized, an H_2 with eigenvalues of
+    // about 0.53, 0.125 and 0. With a tolerance of 0.4 the threshold is 0.25,
+    // so 0.125 is neither zero nor positive and the sequence is indeterminate,
+    // although the smallest eigenvalue alone would make it boundary.
+    const MomentSet moments{1.0, 0.0, 1.0, 0.0, 1.0};
+    RealizabilityOptions coarse;
+    coarse.tolerance = 0.4;
+    const auto result = qmomkit::check_realizability(moments, MomentSupport::real_line, coarse);
     assert(result.status == RealizabilityStatus::numerically_indeterminate);
     assert(result.failed_matrix == "H_2");
 
-    // Standardized, the same points sit at -1 and 1, and every eigenvalue is
-    // decided.
+    // With the default tolerance every eigenvalue is decided.
     assert(qmomkit::check_realizability(moments, MomentSupport::real_line).status == RealizabilityStatus::boundary);
+}
+
+void test_tolerance_below_the_roundoff_resolves_no_finer()
+{
+    // Lowering m_4 of the two points by 2e-13 gives H_2 an eigenvalue of about
+    // -6e-15 relative to the standardized matrix: below minus a tolerance of
+    // 1e-15, but within the roundoff of the eigen solve, so it has no sign and
+    // the sequence is on the boundary, as with the default tolerance.
+    for (const double tolerance : {1.0e-15, 1.0e-12})
+    {
+        RealizabilityOptions options;
+        options.tolerance = tolerance;
+        assert(qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0, 0.0, 1.0 - 2.0e-13}, MomentSupport::real_line, options).status ==
+               RealizabilityStatus::boundary);
+
+        // An eigenvalue beyond the roundoff still decides.
+        const auto rejected = qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0, 0.0, 1.0 - 1.0e-10}, MomentSupport::real_line, options);
+        assert(rejected.status == RealizabilityStatus::not_realizable);
+        assert(rejected.failed_matrix == "H_2");
+    }
 }
 
 // Raw moments of the normal distribution with mean c and unit variance, from
@@ -211,6 +229,18 @@ void test_flat_extension_within_data_uncertainty_is_indeterminate()
     assert(result.failed_matrix == "H_3_flat_extension");
 }
 
+void test_data_uncertainty_widens_the_tolerance()
+{
+    // Two points at 4 and 6 with m_4 lowered by 2^-35: the standardized H_2 has
+    // an eigenvalue of about -9e-13, below minus the user threshold but within
+    // it once the propagated rounding of the input moments is added, so its
+    // sign is indeterminate rather than negative.
+    const auto result = qmomkit::check_realizability(MomentSet{1.0, 5.0, 26.0, 140.0, 776.0 - 0x1p-35}, MomentSupport::real_line);
+    assert(result.status == RealizabilityStatus::numerically_indeterminate);
+    assert(result.failed_matrix == "H_2");
+    assert(result.minimum_pivot < 0.0);
+}
+
 void test_lost_information_is_indeterminate()
 {
     // At a mean of 10^6 standard deviations the order-6 central moments carry
@@ -248,8 +278,10 @@ int main(const int argc, char** argv)
             {"status_helpers", test_status_helpers},
             {"even_order_hamburger_singular_kernel_consistency", test_even_order_hamburger_singular_kernel_consistency},
             {"every_eigenvalue_is_classified", test_every_eigenvalue_is_classified},
+            {"tolerance_below_the_roundoff_resolves_no_finer", test_tolerance_below_the_roundoff_resolves_no_finer},
             {"flat_extension_within_precision_is_boundary", test_flat_extension_within_precision_is_boundary},
             {"flat_extension_within_data_uncertainty_is_indeterminate", test_flat_extension_within_data_uncertainty_is_indeterminate},
+            {"data_uncertainty_widens_the_tolerance", test_data_uncertainty_widens_the_tolerance},
             {"lost_information_is_indeterminate", test_lost_information_is_indeterminate},
             {"ssp_rk3_predicate_can_be_explicitly_wrapped", test_ssp_rk3_predicate_can_be_explicitly_wrapped},
         });

@@ -179,8 +179,9 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
     {
         throw std::invalid_argument("SSP-RK3 input contains non-finite values.");
     }
-    if (time_step <= 0.0 || !std::isfinite(options.min_time_step) || options.min_time_step < 0.0 ||
-        (options.min_time_step > 0.0 && time_step < options.min_time_step))
+    // A step already shorter than min_time_step is attempted, just not halved,
+    // so that a caller retrying with a shorter step is not refused for it.
+    if (time_step <= 0.0 || !std::isfinite(options.min_time_step) || options.min_time_step < 0.0)
     {
         throw std::invalid_argument("SSP-RK3 timestep controls must be positive.");
     }
@@ -245,8 +246,10 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta step-size option.");
     }
-    // Only explicit values can be compared here; a default max_step is derived
-    // from the interval and is compared with min_step below.
+    // Only two explicit limits can contradict each other. A default max_step
+    // is the interval itself, and an interval shorter than min_step is taken
+    // as one step, so that a caller retrying with a shorter interval is not
+    // refused for it.
     if (options.max_step > 0.0 && options.min_step > options.max_step)
     {
         return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");
@@ -261,13 +264,6 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     if (max_step <= 0.0 || !std::isfinite(max_step))
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta maximum step.");
-    }
-    // An explicit min_step (options.min_step <= 0.0 instead requests an automatically
-    // derived, always-tiny minimum) must not exceed the effective maximum step, or the
-    // per-step clamp below could push the step size above max_step.
-    if (options.min_step > 0.0 && options.min_step > max_step)
-    {
-        return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");
     }
 
     std::vector<double> y = initial_state;

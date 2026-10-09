@@ -883,7 +883,6 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed, con
     allowed.push_back("time_integration.realizability.accept_boundary");
     allowed.push_back("time_integration.realizability.support");
     allowed.push_back("time_integration.realizability.tolerance");
-    allowed.push_back("time_integration.realizability.relative_tolerance");
     allowed.push_back("time_integration.realizability.lower");
     allowed.push_back("time_integration.realizability.upper");
 }
@@ -987,6 +986,18 @@ void reject_unconsumed_indexed_entries(ParsedFile& parsed, const std::string& in
 std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::string& source_name,
                                                  const std::string& initialization_prefix = "initial")
 {
+    // A mixture takes each distribution and number density from its component
+    // sections, so the same keys at the mixture's own level would be ignored.
+    for (const auto& scalar : parsed.scalars)
+    {
+        if (component_key_allowed(scalar.first, initialization_prefix))
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, scalar.second.line,
+                      "Key '" + scalar.first +
+                          "' has no effect with 'type = mixture'; each mixture component sets its own distribution and number_density.");
+        }
+    }
+
     const std::string component_section_prefix = mixture_component_prefix(initialization_prefix);
     std::map<std::size_t, Entry> component_sections;
     for (const auto& item : parsed.sections)
@@ -1236,8 +1247,11 @@ std::optional<RawMomentTensor> parse_explicit_tensor(ParsedFile& parsed, const s
                   "Moment extents are zero or their product overflows.");
     }
 
-    std::vector<double> values(moment_count, 0.0);
-    std::vector<bool> supplied(moment_count, false);
+    // Every entry is checked, and the entries inside the extents are counted,
+    // before the tensor is allocated: declared extents far beyond the supplied
+    // entries are reported as an incomplete tensor rather than allocated. Each
+    // index appears once, so the count tells whether the tensor is complete.
+    std::size_t supplied_count = 0;
     for (const auto& item : parsed.moments)
     {
         if (item.first.size() != extents.size())
@@ -1261,24 +1275,27 @@ std::optional<RawMomentTensor> parse_explicit_tensor(ParsedFile& parsed, const s
         {
             add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, item.second.line, "Moment value must be a finite number.");
         }
-        else if (!values.empty())
+        else
         {
-            const std::size_t flat = flatten_multi_index(item.first, extents);
-            values[flat] = value;
-            supplied[flat] = true;
+            ++supplied_count;
         }
     }
 
-    const std::size_t missing_count = static_cast<std::size_t>(std::count(supplied.begin(), supplied.end(), false));
-    if (missing_count != 0)
+    if (moment_count != 0 && supplied_count < moment_count)
     {
         add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
-                  "The full tensor of raw moments is incomplete; it is missing " + std::to_string(missing_count) + " of its " +
+                  "The full tensor of raw moments is incomplete; it is missing " + std::to_string(moment_count - supplied_count) + " of its " +
                       std::to_string(moment_count) + " entries.");
     }
     if (!parsed.errors.empty())
     {
         return std::nullopt;
+    }
+
+    std::vector<double> values(moment_count, 0.0);
+    for (const auto& item : parsed.moments)
+    {
+        static_cast<void>(parse_double(item.second.value, values[flatten_multi_index(item.first, extents)]));
     }
     return RawMomentTensor{std::move(extents), std::move(values)};
 }
@@ -1425,7 +1442,7 @@ bool is_realizability_key(const std::string& key)
 
 const std::vector<std::string>& realizability_policy_fields()
 {
-    static const std::vector<std::string> fields{"check_mode", "accept_boundary", "support", "tolerance", "relative_tolerance", "lower", "upper"};
+    static const std::vector<std::string> fields{"check_mode", "accept_boundary", "support", "tolerance", "lower", "upper"};
     return fields;
 }
 
@@ -1650,7 +1667,6 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
     const std::string support_key = key_prefix + "support";
     const std::string accept_boundary_key = key_prefix + "accept_boundary";
     const std::string tolerance_key = key_prefix + "tolerance";
-    const std::string relative_tolerance_key = key_prefix + "relative_tolerance";
     const std::string lower_key = key_prefix + "lower";
     const std::string upper_key = key_prefix + "upper";
 
@@ -1664,7 +1680,6 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
     policy.check_mode = *check_mode;
     parse_optional_bool(parsed, accept_boundary_key, source_name, policy.accept_boundary);
     parse_optional_double(parsed, tolerance_key, source_name, policy.options.tolerance);
-    parse_optional_bool(parsed, relative_tolerance_key, source_name, policy.options.relative_tolerance);
     if (policy.options.tolerance <= 0.0)
     {
         const Entry* entry = find_entry(parsed, tolerance_key);
@@ -1709,13 +1724,32 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
     return policy;
 }
 
+void validate_cqmom_coordinate_realizability_ranks(ParsedFile& parsed, const std::string& source_name, std::size_t dimensions);
+
 std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_policies_from_parsed(ParsedFile& parsed,
                                                                                                     const std::string& source_name)
 {
+    // A configuration that declares its phase space bounds each coordinate
+    // index by the rank, as the case loaders do: every section is checked, then
+    // an index beyond the rank is reported, and the policy vector is never
+    // sized by it.
+    std::optional<std::size_t> rank;
+    std::vector<std::size_t> node_counts;
+    if (const Entry* node_counts_entry = find_entry(parsed, "phase_space.node_counts");
+        node_counts_entry != nullptr && parse_size_list(*node_counts_entry, node_counts))
+    {
+        rank = node_counts.size();
+    }
+
     const std::vector<std::pair<std::size_t, std::string>> sections = coordinate_realizability_sections(parsed);
     std::vector<std::optional<RealizabilityPolicy>> policies;
     for (const auto& item : sections)
     {
+        const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
+        if (rank.has_value() && item.first >= *rank)
+        {
+            continue;
+        }
         const std::optional<std::size_t> required_size = internal::checked_size_add(item.first, 1);
         if (!required_size.has_value())
         {
@@ -1724,7 +1758,6 @@ std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_p
                       "Coordinate realizability policy index cannot be represented.");
             continue;
         }
-        const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
         if (policy.has_value())
         {
             if (policies.size() < *required_size)
@@ -1745,6 +1778,10 @@ std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_p
             }
             policies[item.first] = *policy;
         }
+    }
+    if (rank.has_value())
+    {
+        validate_cqmom_coordinate_realizability_ranks(parsed, source_name, *rank);
     }
     return policies;
 }

@@ -13,10 +13,17 @@
 #include <functional>
 #include <iomanip>
 #include <limits>
+#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
+
+#if defined(__unix__) || defined(__APPLE__)
+#include <csignal>
+#include <sys/resource.h>
+#endif
 
 namespace
 {
@@ -943,6 +950,231 @@ void test_cqmom_quadrature_writer_rejects_malformed_terminal_storage()
     std::filesystem::remove(path);
 }
 
+// A locale with a decimal comma and digit grouping, as some regional locales
+// use.
+struct DecimalCommaPunctuation : std::numpunct<char>
+{
+    [[nodiscard]] char do_decimal_point() const override
+    {
+        return ',';
+    }
+    [[nodiscard]] char do_thousands_sep() const override
+    {
+        return '.';
+    }
+    [[nodiscard]] std::string do_grouping() const override
+    {
+        return "\3";
+    }
+};
+
+void test_writers_ignore_the_global_locale()
+{
+    // The files are read back as numbers, so the global locale of the
+    // application must change neither the decimal point, in values and in
+    // generalized-moment labels, nor the indices, which would otherwise be
+    // grouped from 1000 on.
+    const auto write_files = [](const std::string& stem)
+    {
+        const std::filesystem::path moments = temporary_output_path(stem + "_moments");
+        const std::filesystem::path tensor = temporary_output_path(stem + "_tensor");
+        const std::filesystem::path quadrature = temporary_output_path(stem + "_quadrature");
+        {
+            qmomkit::OutputOptions options;
+            options.generalized_moment_orders = {{0.5}};
+            qmomkit::MomentWriter moment_writer = qmomkit::MomentWriter::for_qmom(moments, 2, options);
+            moment_writer.write(0.5, qmomkit::MomentSet{1.5, 1234.5}, {2.5});
+
+            const std::vector<std::size_t> extents{1001, 1};
+            qmomkit::MomentWriter tensor_writer = qmomkit::MomentWriter::for_cqmom(tensor, extents, {{1000, 0}}, {{0.5, 1.0}});
+            tensor_writer.write(0.5, qmomkit::RawMomentTensor{extents, std::vector<double>(1001, 1.5)}, {2.5});
+
+            const std::vector<double> abscissas(1200, 0.25);
+            const std::vector<double> weights(1200, 1.0);
+            qmomkit::QuadratureWriter quadrature_writer = qmomkit::QuadratureWriter::for_qmom(quadrature, 1200);
+            quadrature_writer.write(0.5, qmomkit::Quadrature1D{abscissas, weights});
+        }
+        const std::vector<std::string> contents{read_text_file(moments), read_text_file(tensor), read_text_file(quadrature)};
+        std::filesystem::remove(moments);
+        std::filesystem::remove(tensor);
+        std::filesystem::remove(quadrature);
+        return contents;
+    };
+
+    const auto classic = write_files("qmomkit_classic_locale");
+    const std::locale previous = std::locale::global(std::locale(std::locale::classic(), new DecimalCommaPunctuation));
+    const auto decimal_comma = write_files("qmomkit_decimal_comma_locale");
+    std::locale::global(previous);
+
+    assert(decimal_comma == classic);
+    assert(classic[0].find(',') == std::string::npos);
+    assert(classic[0].find("G[0.5]") != std::string::npos);
+    assert(classic[1].find("M[1000,0]") != std::string::npos);
+    assert(classic[1].find("G[0.5,1]") != std::string::npos);
+    assert(classic[2].find(" 1199 ") != std::string::npos);
+}
+
+// A two-by-two CQMOM quadrature reconstructed from the moments of known nodes.
+[[nodiscard]] qmomkit::CqmomQuadrature grid_cqmom_quadrature()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> moments =
+        raw_moments_from_grid(hierarchy, extents, {0.28, 0.07, 0.52, 0.13}, {{-0.75, -0.75, 1.25, 1.25}, {0.2, 1.4, 0.2, 1.4}});
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+    assert(result.ok());
+    return result.quadrature;
+}
+
+[[nodiscard]] std::size_t complete_lines(const std::filesystem::path& path)
+{
+    const std::string text = read_text_file(path);
+    return static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n'));
+}
+
+void test_each_write_is_in_the_file_when_it_returns()
+{
+    // Each write is flushed before it returns, so the file holds the header and
+    // every row or block while the writer is still open, on every row path.
+    const std::filesystem::path path = temporary_output_path("qmomkit_flushed_output");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, 2);
+        assert(complete_lines(path) == 1);
+        writer.write(0.0, qmomkit::MomentSet{1.0, 2.0});
+        assert(complete_lines(path) == 2);
+    }
+    {
+        qmomkit::OutputOptions options;
+        options.generalized_moment_orders = {{0.5}};
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, 2, options);
+        writer.write(0.0, qmomkit::MomentSet{1.0, 2.0}, {1.5});
+        assert(complete_lines(path) == 2);
+    }
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 3);
+        writer.write(0.0, qmomkit::Quadrature1D{{-1.0, 0.0, 1.0}, {0.25, 0.5, 0.25}});
+        assert(complete_lines(path) == 4);
+    }
+    {
+        const qmomkit::CqmomQuadrature quadrature = grid_cqmom_quadrature();
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(path, 2);
+        writer.write(0.0, quadrature);
+        assert(complete_lines(path) == quadrature.total_nodes() + 1);
+    }
+    std::filesystem::remove(path);
+}
+
+void test_rows_that_cannot_be_stored_are_reported()
+{
+#if defined(__unix__) || defined(__APPLE__)
+    // A limit on the file size makes the operating system refuse to extend the
+    // file, as a full disk would. The first write that cannot be written must
+    // throw rather than be lost in the stream buffer or in the destructor, and
+    // must not be written later either, when space is available again by the
+    // time the writer is destroyed.
+    const auto previous_handler = std::signal(SIGXFSZ, SIG_IGN);
+    rlimit previous{};
+    const int got_limit = getrlimit(RLIMIT_FSIZE, &previous);
+    assert(got_limit == 0);
+    const auto limit_file_size = [&previous](const rlim_t bytes)
+    {
+        rlimit limit = previous;
+        limit.rlim_cur = bytes;
+        const int set_limit = setrlimit(RLIMIT_FSIZE, &limit);
+        assert(set_limit == 0);
+    };
+    // The number of writes accepted before one is refused. Space is then made
+    // available again before the caller destroys the writer.
+    const auto accepted_writes = [&](const std::function<void(double)>& write)
+    {
+        limit_file_size(2048);
+        std::size_t accepted = 0;
+        try
+        {
+            for (; accepted < 1000; ++accepted)
+            {
+                write(static_cast<double>(accepted));
+            }
+        }
+        catch (const std::runtime_error&)
+        {
+            assert(accepted > 0);
+            limit_file_size(previous.rlim_cur);
+            // The writer is closed after a refusal, so a later write throws
+            // even with space available, and adds nothing to the file.
+            bool later_write_refused = false;
+            try
+            {
+                write(static_cast<double>(accepted + 1));
+            }
+            catch (const std::runtime_error&)
+            {
+                later_write_refused = true;
+            }
+            assert(later_write_refused);
+            return accepted;
+        }
+        assert(false);
+        return accepted;
+    };
+
+    // Each moment write is one row after the header, through the plain and the
+    // generalized-column row paths.
+    const std::filesystem::path path = temporary_output_path("qmomkit_limited_output");
+    std::size_t accepted = 0;
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, 2);
+        accepted = accepted_writes([&writer](const double time) { writer.write(time, qmomkit::MomentSet{1.0, 2.0}); });
+    }
+    assert(complete_lines(path) == accepted + 1);
+    {
+        qmomkit::OutputOptions options;
+        options.generalized_moment_orders = {{0.5}};
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, 2, options);
+        accepted = accepted_writes([&writer](const double time) { writer.write(time, qmomkit::MomentSet{1.0, 2.0}, {1.5}); });
+    }
+    assert(complete_lines(path) == accepted + 1);
+
+    // A quadrature write is one block of rows; the rows of every accepted block
+    // are in the file, and of the refused block at most those written before
+    // the refusal.
+    const auto assert_blocks_written = [&](const std::size_t nodes)
+    {
+        assert(complete_lines(path) >= nodes * accepted + 1);
+        assert(complete_lines(path) < nodes * (accepted + 1) + 1);
+    };
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 3);
+        accepted = accepted_writes([&writer](const double time) { writer.write(time, qmomkit::Quadrature1D{{-1.0, 0.0, 1.0}, {0.25, 0.5, 0.25}}); });
+    }
+    assert_blocks_written(3);
+    const qmomkit::CqmomQuadrature quadrature = grid_cqmom_quadrature();
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(path, 2);
+        accepted = accepted_writes([&writer, &quadrature](const double time) { writer.write(time, quadrature); });
+    }
+    assert_blocks_written(quadrature.total_nodes());
+
+    // A header that cannot be written is reported by the factory.
+    limit_file_size(16);
+    bool header_reported = false;
+    try
+    {
+        static_cast<void>(qmomkit::MomentWriter::for_qmom(path, 2));
+    }
+    catch (const std::runtime_error&)
+    {
+        header_reported = true;
+    }
+    assert(header_reported);
+
+    limit_file_size(previous.rlim_cur);
+    std::signal(SIGXFSZ, previous_handler);
+    std::filesystem::remove(path);
+#endif
+}
+
 // A rejected row or time block leaves the file exactly as it was, because every
 // check runs before the first character of the row or block is written. Each
 // case writes the same valid content to a reference file, adds the rejected
@@ -1108,6 +1340,9 @@ int main(const int argc, char** argv)
             {"writer_rejects_generalized_moments_without_values", test_writer_rejects_generalized_moments_without_values},
             {"moment_writer_rejects_nonfinite_values", test_moment_writer_rejects_nonfinite_values},
             {"rejected_rows_leave_the_file_unchanged", test_rejected_rows_leave_the_file_unchanged},
+            {"writers_ignore_the_global_locale", test_writers_ignore_the_global_locale},
+            {"each_write_is_in_the_file_when_it_returns", test_each_write_is_in_the_file_when_it_returns},
+            {"rows_that_cannot_be_stored_are_reported", test_rows_that_cannot_be_stored_are_reported},
             {"selected_moment_rows_ignore_unselected_values", test_selected_moment_rows_ignore_unselected_values},
             {"quadrature_indices_stay_exact_at_low_precision", test_quadrature_indices_stay_exact_at_low_precision},
             {"column_padding_uses_centered_labels_and_widths", test_column_padding_uses_centered_labels_and_widths},

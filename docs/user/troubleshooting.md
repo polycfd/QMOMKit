@@ -49,7 +49,7 @@ down where to look:
 | `velocity_failed` | The velocity callback itself | A non-finite, wrong-sized, or partly filled result |
 | `source_failed` | The source callback itself | As above, for rates |
 | `rejected_by_predicate` | Source integration | A realizability or acceptance check rejected every retry |
-| `minimum_timestep_reached` | Source integration | Retries shrank the step below its floor |
+| `minimum_timestep_reached` | Source integration | A rejected step could not be halved: retries reached `min_time_step`, or the step was already shorter |
 | `step_size_underflow` | Adaptive node integration | The step at the floor produced a non-finite state or error estimate |
 | `max_steps_exceeded` | Adaptive node integration | The interval needs more steps than `max_steps` allows |
 
@@ -215,9 +215,9 @@ In order of usefulness:
 ### `rejected_by_predicate` or `minimum_timestep_reached`
 
 A realizability or acceptance predicate rejected the source step, and halving
-the timestep did not help. The predicate is doing its job: the source is driving
-the moments somewhere unusable. Treat this as a physics or timestep problem
-rather than raising `max_retries`.
+the timestep, as far as `min_time_step` allowed, did not help. The predicate is
+doing its job: the source is driving the moments somewhere unusable. Treat this
+as a physics or timestep problem rather than raising `max_retries`.
 
 ### A source or boundary callback is rejected
 

@@ -8,7 +8,9 @@ and a size-dependent fragmentation source written over the quadrature nodes. The
 [configuration.qmom](./configuration.qmom). The phase-space coordinate is $\xi=d$, where $d$ is
 particle diameter and $n(d)$ is the number density. The raw, unnormalized
 moments are
-$$M_k = \int_{\mathbb{R}} d^k n(d)\,\mathrm{d}d.$$
+```math
+M_k = \int_{\mathbb{R}} d^k n(d)\,\mathrm{d}d.
+```
 
 The workflow is:
 
@@ -21,7 +23,7 @@ initial distribution
 ```
 
 The executable uses a small bimodal distribution,
-$0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$, and reconstructs a three-node QMOM
+$`0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)`$, and reconstructs a three-node QMOM
 quadrature from moments $M_0$ through $M_5$. QMOMKit reads the mixture
 configuration, generates the analytical raw moments, and then the example calls
 `qmomkit::QmomCase::initial_state()` to construct the initial `QmomState`.
@@ -54,17 +56,21 @@ $$a(d) = a_\mathrm{ref}\left(\frac{d}{d_\mathrm{ref}}\right)^{p},
 
 The raw moments then change as
 
-$$\frac{\mathrm{d}M_k}{\mathrm{d}t}
+```math
+\frac{\mathrm{d}M_k}{\mathrm{d}t}
 = \left(2^{1-k}-1\right)\int a(d)\,d^k\,n(d)\,\mathrm{d}d
-= \left(2^{1-k}-1\right)\frac{a_\mathrm{ref}}{d_\mathrm{ref}^{\,p}}\,M_{k+3/2}.$$
+= \left(2^{1-k}-1\right)\frac{a_\mathrm{ref}}{d_\mathrm{ref}^{\,p}}\,M_{k+3/2}.
+```
 
 The right-hand side needs moments of order $k + 3/2$, which are not among the
 transported moments $M_0$ through $M_5$. The source callback closes it with the
 quadrature: it evaluates the integral over the nodes of the quadrature that
 QMOMKit builds from the current moments, through `context.for_each_node(...)`:
 
-$$\frac{\mathrm{d}M_k}{\mathrm{d}t} \approx \left(2^{1-k}-1\right)
-\sum_i w_i\,a(d_i)\,d_i^k.$$
+```math
+\frac{\mathrm{d}M_k}{\mathrm{d}t} \approx \left(2^{1-k}-1\right)
+\sum_i w_i\,a(d_i)\,d_i^k.
+```
 
 QMOMKit reconstructs that quadrature at every Runge-Kutta stage of the
 moment-source update, so the node values follow the moments as they change. The

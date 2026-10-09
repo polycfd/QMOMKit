@@ -59,7 +59,7 @@ rescaling is needed and the physical callback receives the SI radius directly.
 
 For a number density function $n(r,w,T)$, the raw unnormalized moments are
 
-$$
+```math
 \begin{aligned}
 M_{\alpha_r,\alpha_w,\alpha_T}
 &=
@@ -70,7 +70,7 @@ T^{\alpha_T}
 n(r,w,T)
 \,\mathrm{d}r\,\mathrm{d}w\,\mathrm{d}T.
 \end{aligned}
-$$
+```
 
 Here $\alpha_r$, $\alpha_w$, and $\alpha_T$ are nonnegative integer
 moment orders in radius, vertical velocity, and temperature. The zeroth moment
@@ -203,7 +203,7 @@ $$
 
 and
 
-$$
+```math
 \begin{aligned}
 L(T)
 &=
@@ -216,7 +216,7 @@ L(T)
 }
 \frac{R_g T_c}{M_w}.
 \end{aligned}
-$$
+```
 
 The relative vertical velocity is
 
@@ -243,18 +243,18 @@ $$
 The transfer-number helper is [[Beard & Pruppacher,
 1971](https://www.doi.org/10.1175/1520-0469(1971)028<1455:AWTIOT>2.0.CO;2)]
 
-$$
+```math
 \begin{aligned}
 \Psi(\mathrm{Re},\Pi)
 &=
 \begin{cases}
 2+0.316\,\mathrm{Re}\,\Pi^{2/3},
-& \sqrt{\mathrm{Re}}\,\Pi^{1/3} < 1.4,\\
-1.56+0.616\,\sqrt{\mathrm{Re}}\,\Pi^{1/3},
+& \sqrt{\mathrm{Re}}\,\Pi^{1/3} < 1.4,
+\\ 1.56+0.616\,\sqrt{\mathrm{Re}}\,\Pi^{1/3},
 & \sqrt{\mathrm{Re}}\,\Pi^{1/3} \ge 1.4.
 \end{cases}
 \end{aligned}
-$$
+```
 
 The Sherwood number is
 
@@ -287,13 +287,13 @@ No wet-bulb correction is applied to $\mathrm{Nu}$ in this implementation.
 ### Condensation radius rate
 
 The implemented radius rate is
-$$
+```math
 \begin{aligned}
 \frac{\mathrm{d}r}{\mathrm{d}t}
 &=
 \frac{\mathrm{Sh}\,D_v\,M_w}{2r\rho_l R_g} \ \left(\phi\frac{p_{\mathrm{sat}}(T_\infty)}{T_\infty} - \frac{p_{\mathrm{sat}}(T)}{T}\right).
 \end{aligned}
-$$
+```
 
 The default ambient relative humidity and temperatures produce
 condensation for the supplied initial population.
@@ -339,21 +339,27 @@ tensor.
 ### Momentum equation
 
 If $w_{\mathrm{rel}}=0$, the drag acceleration is zero. Otherwise, for
-$\mathrm{Re}<\mathrm{Re}_{\min}$, the low-Reynolds-number branch uses
-$$a_{\mathrm{drag}} = \frac{4.5\,\mu_a\,w_{\mathrm{rel}}}{\rho_l r^2}.$$
-For $\mathrm{Re}\ge \mathrm{Re}_{\min}$, the deformation factor is
+$`\mathrm{Re}<\mathrm{Re}_{\min}`$, the low-Reynolds-number branch uses
+```math
+a_{\mathrm{drag}} = \frac{4.5\,\mu_a\,w_{\mathrm{rel}}}{\rho_l r^2}.
+```
+For $`\mathrm{Re}\ge \mathrm{Re}_{\min}`$, the deformation factor is
 [[Lie et al., 1993](https://saemobilus.sae.org/papers/modeling-effects-drop-drag-breakup-fuel-sprays-930072);
 [Hsiang & Faeth, 1992](https://doi.org/10.1016/0301-9322(92)90036-G)]
-$$F_{\mathrm{def}} = 1 + 2.632 \left[ 1 - \frac{1}{\left(1+0.19\sqrt{\mathrm{We}}\right)^2} \right],$$
+```math
+F_{\mathrm{def}} = 1 + 2.632 \left[ 1 - \frac{1}{\left(1+0.19\sqrt{\mathrm{We}}\right)^2} \right],
+```
 the spherical drag coefficient correlation is
 [[Clift & Gauvin, 1971](https://doi.org/10.1002/cjce.5450490403)]
-$$C_{d,0} = \frac{24}{\mathrm{Re}}
-\left[1 +0.15\,\mathrm{Re}^{0.687} + \frac{0.0175\,\mathrm{Re}}{1+42500\,\mathrm{Re}^{-1.16}} \right],$$
+```math
+C_{d,0} = \frac{24}{\mathrm{Re}}
+\left[1 +0.15\,\mathrm{Re}^{0.687} + \frac{0.0175\,\mathrm{Re}}{1+42500\,\mathrm{Re}^{-1.16}} \right],
+```
 and
 $$C_d = C_{d,0}F_{\mathrm{def}}.$$
 
 The general drag acceleration is
-$$
+```math
 \begin{aligned}
 a_{\mathrm{drag}}
 &=
@@ -363,7 +369,7 @@ a_{\mathrm{drag}}
 8\rho_l r
 }.
 \end{aligned}
-$$
+```
 
 The vertical-velocity equation is
 
@@ -384,7 +390,7 @@ drag term acts according to the sign of $w_{\mathrm{rel}}$.
 The temperature rate combines sensible heat transfer and latent heat associated
 with the radius change:
 
-$$
+```math
 \begin{aligned}
 \frac{\mathrm{d}T}{\mathrm{d}t}
 &=
@@ -399,7 +405,7 @@ $$
 L(T)\frac{\mathrm{d}r}{\mathrm{d}t}
 \right].
 \end{aligned}
-$$
+```
 
 The first term inside the brackets relaxes droplet temperature toward the
 ambient temperature. The second term couples condensation or evaporation to the
@@ -422,7 +428,7 @@ The configured marginals are:
 
 For the implemented gamma parameterization,
 
-$$
+```math
 \begin{aligned}
 \mathbb{E}[r_{\mathrm{\mu m}}]
 &=
@@ -432,7 +438,7 @@ k\theta_r
 =
 300\ \mathrm{\mu m},
 \end{aligned}
-$$
+```
 
 where $k$ is the gamma shape and $\theta_r$ is the gamma scale.
 

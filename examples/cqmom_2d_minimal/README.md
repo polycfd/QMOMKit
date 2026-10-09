@@ -58,9 +58,9 @@ $$
 
 The boundary contribution adds
 
-$$
+```math
 0.1\,(0.1)^{\alpha_0}
-$$
+```
 
 to each supplied moment rate. The run starts at `t = 0`, ends at `t = 1`,
 and advances with `dt = 0.01`. Strang splitting is used with SSP-RK3 node

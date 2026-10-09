@@ -26,7 +26,7 @@ $$
 
 The particle diameter is defined in micrometres and time is defined in seconds. The negative sign moves
 the QMOM abscissas toward smaller diameters. A residual diameter of
-$0.8\,\mathrm{\mu m}$ is retained after each node-advection step.
+$`0.8\,\mathrm{\mu m}`$ is retained after each node-advection step.
 
 [main.cpp](./main.cpp) shows the complete QMOMKit workflow:
 

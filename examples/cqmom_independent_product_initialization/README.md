@@ -23,11 +23,11 @@ nodes. The initial number density is `2.5`, with a gamma distribution in
 For the number density $n(\mathrm{size},\mathrm{velocity})$, the raw
 multivariate moments are
 
-$$
+```math
 M_{i,j} = \int\!\int \mathrm{size}^i\mathrm{velocity}^j\,
 n(\mathrm{size},\mathrm{velocity})\,
 \mathrm{d}\mathrm{size}\,\mathrm{d}\mathrm{velocity}.
-$$
+```
 
 They are unnormalized, so $M_{0,0}$ is the total number density `2.5`.
 `CqmomPreparedCase::initial_state()` constructs the initial `CqmomState` from the

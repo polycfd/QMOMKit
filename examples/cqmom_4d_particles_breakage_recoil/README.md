@@ -10,9 +10,9 @@ terminal quadrature.
 The coordinate order is diameter $d$ in m followed by particle velocity
 components $(u,v,w)$ in $\mathrm{m/s}$. Raw number-density moments are
 
-$$
+```math
 M_{p,q,r,s}=\int d^p u^q v^r w^s f(d,u,v,w)\,\mathrm{d}d\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
-$$
+```
 
 In particular, $M_{0,0,0,0}$ is number density and $(\pi/6)M_{3,0,0,0}$ is
 total particle volume. The configuration uses two CQMOM nodes in every
@@ -33,18 +33,19 @@ ensemble; the MC calculation advances the ensemble itself. Both verify the
 sampled tensor before evolution, so they begin from the same finite-sample
 population.
 
-The carrier gas has $(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\
-\mathrm{Pa\,s})$ and velocity $(2.0,1.5,0.8) \ \mathrm{m/s}$. Particles have
+The carrier gas has
+$`(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\ \mathrm{Pa\,s})`$
+and velocity $(2.0,1.5,0.8) \ \mathrm{m/s}$. Particles have
 density $2000 \ \mathrm{kg/m}^{3}$. With slip
 $\boldsymbol{s}=\boldsymbol{U}_g-\boldsymbol{u}$, the phase-space callback uses
 the Schiller--Naumann form
 
-$$
+```math
 \mathrm{Re}=\frac{\rho_gd|\boldsymbol{s}|}{\mu_g},\qquad
 \frac{\mathrm{d}\boldsymbol{u}}{\mathrm{d}t}=
 \frac{3\rho_g}{4\rho_pd}\frac{24}{\mathrm{Re}}
 \left(1+0.15\,\mathrm{Re}^{0.687}\right)|\boldsymbol{s}|\boldsymbol{s},
-$$
+```
 
 with $\mathrm{d}d/\mathrm{d}t=0$.
 
@@ -60,9 +61,9 @@ $$
 with opposite recoil vectors. For an individual daughter, each recoil component
 is normally distributed with zero mean and standard deviation
 
-$$
+```math
 \sigma_r(d)=0.25\frac{d}{10^{-4}\ \mathrm{m}}\ \mathrm{m\,s^{-1}}.
-$$
+```
 
 The MC companion samples one recoil vector and assigns its positive and
 negative forms to the two daughters. The CQMOM source uses the corresponding
@@ -75,9 +76,9 @@ Diameter-scaled recoil couples velocity powers to higher diameter powers. For
 example, the source of the tracked $M_{0,3,0,0}$ contains the untracked mixed
 moment $M_{2,1,0,0}$, because
 
-$$
+```math
 \mathbb E[(u+r_u)^3]=u^3+3u\,\sigma_r(d)^2.
-$$
+```
 
 Applying the nonlinear daughter mapping directly to terminal nodes supplies
 this reconstruction-dependent source closure naturally.

@@ -6,15 +6,15 @@ explicit sequence of raw, unnormalized moments.
 The phase-space coordinate is $\xi$. For a number density $n(\xi)$, the raw
 moment of order $k$ is
 
-$$
+```math
 m_k = \int_{\mathbb{R}} \xi^k n(\xi)\,\mathrm{d}\xi.
-$$
+```
 
 The source uses the manufactured two-node discrete measure
 
-$$
+```math
 n(\xi) = 0.4\,\delta(\xi+1) + 0.6\,\delta(\xi-2),
-$$
+```
 
 which gives $m_0=1$, $m_1=0.8$, $m_2=2.8$, and $m_3=4.4$. QMOMKit is
 asked for two nodes, so the expected reconstruction is weights 0.4 and

@@ -46,9 +46,9 @@ $$
 with $a = 500$ and $u_{\mathrm{eq}} = 0.5$. The velocities collapse onto
 $u_{\mathrm{eq}}$, and the variance decays as
 
-$$
+```math
 \operatorname{Var}[u](t) = \operatorname{Var}[u](0)\exp(-2at).
-$$
+```
 
 The moment-source is a manufactured symmetric variance-injection source:
 

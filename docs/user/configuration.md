@@ -300,7 +300,8 @@ These canonical family names are preferred. The parser also accepts
 A family reads only its own parameters, so a parameter of another family, such
 as `shape` with `family = lognormal`, is reported as an error rather than
 ignored. This applies wherever a distribution is given: under `[initial]`, in a
-mixture component, and in an `[initial.dimension.N]` marginal.
+mixture component, and in an `[initial.dimension.N]` marginal, unless explicit
+`[moments]` are given, which take precedence over the initialization sections.
 
 All supplied distribution parameters must be finite. The remaining family
 constraints are:

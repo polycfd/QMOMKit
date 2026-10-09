@@ -732,14 +732,26 @@ bool parse_optional_positive_size(ParsedFile& parsed, const std::string& key, co
     return true;
 }
 
+// The parameters of every distribution family; each family reads only its own.
+const std::vector<std::string>& distribution_parameters()
+{
+    static const std::vector<std::string> parameters{"mean",  "standard_deviation", "mu_log", "sigma_log", "alpha", "beta", "shape",
+                                                     "scale", "degrees_of_freedom"};
+    return parameters;
+}
+
+bool is_distribution_parameter(const std::string& field)
+{
+    const std::vector<std::string>& parameters = distribution_parameters();
+    return std::find(parameters.begin(), parameters.end(), field) != parameters.end();
+}
+
 // A family reads only its own parameters, so a parameter of another family
 // under the same prefix would have no effect.
 void reject_other_family_parameters(ParsedFile& parsed, const std::string& key_prefix, const std::string& family,
                                     const std::vector<std::string>& family_parameters, const std::string& source_name)
 {
-    static const std::vector<std::string> parameters{"mean",  "standard_deviation", "mu_log", "sigma_log", "alpha", "beta", "shape",
-                                                     "scale", "degrees_of_freedom"};
-    for (const std::string& parameter : parameters)
+    for (const std::string& parameter : distribution_parameters())
     {
         const std::string key = key_prefix + "." + parameter;
         const Entry* entry = find_entry(parsed, key);
@@ -852,20 +864,16 @@ std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, 
 
 bool component_key_allowed(const std::string& key, const std::string& prefix)
 {
-    static const std::vector<std::string> fields{"family", "number_density", "mean",  "standard_deviation", "mu_log", "sigma_log", "alpha",
-                                                 "beta",   "shape",          "scale", "degrees_of_freedom"};
     if (key.rfind(prefix + ".", 0) != 0)
     {
         return false;
     }
     const std::string field = key.substr(prefix.size() + 1);
-    return std::find(fields.begin(), fields.end(), field) != fields.end();
+    return field == "family" || field == "number_density" || is_distribution_parameter(field);
 }
 
 bool marginal_key_allowed(const std::string& key, const std::string& prefix)
 {
-    static const std::vector<std::string> fields{"type", "family", "mean",  "standard_deviation", "mu_log", "sigma_log", "alpha",
-                                                 "beta", "shape",  "scale", "degrees_of_freedom"};
     if (key.rfind(prefix + ".", 0) != 0)
     {
         return false;
@@ -875,7 +883,7 @@ bool marginal_key_allowed(const std::string& key, const std::string& prefix)
         return true;
     }
     const std::string field = key.substr(prefix.size() + 1);
-    return std::find(fields.begin(), fields.end(), field) != fields.end();
+    return field == "type" || field == "family" || is_distribution_parameter(field);
 }
 
 bool has_explicit_qmom_moments(const ParsedFile& parsed)

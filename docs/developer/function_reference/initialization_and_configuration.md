@@ -121,12 +121,13 @@ not an automated test.
 
 ## Parsing structure and precedence — Levels A/B
 
-Local `parse_file` is a line-oriented parser. It strips `#` comments, trims,
-recognizes sections, then stores qualified scalar keys or explicit `M[...]`
-entries. Duplicate scalar/moment keys become errors with source/line
-information. It is not a quoted-string language: a `#` is treated as a comment
-delimiter. Section occurrences are recorded, but repetition is rejected only
-where subsequent validators require it. `parse_size` uses unsigned conversion
+Local `parse_file` is a line-oriented parser. It strips `#` and `;` comments,
+trims, recognizes sections, then stores qualified scalar keys or explicit
+`M[...]` entries. Duplicate scalar/moment keys become errors with source/line
+information. It is not a quoted-string language: the first `#` or `;` on a line
+starts a comment wherever it appears, including inside a value. Section
+occurrences are recorded, but repetition is rejected only where subsequent
+validators require it. `parse_size` uses unsigned conversion
 with a negative-sign check; `parse_double` requires full finite conversion.
 List parsers reject empty entries/trailing commas; optional-bound lists
 additionally recognize `none`.

@@ -95,6 +95,20 @@ of its own. Indices in section names are written without leading zeros:
 are written in plain decimal notation, such as `2`, `-0.5`, or `1.0e-6`, and are
 read the same way whatever locale the host application uses.
 
+A comment starts with `#` or `;` and runs to the end of the line, on a line of
+its own or after a section header or value:
+
+```ini
+# Two-node case.
+[phase_space]   ; the backbone of every case
+node_counts = 2 # m0..m3 are needed
+```
+
+Everything from the first `#` or `;` on a line is removed before the line is
+read, and neither character can be quoted or escaped, so no value can contain
+them: `directory = run;1` sets the directory `run`. A value that a comment
+leaves empty, as in `directory = # later`, is an error.
+
 A configuration file stops at the numerical setup. Physics callbacks, model
 coefficients, meshes, boundary conditions, units, and the timestep loop are
 application code — see [Callbacks](callbacks.md).

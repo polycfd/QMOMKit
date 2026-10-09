@@ -333,9 +333,10 @@ Component sections must be contiguous starting at
 `[initial.mixture.component.0]`. Each component `number_density` must be
 finite and non-negative, and at least one component must have positive density.
 Since the components set every distribution and number density, `family`,
-`number_density` and the distribution parameters are reported as errors
-directly under `[initial]` when `type = mixture`, and likewise directly under
-an `[initial.dimension.N]` mixture marginal.
+`number_density` and the distribution parameters directly under `[initial]`
+are reported as errors when `type = mixture`, and likewise directly under an
+`[initial.dimension.N]` mixture marginal, unless explicit `[moments]` are
+given, which take precedence over the initialization sections.
 
 ### Independent marginals for CQMOM
 
@@ -513,12 +514,13 @@ derivatives, or tolerances. Explicit tolerances and step sizes must be positive 
 numbers, and an explicit `min_step` must not exceed an explicit `max_step`. A
 stage shorter than `min_step`, as a retry with a smaller outer step produces,
 is taken in one step. An explicit `min_step` smaller than the automatic minimum,
-ten spacings of the double at the current time (about `2e-15` times the time),
-is raised to it. `min_step` takes precedence over the tolerances: when the
-error controller would ask for a smaller step, a finite step at the floor is
-accepted instead, so a successful run does not by itself certify that every step
-met the requested tolerance. `max_steps` must be a positive integer. The higher-order member advances an
-accepted state, and both embedded methods use FSAL derivative reuse internally.
+ten spacings of the double at the time elapsed within the stage (about `2e-15`
+times that time), is raised to it. `min_step` takes precedence over the
+tolerances: when the error controller would ask for a smaller step, a finite
+step at the floor is accepted instead, so a successful run does not by itself
+certify that every step met the requested tolerance. `max_steps` must be a
+positive integer. The higher-order member advances an accepted state, and both
+embedded methods use FSAL derivative reuse internally.
 
 Drivers can print `format_node_advection_options(...)` at startup to report
 the effective scheme and controls. For fixed-step node advection, that summary
@@ -554,9 +556,10 @@ unless your driver wires these options into writers.
 a commented header line and whitespace-separated columns. Numbers use a decimal
 point whatever locale the application uses. Each `write(...)` call hands its
 rows to the operating system before it returns and throws `std::runtime_error`
-if they cannot be written, for example on a full disk. QMOMKit-native example output uses `.txt`
-filenames. Use CSV only for custom application data
-that is not written through the QMOMKit output helpers.
+if they cannot be written, for example on a full disk; the writer is then
+closed, and every later write throws. QMOMKit-native example output uses
+`.txt` filenames. Use CSV only for custom application data that is not written
+through the QMOMKit output helpers.
 
 CQMOM quadrature output uses one row per active terminal node:
 

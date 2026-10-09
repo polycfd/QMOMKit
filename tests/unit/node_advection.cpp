@@ -680,7 +680,7 @@ void test_rk23_failure_diagnostics_are_reported()
     options.adaptive_options.max_steps = 1;
 
     const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(
-        quadrature, 0.0, 1.0, qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{xi[0]}; }),
+        quadrature, 2.0, 1.0, qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{xi[0]}; }),
         options);
 
     assert(!result.ok());
@@ -688,6 +688,9 @@ void test_rk23_failure_diagnostics_are_reported()
     assert(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert(result.diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::max_steps_exceeded);
     assert(result.diagnostics.step_count == 1);
+    // The diagnostics report the time the integration reached, after the start
+    // time and short of the end of the step.
+    assert(result.diagnostics.final_time > 2.0 && result.diagnostics.final_time < 3.0);
     assert(result.quadrature.abscissas == quadrature.abscissas);
     assert(result.quadrature.weights == quadrature.weights);
 }
@@ -766,9 +769,10 @@ void test_embedded_rk_advances_over_the_exact_step()
 
 void test_embedded_rk_resolves_a_stiff_velocity_far_from_the_origin()
 {
-    // A step far shorter than the spacing of the double at t still gets its
-    // error controlled: the step floor follows the local time, so the decay
-    // dx/dt = -k x over k dt = 10 is resolved rather than taken as one step.
+    // A step of about nine spacings of the double at t, below a floor of ten
+    // such spacings, still gets its error controlled: the step floor follows
+    // the local time, so the decay dx/dt = -k x over k dt = 10 is resolved
+    // rather than taken as one step.
     constexpr double rate = 1.0e10;
     constexpr double t = 1.0e6;
     constexpr double dt = 1.0e-9;
@@ -786,9 +790,9 @@ void test_embedded_rk_resolves_a_stiff_velocity_far_from_the_origin()
         const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(qmomkit::Quadrature1D{{1.0}, {1.0}}, t, dt, decay, options);
         assert(result.ok());
         assert(result.diagnostics.step_count > 1);
-        // The default tolerances, 1e-6 relative to the initial abscissa 1, bound
-        // the global error far below this; one uncontrolled step is off by
-        // more than 100.
+        // The default tolerances, 1e-6 relative to the initial abscissa 1,
+        // bound the global error far below this; one uncontrolled step is off
+        // by more than 100.
         assert_near(result.quadrature.abscissas[0], std::exp(-rate * dt), 1.0e-6);
     }
 }

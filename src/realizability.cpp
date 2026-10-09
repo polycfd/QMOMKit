@@ -703,7 +703,8 @@ struct TestedMoments
 
     // A support bound in the tested coordinate. Its rounding, like that of
     // building the localizing sequences, is relative to the terms involved
-    // and lies within the roundoff allowance of the eigen solve.
+    // and, in the standardized coordinate, lies within the roundoff allowance
+    // of the eigen solve.
     [[nodiscard]] double bound(const double value) const
     {
         return standardized ? std::ldexp(value - centre, -scale_exponent) : value;

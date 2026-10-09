@@ -27,15 +27,19 @@ namespace
     return output;
 }
 
-// Each write is flushed before it returns, so a failure to store it, such as a
+// Each write is flushed before it returns, so a failure to write it, such as a
 // full disk, is reported by the call that wrote it. Left in the buffer, it
 // would surface only at a later write or in the destructor, where it cannot be
-// reported, and the rows accepted since the last flush would be lost.
-void flush_or_throw(std::ofstream& output, const char* const message)
+// reported, and the rows accepted since the last flush would be lost. A failed
+// stream is closed, so the bytes it refused are not written later, when the
+// writer is destroyed after space has become available; every later write
+// then throws.
+void flush_or_throw(std::ofstream& output, const std::string& message)
 {
     output.flush();
     if (!output)
     {
+        output.close();
         throw std::runtime_error(message);
     }
 }
@@ -70,11 +74,7 @@ void write_column_header(std::ofstream& output, const std::size_t column_width, 
         output << ' ' << centered_column_label(label, column_width);
     }
     output << '\n';
-    output.flush();
-    if (!output)
-    {
-        throw std::runtime_error(std::string("Failed while writing ") + context + " header.");
-    }
+    flush_or_throw(output, std::string("Failed while writing ") + context + " header.");
 }
 
 // Labels are part of the file, so they are formatted in its classic locale too:
@@ -730,10 +730,6 @@ void QuadratureWriter::write_row(const double time, const std::vector<std::size_
         output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << value;
     }
     output_ << '\n';
-    if (!output_)
-    {
-        throw std::runtime_error("Failed while writing quadrature output row.");
-    }
 }
 
 void QuadratureWriter::write_qmom_row(const double time, const std::vector<double>& weights, const std::vector<double>& abscissas)

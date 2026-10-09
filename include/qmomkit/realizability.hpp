@@ -48,7 +48,9 @@ enum class RealizabilityStatus
  * neither on the location of the distribution nor on the unit of its
  * coordinate. Eigenvalues are also compared against the rounding of the input
  * moments propagated into that coordinate. Without relative_tolerance, the raw
- * matrices are tested against tolerance as an absolute threshold.
+ * matrices are tested against tolerance as an absolute threshold. In either
+ * mode, an eigenvalue within 1000 epsilon times the norm of the tested matrix
+ * counts as zero, so a tolerance below that resolves no finer.
  */
 struct RealizabilityOptions
 {

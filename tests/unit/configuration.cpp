@@ -2026,6 +2026,15 @@ void test_declared_rank_bounds_coordinate_realizability_indices()
     assert(within_rank.value().source_options.coordinate_realizability_policies[1].has_value());
     assert(within_rank_policies.value().size() == 2);
     assert(within_rank_policies.value()[1].has_value());
+
+    // Every section is checked before the indices, as the case loaders do, so
+    // all parsers report the same first error.
+    const std::string misspelled = "[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability.0]\ncheck_mode = final_only\n"
+                                   "support = nonnegativ\n[time_integration.realizability.2" +
+                                   policy;
+    const std::string support_message = "time_integration.realizability.0.support must be";
+    assert(has_message_fragment(qmomkit::config::parse_cqmom_phase_space_evolution_options(misspelled), support_message));
+    assert(has_message_fragment(qmomkit::config::parse_coordinate_realizability_policies(misspelled), support_message));
 }
 
 void test_adaptive_cqmom_reduces_conditional_and_marginal_branches()

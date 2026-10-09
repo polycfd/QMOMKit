@@ -221,7 +221,10 @@ The Frobenius norm $\delta$ of the Hankel matrix of these uncertainties bounds
 how far they can move any eigenvalue of a tested matrix. Localizing sequences
 carry the uncertainties of the moments they combine. The rounding of building
 them, and of the transformed support bounds, is relative to the terms involved
-and lies within the roundoff allowance of the eigen solve. For a distribution
+and lies within the roundoff allowance of the eigen solve in the standardized
+coordinate. For raw moments under an absolute tolerance, the terms of a
+bounded-interval sequence can be far larger than its entries, and the rounding
+can then exceed that allowance. For a distribution
 far from the origin, $u_k$ grows like $\varepsilon (|c|/\sigma)^k$ relative to
 the standardized moments, which sets the resolution limit stated in the user
 documentation.
@@ -240,9 +243,10 @@ $\zeta = 1000\,\varepsilon \lVert A \rVert + \delta$:
 | positive | otherwise |
 
 The conditions are tested in this order. A user threshold can be smaller than
-the roundoff allowance: an absolute one once the matrix entries exceed about
-one, a relative one below $1000\,\varepsilon$. An eigenvalue within the
-roundoff of the eigen solve has no sign, so the zero band comes first.
+the roundoff allowance: an absolute one once the matrix norm exceeds the
+tolerance over $1000\,\varepsilon$, about 4.5 for the default $10^{-12}$, and
+a relative one below $1000\,\varepsilon$. An eigenvalue within the roundoff of
+the eigen solve has no sign, so the zero band comes first.
 
 A matrix with a negative eigenvalue is not positive semidefinite; otherwise
 one with an ambiguous eigenvalue is `numerically_indeterminate`; otherwise one

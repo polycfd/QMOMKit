@@ -169,11 +169,12 @@ struct IntegratedNodes
     std::size_t rhs_evaluations = 0;
     try
     {
-        // Integrated over the local time tau in [0, time_step], with the velocity
-        // evaluated at t + tau, so the nodes move over the requested step rather
-        // than over the rounded interval (t + time_step) - t, and the step floor
-        // follows the spacing of tau rather than of t, so the error control
-        // still resolves a stiff velocity in a step far shorter than t.
+        // Integrated over the local time tau in [0, time_step], with the
+        // velocity evaluated at t + tau, so the nodes move over the requested
+        // step rather than over the rounded interval (t + time_step) - t. The
+        // step floor then follows the spacing of tau rather than of t, so the
+        // error control still resolves a stiff velocity within a step not much
+        // longer than the spacing of t.
         rk_result = integrate_embedded_rk(
             initial_state, 0.0, time_step,
             [&velocity, dimensions, &rhs_evaluations, t](const double local_time, const std::vector<double>& state, std::vector<double>& derivative)

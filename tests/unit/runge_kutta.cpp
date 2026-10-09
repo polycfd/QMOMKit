@@ -977,6 +977,16 @@ void test_embedded_rk_min_step_below_time_resolution_terminates()
         const qmomkit::AdaptiveRkResult stalled = qmomkit::integrate_embedded_rk({0.5}, t0, t0 + 1.0, singular, method, options);
         assert(stalled.status != qmomkit::AdaptiveRkStatus::success);
 
+        // From t = 0 with the automatic minimum, as node advection integrates,
+        // the floor must follow the current time rather than stay at the
+        // spacing of the start time, the smallest subnormal, or the controller
+        // would creep towards the singularity without end.
+        evaluations = 0;
+        qmomkit::AdaptiveRkOptions automatic_minimum;
+        automatic_minimum.max_steps = 1000;
+        const qmomkit::AdaptiveRkResult from_origin = qmomkit::integrate_embedded_rk({0.5}, 0.0, 1.0, singular, method, automatic_minimum);
+        assert(from_origin.status != qmomkit::AdaptiveRkStatus::success);
+
         // A smooth problem started at a step far below the spacing must make
         // progress rather than accept steps of zero length.
         options.min_step = 1.0e-20;

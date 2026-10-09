@@ -83,11 +83,13 @@ Each `write(...)` call flushes its row, or its block of rows for a quadrature
 write, to the operating system before it returns, and throws
 `std::runtime_error` if the operating system refuses them, for example on a
 full disk. Every call that returns normally has therefore been handed to the
-file; the writers do not force it to the storage device. Left in the
-stream buffer, such a failure would surface only at a later call or in the
+file; the writers do not force it to the storage device. Left in the stream
+buffer, such a failure would surface only at a later call or in the
 destructor, where it cannot be reported, and the rows accepted since the last
-flush would be lost. The flush costs one write to the file per call, which is
-small at the cadence of an output schedule.
+flush would be lost. After a refusal the stream is closed, so the refused
+bytes are not written later, when space is available again by the time the
+writer is destroyed, and every later write throws. The flush costs one write
+to the file per call, which is small at the cadence of an output schedule.
 
 Writers validate structural consistency before writing rows. Examples include
 finite time values, finite output values, matching moment counts, matching

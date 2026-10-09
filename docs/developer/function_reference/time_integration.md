@@ -100,7 +100,7 @@ step-size controls. For a nonzero interval, initial step must be positive; zero
 maximum step means interval length, and zero minimum means ten floating-point
 spacings at current time in the integration direction. An explicit minimum is
 rejected only above an explicit maximum; an interval shorter than the minimum
-is taken as one step, accepted whatever its error estimate.
+is taken as one step, accepted if its error estimate is finite.
 
 The outer loop tracks accepted state/time until the endpoint or accepted-step
 limit. The inner loop retries one proposed step:

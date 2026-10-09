@@ -246,10 +246,10 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta step-size option.");
     }
-    // Only two explicit limits can contradict each other. A default max_step is
-    // the interval itself, and an interval shorter than min_step is taken as one
-    // step, so that a caller retrying with a shorter interval is not refused
-    // for it.
+    // Only two explicit limits can contradict each other. A default max_step
+    // is the interval itself, and an interval shorter than min_step is taken
+    // as one step, so that a caller retrying with a shorter interval is not
+    // refused for it.
     if (options.max_step > 0.0 && options.min_step > options.max_step)
     {
         return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");

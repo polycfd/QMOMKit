@@ -154,9 +154,10 @@ threshold. In absolute mode it is the tolerance, raised to
 `roundoff_allowance*vector_scale(extension)`; in relative mode it is the
 maximum of the matrix tolerance and `options.tolerance*vector_scale(extension)`.
 Either is raised to ten times the data uncertainty of the projection, which is
-the column's own uncertainty plus its norm times the kernel rotation. The rotation is a Davis-Kahan bound, `delta`
-over the gap between the zero and positive classes, with the gap estimated
-from below as the smallest positive eigenvalue minus the zero band.
+the column's own uncertainty plus its norm times the kernel rotation. The
+rotation is a Davis-Kahan bound, `delta` over the gap between the zero and
+positive classes, with the gap estimated from below as the smallest positive
+eigenvalue minus the zero band.
 
 Projection above that threshold rejects the sequence; above `0.1*threshold`
 reports indeterminate; otherwise the extension is accepted as boundary. The

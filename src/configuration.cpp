@@ -1733,21 +1733,22 @@ std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_p
                                                                                                     const std::string& source_name)
 {
     // A configuration that declares its phase space bounds each coordinate
-    // index by the rank, as the case loaders do, so an index beyond it is
-    // reported without sizing the policy vector by it.
+    // index by the rank, as the case loaders do: every section is checked, then
+    // an index beyond the rank is reported, and the policy vector is never
+    // sized by it.
     std::optional<std::size_t> rank;
     std::vector<std::size_t> node_counts;
     if (const Entry* node_counts_entry = find_entry(parsed, "phase_space.node_counts");
         node_counts_entry != nullptr && parse_size_list(*node_counts_entry, node_counts))
     {
         rank = node_counts.size();
-        validate_cqmom_coordinate_realizability_ranks(parsed, source_name, *rank);
     }
 
     const std::vector<std::pair<std::size_t, std::string>> sections = coordinate_realizability_sections(parsed);
     std::vector<std::optional<RealizabilityPolicy>> policies;
     for (const auto& item : sections)
     {
+        const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
         if (rank.has_value() && item.first >= *rank)
         {
             continue;
@@ -1760,7 +1761,6 @@ std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_p
                       "Coordinate realizability policy index cannot be represented.");
             continue;
         }
-        const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
         if (policy.has_value())
         {
             if (policies.size() < *required_size)
@@ -1781,6 +1781,10 @@ std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_p
             }
             policies[item.first] = *policy;
         }
+    }
+    if (rank.has_value())
+    {
+        validate_cqmom_coordinate_realizability_ranks(parsed, source_name, *rank);
     }
     return policies;
 }

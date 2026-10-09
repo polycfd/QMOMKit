@@ -593,10 +593,10 @@ shorter step can round to no step at all. An explicit `min_step` must not
 exceed an explicit `max_step`; otherwise the request is rejected as
 `AdaptiveRkStatus::invalid_input` before integration begins. An interval
 shorter than `min_step`, as a host retrying with a smaller outer step produces,
-is taken as one step, accepted whatever its error estimate. `max_steps` limits
-accepted steps, not rejected trial steps, and remains an optional configuration
-override with an internal default. The actual
-embedded-RK step is bounded by `min_step` and `max_step`, then clipped so
+is taken as one step, accepted if its error estimate is finite. `max_steps`
+limits accepted steps, not rejected trial steps, and remains an optional
+configuration override with an internal default. The actual embedded-RK step
+is bounded by `min_step` and `max_step`, then clipped so
 integration lands exactly on `t_bound`; the final remainder may therefore be
 smaller than `min_step`. When the error controller would require a step below
 the effective lower bound, the solver advances at that lower bound instead of

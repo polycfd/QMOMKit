@@ -136,14 +136,14 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  * `default_adaptive_initial_step`, in the units of the time argument, and may
  * be overridden. QMOMKit does not estimate it from derivatives or tolerances.
  *
- * `max_step <= 0.0` requests an automatically derived maximum step (the
- * integration interval length). `min_step <= 0.0` requests an automatically
+ * `max_step == 0.0` requests an automatically derived maximum step (the
+ * integration interval length). `min_step == 0.0` requests an automatically
  * derived, always-tiny minimum step of ten spacings of the double at the
  * current time; an explicit `min_step` below that is raised to it. An explicit
  * `min_step` must not exceed an explicit `max_step`, or the request is rejected
  * as invalid input. An interval shorter than `min_step`, as a host retrying
- * with a smaller outer step produces, is taken as one step, accepted whatever
- * its error estimate.
+ * with a smaller outer step produces, is taken as one step, accepted if its
+ * error estimate is finite.
  *
  * When the error controller would require a step below the effective minimum,
  * a finite step at that minimum is accepted rather than failing. The step floor

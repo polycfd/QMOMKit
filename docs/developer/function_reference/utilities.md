@@ -36,8 +36,9 @@ reports a mismatch by naming both the required and the actual factory. See the
 Every check of a moment row, or of the complete time block of a quadrature
 write, runs before its first character is written, and values computed for a
 row are computed before it as well, so a write rejected for its data leaves the
-file unchanged. A write that is not stored throws after the flush, and the file
-may then end in a partial row.
+file unchanged. A write that the operating system refuses throws after the
+flush and closes the stream, so the refused bytes are not written later and
+every later write throws; the file may then end in a partial row.
 
 `QuadratureWriter::for_qmom` stores maximum node capacity; output may contain
 fewer nodes. `for_cqmom` stores hierarchy. QMOM `write_qmom_row` validates
@@ -66,7 +67,7 @@ write that returns is in the file.
 | `qmom_label`, `cqmom_label`, `cqmom_abscissa_label` | Format order/coordinate metadata; labels do not impose physical units. | Output header tests |
 | `sequential_indices`, `flatten_selected_indices` | Build all-order selection or map checked multi-indices to flat offsets in request order. | Selected-output tests |
 | `qmom_labels`, `cqmom_labels`, `all_cqmom_labels`, `qmom_quadrature_labels`, `cqmom_quadrature_labels` | Construct header fields matching the selected writer layout. | Output header/row tests |
-| `open_output_file`, `flush_or_throw` | Open the stream in the classic locale, so the global locale changes neither decimal point nor index digits; flush each row or quadrature block and throw if it cannot be stored, so no accepted row is lost in the buffer. | `writers_ignore_the_global_locale`, `rows_that_cannot_be_stored_are_reported` in output unit tests |
+| `open_output_file`, `flush_or_throw` | Open the stream in the classic locale, so the global locale changes neither decimal point nor index digits; flush each row or quadrature block, and close the stream and throw if the operating system refuses it, so no accepted row is lost in the buffer and no refused one is written later. | `writers_ignore_the_global_locale`, `each_write_is_in_the_file_when_it_returns`, `rows_that_cannot_be_stored_are_reported` in output unit tests |
 | Writer constructors, `write_header`, `layout_mismatch_message`, forwarding `write` overloads | Own stream/layout and adapt supported input representations. Opening truncates the file before the constructor's later checks. | Output failure tests |
 
 ## Shared finite and shape validation — Levels A/C

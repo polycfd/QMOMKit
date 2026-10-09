@@ -124,14 +124,21 @@ and 10 to 30 at order 8. Beyond that, expect `boundary` or
 `numerically_indeterminate`. If moments are needed far from the origin, a
 coordinate measured from a nearby reference point avoids this loss.
 
+In either mode, an eigenvalue within $1000\,\varepsilon$ times the norm of the
+tested matrix counts as zero, whatever `tolerance` requests, so a relative
+`tolerance` below $1000\,\varepsilon \approx 2.2 \times 10^{-13}$ resolves no
+finer than that.
+
 With `relative_tolerance = false`, the raw moment matrices are tested and
 `tolerance` is an absolute threshold for their eigenvalues. This mode does not
 standardize the coordinate, so its classification changes with the location,
 the unit and the number density. Its resolution is also limited by the size of
-the raw moments: an eigenvalue within $1000\,\varepsilon$ of the matrix norm,
-or a projection within $1000\,\varepsilon$ of the largest moment it involves,
-counts as zero whatever `tolerance` requests, so a slightly non-realizable
-sequence with large moments can be reported as `boundary`.
+the raw moments: an eigenvalue within $1000\,\varepsilon$ times the matrix
+norm counts as zero, and a kernel projection within $1000\,\varepsilon$ times
+the largest moment it involves is not taken as an inconsistency. Within this
+resolution the mode can err in both directions: a slightly non-realizable
+sequence with large moments can be reported as `boundary`, and a realizable
+one as `not_realizable`.
 
 ## Support constraints
 

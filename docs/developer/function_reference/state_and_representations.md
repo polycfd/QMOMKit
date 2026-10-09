@@ -93,7 +93,10 @@ and their order directly.
 realizability policy, calls `compute_qmom` once with the node count, options,
 and bounds of the case, and builds the state from that quadrature; a
 failure becomes a `StateCandidateStatus`, with `empty` for a failed
-reconstruction whose m0 lies below the cutoff. The check runs only on enough
+reconstruction whose m0 lies below the cutoff. A policy also accepts boundary
+moments whose m0 lies below the cutoff, so that a policy rejecting boundary
+moments still lets an empty cell reach that classification; the CQMOM path
+shares `policy_verdict` and `policy_accepts`. The check runs only on enough
 moments for the node count, so too few moments are invalid input whether or
 not a check was requested. The public `state_candidate` first rejects
 non-finite moments, including those the reconstruction does not read

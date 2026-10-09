@@ -1128,7 +1128,8 @@ if (evolved.ok())
 Here the realizability policy of the evolution options also checks the
 transported moments; any other `RealizabilityPolicy` can be passed instead, or
 none at all. A policy whose `check_mode` is `None` is not applied, and any other
-mode applies it once, to the given moments.
+mode applies it once, to the given moments. Moments without number density are
+`empty` whatever the policy, even one that rejects boundary moments.
 
 For CQMOM, use the prepared case, so that every state shares the branch
 structure it built once. The moments must have the required layout of the

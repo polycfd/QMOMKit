@@ -348,7 +348,9 @@ public:
      * Create an evolution state as above, after checking the marginal moments
      * of every coordinate that has a policy in `coordinate_policies`, unless
      * its `check_mode` is `None`. A check accepts strictly realizable moments,
-     * and boundary moments when its `accept_boundary` is set. Mixed and
+     * and boundary moments when its `accept_boundary` is set or M[0,...,0]
+     * lies below the cutoff, so that moment data without number density is
+     * `empty` whatever the policies. Mixed and
      * conditional moments are not checked; the reconstruction tests them. A
      * policy beyond the dimensions of the hierarchy is invalid input, as in
      * the moment-source update.

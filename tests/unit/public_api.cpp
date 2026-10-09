@@ -557,9 +557,15 @@ void test_cqmom_state_candidate_reports_failures_without_throwing()
     assert_invalid(grid_moment_data(reordered, {0.3, 0.2, 0.4, 0.1}, {{0.5, 0.5, 1.5, 1.5}, {-0.5, 2.0, 0.5, 1.0}}),
                    "CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.");
 
-    // Moment data without number density, as in an empty cell, is empty.
-    assert_failed(prepared_case.state_candidate(qmomkit::CqmomMomentData{moments.layout, std::vector<double>(moments.values.size(), 0.0)}),
-                  qmomkit::StateCandidateStatus::empty, qmomkit::CqmomStatus::qmom_failed);
+    // Moment data without number density, as in an empty cell, is empty, also
+    // when a check rejects boundary moments: its marginals are the zero measure.
+    const qmomkit::CqmomMomentData zero_data{moments.layout, std::vector<double>(moments.values.size(), 0.0)};
+    qmomkit::RealizabilityPolicy strict;
+    strict.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    strict.accept_boundary = false;
+    assert_failed(prepared_case.state_candidate(zero_data), qmomkit::StateCandidateStatus::empty, qmomkit::CqmomStatus::qmom_failed);
+    assert_failed(prepared_case.state_candidate(zero_data, {strict, strict}), qmomkit::StateCandidateStatus::empty,
+                  qmomkit::CqmomStatus::qmom_failed);
 
     // A negative variance of the first coordinate fails the fixed
     // reconstruction.
@@ -1132,12 +1138,24 @@ void test_qmom_state_candidate_reports_failures_without_throwing()
                   qmomkit::StateCandidateStatus::invalid_input, std::nullopt);
 
     // Moments without number density, as in an empty cell, are empty rather
-    // than failed, with or without a check.
+    // than failed, with or without a check, also when the check rejects
+    // boundary moments: such moments are boundary-realizable.
+    qmomkit::RealizabilityPolicy strict = real_line;
+    strict.accept_boundary = false;
     for (const qmomkit::MomentSet& empty_moments : {qmomkit::MomentSet{0.0, 0.0, 0.0, 0.0}, qmomkit::MomentSet{1.0e-31, 0.0, 0.0, 0.0}})
     {
         assert_failed(qmom_case.state_candidate(empty_moments), qmomkit::StateCandidateStatus::empty, qmomkit::QmomStatus::not_realizable);
         assert_failed(qmom_case.state_candidate(empty_moments, real_line), qmomkit::StateCandidateStatus::empty, qmomkit::QmomStatus::not_realizable);
+        const qmomkit::QmomStateCandidate strictly_checked = qmom_case.state_candidate(empty_moments, strict);
+        assert_failed(strictly_checked, qmomkit::StateCandidateStatus::empty, qmomkit::QmomStatus::not_realizable);
+        assert(strictly_checked.realizability->status == qmomkit::RealizabilityStatus::boundary);
     }
+    // Without number density, moments that are not realizable are still
+    // rejected, and with it, a strict check still rejects boundary moments.
+    assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{0.0, 1.0, 0.0, 0.0}, real_line), qmomkit::StateCandidateStatus::realizability_rejected,
+                  std::nullopt);
+    assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{1.0e-20, 0.0, 0.0, 0.0}, strict),
+                  qmomkit::StateCandidateStatus::realizability_rejected, std::nullopt);
 
     const qmomkit::QmomStateCandidate negative_variance = qmom_case.state_candidate(qmomkit::MomentSet{1.0, 0.0, -1.0, 0.0});
     assert_failed(negative_variance, qmomkit::StateCandidateStatus::reconstruction_failed, qmomkit::QmomStatus::not_realizable);

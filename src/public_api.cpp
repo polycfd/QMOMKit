@@ -164,6 +164,22 @@ namespace
     return m0 >= 0.0 && m0 < options.cutoff;
 }
 
+[[nodiscard]] RealizabilityResult policy_verdict(const MomentSet& moments, const RealizabilityPolicy& policy)
+{
+    return (policy.support == MomentSupport::bounded_interval && policy.interval.has_value())
+               ? check_realizability(moments, *policy.interval, policy.options)
+               : check_realizability(moments, policy.support, policy.options);
+}
+
+// Boundary moments below the number-density cutoff, such as the zero moments of
+// an empty cell, are accepted even by a policy that rejects boundary moments,
+// so that the reconstruction reports them as empty, as it does without a check.
+[[nodiscard]] bool policy_accepts(const RealizabilityResult& verdict, const RealizabilityPolicy& policy, const double m0, const QmomOptions& options)
+{
+    return verdict.status == RealizabilityStatus::strictly_realizable ||
+           (verdict.status == RealizabilityStatus::boundary && (policy.accept_boundary || below_number_density_cutoff(m0, options)));
+}
+
 // The check is optional, and the quadrature it is followed by is the one the
 // state is built from, so the moments are inverted once. Moments too few for
 // the node count are left to the reconstruction, which reports them as invalid
@@ -175,12 +191,8 @@ namespace
     const bool enough_moments = node_count > 0 && node_count <= std::numeric_limits<std::size_t>::max() / 2 && moments.size() >= 2 * node_count;
     if (policy != nullptr && policy->check_mode != RealizabilityCheckMode::None && enough_moments)
     {
-        RealizabilityResult realizability = (policy->support == MomentSupport::bounded_interval && policy->interval.has_value())
-                                                ? check_realizability(moments, *policy->interval, policy->options)
-                                                : check_realizability(moments, policy->support, policy->options);
-        const bool accepted = realizability.status == RealizabilityStatus::strictly_realizable ||
-                              (realizability.status == RealizabilityStatus::boundary && policy->accept_boundary);
-        if (!accepted)
+        RealizabilityResult realizability = policy_verdict(moments, *policy);
+        if (!policy_accepts(realizability, *policy, moments[0], qmom_case.qmom_options))
         {
             candidate.status = realizability.status == RealizabilityStatus::invalid_input ? StateCandidateStatus::invalid_input
                                                                                           : StateCandidateStatus::realizability_rejected;
@@ -374,12 +386,8 @@ namespace
                 continue;
             }
             const MomentSet marginal(internal::extract_coordinate_marginal(cqmom_case.moments.values, layout, coordinate));
-            RealizabilityResult realizability = (policy->support == MomentSupport::bounded_interval && policy->interval.has_value())
-                                                    ? check_realizability(marginal, *policy->interval, policy->options)
-                                                    : check_realizability(marginal, policy->support, policy->options);
-            const bool accepted = realizability.status == RealizabilityStatus::strictly_realizable ||
-                                  (realizability.status == RealizabilityStatus::boundary && policy->accept_boundary);
-            if (!accepted)
+            RealizabilityResult realizability = policy_verdict(marginal, *policy);
+            if (!policy_accepts(realizability, *policy, marginal[0], cqmom_case.qmom_options))
             {
                 candidate.status = realizability.status == RealizabilityStatus::invalid_input ? StateCandidateStatus::invalid_input
                                                                                               : StateCandidateStatus::realizability_rejected;

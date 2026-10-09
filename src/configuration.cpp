@@ -898,26 +898,14 @@ bool has_explicit_cqmom_moments(const ParsedFile& parsed)
 
 std::vector<std::string> qmom_allowed_keys()
 {
-    return {"format_version",
-            "phase_space.names",
-            "phase_space.node_counts",
-            "phase_space.support_lower",
-            "phase_space.support_upper",
-            "qmom.adaptive",
-            "moments.values",
-            "initial.type",
-            "initial.family",
-            "initial.number_density",
-            "initial.maximum_order",
-            "initial.mean",
-            "initial.standard_deviation",
-            "initial.mu_log",
-            "initial.sigma_log",
-            "initial.alpha",
-            "initial.beta",
-            "initial.shape",
-            "initial.scale",
-            "initial.degrees_of_freedom"};
+    std::vector<std::string> allowed{
+        "format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive",
+        "moments.values", "initial.type",      "initial.family",          "initial.number_density",    "initial.maximum_order"};
+    for (const std::string& parameter : distribution_parameters())
+    {
+        allowed.push_back("initial." + parameter);
+    }
+    return allowed;
 }
 
 void append_time_integration_allowed_keys(std::vector<std::string>& allowed, const RealizabilitySettings realizability)

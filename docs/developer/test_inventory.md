@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 689 |
+| Unit logical tests | 692 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **925** |
+| **Runtime logical tests** | **928** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **926** |
+| **Total CTest registrations** | **929** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -761,6 +761,9 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_case_public_api_rejects_incompatible_layout` | `tests/unit/public_api.cpp` | `cqmom_case_public_api_rejects_incompatible_layout` | Checks that `compute_cqmom` rejects a `CqmomCase` whose moment data layout does not match its hierarchy. | — |
 | `unit_public_api_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage` | `tests/unit/public_api.cpp` | `cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage` | Checks that public API rejects unrepresentable required moment extent before storage in the public QMOMKit API. | — |
 | `unit_public_api_qmom_public_api_matches_wheeler` | `tests/unit/public_api.cpp` | `qmom_public_api_matches_wheeler` | Checks that public API matches wheeler in the public QMOMKit API. | — |
+| `unit_public_api_qmom_state_candidate_matches_initial_state` | `tests/unit/public_api.cpp` | `qmom_state_candidate_matches_initial_state` | Checks that `QmomCase::state_candidate` gives, for the moments of the case, exactly the state of `initial_state()` with one reconstruction (counted in instrumented builds), and for other moments exactly the state of a case holding them with the same node count, options and bounds. | — |
+| `unit_public_api_qmom_state_candidate_applies_the_realizability_policy` | `tests/unit/public_api.cpp` | `qmom_state_candidate_applies_the_realizability_policy` | Checks that a policy with `check_mode` `None` is not applied, that a nonnegative check rejects a point at -1 before any reconstruction, that a boundary point is accepted or rejected according to `accept_boundary` with the verdict kept, that a bounded interval is checked against its bounds and is invalid input without them, and that the check rejects a negative variance which the adaptive reconstruction alone reduces to one node. | — |
+| `unit_public_api_qmom_state_candidate_reports_failures_without_throwing` | `tests/unit/public_api.cpp` | `qmom_state_candidate_reports_failures_without_throwing` | Checks that too few or non-finite moments give `invalid_input` and a fixed reconstruction of a negative variance gives `reconstruction_failed` with the reconstruction status, without throwing, and that `initial_state()` throws `std::runtime_error` with the same message. | — |
 | `unit_public_api_qmom_rejects_node_count_with_unrepresentable_moment_requirement` | `tests/unit/public_api.cpp` | `qmom_rejects_node_count_with_unrepresentable_moment_requirement` | Checks that rejects node count with unrepresentable moment requirement in the public QMOMKit API. | — |
 | `unit_public_api_qmom_rejects_zero_node_count` | `tests/unit/public_api.cpp` | `qmom_rejects_zero_node_count` | Checks that a zero node count is rejected as invalid input for every combination of adaptive inversion and bounded support, and that no such result reports success with an empty quadrature. | — |
 | `unit_public_api_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | `tests/unit/public_api.cpp` | `qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | Checks that QMOM rejects fewer than `2n` moments as invalid input, with the same message with and without abscissa bounds, in fixed and adaptive mode, including requested counts whose `2n` would overflow. | — |

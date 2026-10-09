@@ -9,6 +9,7 @@
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/qmom.hpp"
+#include "qmomkit/realizability_policy.hpp"
 #include "qmomkit/wheeler.hpp"
 
 #include <exception>
@@ -151,14 +152,65 @@ QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const s
 {
 }
 
-QmomState QmomCase::initial_state() const
+namespace
 {
-    QmomResult quadrature = compute_qmom(*this);
+// The check is optional, and the quadrature it is followed by is the one the
+// state is built from, so the moments are inverted once.
+[[nodiscard]] QmomStateCandidate qmom_state_candidate(const QmomCase& qmom_case, const MomentSet& moments, const RealizabilityPolicy* const policy)
+{
+    QmomStateCandidate candidate;
+    if (policy != nullptr && policy->check_mode != RealizabilityCheckMode::None)
+    {
+        RealizabilityResult realizability = (policy->support == MomentSupport::bounded_interval && policy->interval.has_value())
+                                                ? check_realizability(moments, *policy->interval, policy->options)
+                                                : check_realizability(moments, policy->support, policy->options);
+        const bool accepted = realizability.status == RealizabilityStatus::strictly_realizable ||
+                              (realizability.status == RealizabilityStatus::boundary && policy->accept_boundary);
+        if (!accepted)
+        {
+            candidate.status = realizability.status == RealizabilityStatus::invalid_input ? StateCandidateStatus::invalid_input
+                                                                                          : StateCandidateStatus::realizability_rejected;
+            candidate.message = realizability.message;
+            candidate.realizability = std::move(realizability);
+            return candidate;
+        }
+        candidate.realizability = std::move(realizability);
+    }
+
+    QmomResult quadrature = compute_qmom(moments, qmom_case.node_count, qmom_case.qmom_options, qmom_case.abscissa_bounds);
+    candidate.reconstruction_status = quadrature.status;
     if (!quadrature.ok())
     {
-        throw std::runtime_error("QMOM initial state reconstruction failed: " + quadrature.message);
+        candidate.status =
+            quadrature.status == QmomStatus::invalid_input ? StateCandidateStatus::invalid_input : StateCandidateStatus::reconstruction_failed;
+        candidate.message = std::move(quadrature.message);
+        return candidate;
     }
-    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), node_count, qmom_options, abscissa_bounds);
+    candidate.state = internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), qmom_case.node_count, qmom_case.qmom_options,
+                                                                 qmom_case.abscissa_bounds);
+    candidate.status = StateCandidateStatus::success;
+    return candidate;
+}
+} // namespace
+
+QmomStateCandidate QmomCase::state_candidate(const MomentSet& candidate_moments) const
+{
+    return qmom_state_candidate(*this, candidate_moments, nullptr);
+}
+
+QmomStateCandidate QmomCase::state_candidate(const MomentSet& candidate_moments, const RealizabilityPolicy& policy) const
+{
+    return qmom_state_candidate(*this, candidate_moments, &policy);
+}
+
+QmomState QmomCase::initial_state() const
+{
+    QmomStateCandidate candidate = state_candidate(moments);
+    if (!candidate.ok())
+    {
+        throw std::runtime_error("QMOM initial state reconstruction failed: " + candidate.message);
+    }
+    return std::move(*candidate.state);
 }
 
 struct CqmomPreparedCase::Data

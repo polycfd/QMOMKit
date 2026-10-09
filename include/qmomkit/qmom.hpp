@@ -2,6 +2,7 @@
 
 #include "qmomkit/abscissa_bounds.hpp"
 #include "qmomkit/moment_set.hpp"
+#include "qmomkit/realizability.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -46,6 +47,7 @@ struct QmomResult
 };
 
 class QmomState;
+struct RealizabilityPolicy;
 
 namespace internal
 {
@@ -112,6 +114,45 @@ private:
 };
 
 /**
+ * Outcome of creating an evolution state from moments.
+ *
+ * `invalid_input`: the moments cannot form a state with the settings of the
+ * case, for example because they are too few or not finite.
+ * `realizability_rejected`: the requested realizability check did not accept
+ * the moments. `reconstruction_failed`: no quadrature could be reconstructed
+ * from the moments.
+ */
+enum class StateCandidateStatus
+{
+    success,
+    invalid_input,
+    realizability_rejected,
+    reconstruction_failed
+};
+
+/**
+ * A QMOM evolution state created from moments, or the reason none was.
+ *
+ * `state` holds the state only on success. `realizability` holds the verdict
+ * of the requested realizability check, whether it accepted the moments or
+ * not, and `reconstruction_status` the status of the quadrature
+ * reconstruction, when it ran.
+ */
+struct QmomStateCandidate
+{
+    StateCandidateStatus status = StateCandidateStatus::invalid_input;
+    std::optional<QmomState> state;
+    std::optional<RealizabilityResult> realizability;
+    std::optional<QmomStatus> reconstruction_status;
+    std::string message;
+
+    [[nodiscard]] bool ok() const noexcept
+    {
+        return status == StateCandidateStatus::success;
+    }
+};
+
+/**
  * User-facing case for one-dimensional QMOM quadrature construction.
  *
  * `moments` stores unnormalized raw moments in ascending order:
@@ -126,8 +167,27 @@ struct QmomCase
     std::optional<AbscissaBounds> abscissa_bounds;
 
     /**
-     * Construct the accepted initial phase-space evolution state from the configured maximum
-     * node count and canonicalize stored moments from the accepted quadrature.
+     * Create an evolution state from other moments, with the node count,
+     * options and abscissa bounds of this case; the moments of the case are
+     * not used. This is how a host rebuilds the state of moments it changed
+     * itself, for example by transport in physical space. The quadrature is
+     * reconstructed once, the stored moments are those of the accepted
+     * quadrature, and a failure is reported in the result rather than thrown.
+     */
+    [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments) const;
+
+    /**
+     * Create an evolution state as above, after checking the moments against
+     * `policy` unless its `check_mode` is `None`. The check accepts strictly
+     * realizable moments, and boundary moments when `policy.accept_boundary`
+     * is set.
+     */
+    [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments, const RealizabilityPolicy& policy) const;
+
+    /**
+     * Construct the accepted initial phase-space evolution state from the
+     * moments of this case: `state_candidate(moments)`, which throws
+     * `std::runtime_error` when no state can be created.
      */
     [[nodiscard]] QmomState initial_state() const;
 };

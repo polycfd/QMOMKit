@@ -10,6 +10,7 @@
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -748,6 +749,147 @@ void test_qmom_public_api_matches_wheeler()
     }
 }
 
+void assert_same_qmom_state(const qmomkit::QmomState& actual, const qmomkit::QmomState& expected)
+{
+    assert(actual.moment_values() == expected.moment_values());
+    assert(actual.quadrature().abscissas == expected.quadrature().abscissas);
+    assert(actual.quadrature().weights == expected.quadrature().weights);
+    assert(actual.maximum_node_count() == expected.maximum_node_count());
+    assert(actual.qmom_options().adaptive == expected.qmom_options().adaptive);
+    assert(actual.qmom_options().rmin == expected.qmom_options().rmin);
+    assert(actual.abscissa_bounds().has_value() == expected.abscissa_bounds().has_value());
+    if (actual.abscissa_bounds().has_value())
+    {
+        assert(actual.abscissa_bounds()->lower == expected.abscissa_bounds()->lower);
+        assert(actual.abscissa_bounds()->upper == expected.abscissa_bounds()->upper);
+    }
+}
+
+void test_qmom_state_candidate_matches_initial_state()
+{
+    // The moments of the case give the state of initial_state(), and other
+    // moments the state of a case that holds them, with the settings of the
+    // case: its node count, options and bounds.
+    qmomkit::QmomOptions options;
+    options.rmin = 1.0e-8;
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(raw_moments_1d({-0.5, 1.75}, {0.25, 0.75}, 4)), 2, options,
+                                      qmomkit::AbscissaBounds{-1.0, 4.0}};
+    qmomkit::internal::performance::CounterSession session;
+    const qmomkit::QmomStateCandidate own = [&]()
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        return qmom_case.state_candidate(qmom_case.moments);
+    }();
+    assert(own.ok());
+    assert(own.state.has_value());
+    assert(!own.realizability.has_value());
+    assert(own.reconstruction_status == qmomkit::QmomStatus::success);
+    assert(own.message.empty());
+    assert_same_qmom_state(*own.state, qmom_case.initial_state());
+    // The state is built from the quadrature of the one reconstruction.
+    if (qmomkit::internal::performance::enabled())
+    {
+        assert(session.snapshot().reconstruction.qmom_reconstructions == 1);
+    }
+
+    const qmomkit::MomentSet other(raw_moments_1d({0.25, 3.0}, {0.6, 0.4}, 4));
+    const qmomkit::QmomStateCandidate from_other = qmom_case.state_candidate(other);
+    assert(from_other.ok());
+    qmomkit::QmomCase other_case = qmom_case;
+    other_case.moments = other;
+    assert_same_qmom_state(*from_other.state, other_case.initial_state());
+}
+
+void test_qmom_state_candidate_applies_the_realizability_policy()
+{
+    // A point at -1 is realizable on the real line, so the reconstruction
+    // accepts it; only a requested check on a nonnegative support rejects it,
+    // before any reconstruction.
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet{1.0, 0.0}, 1};
+    const qmomkit::MomentSet negative_point{2.0, -2.0};
+    qmomkit::RealizabilityPolicy nonnegative;
+    nonnegative.support = qmomkit::MomentSupport::nonnegative;
+    assert(qmom_case.state_candidate(negative_point).ok());
+    const qmomkit::QmomStateCandidate unchecked = qmom_case.state_candidate(negative_point, nonnegative);
+    assert(unchecked.ok());
+    assert(!unchecked.realizability.has_value());
+
+    nonnegative.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    const qmomkit::QmomStateCandidate rejected = qmom_case.state_candidate(negative_point, nonnegative);
+    assert(rejected.status == qmomkit::StateCandidateStatus::realizability_rejected);
+    assert(!rejected.state.has_value());
+    assert(rejected.realizability->status == qmomkit::RealizabilityStatus::not_realizable);
+    assert(!rejected.reconstruction_status.has_value());
+    assert(rejected.message == rejected.realizability->message);
+
+    // A point at 0 is on the boundary of that support: accepted unless boundary
+    // moments are excluded, and the verdict is kept either way.
+    const qmomkit::MomentSet origin_point{2.0, 0.0};
+    const qmomkit::QmomStateCandidate boundary = qmom_case.state_candidate(origin_point, nonnegative);
+    assert(boundary.ok());
+    assert(boundary.realizability->status == qmomkit::RealizabilityStatus::boundary);
+    nonnegative.accept_boundary = false;
+    const qmomkit::QmomStateCandidate strict_only = qmom_case.state_candidate(origin_point, nonnegative);
+    assert(strict_only.status == qmomkit::StateCandidateStatus::realizability_rejected);
+    assert(strict_only.realizability->status == qmomkit::RealizabilityStatus::boundary);
+
+    // A bounded interval is checked against its bounds, and a policy without
+    // them is invalid input.
+    qmomkit::RealizabilityPolicy unit_interval;
+    unit_interval.check_mode = qmomkit::RealizabilityCheckMode::EveryStage;
+    unit_interval.support = qmomkit::MomentSupport::bounded_interval;
+    assert(qmom_case.state_candidate(qmomkit::MomentSet{1.0, 2.0}, unit_interval).status == qmomkit::StateCandidateStatus::invalid_input);
+    unit_interval.interval = qmomkit::BoundedInterval{0.0, 1.0};
+    assert(qmom_case.state_candidate(qmomkit::MomentSet{1.0, 2.0}, unit_interval).status == qmomkit::StateCandidateStatus::realizability_rejected);
+    const qmomkit::QmomStateCandidate inside = qmom_case.state_candidate(qmomkit::MomentSet{1.0, 0.5}, unit_interval);
+    assert(inside.ok());
+    assert(inside.realizability->status == qmomkit::RealizabilityStatus::strictly_realizable);
+
+    // An adaptive reconstruction keeps the nodes the moments support, so a
+    // negative variance gives a single node at the mean without a check; the
+    // check rejects it.
+    const qmomkit::QmomCase adaptive_case{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0}, 2};
+    const qmomkit::MomentSet negative_variance{1.0, 0.0, -1.0, 0.0};
+    assert(adaptive_case.state_candidate(negative_variance).state->active_node_count() == 1);
+    qmomkit::RealizabilityPolicy real_line;
+    real_line.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    assert(adaptive_case.state_candidate(negative_variance, real_line).status == qmomkit::StateCandidateStatus::realizability_rejected);
+}
+
+void test_qmom_state_candidate_reports_failures_without_throwing()
+{
+    qmomkit::QmomOptions fixed;
+    fixed.adaptive = false;
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0}, 2, fixed};
+    const auto assert_failed =
+        [](const qmomkit::QmomStateCandidate& candidate, const qmomkit::StateCandidateStatus status, const qmomkit::QmomStatus reconstruction_status)
+    {
+        assert(candidate.status == status);
+        assert(!candidate.ok());
+        assert(!candidate.state.has_value());
+        assert(candidate.reconstruction_status == reconstruction_status);
+        assert(!candidate.message.empty());
+    };
+    assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{1.0, 0.0}), qmomkit::StateCandidateStatus::invalid_input,
+                  qmomkit::QmomStatus::invalid_input);
+    assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{1.0, std::numeric_limits<double>::quiet_NaN(), 1.0, 0.0}),
+                  qmomkit::StateCandidateStatus::invalid_input, qmomkit::QmomStatus::invalid_input);
+    const qmomkit::QmomStateCandidate negative_variance = qmom_case.state_candidate(qmomkit::MomentSet{1.0, 0.0, -1.0, 0.0});
+    assert_failed(negative_variance, qmomkit::StateCandidateStatus::reconstruction_failed, qmomkit::QmomStatus::not_realizable);
+
+    // initial_state() is the throwing form of the same operation.
+    bool threw = false;
+    try
+    {
+        static_cast<void>(qmomkit::QmomCase{qmomkit::MomentSet{1.0, 0.0, -1.0, 0.0}, 2, fixed}.initial_state());
+    }
+    catch (const std::runtime_error& error)
+    {
+        threw = std::string(error.what()) == "QMOM initial state reconstruction failed: " + negative_variance.message;
+    }
+    assert(threw);
+}
+
 void test_qmom_rejects_node_count_with_unrepresentable_moment_requirement()
 {
     const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
@@ -1279,6 +1421,9 @@ int main(const int argc, char** argv)
             {"cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage",
              test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage},
             {"qmom_public_api_matches_wheeler", test_qmom_public_api_matches_wheeler},
+            {"qmom_state_candidate_matches_initial_state", test_qmom_state_candidate_matches_initial_state},
+            {"qmom_state_candidate_applies_the_realizability_policy", test_qmom_state_candidate_applies_the_realizability_policy},
+            {"qmom_state_candidate_reports_failures_without_throwing", test_qmom_state_candidate_reports_failures_without_throwing},
             {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
             {"qmom_rejects_fewer_than_2n_moments_with_or_without_bounds", test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds},

@@ -255,8 +255,9 @@ The CQMOM source context exposes:
 For source callbacks invoked through CQMOM evolution,
 `context.moment(alpha)` returns a tracked entry directly or lazily reconstructs
 the requested untracked raw moment from a quadrature built from the current
-SSP-RK stage, with the active branch counts of the state as ceilings. The reconstructed quadrature is context-local and is never taken
-from an accepted state at another RK stage. For quadrature-level source
+SSP-RK stage, with the active branch counts of the state as ceilings. The
+reconstructed quadrature is context-local and is never taken from an accepted
+state at another RK stage. For quadrature-level source
 closures, `context.for_each_terminal_node(...)` visits the global weight and
 phase-space-order coordinates of each terminal node from that same cached
 quadrature. The coordinate reference is read-only and valid only during the
@@ -806,9 +807,9 @@ Wheeler determine the active count. Phase-space advection reconstructs each
 existing branch with its current active count as the ceiling, so counts may
 remain or decrease but cannot grow. The source-stage quadrature that a source
 callback reads inside the SSP-RK3 stages follows the same rule, as the QMOM one
-keeps its active node count, so the source closure keeps its structure for the
-whole step. After an accepted moment-source update,
-post-source inversion first reconstructs at the current active count; a
+keeps its active node count, so no existing branch gains a node within a source
+step. After an accepted moment-source update, post-source inversion first
+reconstructs at the current active count; a
 reduction is accepted immediately. If the current count is retained and the
 configured maximum is larger, the branch tries exactly `Nactive + 1`, and
 growth is accepted only when Wheeler returns that requested count. Branches

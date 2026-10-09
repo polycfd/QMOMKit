@@ -110,8 +110,10 @@ and an adaptive reconstruction passes only its active nodes.
 `CqmomSourceContext::moment` similarly uses exact required-index lookup first.
 `reconstructed_stage_quadrature` constructs a stage `CqmomCase` and reuses the
 prepared metadata, with the active counts of the state as ceilings: an adaptive
-branch may lose nodes but gets no growth trial, as the QMOM context keeps its
-active node count, and grows only in the post-source inversion. The cache
+branch of the state may lose nodes but gets no growth trial, as the QMOM context
+keeps its active node count, and grows only in the post-source inversion; a
+branch that replaces others after its parent lost nodes starts from its
+configured maximum, as in advection. The cache
 belongs to this context and therefore this RK stage; it is not a global or
 whole-time-step cache. Missing stored moments are computed from that accepted
 quadrature, not added to the stage's tracked ODE vector.

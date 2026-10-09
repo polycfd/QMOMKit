@@ -2170,9 +2170,9 @@ void test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node()
 
 // The source-stage quadrature of an adaptive CQMOM state keeps the active
 // branch counts of the state as ceilings, as the QMOM one keeps its active node
-// count: within the SSP-RK3 stages of a source step a branch may lose nodes but
-// not gain one, so the source closure keeps its structure throughout the step.
-// A branch grows only in the reconstruction after the accepted step.
+// count: within the SSP-RK3 stages of a source step a branch of the state may
+// lose nodes but not gain one. It grows only in the reconstruction after the
+// accepted step.
 void test_public_cqmom_source_stage_quadrature_does_not_grow()
 {
     constexpr std::size_t configured_node_count = 3;

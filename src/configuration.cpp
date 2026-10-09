@@ -22,6 +22,27 @@ namespace qmomkit::config
 namespace
 {
 
+enum class ConfigurationErrorCode
+{
+    file_error,
+    syntax_error,
+    duplicate_entry,
+    unknown_entry,
+    missing_entry,
+    invalid_value,
+    invalid_configuration
+};
+
+// A problem found while reading a configuration. A failed result reports the
+// first one as "<source>:<line>: <message>" through ConfigurationResult::error().
+struct ConfigurationError
+{
+    ConfigurationErrorCode code = ConfigurationErrorCode::syntax_error;
+    std::string source_name;
+    std::size_t line = 0;
+    std::string message;
+};
+
 struct Entry
 {
     std::string value;

@@ -19,25 +19,6 @@
 namespace qmomkit::config
 {
 
-enum class ConfigurationErrorCode
-{
-    file_error,
-    syntax_error,
-    duplicate_entry,
-    unknown_entry,
-    missing_entry,
-    invalid_value,
-    invalid_configuration
-};
-
-struct ConfigurationError
-{
-    ConfigurationErrorCode code = ConfigurationErrorCode::syntax_error;
-    std::string source_name;
-    std::size_t line = 0;
-    std::string message;
-};
-
 template <class T> class ConfigurationResult
 {
 public:

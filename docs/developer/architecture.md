@@ -83,7 +83,10 @@ evolution. QMOM phase-space evolution creates a `QmomState` with
 `QmomCase::initial_state()` and advances it with
 `advance_qmom_phase_space(QmomState, ...)`; normal CQMOM phase-space evolution
 creates a `CqmomState` with `CqmomPreparedCase::initial_state()` and advances
-it with `advance_cqmom_phase_space(CqmomState, ...)`.
+it with `advance_cqmom_phase_space(CqmomState, ...)`. An application that
+changes the moments itself between steps, for example by transport in physical
+space, creates the next state with `QmomCase::state_candidate(...)` or
+`CqmomPreparedCase::state_candidate(...)`, which report a failure as a status.
 
 Accepted-state batch phase-space evolution is a serial collection of these same
 local operations. It does not give QMOMKit ownership of cells, meshes,

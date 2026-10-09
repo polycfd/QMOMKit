@@ -193,38 +193,6 @@ void validate_coordinate_realizability_policies(const CqmomMomentLayout& layout,
                        { return policy.has_value() && policy->check_mode == check_mode; });
 }
 
-[[nodiscard]] std::vector<double> extract_coordinate_marginal(const std::vector<double>& state, const CqmomMomentLayout& layout,
-                                                              const std::size_t coordinate)
-{
-    std::vector<std::pair<std::size_t, std::size_t>> orders_and_positions;
-    for (std::size_t position = 0; position < layout.required_indices.size(); ++position)
-    {
-        const MultiIndexView index = layout.required_indices[position];
-        bool pure_coordinate = true;
-        for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
-        {
-            if (dimension != coordinate && index[dimension] != 0)
-            {
-                pure_coordinate = false;
-                break;
-            }
-        }
-        if (pure_coordinate)
-        {
-            orders_and_positions.emplace_back(index[coordinate], position);
-        }
-    }
-
-    std::sort(orders_and_positions.begin(), orders_and_positions.end());
-    std::vector<double> marginal;
-    marginal.reserve(orders_and_positions.size());
-    for (const auto& order_and_position : orders_and_positions)
-    {
-        marginal.push_back(state[order_and_position.second]);
-    }
-    return marginal;
-}
-
 [[nodiscard]] bool accepts_coordinate_realizability_policies(const std::vector<double>& state, const CqmomMomentLayout& layout,
                                                              const std::vector<std::optional<RealizabilityPolicy>>& policies,
                                                              const RealizabilityCheckMode check_mode)
@@ -237,7 +205,7 @@ void validate_coordinate_realizability_policies(const CqmomMomentLayout& layout,
             continue;
         }
 
-        const std::vector<double> marginal = extract_coordinate_marginal(state, layout, coordinate);
+        const std::vector<double> marginal = internal::extract_coordinate_marginal(state, layout, coordinate);
         if (!accepts_realizability_policy(*policy, marginal, [](const std::vector<double>& moments) { return MomentSet(moments); }))
         {
             return false;

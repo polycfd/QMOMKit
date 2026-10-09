@@ -186,13 +186,18 @@ The normal configured workflows are:
 ```text
 load_qmom(...)           -> QmomCase          -> compute_qmom(...)
                                               -> initial_state() -> QmomState
+                                              -> state_candidate(moments) -> QmomStateCandidate
 
 load_cqmom_prepared(...) -> CqmomPreparedCase -> compute_cqmom(...)
                                               -> initial_state() -> CqmomState
+                                              -> state_candidate(moments) -> CqmomStateCandidate
 ```
 
 `compute_qmom(...)` and `compute_cqmom(...)` reconstruct a quadrature;
 `initial_state()` creates the state that phase-space evolution advances.
+`state_candidate(...)` creates that state from moments the host changed
+itself, for example by transport in physical space, optionally after a
+realizability check, and reports a failure as a status instead of throwing.
 
 `QmomCase` and `QmomState` are the QMOM interfaces. `CqmomPreparedCase` and
 `CqmomState` are the default CQMOM interfaces. QMOM has no prepared

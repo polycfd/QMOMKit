@@ -1021,8 +1021,11 @@ policies such as Wheeler options, conditional reconstruction options, adaptive
 branch counts, diagnostic level, and Vandermonde solver are case-owned policies
 preserved by `CqmomState`. Normal CQMOM evolution creates that state with
 `CqmomPreparedCase::initial_state()`; `CqmomCase::initial_state()` creates the
-same state but builds the branch structure again. Either way, public CQMOM
-evolution goes through the `CqmomState` API.
+same state but builds the branch structure again. Moments the host changed
+itself, for example by transport in physical space, give their state through
+`CqmomPreparedCase::state_candidate(...)`, which shares the branch structure of
+the prepared case. Either way, public CQMOM evolution goes through the
+`CqmomState` API.
 
 The lower-level public helpers are:
 

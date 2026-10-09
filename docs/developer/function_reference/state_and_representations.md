@@ -88,9 +88,22 @@ and their order directly.
 
 ## Case and accepted state — Levels A/B
 
-`QmomCase::initial_state` calls `compute_qmom` and throws if reconstruction
-fails. `QmomStateAccess::from_quadrature` rebuilds the stored raw sequence, at
-its original length, from the accepted quadrature. Consequently adaptive
+`QmomCase::state_candidate` and `QmomCase::initial_state` share
+`qmom_state_candidate`. It optionally checks the moments against a
+realizability policy, calls `compute_qmom` once with the node count, options,
+and bounds of the case, and builds the state from that quadrature; a
+failure becomes a `StateCandidateStatus`, with `empty` for a failed
+reconstruction whose m0 lies below the cutoff. A policy also accepts boundary
+moments whose m0 lies below the cutoff, so that a policy rejecting boundary
+moments still lets an empty cell reach that classification; the CQMOM path
+shares `policy_verdict` and `policy_accepts`. The check runs only on enough
+moments for the node count, so too few moments are invalid input whether or
+not a check was requested. The public `state_candidate` first rejects
+non-finite moments, including those the reconstruction does not read
+(`checked_qmom_state_candidate`); `initial_state` throws `std::runtime_error`
+for any failure. `QmomStateAccess::from_quadrature` rebuilds the stored raw
+sequence, at the length of the given moments, from the accepted quadrature; an
+overflow there is reported as `reconstruction_failed`. Consequently adaptive
 acceptance may replace higher input moments with the reduced quadrature's
 closure. `QmomState` exposes moments, quadrature, bounds, active count,
 configured maximum node count, and read-only reconstruction options. The
@@ -100,17 +113,24 @@ authoritative for every subsequent evolution transition.
 `CqmomPreparedCase` and `CqmomState` hold a `CqmomCase` and do not expose
 it. Public accessors read the hierarchy and policies from it; numerical
 algorithms use the held case directly. A `CqmomCase` is promoted through
-the public `CqmomPreparedCase` constructor. `CqmomCase::initial_state` and
-`CqmomPreparedCase::initial_state` both call `initial_cqmom_state`, which
-computes a successful quadrature with its active branch counts, reconstructs
-the stored representation from that accepted quadrature, and stores the same
-quadrature in the state. They differ only in where the prepared metadata comes
-from: `CqmomCase::initial_state` builds it on every call, while
-`CqmomPreparedCase::initial_state` hands each state the metadata the prepared
-case already holds. Either way the state keeps that metadata for its whole
-lineage. `CqmomState::quadrature()` exposes that stored accepted quadrature by
-const reference. A state reconstructs exactly its
-required layout in its existing order. Thus every successfully constructed
+the public `CqmomPreparedCase` constructor. `CqmomCase::initial_state`,
+`CqmomPreparedCase::initial_state` and `CqmomPreparedCase::state_candidate` all
+reach `cqmom_state_candidate`, which optionally checks the marginal moments of
+coordinates with a policy, computes a successful quadrature with its active
+branch counts, reconstructs the stored representation from that accepted
+quadrature, and stores the same quadrature in the state; a failure becomes a
+`StateCandidateStatus`, and an overflowing reconstruction of the stored
+moments is `reconstruction_failed`. The two `initial_state` functions go
+through `initial_cqmom_state`, which throws for any failure, and differ only in
+where the prepared metadata comes from: `CqmomCase::initial_state` builds it on
+every call, while `CqmomPreparedCase::initial_state` hands each state the
+metadata the prepared case already holds. `state_candidate` goes through
+`prepared_cqmom_state_candidate`, which validates the given moment data against
+the stored layout of the prepared case, since the reconstruction trusts it, and
+then shares that case's metadata. Either way the state keeps that metadata for
+its whole lineage. `CqmomState::quadrature()` exposes that stored accepted
+quadrature by const reference. A state reconstructs exactly its required layout
+in its existing order. Thus every successfully constructed
 initial state has stored moments and cached accepted quadrature describing the
 same current state. Adaptive reduction may replace higher supplied moments with
 the reduced quadrature's closure, as it already does for QMOM and later CQMOM

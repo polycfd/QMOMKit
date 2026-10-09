@@ -45,7 +45,11 @@ with `advance_qmom_phase_space(...)`. `QmomState` exposes read-only `moment_valu
 moments and quadrature always agree with each other, and it keeps the
 reconstruction settings of the case it came from. You can copy and move an
 accepted state, but you cannot build one from a moment vector and a quadrature
-of your own choosing: that would allow the two to disagree.
+of your own choosing: that would allow the two to disagree. When your
+application changes the moments between steps, for example by transport in
+physical space, `QmomCase::state_candidate(...)` creates the state of the new
+moments; see
+[Moments changed by the host](phase_space_evolution.md#moments-changed-by-the-host).
 
 For $N$ nodes, provide at least $2N$ moments: $m_0, m_1, ..., m_{2N-1}$
 

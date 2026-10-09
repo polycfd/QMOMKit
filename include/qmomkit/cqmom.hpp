@@ -274,6 +274,31 @@ private:
 };
 
 /**
+ * A CQMOM evolution state created from moments, or the reason none was.
+ *
+ * `state` holds the state only on success: take it with `*state` and use it
+ * like a state from `CqmomPreparedCase::initial_state()`. When a coordinate
+ * realizability check rejected the moments, `rejected_coordinate` names the
+ * coordinate and `realizability` holds the verdict on its marginal moments.
+ * `reconstruction_status` holds the status of the quadrature reconstruction,
+ * when it ran.
+ */
+struct CqmomStateCandidate
+{
+    StateCandidateStatus status = StateCandidateStatus::invalid_input;
+    std::optional<CqmomState> state;
+    std::optional<RealizabilityResult> realizability;
+    std::optional<std::size_t> rejected_coordinate;
+    std::optional<CqmomStatus> reconstruction_status;
+    std::string message;
+
+    [[nodiscard]] bool ok() const noexcept
+    {
+        return status == StateCandidateStatus::success;
+    }
+};
+
+/**
  * The normal CQMOM case: initial moments and reconstruction settings together
  * with the prepared recursive branch structure.
  *
@@ -305,6 +330,39 @@ public:
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
     [[nodiscard]] const CqmomAbscissaBounds& abscissa_bounds() const noexcept;
+
+    /**
+     * Create an evolution state from other moments, with the hierarchy,
+     * settings and branch structure of this case; the moments of the case are
+     * not used. This is how a host rebuilds the state of moments it changed
+     * itself, for example by transport in physical space. `candidate_moments`
+     * must have the required moment layout of the hierarchy: create it once
+     * with `create_cqmom_moment_layout(hierarchy())` and replace only the
+     * values for each call. The quadrature is reconstructed once, the stored
+     * moments are those of the accepted quadrature, and a failure is reported
+     * in the result rather than thrown.
+     */
+    [[nodiscard]] CqmomStateCandidate state_candidate(const CqmomMomentData& candidate_moments) const;
+
+    /**
+     * Create an evolution state as above, after checking the marginal moments
+     * of every coordinate that has a policy in `coordinate_policies`, unless
+     * its `check_mode` is `None`. A check accepts strictly realizable moments,
+     * and boundary moments when its `accept_boundary` is set or M[0,...,0]
+     * lies below the cutoff, so that moment data without number density is
+     * `empty` whatever the policies. Mixed and
+     * conditional moments are not checked; the reconstruction tests them. A
+     * policy beyond the dimensions of the hierarchy is invalid input, as in
+     * the moment-source update.
+     */
+    [[nodiscard]] CqmomStateCandidate state_candidate(const CqmomMomentData& candidate_moments,
+                                                      const std::vector<std::optional<RealizabilityPolicy>>& coordinate_policies) const;
+
+    /**
+     * Construct the accepted initial phase-space evolution state from the
+     * moments of this case, throwing `std::runtime_error` when they cannot be
+     * reconstructed.
+     */
     [[nodiscard]] CqmomState initial_state() const;
 
 private:

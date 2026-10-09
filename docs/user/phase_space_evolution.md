@@ -34,6 +34,7 @@ requirement. [Callbacks](callbacks.md) gives their signatures and rules.
 | [Full step](#full-phase-space-evolution-step) | Complete QMOM and CQMOM steps, and driving the stages yourself |
 | [Configuration](#configuration-workflow) | Loading these settings from a `.qmom` file |
 | [Batch wrappers](#batch-convenience-wrappers) | Advancing many states with shared settings |
+| [Moments changed by the host](#moments-changed-by-the-host) | Creating a state from moments your application changed, such as by transport |
 | [Practical guidance](#practical-guidance) | Ordering, sizes, and what to check |
 
 For callback signatures and examples see [Callbacks](callbacks.md); when a step
@@ -731,9 +732,11 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
 `maximum_node_count()`, and `qmom_options()` accessors. Its
 stored moments are reconstructed from its accepted quadrature, and
 `QmomState::active_node_count()` is derived from the accepted quadrature size.
-Users may copy and move accepted states for retry or in-process checkpointing,
-but direct construction from independent moments and quadrature is intentionally
-unavailable; no public restart/import factory is currently provided.
+Users may copy and move accepted states for retry or in-process checkpointing.
+A state cannot be built from a moment vector and a quadrature of your own
+choosing, which could disagree; the state of new moments is created with
+`QmomCase::state_candidate(...)`, as described in
+[Moments changed by the host](#moments-changed-by-the-host).
 In adaptive QMOM, `QmomState::maximum_node_count()` remains the configured maximum. Node advection
 preserves the active count and reconstructs the stored moment vector
 from the advected quadrature without another Wheeler inversion. After an
@@ -1070,6 +1073,136 @@ remains fully supported.
 [`examples/cqmom_2d_batch_host_data/`](../../examples/cqmom_2d_batch_host_data/README.md)
 is a complete program using `advance_cqmom_phase_space_batch_with_index(...)`
 with time-varying host data indexed like the state vector.
+
+## Moments changed by the host
+
+An application that changes the moments itself between steps — most often by
+transporting them in physical space, from cell to cell — has to create a new
+state from the changed moments. A state cannot be edited: its moments and its
+quadrature always agree, and new moments need a new quadrature. Creating the
+state reconstructs that quadrature once, which any change of the moments
+requires, and reuses everything else the case holds.
+
+`state_candidate(...)` tries to create that state and returns a candidate: the
+outcome of the attempt. On success, `candidate.ok()` is true and
+`candidate.state`, a `std::optional`, holds the new state. There is nothing to
+convert: take the state out of the candidate and use it like a state from
+`initial_state()`, passing it to `advance_qmom_phase_space(...)` or
+`advance_cqmom_phase_space(...)`. Otherwise the candidate holds no state, and
+`candidate.status` and `candidate.message` say why.
+
+The application therefore keeps the moments of each cell between steps, not a
+state: every step creates the state of the transported moments, advances it,
+and keeps the moments of the advanced state. One step of a QMOM cell looks like
+this. The case fixes the node count, options, and bounds of every state;
+`QmomCase::state_candidate(...)` uses them with the moments it is given, not
+with the moments of the case:
+
+```cpp
+// Once, at set-up.
+const qmomkit::QmomCase qmom_case = qmomkit::config::load_qmom("droplets.qmom").value();
+const qmomkit::QmomPhaseSpaceEvolutionOptions options =
+    qmomkit::config::load_qmom_phase_space_evolution_options("droplets.qmom").value();
+
+// Every step, after the application has transported the moments of every cell.
+qmomkit::QmomStateCandidate candidate =
+    qmom_case.state_candidate(qmomkit::MomentSet(cell_moments[cell]), options.realizability_policy);
+if (candidate.status == qmomkit::StateCandidateStatus::empty)
+{
+    continue;  // nothing to evolve in an empty cell
+}
+if (!candidate.ok())
+{
+    // The application decides, for example from candidate.message, whether to
+    // repeat its transport step with a smaller time step or to stop.
+}
+const qmomkit::QmomState state = std::move(*candidate.state);
+const qmomkit::QmomPhaseSpaceEvolutionResult evolved =
+    qmomkit::advance_qmom_phase_space(state, time, time_step, velocity, source, options);
+if (evolved.ok())
+{
+    cell_moments[cell] = evolved.state.moment_values();  // for the next transport step
+}
+```
+
+Here the realizability policy of the evolution options also checks the
+transported moments; any other `RealizabilityPolicy` can be passed instead, or
+none at all. A policy whose `check_mode` is `None` is not applied, and any other
+mode applies it once, to the given moments. Moments without number density are
+`empty` whatever the policy, even one that rejects boundary moments.
+
+For CQMOM, use the prepared case, so that every state shares the branch
+structure it built once. The moments must have the required layout of the
+hierarchy: create the moment data once and replace only its values for each
+cell, in the order of `moments.layout.required_indices`. The per-coordinate
+realizability policies of the moment-source options can be passed as they are:
+
+```cpp
+const qmomkit::CqmomPreparedCase prepared_case = qmomkit::config::load_cqmom_prepared("particles.qmom").value();
+const qmomkit::CqmomPhaseSpaceEvolutionOptions options =
+    qmomkit::config::load_cqmom_phase_space_evolution_options("particles.qmom").value();
+qmomkit::CqmomMomentData moments{qmomkit::create_cqmom_moment_layout(prepared_case.hierarchy()), {}};
+
+// Every step, for every cell:
+moments.values = cell_moments[cell];
+qmomkit::CqmomStateCandidate candidate =
+    prepared_case.state_candidate(moments, options.source_options.coordinate_realizability_policies);
+if (candidate.ok())
+{
+    const qmomkit::CqmomPhaseSpaceEvolutionResult evolved =
+        qmomkit::advance_cqmom_phase_space(*candidate.state, time, time_step, velocity, source, options);
+    if (evolved.ok())
+    {
+        cell_moments[cell] = evolved.state.moment_values();
+    }
+}
+```
+
+Neither function throws for moments that cannot form a state. The status of
+the candidate says what happened:
+
+| `status` | Meaning |
+| --- | --- |
+| `success` | `state` holds the new state. |
+| `empty` | The number density is below the reconstruction cutoff (`qmom_options.cutoff`), as in an empty cell, so there is nothing to evolve. |
+| `realizability_rejected` | The requested check did not accept the moments. `realizability` holds its verdict, and for CQMOM `rejected_coordinate` names the coordinate. |
+| `reconstruction_failed` | No quadrature could be reconstructed from the moments. |
+| `invalid_input` | The moments are not finite, too few for the node count, or do not have the required CQMOM layout, or a policy is invalid. |
+
+What to do with an empty cell or a rejected one is the application's decision,
+for example keeping the cell empty, or repeating its transport step with a
+smaller time step. `QmomCase::initial_state()` and
+`CqmomPreparedCase::initial_state()` are the throwing form of the same
+operation for the moments of the case, which suits setting up a simulation.
+
+Keeping the moments realizable during transport is the application's part. A
+scheme that sets each new cell value to a convex combination of realizable
+neighbour values, such as first-order upwinding at a uniform velocity with a
+Courant number of at most one, keeps them realizable; higher-order schemes
+without a realizability-preserving reconstruction can produce moments that are
+not. Passing a policy is worthwhile for such moments: without a check, an
+adaptive reconstruction keeps the nodes the moments support and reports
+success. For example, the moments `{1, 0, -1, 0}` with a negative variance give
+a single node at 0 and the stored moments `{1, 0, 0, 0}`; the check rejects
+them. Keep in mind what the check covers:
+
+- it concerns the moments, not the node positions: to keep nodes inside a
+  support, set abscissa bounds on the case;
+- for CQMOM it covers the marginal moments of the coordinates with a policy;
+  mixed and conditional moments are tested only by the reconstruction;
+- its resolution is limited, as [Realizability](realizability.md) explains:
+  for narrow distributions at high orders it can report a realizable set as
+  numerically indeterminate, which a policy rejects.
+
+The new state stores the moments of its accepted quadrature, not the moments it
+was given. They agree to rounding unless the adaptive reconstruction dropped
+nodes the moments do not support, which `active_node_count()` below the
+maximum shows; then the higher moments are those of the remaining nodes. Take
+the moments of the state, `moment_values()`, back into the cells for the next
+transport step, so that the cells hold the population that was evolved.
+
+The [`qmom_state_candidate` example](../../examples/qmom_state_candidate/README.md)
+hands changed moments to a new state and shows the outcomes of a check.
 
 ## Practical guidance
 

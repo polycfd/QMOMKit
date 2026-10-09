@@ -106,7 +106,7 @@ Example README:
 
 Prerequisite: complete a normal library-managed QMOM evolution workflow first.
 These are advanced integration patterns for applications that own more of the
-time-integration machinery.
+time-integration machinery or change the moments themselves.
 
 ### `qmom_1d_explicit_strang_splitting`
 
@@ -117,6 +117,16 @@ reconstruction; the application decides how to compose successful stages.
 
 Example README:
 [`examples/qmom_1d_explicit_strang_splitting/README.md`](../../examples/qmom_1d_explicit_strang_splitting/README.md)
+
+### `qmom_state_candidate`
+
+Use this when the application changes the moments itself between steps, for
+example by transporting them in physical space. It hands three changed moment
+sets to `QmomCase::state_candidate(...)` with a realizability check and shows
+the three outcomes: a new state, an empty set, and rejected moments.
+
+Example README:
+[`examples/qmom_state_candidate/README.md`](../../examples/qmom_state_candidate/README.md)
 
 ## Stage 4: QMOM Monte Carlo companion/reference workflow
 

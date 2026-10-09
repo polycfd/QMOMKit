@@ -147,6 +147,12 @@ rectangular tensor, which matters when the two differ substantially: a
 five-dimensional hierarchy with three nodes per coordinate requires 606 moments,
 while the full tensor holds 7776. The resulting case is the same either way.
 
+When the moments change during a simulation, for example by transport in
+physical space, `CqmomPreparedCase::state_candidate(...)` creates the state of
+the new moment data directly, without deriving a case, and reports a failure
+as a status rather than an exception; see
+[Moments changed by the host](phase_space_evolution.md#moments-changed-by-the-host).
+
 ## Using CQMOM in QMOMKit
 
 Include the umbrella header when following the user guide examples:

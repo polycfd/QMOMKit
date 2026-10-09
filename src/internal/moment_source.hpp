@@ -22,6 +22,12 @@ public:
                                                    const PreparedCqmomMetadata* prepared_metadata);
 };
 
+// The source-step options of a QMOM or CQMOM moment-source update, checked by
+// every update and, before any stage runs, by phase-space evolution. Each
+// throws std::invalid_argument for the first option that cannot be applied.
+void validate_qmom_moment_source_options(const MomentSourceUpdateOptions& options);
+void validate_cqmom_moment_source_options(const MomentSourceUpdateOptions& options, std::size_t dimensions);
+
 // This entry point is for validated QMOM phase-space evolution only. The
 // caller owns the source-stage reconstruction metadata; evolving values,
 // source controls, callbacks, and callback rates are still validated.

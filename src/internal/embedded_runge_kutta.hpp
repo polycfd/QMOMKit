@@ -79,4 +79,9 @@ void take_embedded_rk_step(const EmbeddedRkTableau& tableau, const OdeRhs& rhs, 
 
 [[nodiscard]] double embedded_rk_controller_exponent(const EmbeddedRkTableau& tableau);
 
+// Why `options` cannot drive an embedded Runge-Kutta integration, or nullptr
+// when they can. Phase-space evolution uses it to check node-advection options
+// before any stage runs.
+[[nodiscard]] const char* adaptive_rk_options_error(const AdaptiveRkOptions& options);
+
 } // namespace qmomkit::internal

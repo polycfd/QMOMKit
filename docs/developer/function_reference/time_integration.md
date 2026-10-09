@@ -94,13 +94,15 @@ interpolation/dense-output contract is implemented by these helpers.
 
 `integrate_embedded_rk` advances an initial finite vector from `t0` to
 `t_bound`, including backward integration. It resolves the tableau, validates
-dimensions, times, positive finite relative/absolute tolerances, and nonzero
-`max_steps`. Equal endpoints return success before checking nonessential
-step-size controls. For a nonzero interval, initial step must be positive; zero
-maximum step means interval length, and zero minimum means ten floating-point
-spacings at current time in the integration direction. An explicit minimum is
-rejected only above an explicit maximum; an interval shorter than the minimum
-is taken as one step, accepted if its error estimate is finite.
+dimensions and times, and then the options through `adaptive_rk_options_error`,
+which phase-space evolution also runs before any stage: positive finite
+relative/absolute tolerances, nonzero `max_steps`, a positive initial step, and
+finite non-negative step limits. The options are checked even for equal
+endpoints, which then return success. Zero maximum step means interval length,
+and zero minimum means ten floating-point spacings at current time in the
+integration direction. An explicit minimum is rejected only above an explicit
+maximum; an interval shorter than the minimum is taken as one step, accepted if
+its error estimate is finite.
 
 The outer loop tracks accepted state/time until the endpoint or accepted-step
 limit. The inner loop retries one proposed step:

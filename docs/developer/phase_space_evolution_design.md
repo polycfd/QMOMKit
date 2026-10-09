@@ -255,8 +255,9 @@ The CQMOM source context exposes:
 For source callbacks invoked through CQMOM evolution,
 `context.moment(alpha)` returns a tracked entry directly or lazily reconstructs
 the requested untracked raw moment from a quadrature built from the current
-SSP-RK stage. The reconstructed quadrature is context-local and is never taken
-from an accepted state at another RK stage. For quadrature-level source
+SSP-RK stage, with the active branch counts of the state as ceilings. The
+reconstructed quadrature is context-local and is never taken from an accepted
+state at another RK stage. For quadrature-level source
 closures, `context.for_each_terminal_node(...)` visits the global weight and
 phase-space-order coordinates of each terminal node from that same cached
 quadrature. The coordinate reference is read-only and valid only during the
@@ -783,7 +784,11 @@ information and is not an accepted phase-space evolution state.
 
 Status propagation follows subsystem ownership:
 
-- input validation failures become `invalid_input`;
+- input validation failures become `invalid_input`, including an option that a
+  stage of the call cannot apply: every entry point checks the options of the
+  stages it runs before the first one, with the rules the stages themselves
+  apply (`adaptive_rk_options_error`, the moment-source option validators and
+  `realizability_policy_error`), and ignores options its stages do not read;
 - failed initial or post-source reconstruction becomes `inversion_failed`;
 - node-advection integration failures become `advection_failed`;
 - raw-moment reconstruction exceptions become `moment_reconstruction_failed`;
@@ -798,15 +803,18 @@ options, phase-space evolution reports an inversion failure.
 
 Adaptive CQMOM uses one context-dependent active-count policy. Initial
 reconstruction starts each branch from its configured maximum and lets adaptive
-Wheeler determine the active count. Phase-space advection reconstructs each
-existing branch with its current active count as the ceiling, so counts may
-remain or decrease but cannot grow. After an accepted moment-source update,
-post-source inversion first reconstructs at the current active count; a
-reduction is accepted immediately. If the current count is retained and the
-configured maximum is larger, the branch tries exactly `Nactive + 1`, and
-growth is accepted only when Wheeler returns that requested count. Branches
-created by an invalidated parent topology start from configured maximum counts
-and adapt downward.
+Wheeler determine the active count. Phase-space advection reconstructs no
+quadrature: it moves the nodes of the accepted one, so every active count stays
+as it is. The source-stage quadrature that a source callback reads inside the
+SSP-RK3 stages uses the current active counts as ceilings, as the QMOM one keeps
+its active node count, so no existing branch gains a node within a source step.
+After an accepted moment-source update, post-source inversion first
+reconstructs at the current active count; a reduction is accepted immediately.
+If the current count is retained and the configured maximum is larger, the
+branch tries exactly `Nactive + 1`, and growth is accepted only when Wheeler
+returns that requested count. Branches created by an invalidated parent
+topology, in a source-stage quadrature or in the post-source inversion, start
+from configured maximum counts and adapt downward.
 
 After every successful inversion during CQMOM phase-space evolution through
 `CqmomState`, the returned state is refreshed with the active counts of the

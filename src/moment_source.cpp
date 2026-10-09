@@ -4,6 +4,7 @@
 #include "internal/cqmom_validation.hpp"
 #include "internal/moment_source.hpp"
 #include "internal/numeric_utils.hpp"
+#include "internal/realizability.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 
 #include <algorithm>
@@ -174,18 +175,6 @@ void validate_cqmom_stage_state(const std::vector<double>& state, const CqmomMom
     }
 }
 
-void validate_coordinate_realizability_policies(const CqmomMomentLayout& layout, const std::vector<std::optional<RealizabilityPolicy>>& policies)
-{
-    const std::size_t dimensions = layout.hierarchy.number_of_dimensions();
-    for (std::size_t coordinate = dimensions; coordinate < policies.size(); ++coordinate)
-    {
-        if (policies[coordinate].has_value())
-        {
-            throw std::invalid_argument("CQMOM coordinate realizability policy index is outside the phase-space dimension.");
-        }
-    }
-}
-
 [[nodiscard]] bool has_coordinate_realizability_policy(const std::vector<std::optional<RealizabilityPolicy>>& policies,
                                                        const RealizabilityCheckMode check_mode)
 {
@@ -243,15 +232,7 @@ void validate_request(const std::vector<double>& moments, const double t, const 
     {
         throw std::invalid_argument("Moment-source callback must be provided.");
     }
-    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0)
-    {
-        throw std::invalid_argument("Moment-source update timestep controls are invalid.");
-    }
-    if (std::any_of(options.coordinate_realizability_policies.begin(), options.coordinate_realizability_policies.end(),
-                    [](const std::optional<RealizabilityPolicy>& policy) { return policy.has_value(); }))
-    {
-        throw std::invalid_argument("QMOM moment-source update does not support coordinate_realizability_policies; this option is CQMOM-only.");
-    }
+    internal::validate_qmom_moment_source_options(options);
 }
 
 void validate_request(const std::vector<double>& moments, const double t, const double time_step, const QmomMomentSource& source,
@@ -264,8 +245,7 @@ void validate_request(const std::vector<double>& moments, const double t, const 
     }
 }
 
-void validate_cqmom_source_update_controls(const double t, const double time_step, const CqmomMomentSource& source,
-                                           const MomentSourceUpdateOptions& options)
+void validate_cqmom_source_update_controls(const double t, const double time_step, const CqmomMomentSource& source)
 {
     if (!std::isfinite(t) || !std::isfinite(time_step) || !std::isfinite(t + time_step))
     {
@@ -279,18 +259,14 @@ void validate_cqmom_source_update_controls(const double t, const double time_ste
     {
         throw std::invalid_argument("CQMOM source callback must be provided.");
     }
-    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0)
-    {
-        throw std::invalid_argument("CQMOM moment-source update timestep controls are invalid.");
-    }
 }
 
 void validate_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
                                   const MomentSourceUpdateOptions& options)
 {
     validate_fixed_cqmom_moment_data(moments, "CQMOM moment-source update");
-    validate_cqmom_source_update_controls(t, time_step, source, options);
-    validate_coordinate_realizability_policies(moments.layout, options.coordinate_realizability_policies);
+    validate_cqmom_source_update_controls(t, time_step, source);
+    internal::validate_cqmom_moment_source_options(options, moments.layout.hierarchy.number_of_dimensions());
 }
 
 void validate_trusted_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
@@ -298,8 +274,8 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
 {
     internal::validate_cqmom_moment_values_match_layout(
         moments, {"", "CQMOM moment-source update values must match the fixed layout size.", "CQMOM moment-source update values must be finite."});
-    validate_cqmom_source_update_controls(t, time_step, source, options);
-    validate_coordinate_realizability_policies(moments.layout, options.coordinate_realizability_policies);
+    validate_cqmom_source_update_controls(t, time_step, source);
+    internal::validate_cqmom_moment_source_options(options, moments.layout.hierarchy.number_of_dimensions());
 }
 
 void validate_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
@@ -511,6 +487,45 @@ advance_validated_cqmom_moments_with_source(const CqmomMomentData& moments, cons
 
 namespace internal
 {
+
+void validate_qmom_moment_source_options(const MomentSourceUpdateOptions& options)
+{
+    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0)
+    {
+        throw std::invalid_argument("Moment-source update timestep controls are invalid.");
+    }
+    if (std::any_of(options.coordinate_realizability_policies.begin(), options.coordinate_realizability_policies.end(),
+                    [](const std::optional<RealizabilityPolicy>& policy) { return policy.has_value(); }))
+    {
+        throw std::invalid_argument("QMOM moment-source update does not support coordinate_realizability_policies; this option is CQMOM-only.");
+    }
+}
+
+// Any policy beyond the dimensions is invalid, whatever its mode; a policy
+// within them is checked only if it is applied.
+void validate_cqmom_moment_source_options(const MomentSourceUpdateOptions& options, const std::size_t dimensions)
+{
+    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0)
+    {
+        throw std::invalid_argument("CQMOM moment-source update timestep controls are invalid.");
+    }
+    const std::vector<std::optional<RealizabilityPolicy>>& policies = options.coordinate_realizability_policies;
+    for (std::size_t coordinate = dimensions; coordinate < policies.size(); ++coordinate)
+    {
+        if (policies[coordinate].has_value())
+        {
+            throw std::invalid_argument("CQMOM coordinate realizability policy index is outside the phase-space dimension.");
+        }
+    }
+    for (std::size_t coordinate = 0; coordinate < std::min(dimensions, policies.size()); ++coordinate)
+    {
+        const char* error = policies[coordinate].has_value() ? realizability_policy_error(*policies[coordinate]) : nullptr;
+        if (error != nullptr)
+        {
+            throw std::invalid_argument("CQMOM coordinate " + std::to_string(coordinate) + " realizability policy: " + error);
+        }
+    }
+}
 
 QmomSourceContext QmomSourceContextAccess::create(const double time, const std::vector<double>& values, const std::size_t reconstruction_node_count,
                                                   const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds)
@@ -819,8 +834,13 @@ const CqmomQuadrature& CqmomSourceContext::reconstructed_stage_quadrature() cons
                                          reconstruction_cqmom_case_->diagnostic_level,
                                          reconstruction_cqmom_case_->vandermonde_solver,
                                          reconstruction_cqmom_case_->abscissa_bounds};
-        CqmomResult quadrature = internal::compute_cqmom_internal(stage_cqmom_case, *active_branch_counts_, stage_cqmom_case.qmom_options.adaptive,
-                                                                  prepared_metadata_, !stage_cqmom_case.qmom_options.adaptive);
+        // The active counts of the state are ceilings here, as for QMOM: a
+        // branch of the state may lose nodes within the stages of a source
+        // step but grows only in the reconstruction after the accepted step.
+        // A branch that replaces others after its parent lost nodes starts
+        // from its configured maximum, as in the reconstruction after the step.
+        CqmomResult quadrature = internal::compute_cqmom_internal(stage_cqmom_case, *active_branch_counts_, false, prepared_metadata_,
+                                                                  !stage_cqmom_case.qmom_options.adaptive);
         if (!quadrature.ok())
         {
             throw std::runtime_error("CQMOM source-stage quadrature reconstruction failed: " + quadrature.message);

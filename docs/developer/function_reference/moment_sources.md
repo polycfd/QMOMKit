@@ -108,12 +108,15 @@ are the quadrature's absolute weights, so they carry the total number density,
 and an adaptive reconstruction passes only its active nodes.
 
 `CqmomSourceContext::moment` similarly uses exact required-index lookup first.
-`reconstructed_stage_quadrature` constructs a stage `CqmomCase`, reuses
-appropriate fixed metadata/active counts, and allows the internal adaptive
-reconstruction policy where configured. The cache belongs to this context and
-therefore this RK stage; it is not a global or whole-time-step cache. Missing
-stored moments are computed from that accepted quadrature, not added to the
-stage's tracked ODE vector.
+`reconstructed_stage_quadrature` constructs a stage `CqmomCase` and reuses the
+prepared metadata, with the active counts of the state as ceilings: an adaptive
+branch of the state may lose nodes but gets no growth trial, as the QMOM context
+keeps its active node count, and grows only in the post-source inversion; a
+branch that replaces others after its parent lost nodes starts from its
+configured maximum, as in the post-source inversion. The cache belongs to this
+context and therefore this RK stage; it is not a global or whole-time-step
+cache. Missing stored moments are computed from that accepted quadrature, not
+added to the stage's tracked ODE vector.
 
 `CqmomSourceContext::generalized_moment` additionally requires finite
 **nonnegative** exponents of matching dimension before generalized quadrature
@@ -167,9 +170,10 @@ balance laws.
 |---|---|---|
 | Context constructors; internal context `create` factories | Borrow stage values/layout and optionally attach reconstruction metadata. The caller owns referenced state for the callback lifetime. | Stage-cache tests |
 | Context `time`, `moment_count`, `dimension_count`, `size`, `indices`, `values`, `index`, `value`, `position`, `hierarchy` | Expose stage metadata/tracked data; checked single-entry access throws for missing/out-of-range entries. `moment` is the distinct closure operation. | Source context tests |
-| `validate_request`, `validate_moment_data_request`, `validate_trusted_moment_data_request`, `validate_cqmom_source_update_controls` | Separate public structural validation from trusted layout reuse; verify numerical controls and callbacks before integration. | Invalid-input tests |
+| `validate_request`, `validate_moment_data_request`, `validate_trusted_moment_data_request`, `validate_cqmom_source_update_controls` | Separate public structural validation from trusted layout reuse; verify time input and callbacks before integration. | Invalid-input tests |
+| `validate_qmom_moment_source_options`, `validate_cqmom_moment_source_options` | Check the source-step options: a finite non-negative `min_time_step`, no coordinate policy for QMOM, and for CQMOM no policy beyond the dimensions and every applied policy valid. Shared with phase-space evolution, which runs them before any stage. | Invalid-option tests |
 | `validate_source_context`, `validate_fixed_cqmom_moment_data`, `validate_cqmom_stage_state`, `validate_rate`, `validate_source_rate`, `validate_boundary_rate`, `validate_cqmom_boundary_rate` | Validate the specific borrowed state or callback output boundary; no numerical repair. | Shape/nonfinite failure cases |
-| `validate_coordinate_realizability_policies`, `has_coordinate_realizability_policy` | Reject policies outside dimension rank and bypass conversion when no policy applies. | Marginal-policy tests |
+| `has_coordinate_realizability_policy` | Bypass conversion when no policy applies. | Marginal-policy tests |
 | `status_from_ssp_rk3`, `message_from_status`, `diagnostics_from_ssp_rk3`, invalid/failed result factories, callback-error builders | Translate step failure and diagnostic fields while retaining original state on failure. | Retry/rollback/status tests |
 
 All overload locations are in the [inventory](coverage_inventory.md).

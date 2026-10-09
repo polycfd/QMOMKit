@@ -368,11 +368,11 @@ Drivers parse or load the complete `NodeAdvectionOptions` object with
 When only the integration scheme is needed, they inspect its `.scheme` member.
 
 CQMOM active-count evolution during moment-source stages is automatic.
-Advection reconstruction constrains each existing adaptive branch to its
-current active count. After an accepted moment-source update, adaptive CQMOM
-passes the current active topology and enables the internal one-node growth
-trial. New descendants whose parent topology changed start from configured
-maximum counts and adapt downward.
+Advection reconstructs no quadrature and keeps every active count, and the
+source-stage quadrature uses the current active counts as ceilings. After an
+accepted moment-source update, adaptive CQMOM passes the current active
+topology and enables the internal one-node growth trial. New descendants whose
+parent topology changed start from configured maximum counts and adapt downward.
 
 The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate

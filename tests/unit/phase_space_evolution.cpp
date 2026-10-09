@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -2167,6 +2168,101 @@ void test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node()
     assert_cqmom_state_moments_match_quadrature(stage.state, stage.state.quadrature(), 5.0e-10);
 }
 
+// The source-stage quadrature of an adaptive CQMOM state keeps the active
+// branch counts of the state as ceilings, as the QMOM one keeps its active node
+// count: within the SSP-RK3 stages of a source step a branch of the state may
+// lose nodes but not gain one. It grows only in the reconstruction after the
+// accepted step.
+void test_public_cqmom_source_stage_quadrature_does_not_grow()
+{
+    constexpr std::size_t configured_node_count = 3;
+    const qmomkit::RawMomentTensor initial_moments = one_dimensional_cqmom_moments(configured_node_count, {0.0}, {1.0});
+    const qmomkit::RawMomentTensor target_moments = one_dimensional_cqmom_moments(configured_node_count, {-1.0, 0.25, 2.0}, {0.2, 0.3, 0.5});
+    const qmomkit::PhaseSpaceHierarchy hierarchy({configured_node_count});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
+    const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
+
+    // The later stages evaluate the source at moments of several weighted
+    // points, which would support more nodes than the single active one.
+    const qmomkit::CqmomMomentSource rate = source_from_to(initial_required, target_required);
+    std::size_t stages = 0;
+    std::size_t largest_stage_node_count = 0;
+    const qmomkit::CqmomMomentSource source = [&](const double time, const qmomkit::CqmomSourceContext& context)
+    {
+        std::size_t nodes = 0;
+        context.for_each_terminal_node([&nodes](double, const std::vector<double>&) { ++nodes; });
+        largest_stage_node_count = std::max(largest_stage_node_count, nodes);
+        ++stages;
+        return rate(time, context);
+    };
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult step =
+        qmomkit::advance_cqmom_moment_source(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, source);
+    assert(step.ok());
+    assert(stages == 3);
+    assert(largest_stage_node_count == 1);
+    assert(step.state.quadrature().total_nodes() == 2);
+}
+
+// The same one-dimensional problem gives QMOM and CQMOM the same source
+// closure. The source rate depends on the stage quadrature through its nodes,
+// and its later stages see moments that support more nodes than the active
+// one, so a stage quadrature that grew in one method would change its result.
+void test_public_cqmom_source_closure_matches_qmom_in_one_dimension()
+{
+    constexpr std::size_t configured_node_count = 3;
+    const std::vector<double> initial = raw_moments_1d({0.5}, {1.0}, 2 * configured_node_count);
+    const std::vector<double> target = raw_moments_1d({-1.0, 0.25, 2.0}, {0.2, 0.3, 0.5}, 2 * configured_node_count);
+    // dm_k/dt drives the moments towards `target` and removes number density at
+    // a rate proportional to the squared abscissa, evaluated over the nodes.
+    const auto rate = [&initial, &target](const std::size_t order, const std::function<void(const std::function<void(double, double)>&)>& nodes)
+    {
+        double removal = 0.0;
+        nodes([&removal, order](const double weight, const double abscissa)
+              { removal += weight * abscissa * abscissa * std::pow(abscissa, static_cast<int>(order)); });
+        return target[order] - initial[order] - removal;
+    };
+
+    const qmomkit::QmomMomentSource qmom_source = [&rate](double, const qmomkit::QmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size());
+        for (std::size_t order = 0; order < rates.size(); ++order)
+        {
+            rates[order] = rate(order, [&context](const std::function<void(double, double)>& visit) { context.for_each_node(visit); });
+        }
+        return qmomkit::QmomMomentRate{rates};
+    };
+    const qmomkit::CqmomMomentSource cqmom_source = [&rate](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size());
+        for (std::size_t position = 0; position < rates.size(); ++position)
+        {
+            rates[position] =
+                rate(context.index(position)[0], [&context](const std::function<void(double, double)>& visit)
+                     { context.for_each_terminal_node([&visit](const double weight, const std::vector<double>& x) { visit(weight, x[0]); }); });
+        }
+        return qmomkit::CqmomMomentRate{rates};
+    };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult qmom = qmomkit::advance_qmom_moment_source(
+        qmom_state_from_moments(initial, configured_node_count, {true, 1.0e-10, 1.0e-10, 1.0e-12}), 0.0, 0.5, qmom_source);
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({configured_node_count}));
+    const qmomkit::CqmomMomentData initial_required =
+        qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{2 * configured_node_count}, initial}, layout);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult cqmom =
+        qmomkit::advance_cqmom_moment_source(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 0.5, cqmom_source);
+
+    assert(qmom.ok());
+    assert(cqmom.ok());
+    assert(cqmom.state.quadrature().total_nodes() == qmom.state.active_node_count());
+    for (std::size_t position = 0; position < cqmom.state.moment_values().size(); ++position)
+    {
+        const double expected = qmom.state.moment_values()[cqmom.state.moment_indices()[position][0]];
+        assert(std::abs(cqmom.state.moment_values()[position] - expected) <= 1.0e-12 * std::max(1.0, std::abs(expected)));
+    }
+}
+
 void test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction()
 {
     constexpr std::size_t configured_node_count = 3;
@@ -2703,6 +2799,179 @@ void test_public_cqmom_stage_irrelevant_options_are_ignored()
     const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source =
         qmomkit::advance_cqmom_moment_source(state, 0.0, 0.1, zero_source, moment_source_options);
     assert(moment_source.ok());
+}
+
+// An option that a stage cannot apply is invalid input of every entry point
+// that runs the stage, reported before any stage runs: no callback is called
+// and the input state is returned at the input time. An entry point that does
+// not run the stage, or a stage that does not read the option, ignores it.
+void test_public_qmom_invalid_stage_options_are_invalid_input()
+{
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4), 2);
+    std::size_t calls = 0;
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [&calls](double, const std::vector<double>& xi)
+        {
+            ++calls;
+            return std::vector<double>(xi.size(), 0.0);
+        });
+    const auto source = [&calls](double, const qmomkit::QmomSourceContext& context)
+    {
+        ++calls;
+        return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
+    };
+    const auto assert_invalid = [&](const qmomkit::QmomPhaseSpaceEvolutionResult& result, const std::string& message)
+    {
+        assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+        assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none);
+        assert(result.final_time == 0.0);
+        assert(result.state.moment_values() == state.moment_values());
+        assert(result.message.find(message) != std::string::npos);
+        assert(calls == 0);
+    };
+    using Change = std::function<void(qmomkit::QmomPhaseSpaceEvolutionOptions&)>;
+
+    const std::vector<std::pair<Change, std::string>> node_options{
+        {[](auto& options) { options.node_options.adaptive_options.relative_tolerance = -1.0; },
+         "Embedded Runge-Kutta tolerances must be finite and positive."},
+        {[](auto& options) { options.node_options.adaptive_options.max_steps = 0; }, "Embedded Runge-Kutta max_steps must be positive."},
+        {[](auto& options) { options.node_options.adaptive_options.initial_step = 0.0; }, "step-size option"},
+        {[](auto& options)
+         {
+             options.node_options.adaptive_options.min_step = 1.0e-2;
+             options.node_options.adaptive_options.max_step = 1.0e-3;
+         },
+         "min_step must not exceed max_step"},
+        {[](auto& options) { options.node_options.scheme = static_cast<qmomkit::NodeAdvectionScheme>(99); }, "Unsupported node-advection scheme."},
+    };
+    for (const auto& [change, message] : node_options)
+    {
+        qmomkit::QmomPhaseSpaceEvolutionOptions options;
+        change(options);
+        assert_invalid(qmomkit::advance_qmom_phase_space(state, 0.0, 0.1, velocity, source, options), message);
+        assert_invalid(qmomkit::advance_qmom_advection(state, 0.0, 0.1, velocity, options), message);
+        assert(qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, source, options).ok());
+        calls = 0;
+    }
+
+    const std::vector<std::pair<Change, std::string>> source_options{
+        {[](auto& options) { options.source_options.ssp_rk3_options.min_time_step = -1.0; }, "timestep controls are invalid"},
+        {[](auto& options) { options.source_options.coordinate_realizability_policies = {qmomkit::RealizabilityPolicy{}}; }, "CQMOM-only"},
+        {[](auto& options)
+         {
+             options.realizability_policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+             options.realizability_policy.support = qmomkit::MomentSupport::bounded_interval;
+         },
+         "QMOM realizability policy: A bounded-interval realizability policy requires an interval."},
+        {[](auto& options)
+         {
+             options.realizability_policy.check_mode = qmomkit::RealizabilityCheckMode::EveryStage;
+             options.realizability_policy.support = qmomkit::MomentSupport::bounded_interval;
+             options.realizability_policy.interval = qmomkit::BoundedInterval{1.0, 0.0};
+         },
+         "QMOM realizability policy: Bounded interval must have finite bounds with lower < upper."},
+        {[](auto& options)
+         {
+             options.realizability_policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+             options.realizability_policy.options.tolerance = 0.0;
+         },
+         "QMOM realizability policy: Realizability tolerance must be finite and positive."},
+        {[](auto& options) { options.realizability_policy.check_mode = static_cast<qmomkit::RealizabilityCheckMode>(99); },
+         "QMOM realizability policy: Unknown realizability check mode."},
+    };
+    for (const auto& [change, message] : source_options)
+    {
+        qmomkit::QmomPhaseSpaceEvolutionOptions options;
+        change(options);
+        assert_invalid(qmomkit::advance_qmom_phase_space(state, 0.0, 0.1, velocity, source, options), message);
+        assert_invalid(qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, source, options), message);
+        assert(qmomkit::advance_qmom_advection(state, 0.0, 0.1, velocity, options).ok());
+        calls = 0;
+    }
+
+    // SSP-RK3 node advection does not read the adaptive options, and a policy
+    // that checks nothing is not applied.
+    qmomkit::QmomPhaseSpaceEvolutionOptions unread;
+    unread.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    unread.node_options.adaptive_options.relative_tolerance = -1.0;
+    unread.realizability_policy.support = qmomkit::MomentSupport::bounded_interval;
+    assert(qmomkit::advance_qmom_phase_space(state, 0.0, 0.1, velocity, source, unread).ok());
+}
+
+void test_public_cqmom_invalid_stage_options_are_invalid_input()
+{
+    const qmomkit::CqmomState state = fixed_cqmom_prepared_case().initial_state();
+    std::size_t calls = 0;
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [&calls](double, const std::vector<double>& xi)
+        {
+            ++calls;
+            return std::vector<double>(xi.size(), 0.0);
+        });
+    const auto source = [&calls](double, const qmomkit::CqmomSourceContext& context)
+    {
+        ++calls;
+        return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+    };
+    const auto assert_invalid = [&](const qmomkit::CqmomPhaseSpaceEvolutionResult& result, const std::string& message)
+    {
+        assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+        assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none);
+        assert(result.final_time == 0.0);
+        assert(result.state.moment_values() == state.moment_values());
+        assert(result.message.find(message) != std::string::npos);
+        assert(calls == 0);
+    };
+    using Change = std::function<void(qmomkit::CqmomPhaseSpaceEvolutionOptions&)>;
+
+    const std::vector<std::pair<Change, std::string>> node_options{
+        {[](auto& options) { options.node_options.adaptive_options.absolute_tolerance = 0.0; },
+         "Embedded Runge-Kutta tolerances must be finite and positive."},
+        {[](auto& options) { options.node_options.scheme = static_cast<qmomkit::NodeAdvectionScheme>(99); }, "Unsupported node-advection scheme."},
+    };
+    for (const auto& [change, message] : node_options)
+    {
+        qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+        change(options);
+        assert_invalid(qmomkit::advance_cqmom_phase_space(state, 0.0, 0.1, velocity, source, options), message);
+        assert_invalid(qmomkit::advance_cqmom_advection(state, 0.0, 0.1, velocity, options), message);
+        assert(qmomkit::advance_cqmom_moment_source(state, 0.0, 0.1, source, options).ok());
+        calls = 0;
+    }
+
+    qmomkit::RealizabilityPolicy bounded_without_interval;
+    bounded_without_interval.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    bounded_without_interval.support = qmomkit::MomentSupport::bounded_interval;
+    qmomkit::RealizabilityPolicy zero_tolerance;
+    zero_tolerance.check_mode = qmomkit::RealizabilityCheckMode::EveryStage;
+    zero_tolerance.options.tolerance = 0.0;
+    const std::vector<std::pair<Change, std::string>> source_options{
+        {[](auto& options) { options.source_options.ssp_rk3_options.min_time_step = -1.0; },
+         "CQMOM moment-source update timestep controls are invalid."},
+        {[](auto& options)
+         { options.source_options.coordinate_realizability_policies = {std::nullopt, std::nullopt, qmomkit::RealizabilityPolicy{}}; },
+         "CQMOM coordinate realizability policy index is outside the phase-space dimension."},
+        {[&](auto& options) { options.source_options.coordinate_realizability_policies = {std::nullopt, bounded_without_interval}; },
+         "CQMOM coordinate 1 realizability policy: A bounded-interval realizability policy requires an interval."},
+        {[&](auto& options) { options.source_options.coordinate_realizability_policies = {zero_tolerance}; },
+         "CQMOM coordinate 0 realizability policy: Realizability tolerance must be finite and positive."},
+    };
+    for (const auto& [change, message] : source_options)
+    {
+        qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+        change(options);
+        assert_invalid(qmomkit::advance_cqmom_phase_space(state, 0.0, 0.1, velocity, source, options), message);
+        assert_invalid(qmomkit::advance_cqmom_moment_source(state, 0.0, 0.1, source, options), message);
+        assert(qmomkit::advance_cqmom_advection(state, 0.0, 0.1, velocity, options).ok());
+        calls = 0;
+    }
+
+    // A coordinate policy that checks nothing is not applied.
+    qmomkit::CqmomPhaseSpaceEvolutionOptions unread;
+    qmomkit::RealizabilityPolicy unapplied = bounded_without_interval;
+    unapplied.check_mode = qmomkit::RealizabilityCheckMode::None;
+    unread.source_options.coordinate_realizability_policies = {unapplied};
+    assert(qmomkit::advance_cqmom_phase_space(state, 0.0, 0.1, velocity, source, unread).ok());
 }
 
 void test_advection_only_matches_direct_operator_qmom()
@@ -4456,6 +4725,8 @@ int main(const int argc, char** argv)
             {"public_cqmom_advection_stage_preserves_topology", test_public_cqmom_advection_stage_preserves_topology},
             {"public_cqmom_moment_source_stage_adaptive_policy", test_public_cqmom_moment_source_stage_adaptive_policy},
             {"public_cqmom_moment_source_stage_growth_is_limited_to_one_node", test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node},
+            {"public_cqmom_source_stage_quadrature_does_not_grow", test_public_cqmom_source_stage_quadrature_does_not_grow},
+            {"public_cqmom_source_closure_matches_qmom_in_one_dimension", test_public_cqmom_source_closure_matches_qmom_in_one_dimension},
             {"public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction",
              test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction},
             {"public_cqmom_stage_composition_matches_phase_space_evolution", test_public_cqmom_stage_composition_matches_phase_space_evolution},
@@ -4473,6 +4744,8 @@ int main(const int argc, char** argv)
             {"public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution",
              test_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution},
             {"public_cqmom_stage_irrelevant_options_are_ignored", test_public_cqmom_stage_irrelevant_options_are_ignored},
+            {"public_qmom_invalid_stage_options_are_invalid_input", test_public_qmom_invalid_stage_options_are_invalid_input},
+            {"public_cqmom_invalid_stage_options_are_invalid_input", test_public_cqmom_invalid_stage_options_are_invalid_input},
             {"minimum_steps_above_the_stage_step_allow_host_retries", test_minimum_steps_above_the_stage_step_allow_host_retries},
             {"advection_only_matches_direct_operator_qmom", test_advection_only_matches_direct_operator_qmom},
             {"source_only_matches_direct_operator_qmom", test_source_only_matches_direct_operator_qmom},

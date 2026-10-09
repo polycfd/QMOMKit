@@ -332,8 +332,10 @@ the current Runge-Kutta stage rather than the accepted state. Use:
   reconstruction may have fewer nodes than configured.
 
 The quadrature is built at most once per stage, however many of these requests
-a callback makes. A node visitor suits rates that depend on the abscissa in a
-way the transported moments cannot express, such as size-dependent growth. With
+a callback makes. It has at most the active nodes of the state: an adaptive
+reconstruction may drop nodes within a step, but a node is added only after the
+accepted step. A node visitor suits rates that depend on the abscissa in a way
+the transported moments cannot express, such as size-dependent growth. With
 a growth rate $G(x) = 0.1\sqrt{x}$, each node contributes
 $w_i\,k\,x_i^{k-1} G(x_i)$ to $\mathrm{d}M_k/\mathrm{d}t$:
 
@@ -427,7 +429,11 @@ Write the rate over moments with `context.moment(...)`, or over nodes with
 `context.for_each_terminal_node(...)`; there is no need to reconstruct a
 quadrature yourself, as the context does it for you when one is needed. As in
 the one-dimensional case, both require a `CqmomState` to evolve: the generic
-vector-based source update rejects them.
+vector-based source update rejects them. In the stage quadrature, a branch of
+the state has at most its active nodes, and a branch that replaces others after
+its parent lost nodes starts from its configured maximum, as in the
+reconstruction after the step; a branch gains a node only after the accepted
+step.
 
 The returned source values correspond to the context ordering. For entry `i`,
 compute the derivative for `context.index(i)` from the current state and write
@@ -918,6 +924,16 @@ callback written once does not depend on that.
 accepted phase-space evolution step. On failure, `result.message` and `result.diagnostics`
 indicate whether the inversion, node advection, moment-source update, or
 moment reconstruction failed.
+
+An option that a stage cannot apply, such as a negative `min_time_step`, a
+non-positive node-advection tolerance, or a realizability policy with a bounded
+interval but no bounds, is reported as `invalid_input` before any stage runs and
+before any callback is called. A failure status of a stage therefore never
+stands for a mistake in the options, so retrying with a shorter time step is
+only worthwhile for the stage failures. Options that the stages of a call do not
+read, such as the source options of `advance_qmom_advection(...)`, the adaptive
+options of SSP-RK3 node advection, or a policy whose `check_mode` is `None`, are
+not checked.
 
 `result.final_time` is always the time of `result.state`. On success it is
 `time + time_step`. On failure the returned state is the input state, so

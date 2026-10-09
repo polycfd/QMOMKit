@@ -2,8 +2,10 @@
 
 #include "qmomkit/cqmom.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace qmomkit
@@ -31,6 +33,40 @@ using PreparedCqmomMetadataPtr = std::shared_ptr<const PreparedCqmomMetadata>;
 {
     return CqmomCase{std::move(moments),          cqmom_case.conditional_options, cqmom_case.qmom_options,
                      cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver,  cqmom_case.abscissa_bounds};
+}
+
+// The marginal moments M[0,...,k_d,...,0] of one coordinate, in ascending
+// order of k_d, from values in the order of a CQMOM moment layout.
+[[nodiscard]] inline std::vector<double> extract_coordinate_marginal(const std::vector<double>& values, const CqmomMomentLayout& layout,
+                                                                     const std::size_t coordinate)
+{
+    std::vector<std::pair<std::size_t, std::size_t>> orders_and_positions;
+    for (std::size_t position = 0; position < layout.required_indices.size(); ++position)
+    {
+        const MultiIndexView index = layout.required_indices[position];
+        bool pure_coordinate = true;
+        for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
+        {
+            if (dimension != coordinate && index[dimension] != 0)
+            {
+                pure_coordinate = false;
+                break;
+            }
+        }
+        if (pure_coordinate)
+        {
+            orders_and_positions.emplace_back(index[coordinate], position);
+        }
+    }
+
+    std::sort(orders_and_positions.begin(), orders_and_positions.end());
+    std::vector<double> marginal;
+    marginal.reserve(orders_and_positions.size());
+    for (const auto& order_and_position : orders_and_positions)
+    {
+        marginal.push_back(values[order_and_position.second]);
+    }
+    return marginal;
 }
 
 class CqmomConstructionAccess

@@ -374,6 +374,161 @@ void test_cqmom_case_promotes_to_state_and_exposes_quadrature()
     assert_same_quadrature(state.quadrature(), expected.quadrature, 1.0e-10);
 }
 
+// Moment data of four weighted points on a two-by-two CQMOM hierarchy.
+qmomkit::CqmomMomentData grid_moment_data(const qmomkit::PhaseSpaceHierarchy& hierarchy, const std::vector<double>& weights,
+                                          const std::vector<std::vector<double>>& abscissas)
+{
+    const std::vector<std::size_t> extents{4, 4};
+    return moment_data_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)});
+}
+
+void assert_same_cqmom_state(const qmomkit::CqmomState& actual, const qmomkit::CqmomState& expected)
+{
+    assert(actual.moment_indices() == expected.moment_indices());
+    assert(actual.moment_values() == expected.moment_values());
+    assert_same_quadrature(actual.quadrature(), expected.quadrature(), 0.0);
+    assert(actual.active_branch_counts().size() == expected.active_branch_counts().size());
+    for (std::size_t branch = 0; branch < actual.active_branch_counts().size(); ++branch)
+    {
+        assert(actual.active_branch_counts()[branch].parent_path == expected.active_branch_counts()[branch].parent_path);
+        assert(actual.active_branch_counts()[branch].active_node_count == expected.active_branch_counts()[branch].active_node_count);
+    }
+}
+
+void test_cqmom_state_candidate_matches_initial_state()
+{
+    // The moments of the case give the state of initial_state(), and other
+    // moments the state of the case with_initial_moments() derives, sharing
+    // the branch structure of the prepared case.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    for (const bool adaptive : {false, true})
+    {
+        qmomkit::CqmomCase cqmom_case{grid_moment_data(hierarchy, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 1.5, 1.5}, {0.25, 2.0, 0.25, 2.0}})};
+        cqmom_case.qmom_options.adaptive = adaptive;
+        const qmomkit::CqmomPreparedCase prepared_case{cqmom_case};
+        const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(prepared_case);
+
+        qmomkit::internal::performance::CounterSession session;
+        const qmomkit::CqmomStateCandidate own = [&]()
+        {
+            qmomkit::internal::performance::CounterScope scope(session);
+            return prepared_case.state_candidate(cqmom_case.moments);
+        }();
+        assert(own.ok());
+        assert(!own.realizability.has_value());
+        assert(!own.rejected_coordinate.has_value());
+        assert(own.reconstruction_status == qmomkit::CqmomStatus::success);
+        assert(own.message.empty());
+        assert_same_cqmom_state(*own.state, prepared_case.initial_state());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(*own.state).get() == prepared_metadata.get());
+        // The state is built from the quadrature of the one reconstruction.
+        if (qmomkit::internal::performance::enabled())
+        {
+            assert(session.snapshot().reconstruction.cqmom_reconstructions == 1);
+        }
+
+        const qmomkit::CqmomMomentData other = grid_moment_data(hierarchy, {0.3, 0.2, 0.4, 0.1}, {{0.5, 0.5, 1.5, 1.5}, {-0.5, 2.0, 0.5, 1.0}});
+        const qmomkit::CqmomStateCandidate from_other = prepared_case.state_candidate(other);
+        assert(from_other.ok());
+        assert_same_cqmom_state(*from_other.state, qmomkit::config::with_initial_moments(prepared_case, other).value().initial_state());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(*from_other.state).get() == prepared_metadata.get());
+    }
+}
+
+void test_cqmom_state_candidate_applies_coordinate_policies()
+{
+    // The second coordinate takes the value -0.5 at one point, so only a
+    // nonnegative check of that coordinate rejects the moments, before any
+    // reconstruction; a policy that is not applied, or one for the first
+    // coordinate, accepts them.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomPreparedCase prepared_case{
+        qmomkit::CqmomCase{grid_moment_data(hierarchy, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 1.5, 1.5}, {0.25, 2.0, 0.25, 2.0}})}};
+    const qmomkit::CqmomMomentData moments = grid_moment_data(hierarchy, {0.3, 0.2, 0.4, 0.1}, {{0.5, 0.5, 1.5, 1.5}, {-0.5, 2.0, 0.5, 1.0}});
+    qmomkit::RealizabilityPolicy nonnegative;
+    nonnegative.support = qmomkit::MomentSupport::nonnegative;
+    assert(prepared_case.state_candidate(moments, {std::nullopt, nonnegative}).ok());
+    nonnegative.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    assert(prepared_case.state_candidate(moments, {nonnegative}).ok());
+
+    const qmomkit::CqmomStateCandidate rejected = prepared_case.state_candidate(moments, {std::nullopt, nonnegative});
+    assert(rejected.status == qmomkit::StateCandidateStatus::realizability_rejected);
+    assert(!rejected.state.has_value());
+    assert(rejected.rejected_coordinate == std::size_t{1});
+    assert(rejected.realizability->status == qmomkit::RealizabilityStatus::not_realizable);
+    assert(!rejected.reconstruction_status.has_value());
+    assert(rejected.message == "Coordinate 1: " + rejected.realizability->message);
+
+    // With the first coordinate at 0 for two points, its marginal is on the
+    // boundary of the nonnegative support: accepted unless boundary moments
+    // are excluded.
+    const qmomkit::CqmomMomentData at_origin = grid_moment_data(hierarchy, {0.3, 0.2, 0.4, 0.1}, {{0.0, 0.0, 1.5, 1.5}, {0.5, 2.0, 0.5, 1.0}});
+    assert(prepared_case.state_candidate(at_origin, {nonnegative}).ok());
+    nonnegative.accept_boundary = false;
+    const qmomkit::CqmomStateCandidate strict_only = prepared_case.state_candidate(at_origin, {nonnegative});
+    assert(strict_only.status == qmomkit::StateCandidateStatus::realizability_rejected);
+    assert(strict_only.rejected_coordinate == std::size_t{0});
+    assert(strict_only.realizability->status == qmomkit::RealizabilityStatus::boundary);
+
+    // A policy for a coordinate beyond the hierarchy is invalid input.
+    const qmomkit::CqmomStateCandidate beyond = prepared_case.state_candidate(moments, {std::nullopt, std::nullopt, nonnegative});
+    assert(beyond.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(beyond.message == "CQMOM coordinate realizability policy index is outside the phase-space dimension.");
+}
+
+void test_cqmom_state_candidate_reports_failures_without_throwing()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    qmomkit::CqmomCase cqmom_case{grid_moment_data(hierarchy, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 1.5, 1.5}, {0.25, 2.0, 0.25, 2.0}})};
+    cqmom_case.qmom_options.adaptive = false;
+    const qmomkit::CqmomPreparedCase prepared_case{cqmom_case};
+    const qmomkit::CqmomMomentData moments = grid_moment_data(hierarchy, {0.3, 0.2, 0.4, 0.1}, {{0.5, 0.5, 1.5, 1.5}, {-0.5, 2.0, 0.5, 1.0}});
+    const auto assert_invalid = [&prepared_case](const qmomkit::CqmomMomentData& candidate_moments, const std::string& message)
+    {
+        const qmomkit::CqmomStateCandidate candidate = prepared_case.state_candidate(candidate_moments);
+        assert(candidate.status == qmomkit::StateCandidateStatus::invalid_input);
+        assert(!candidate.state.has_value());
+        assert(!candidate.reconstruction_status.has_value());
+        assert(candidate.message == message);
+    };
+
+    // Moment data that does not fit the hierarchy is reported before the
+    // reconstruction, which trusts its input.
+    qmomkit::CqmomMomentData short_data = moments;
+    short_data.values.pop_back();
+    assert_invalid(short_data, "CQMOM moment data value count does not match its required CQMOM moment layout.");
+    qmomkit::CqmomMomentData nonfinite = moments;
+    nonfinite.values[3] = std::numeric_limits<double>::quiet_NaN();
+    assert_invalid(nonfinite, "CQMOM moment data values must be finite.");
+    const qmomkit::PhaseSpaceHierarchy reordered({2, 2}, {1, 0});
+    assert_invalid(grid_moment_data(reordered, {0.3, 0.2, 0.4, 0.1}, {{0.5, 0.5, 1.5, 1.5}, {-0.5, 2.0, 0.5, 1.0}}),
+                   "CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.");
+
+    // A negative variance of the first coordinate fails the fixed
+    // reconstruction.
+    qmomkit::CqmomMomentData negative_variance = moments;
+    const std::vector<qmomkit::MultiIndex> indices = negative_variance.layout.required_indices.to_multi_indices();
+    const auto second_moment = std::find(indices.begin(), indices.end(), qmomkit::MultiIndex{2, 0});
+    negative_variance.values[static_cast<std::size_t>(second_moment - indices.begin())] = 0.1;
+    const qmomkit::CqmomStateCandidate failed = prepared_case.state_candidate(negative_variance);
+    assert(failed.status == qmomkit::StateCandidateStatus::reconstruction_failed);
+    assert(!failed.state.has_value());
+    assert(failed.reconstruction_status == qmomkit::CqmomStatus::qmom_failed);
+    assert(!failed.message.empty());
+
+    // initial_state() is the throwing form of the same operation.
+    bool threw = false;
+    try
+    {
+        static_cast<void>(qmomkit::config::with_initial_moments(prepared_case, negative_variance).value().initial_state());
+    }
+    catch (const std::runtime_error& error)
+    {
+        threw = std::string(error.what()) == "CQMOM initial state quadrature reconstruction failed: " + failed.message;
+    }
+    assert(threw);
+}
+
 void test_cqmom_moment_layout_two_dimensional_reduced_set()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1414,6 +1569,9 @@ int main(const int argc, char** argv)
             {"create_cqmom_moment_data_from_independent_product_selected_moments",
              test_create_cqmom_moment_data_from_independent_product_selected_moments},
             {"cqmom_case_promotes_to_state_and_exposes_quadrature", test_cqmom_case_promotes_to_state_and_exposes_quadrature},
+            {"cqmom_state_candidate_matches_initial_state", test_cqmom_state_candidate_matches_initial_state},
+            {"cqmom_state_candidate_applies_coordinate_policies", test_cqmom_state_candidate_applies_coordinate_policies},
+            {"cqmom_state_candidate_reports_failures_without_throwing", test_cqmom_state_candidate_reports_failures_without_throwing},
             {"cqmom_case_public_api_rejects_missing_values", test_cqmom_case_public_api_rejects_missing_values},
             {"cqmom_case_public_api_rejects_non_finite_values", test_cqmom_case_public_api_rejects_non_finite_values},
             {"cqmom_case_public_api_rejects_invalid_options", test_cqmom_case_public_api_rejects_invalid_options},

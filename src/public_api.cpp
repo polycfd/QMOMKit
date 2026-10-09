@@ -16,6 +16,7 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -295,23 +296,101 @@ const CqmomAbscissaBounds& CqmomPreparedCase::abscissa_bounds() const noexcept
 
 namespace
 {
-// Both cases build their initial state here. The metadata handle is passed on
-// to the new state, so its later steps reuse the branch structure; the raw
-// pointer is what the reconstruction call takes.
-CqmomState initial_cqmom_state(const CqmomCase& cqmom_case, const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle)
+// Both cases build their states here. The metadata handle is passed on to the
+// new state, so its later steps reuse the branch structure; the raw pointer is
+// what the reconstruction call takes. The moment data must already be valid
+// for the hierarchy. The checks are optional, and the quadrature they are
+// followed by is the one the state is built from, so the moments are
+// reconstructed once.
+[[nodiscard]] CqmomStateCandidate cqmom_state_candidate(const CqmomCase& cqmom_case,
+                                                        const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle,
+                                                        const std::vector<std::optional<RealizabilityPolicy>>* const coordinate_policies)
 {
+    CqmomStateCandidate candidate;
+    if (coordinate_policies != nullptr)
+    {
+        const CqmomMomentLayout& layout = cqmom_case.moments.layout;
+        for (std::size_t coordinate = 0; coordinate < coordinate_policies->size(); ++coordinate)
+        {
+            const std::optional<RealizabilityPolicy>& policy = (*coordinate_policies)[coordinate];
+            if (!policy.has_value() || policy->check_mode == RealizabilityCheckMode::None)
+            {
+                continue;
+            }
+            if (coordinate >= layout.hierarchy.number_of_dimensions())
+            {
+                candidate.message = "CQMOM coordinate realizability policy index is outside the phase-space dimension.";
+                return candidate;
+            }
+            const MomentSet marginal(internal::extract_coordinate_marginal(cqmom_case.moments.values, layout, coordinate));
+            RealizabilityResult realizability = (policy->support == MomentSupport::bounded_interval && policy->interval.has_value())
+                                                    ? check_realizability(marginal, *policy->interval, policy->options)
+                                                    : check_realizability(marginal, policy->support, policy->options);
+            const bool accepted = realizability.status == RealizabilityStatus::strictly_realizable ||
+                                  (realizability.status == RealizabilityStatus::boundary && policy->accept_boundary);
+            if (!accepted)
+            {
+                candidate.status = realizability.status == RealizabilityStatus::invalid_input ? StateCandidateStatus::invalid_input
+                                                                                              : StateCandidateStatus::realizability_rejected;
+                candidate.message = "Coordinate " + std::to_string(coordinate) + ": " + realizability.message;
+                candidate.realizability = std::move(realizability);
+                candidate.rejected_coordinate = coordinate;
+                return candidate;
+            }
+        }
+    }
+
     const internal::PreparedCqmomMetadata* prepared_metadata = prepared_metadata_handle.get();
     std::vector<CqmomActiveBranchCount> active_counts;
     CqmomResult accepted = internal::compute_cqmom_internal(cqmom_case, {}, false, prepared_metadata, true, &active_counts);
+    candidate.reconstruction_status = accepted.status;
     if (!accepted.ok())
     {
-        throw std::runtime_error("CQMOM initial state quadrature reconstruction failed: " + accepted.message);
+        candidate.status =
+            accepted.status == CqmomStatus::invalid_input ? StateCandidateStatus::invalid_input : StateCandidateStatus::reconstruction_failed;
+        candidate.message = std::move(accepted.message);
+        return candidate;
     }
     CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
     CqmomCase canonical_cqmom_case =
         internal::with_moments(cqmom_case, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, cqmom_case.moments.layout));
-    return internal::CqmomConstructionAccess::create_state(std::move(canonical_cqmom_case), std::move(active_counts), std::move(accepted_quadrature),
-                                                           prepared_metadata_handle);
+    candidate.state = internal::CqmomConstructionAccess::create_state(std::move(canonical_cqmom_case), std::move(active_counts),
+                                                                      std::move(accepted_quadrature), prepared_metadata_handle);
+    candidate.status = StateCandidateStatus::success;
+    return candidate;
+}
+
+[[nodiscard]] CqmomState initial_cqmom_state(const CqmomCase& cqmom_case, const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle)
+{
+    CqmomStateCandidate candidate = cqmom_state_candidate(cqmom_case, prepared_metadata_handle, nullptr);
+    if (!candidate.ok())
+    {
+        throw std::runtime_error("CQMOM initial state quadrature reconstruction failed: " + candidate.message);
+    }
+    return std::move(*candidate.state);
+}
+
+// A candidate's moments come from outside the case, so they are validated
+// against its hierarchy before the reconstruction, which trusts them.
+[[nodiscard]] CqmomStateCandidate prepared_cqmom_state_candidate(const CqmomCase& base_cqmom_case,
+                                                                 const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle,
+                                                                 const CqmomMomentData& candidate_moments,
+                                                                 const std::vector<std::optional<RealizabilityPolicy>>* const coordinate_policies)
+{
+    try
+    {
+        internal::validate_cqmom_moment_data_matches_hierarchy(
+            candidate_moments, base_cqmom_case.moments.layout.hierarchy,
+            {"CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
+             "CQMOM moment data value count does not match its required CQMOM moment layout.", "CQMOM moment data values must be finite."});
+    }
+    catch (const std::invalid_argument& error)
+    {
+        CqmomStateCandidate candidate;
+        candidate.message = error.what();
+        return candidate;
+    }
+    return cqmom_state_candidate(internal::with_moments(base_cqmom_case, candidate_moments), prepared_metadata_handle, coordinate_policies);
 }
 } // namespace
 
@@ -320,6 +399,17 @@ CqmomState CqmomCase::initial_state() const
     // The branch structure is built directly rather than through a
     // CqmomPreparedCase, which would first copy this case.
     return initial_cqmom_state(*this, internal::create_prepared_cqmom_metadata(moments.layout, qmom_options.adaptive));
+}
+
+CqmomStateCandidate CqmomPreparedCase::state_candidate(const CqmomMomentData& candidate_moments) const
+{
+    return prepared_cqmom_state_candidate(data_->cqmom_case, data_->prepared_metadata, candidate_moments, nullptr);
+}
+
+CqmomStateCandidate CqmomPreparedCase::state_candidate(const CqmomMomentData& candidate_moments,
+                                                       const std::vector<std::optional<RealizabilityPolicy>>& coordinate_policies) const
+{
+    return prepared_cqmom_state_candidate(data_->cqmom_case, data_->prepared_metadata, candidate_moments, &coordinate_policies);
 }
 
 CqmomState CqmomPreparedCase::initial_state() const

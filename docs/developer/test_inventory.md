@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 692 |
+| Unit logical tests | 695 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **928** |
+| **Runtime logical tests** | **931** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **929** |
+| **Total CTest registrations** | **932** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -782,6 +782,9 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_diagnostics_default_bounded_support_placeholder` | `tests/unit/public_api.cpp` | `cqmom_diagnostics_default_bounded_support_placeholder` | Verifies CQMOM diagnostics default bounded support placeholder. | — |
 | `unit_public_api_cqmom_prepared_case_and_state_assignment_preserve_independent_values` | `tests/unit/public_api.cpp` | `cqmom_prepared_case_and_state_assignment_preserve_independent_values` | Checks that copy and move assignment of `CqmomPreparedCase` and `CqmomState` replace the target, leave the source and earlier copies independent, and keep sharing the prepared metadata. | — |
 | `unit_public_api_cqmom_case_promotes_to_state_and_exposes_quadrature` | `tests/unit/public_api.cpp` | `cqmom_case_promotes_to_state_and_exposes_quadrature` | Checks that an explicit `CqmomCase` promotes to a `CqmomState` and exposes its accepted quadrature. | — |
+| `unit_public_api_cqmom_state_candidate_matches_initial_state` | `tests/unit/public_api.cpp` | `cqmom_state_candidate_matches_initial_state` | Checks, for fixed and adaptive reconstruction, that `CqmomPreparedCase::state_candidate` gives for the moments of the case exactly the state of `initial_state()` with one reconstruction (counted in instrumented builds), and for other moments exactly the state of the case `with_initial_moments` derives, both sharing the branch structure of the prepared case. | — |
+| `unit_public_api_cqmom_state_candidate_applies_coordinate_policies` | `tests/unit/public_api.cpp` | `cqmom_state_candidate_applies_coordinate_policies` | Checks that coordinate policies with `check_mode` `None` or for an unaffected coordinate are accepted, that a nonnegative check rejects a negative second coordinate before any reconstruction with the coordinate and verdict reported, that a boundary marginal is accepted or rejected according to `accept_boundary`, and that a policy beyond the hierarchy is invalid input. | — |
+| `unit_public_api_cqmom_state_candidate_reports_failures_without_throwing` | `tests/unit/public_api.cpp` | `cqmom_state_candidate_reports_failures_without_throwing` | Checks that moment data with too few values, a non-finite value or another hierarchy's layout gives `invalid_input` before any reconstruction, that a negative variance gives `reconstruction_failed` with `CqmomStatus::qmom_failed`, without throwing, and that `initial_state()` throws `std::runtime_error` with the same message. | — |
 
 ### Configuration
 

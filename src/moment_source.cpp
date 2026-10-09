@@ -838,7 +838,7 @@ const CqmomQuadrature& CqmomSourceContext::reconstructed_stage_quadrature() cons
         // branch of the state may lose nodes within the stages of a source
         // step but grows only in the reconstruction after the accepted step.
         // A branch that replaces others after its parent lost nodes starts
-        // from its configured maximum, as in advection.
+        // from its configured maximum, as in the reconstruction after the step.
         CqmomResult quadrature = internal::compute_cqmom_internal(stage_cqmom_case, *active_branch_counts_, false, prepared_metadata_,
                                                                   !stage_cqmom_case.qmom_options.adaptive);
         if (!quadrature.ok())

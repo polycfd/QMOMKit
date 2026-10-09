@@ -803,18 +803,18 @@ options, phase-space evolution reports an inversion failure.
 
 Adaptive CQMOM uses one context-dependent active-count policy. Initial
 reconstruction starts each branch from its configured maximum and lets adaptive
-Wheeler determine the active count. Phase-space advection reconstructs each
-existing branch with its current active count as the ceiling, so counts may
-remain or decrease but cannot grow. The source-stage quadrature that a source
-callback reads inside the SSP-RK3 stages follows the same rule, as the QMOM one
-keeps its active node count, so no existing branch gains a node within a source
-step. After an accepted moment-source update, post-source inversion first
-reconstructs at the current active count; a
-reduction is accepted immediately. If the current count is retained and the
-configured maximum is larger, the branch tries exactly `Nactive + 1`, and
-growth is accepted only when Wheeler returns that requested count. Branches
-created by an invalidated parent topology start from configured maximum counts
-and adapt downward.
+Wheeler determine the active count. Phase-space advection reconstructs no
+quadrature: it moves the nodes of the accepted one, so every active count stays
+as it is. The source-stage quadrature that a source callback reads inside the
+SSP-RK3 stages uses the current active counts as ceilings, as the QMOM one keeps
+its active node count, so no existing branch gains a node within a source step.
+After an accepted moment-source update, post-source inversion first
+reconstructs at the current active count; a reduction is accepted immediately.
+If the current count is retained and the configured maximum is larger, the
+branch tries exactly `Nactive + 1`, and growth is accepted only when Wheeler
+returns that requested count. Branches created by an invalidated parent
+topology, in a source-stage quadrature or in the post-source inversion, start
+from configured maximum counts and adapt downward.
 
 After every successful inversion during CQMOM phase-space evolution through
 `CqmomState`, the returned state is refreshed with the active counts of the

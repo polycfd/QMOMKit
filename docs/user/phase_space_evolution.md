@@ -431,8 +431,9 @@ quadrature yourself, as the context does it for you when one is needed. As in
 the one-dimensional case, both require a `CqmomState` to evolve: the generic
 vector-based source update rejects them. In the stage quadrature, a branch of
 the state has at most its active nodes, and a branch that replaces others after
-its parent lost nodes starts from its configured maximum, as in advection; a
-branch gains a node only after the accepted step.
+its parent lost nodes starts from its configured maximum, as in the
+reconstruction after the step; a branch gains a node only after the accepted
+step.
 
 The returned source values correspond to the context ordering. For entry `i`,
 compute the derivative for `context.index(i)` from the current state and write

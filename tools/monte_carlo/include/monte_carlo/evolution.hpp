@@ -1,8 +1,6 @@
 #pragma once
 
 #include "monte_carlo/ensemble.hpp"
-#include "monte_carlo/explicit_distribution.hpp"
-#include "monte_carlo/status.hpp"
 #include "qmomkit/node_advection.hpp"
 #include "qmomkit/runge_kutta.hpp"
 
@@ -57,33 +55,6 @@ struct EnsembleEvolutionResult
 };
 
 /**
- * Result of evolving the nodes of an explicit weighted quadrature.
- *
- * The weights are unchanged by phase-space advection. The evolved
- * distribution therefore stores the advanced node coordinates with the original
- * absolute weights and number-density convention.
- */
-struct ExplicitQuadratureEvolutionResult
-{
-    ExplicitDiscreteDistribution initial_distribution;
-    ExplicitDiscreteDistribution evolved_distribution;
-    ComparisonStatus status = ComparisonStatus::success;
-    std::size_t failed_node_index = static_cast<std::size_t>(-1);
-    qmomkit::AdaptiveRkStatus rk23_status = qmomkit::AdaptiveRkStatus::success;
-    std::string message;
-    std::size_t total_accepted_steps = 0;
-    std::size_t total_rejected_steps = 0;
-    std::size_t total_function_evaluations = 0;
-    std::size_t maximum_rejected_steps = 0;
-    double final_time = 0.0;
-
-    [[nodiscard]] bool ok() const noexcept
-    {
-        return status == ComparisonStatus::success;
-    }
-};
-
-/**
  * Evolve each sample independently through the supplied phase-space velocity.
  *
  * Each sample is presented to the callback as a single packed node, so
@@ -96,26 +67,5 @@ struct ExplicitQuadratureEvolutionResult
  */
 [[nodiscard]] EnsembleEvolutionResult evolve_ensemble(const Ensemble& ensemble, const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
                                                       const qmomkit::AdaptiveRkOptions& options = {});
-
-/**
- * Evolve one-dimensional quadrature nodes with QMOMKit node advection.
- *
- * This helper is used to compare advection node motion with advection sample
- * motion under the same velocity callback.
- */
-[[nodiscard]] qmomkit::QmomNodeAdvectionResult evolve_quadrature_nodes(const qmomkit::Quadrature1D& quadrature,
-                                                                       const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
-                                                                       const qmomkit::AdaptiveRkOptions& options = {});
-
-/**
- * Evolve the nodes of an explicit weighted quadrature distribution.
- *
- * The returned distribution is a deterministic reference for moment comparison:
- * raw moments are reconstructed from the evolved nodes and unchanged absolute
- * weights.
- */
-[[nodiscard]] ExplicitQuadratureEvolutionResult evolve_explicit_quadrature(const ExplicitDiscreteDistribution& distribution,
-                                                                           const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
-                                                                           const qmomkit::AdaptiveRkOptions& options);
 
 } // namespace qmomkit::monte_carlo

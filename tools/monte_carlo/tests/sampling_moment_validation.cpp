@@ -289,7 +289,7 @@ void test_generalized_moment_matches_cqmom_quadrature()
     }
 }
 
-void test_invalid_inputs_and_output()
+void test_invalid_inputs()
 {
     const qmomkit::monte_carlo::SamplingResult invalid =
         qmomkit::monte_carlo::sample_distribution(qmomkit::NormalDistribution{0.0, -1.0}, 1.0, SamplingOptions{10, 1});
@@ -311,21 +311,6 @@ void test_invalid_inputs_and_output()
     const qmomkit::monte_carlo::TensorMomentEstimate overflowing_tensor = qmomkit::monte_carlo::compute_ensemble_moments(
         two_dimensional, 1.0, std::vector<std::size_t>{std::numeric_limits<std::size_t>::max() / 2, std::numeric_limits<std::size_t>::max() / 2});
     CHECK(!overflowing_tensor.ok());
-
-    const qmomkit::monte_carlo::SamplingResult sampling =
-        qmomkit::monte_carlo::sample_distribution(qmomkit::NormalDistribution{0.0, 1.0}, 1.5, SamplingOptions{500, 9101});
-    CHECK(sampling.ok());
-    const qmomkit::monte_carlo::OneDimensionalMomentEstimate estimate =
-        qmomkit::monte_carlo::compute_ensemble_moments(sampling.ensemble, sampling.number_density, 2);
-    CHECK(estimate.ok());
-
-    std::ostringstream output;
-    qmomkit::monte_carlo::write_moment_text(output, estimate, sampling.ensemble.size(), sampling.seed, sampling.number_density);
-    const std::string text = output.str();
-    CHECK(text.find("# samples=500") != std::string::npos);
-    CHECK(text.find("# seed=9101") != std::string::npos);
-    CHECK(text.find("# alpha_0 value standard_error") != std::string::npos);
-    CHECK(text.find(',') == std::string::npos);
 }
 
 } // namespace
@@ -344,7 +329,7 @@ int main(const int argc, char** argv)
             {"asymmetric_tensor_moment_layout", test_asymmetric_tensor_moment_layout},
             {"generalized_moment_output", test_generalized_moment_output},
             {"generalized_moment_matches_cqmom_quadrature", test_generalized_moment_matches_cqmom_quadrature},
-            {"invalid_inputs_and_output", test_invalid_inputs_and_output},
+            {"invalid_inputs", test_invalid_inputs},
         });
     std::cout << "Monte Carlo sampling moment validation maximum analytical absolute error: " << global_maximum_error << '\n';
     return status;

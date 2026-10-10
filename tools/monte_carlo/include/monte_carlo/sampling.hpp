@@ -1,8 +1,6 @@
 #pragma once
 
 #include "monte_carlo/ensemble.hpp"
-#include "monte_carlo/explicit_distribution.hpp"
-#include "monte_carlo/status.hpp"
 #include "qmomkit/distributions.hpp"
 
 #include <string>
@@ -39,24 +37,6 @@ struct SamplingResult
     [[nodiscard]] bool ok() const noexcept
     {
         return status == SamplingStatus::success;
-    }
-};
-
-struct ExplicitDiscreteSamplingResult
-{
-    // Samples drawn from the discrete nodes using probabilities proportional to
-    // their absolute weights.
-    Ensemble ensemble;
-    // Sum of absolute node weights, or the explicit number density if provided.
-    double number_density = 0.0;
-    // Seed used to initialize the pseudo-random engine.
-    unsigned long long seed = 0;
-    ComparisonStatus status = ComparisonStatus::success;
-    std::string message;
-
-    [[nodiscard]] bool ok() const noexcept
-    {
-        return status == ComparisonStatus::success;
     }
 };
 
@@ -104,17 +84,5 @@ struct ExplicitDiscreteSamplingResult
  * later raw-moment estimation.
  */
 [[nodiscard]] SamplingResult sample_independent_product(const qmomkit::IndependentProductDistribution& distribution, const SamplingOptions& options);
-
-/**
- * Draw samples from an explicit weighted node distribution.
- *
- * Node weights are absolute weights. Sampling uses probabilities proportional
- * to those weights, while the returned `number_density` preserves their
- * absolute sum. This is useful for comparing a deterministic finite
- * representation with a Monte Carlo sample realization of that same discrete
- * distribution.
- */
-[[nodiscard]] ExplicitDiscreteSamplingResult sample_explicit_discrete_distribution(const ExplicitDiscreteDistribution& distribution,
-                                                                                   const SamplingOptions& options);
 
 } // namespace qmomkit::monte_carlo

@@ -38,11 +38,11 @@ and expected output. In order of increasing scope:
 ## Monte Carlo companion
 
 The optional `QMOMKitMonteCarlo` package samples a finite population from a
-distribution, estimates its moments, evolves the sampled particles with the same
-velocity, and compares moment histories. Starting QMOMKit and the particle
-simulation from the same sample removes the initial sampling difference, so
-that what remains comes from the evolution. A Monte Carlo result carries sampling
-noise: it is a reference, not an exact solution. See
+distribution, estimates its moments with their standard errors, and evolves the
+sampled particles with the same velocity as QMOMKit. Starting QMOMKit and the
+particle simulation from the same sample removes the initial sampling
+difference, so that what remains comes from the evolution. A Monte Carlo result
+carries sampling noise: it is a reference, not an exact solution. See
 [tools/monte_carlo/README.md](../../tools/monte_carlo/README.md).
 
 ## Citing QMOMKit

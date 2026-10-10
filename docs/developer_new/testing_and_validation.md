@@ -191,8 +191,8 @@ holds paper-specific studies outside CTest.
 ## Monte Carlo references
 
 The companion package under [`tools/monte_carlo/`](../../tools/monte_carlo)
-provides an independent finite-sample reference. It compares raw moments, not
-nodes or branch structure. An ensemble of $N$ samples with number density $n_0$
+provides an independent finite-sample reference for raw moments, not for nodes
+or branch structure. An ensemble of $N$ samples with number density $n_0$
 estimates
 
 ```math
@@ -210,11 +210,12 @@ evolution. Starting QMOMKit from analytical moments instead leaves the sampling
 error of the initial ensemble in the comparison. The reference itself carries
 sampling noise that shrinks as $N^{-1/2}$.
 
-`compare_moments(reference, monte_carlo, standard_errors)` in
-[`src/comparison.cpp`](../../tools/monte_carlo/src/comparison.cpp) and the
-script `scripts/compare_moments.py` report signed, absolute and relative
-errors and z-scores per moment, as defined in the
-[companion README](../../tools/monte_carlo/README.md#comparing-qmomkit-with-a-sample).
+A statistical test accepts an estimate within a few standard errors of a
+reference that comes from the mathematical case, not from the companion:
+[`tests/weighted_point_evolution.cpp`](../../tools/monte_carlo/tests/weighted_point_evolution.cpp)
+samples a few weighted points, moves the samples with `evolve_ensemble(...)`,
+and compares the estimated moments within six standard errors with the exact
+moments of the points moved along their analytical trajectories.
 
 Conventions that matter when adding a case:
 
@@ -223,8 +224,11 @@ Conventions that matter when adding a case:
   standard library, but standard-library distributions differ between
   implementations; tests compare with tolerances or standard errors, never with
   exact sampled values.
-- Output tables are `.txt` with a `#` header and 17 significant digits, and
-  record seed, sample count and number density.
+- Moment histories are written with QMOMKit's `MomentWriter`
+  (`make_moment_history_writer(...)`), so they have the format of QMOMKit's own
+  output.
+- Code that only tests use, such as a reference construction, lives under
+  `tests/`, not in the package.
 - Tests register as `monte_carlo_<subsystem>_<case>` (label `monte_carlo`) from
   `void test_<case>()` definitions, as in the core suite, and check with
   [`tests/test_checks.hpp`](../../tools/monte_carlo/tests/test_checks.hpp), not

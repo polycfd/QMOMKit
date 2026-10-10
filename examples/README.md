@@ -139,12 +139,6 @@ example, see `qmom_mixture_initialization/configuration.qmom`,
 `cqmom_2d_adaptive_node_counts/configuration.qmom`. The user configuration guide also
 includes inline syntax for explicit moments and runtime realizability settings.
 
-Monte Carlo companion configuration examples live with the companion package
-under `tools/monte_carlo/configuration/`:
-
-- `qmom_distribution_lognormal.qmom`
-- `cqmom_independent_product_2d.qmom`
-
 ## Examples versus tests
 
 Examples are intended to be readable and short. They are built with the normal

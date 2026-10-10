@@ -90,25 +90,6 @@ std::size_t data_header_index(const std::vector<std::string>& lines)
     return header;
 }
 
-// Value of a `key=value` metadata comment appearing before the data header.
-// Searching by key keeps the check independent of the order the writer emits
-// them in, and returning a number keeps it independent of double formatting.
-double metadata_value(const std::vector<std::string>& lines, const std::size_t header_index, const std::string& key)
-{
-    for (std::size_t index = 0; index < header_index; ++index)
-    {
-        for (const std::string& field : split(lines[index]))
-        {
-            if (field.rfind(key, 0) == 0)
-            {
-                return std::stod(field.substr(key.size()));
-            }
-        }
-    }
-    CHECK(false);
-    return 0.0;
-}
-
 bool contains_field(const std::vector<std::string>& fields, const std::string& wanted)
 {
     for (const std::string& field : fields)
@@ -124,83 +105,6 @@ bool contains_field(const std::vector<std::string>& fields, const std::string& w
 qmomkit::monte_carlo::Ensemble two_sample_ensemble()
 {
     return qmomkit::monte_carlo::Ensemble{{1.0}, {3.0}};
-}
-
-void test_one_dimensional_moment_text_records_metadata_and_columns()
-{
-    const qmomkit::monte_carlo::Ensemble ensemble = two_sample_ensemble();
-    const double number_density = 6.0;
-    const qmomkit::monte_carlo::OneDimensionalMomentEstimate estimate = qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, 2);
-    CHECK(estimate.ok());
-
-    std::ostringstream output;
-    qmomkit::monte_carlo::write_moment_text(output, estimate, ensemble.size(), 4242, number_density);
-    const std::string text = output.str();
-    CHECK(!text.empty());
-
-    std::istringstream reader(text);
-    std::vector<std::string> lines;
-    std::string line;
-    while (std::getline(reader, line))
-    {
-        lines.push_back(line);
-    }
-    CHECK(lines.size() >= 2);
-
-    const std::size_t header = data_header_index(lines);
-
-    // The sample count, seed, and absolute number density are what make a
-    // stochastic estimate reproducible, so each must survive into the file as
-    // its own metadata comment. The keys are searched rather than indexed, and
-    // the density is compared numerically, so neither the order of the metadata
-    // lines nor the text formatting of a double is pinned here.
-    CHECK(metadata_value(lines, header, "samples=") == 2.0);
-    CHECK(metadata_value(lines, header, "seed=") == 4242.0);
-    CHECK_CLOSE(metadata_value(lines, header, "number_density="), number_density, 1.0e-12);
-
-    CHECK(is_comment(lines[header]));
-    for (std::size_t index = 0; index < header; ++index)
-    {
-        CHECK(is_comment(lines[index]));
-    }
-    CHECK(lines.size() == header + 1 + estimate.moments.size());
-
-    // Data rows are `alpha_0 value standard_error`, and m_0 is the number
-    // density for an equally weighted ensemble.
-    const std::vector<std::string> first_row = split(lines[header + 1]);
-    CHECK(first_row.size() == 3);
-    CHECK_CLOSE(std::stod(first_row[1]), number_density, 1.0e-12);
-}
-
-void test_tensor_moment_text_uses_phase_space_multi_index_columns()
-{
-    const qmomkit::monte_carlo::Ensemble ensemble{{1.0, 4.0}, {3.0, 8.0}};
-    const double number_density = 2.0;
-    const qmomkit::monte_carlo::TensorMomentEstimate estimate =
-        qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, std::vector<std::size_t>{1, 2});
-    CHECK(estimate.ok());
-
-    std::ostringstream output;
-    qmomkit::monte_carlo::write_moment_text(output, estimate, ensemble.size(), 7, number_density);
-
-    std::istringstream reader(output.str());
-    std::vector<std::string> lines;
-    std::string line;
-    while (std::getline(reader, line))
-    {
-        lines.push_back(line);
-    }
-    const std::size_t header = data_header_index(lines);
-
-    // Extents {2, 3} give six flat entries, each carrying its own multi-index.
-    CHECK(estimate.moments.values.size() == 6);
-    CHECK(lines.size() == header + 1 + estimate.moments.values.size());
-
-    const std::vector<std::string> first_row = split(lines[header + 1]);
-    CHECK(first_row.size() == 4);
-    CHECK(first_row[0] == "0");
-    CHECK(first_row[1] == "0");
-    CHECK_CLOSE(std::stod(first_row[2]), number_density, 1.0e-12);
 }
 
 void test_one_dimensional_history_writer_round_trips_values()
@@ -348,8 +252,6 @@ int main(const int argc, char** argv)
     return qmomkit::monte_carlo::test::dispatch_test_case(
         argc, argv,
         {
-            {"one_dimensional_moment_text_records_metadata_and_columns", test_one_dimensional_moment_text_records_metadata_and_columns},
-            {"tensor_moment_text_uses_phase_space_multi_index_columns", test_tensor_moment_text_uses_phase_space_multi_index_columns},
             {"one_dimensional_history_writer_round_trips_values", test_one_dimensional_history_writer_round_trips_values},
             {"selected_tensor_history_writer_emits_requested_columns_only", test_selected_tensor_history_writer_emits_requested_columns_only},
             {"cqmom_history_writer_follows_required_layout", test_cqmom_history_writer_follows_required_layout},

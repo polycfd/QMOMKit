@@ -45,9 +45,6 @@ struct CqmomFixture
 struct BranchSolveStats
 {
     std::size_t solve_count = 0;
-    std::size_t bp_count = 0;
-    std::size_t qr_count = 0;
-    std::size_t svd_count = 0;
     std::size_t selected_bp_count = 0;
     std::size_t selected_qr_count = 0;
     std::size_t selected_svd_count = 0;
@@ -232,18 +229,6 @@ BranchSolveStats collect_branch_solve_stats(const CqmomFixture& fixture, const q
         stats.total_rhs_width += static_cast<double>(rhs_width);
         stats.max_node_count = std::max(stats.max_node_count, diagnostics.actual_node_count);
         stats.max_rhs_width = std::max(stats.max_rhs_width, rhs_width);
-        if (diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra)
-        {
-            ++stats.bp_count;
-        }
-        if (diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::pivoted_qr)
-        {
-            ++stats.qr_count;
-        }
-        if (diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd)
-        {
-            ++stats.svd_count;
-        }
         if (diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra)
         {
             ++stats.selected_bp_count;
@@ -303,9 +288,6 @@ void set_branch_solve_counters(benchmark::State& state, const BranchSolveStats& 
 
     const double solve_count = static_cast<double>(stats.solve_count);
     state.counters["branch_solves"] = solve_count;
-    state.counters["bp_fraction"] = static_cast<double>(stats.bp_count) / solve_count;
-    state.counters["qr_fraction"] = static_cast<double>(stats.qr_count) / solve_count;
-    state.counters["svd_fraction"] = static_cast<double>(stats.svd_count) / solve_count;
     state.counters["selected_bp_fraction"] = static_cast<double>(stats.selected_bp_count) / solve_count;
     state.counters["selected_qr_fraction"] = static_cast<double>(stats.selected_qr_count) / solve_count;
     state.counters["selected_svd_fraction"] = static_cast<double>(stats.selected_svd_count) / solve_count;

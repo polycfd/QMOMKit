@@ -207,7 +207,6 @@ struct RecursiveQuadratureBranchDiagnostics
     ConditionalMomentDiagnostics conditional_moment_diagnostics;
     VandermondeSolver conditional_vandermonde_requested_solver = VandermondeSolver::automatic;
     VandermondeSolver conditional_vandermonde_selected_solver = VandermondeSolver::dense;
-    VandermondeAlgorithm conditional_vandermonde_algorithm_used = VandermondeAlgorithm::dense;
     std::string message;
     bool bounded_support_checked = false;
     bool bounded_support_interval_present = false;

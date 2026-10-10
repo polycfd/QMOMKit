@@ -481,7 +481,6 @@ struct ConditionalSliceResult
     ConditionalMomentDiagnostics diagnostics;
     VandermondeSolver vandermonde_requested_solver = VandermondeSolver::automatic;
     VandermondeSolver vandermonde_selected_solver = VandermondeSolver::dense;
-    internal::VandermondeAlgorithm vandermonde_algorithm_used = internal::VandermondeAlgorithm::dense;
 };
 
 [[nodiscard]] bool valid_conditional_options(const ConditionalMomentOptions& options)
@@ -576,7 +575,6 @@ struct ConditionalSliceResult
                                                                                             "Branch-local weighted Vandermonde system is singular.");
     result.vandermonde_requested_solver = solve.requested_solver;
     result.vandermonde_selected_solver = solve.selected_solver;
-    result.vandermonde_algorithm_used = solve.algorithm_used;
     if (!solve.success)
     {
         result.status = ConditionalMomentStatus::singular_system;
@@ -1699,7 +1697,6 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                 branch_diagnostics.conditional_moment_diagnostics = conditional_slices.diagnostics;
                 branch_diagnostics.conditional_vandermonde_requested_solver = conditional_slices.vandermonde_requested_solver;
                 branch_diagnostics.conditional_vandermonde_selected_solver = conditional_slices.vandermonde_selected_solver;
-                branch_diagnostics.conditional_vandermonde_algorithm_used = conditional_slices.vandermonde_algorithm_used;
                 if (conditional_slices.status != ConditionalMomentStatus::success)
                 {
                     branch_diagnostics.message = conditional_slices.message;

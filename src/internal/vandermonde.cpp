@@ -59,10 +59,9 @@ namespace
 }
 
 [[nodiscard]] VandermondeSolveResult vandermonde_result(LinearSolveResult result, const VandermondeSolver requested_solver,
-                                                        const VandermondeSolver selected_solver, const VandermondeAlgorithm algorithm_used)
+                                                        const VandermondeSolver selected_solver)
 {
-    return VandermondeSolveResult{std::move(result.solution), result.success,  std::move(result.message),
-                                  requested_solver,           selected_solver, algorithm_used};
+    return VandermondeSolveResult{std::move(result.solution), result.success, std::move(result.message), requested_solver, selected_solver};
 }
 
 [[nodiscard]] LinearSolveResult qr_linear_solve_result(QrSolveResult result, const std::size_t rows, const std::size_t cols,
@@ -238,35 +237,35 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
 
     // The direct solvers share the input checks and the scaled system; only the
     // kernel differs.
-    const auto solve_direct = [&](const VandermondeAlgorithm algorithm, const auto& solve_scaled_system)
+    const auto solve_direct = [&](const auto& solve_scaled_system)
     {
         if (std::optional<LinearSolveResult> failure =
                 weighted_vandermonde_input_failure(nodes, weights, rhs, options.singular_tolerance, singular_message))
         {
-            return vandermonde_result(std::move(*failure), requested_solver, selected_solver, algorithm);
+            return vandermonde_result(std::move(*failure), requested_solver, selected_solver);
         }
         const ScaledVandermondeSystem scaled = make_scaled_vandermonde_system(nodes, std::move(rhs));
-        return vandermonde_result(divide_by_weights(solve_scaled_system(scaled), weights), requested_solver, selected_solver, algorithm);
+        return vandermonde_result(divide_by_weights(solve_scaled_system(scaled), weights), requested_solver, selected_solver);
     };
 
     if (selected_solver == VandermondeSolver::dense)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::dense);
-        return solve_direct(VandermondeAlgorithm::dense, [&](const ScaledVandermondeSystem& scaled)
+        return solve_direct([&](const ScaledVandermondeSystem& scaled)
                             { return solve_dense(scaled.system, scaled.rhs, options.singular_tolerance, singular_message); });
     }
 
     if (selected_solver == VandermondeSolver::pivoted_qr)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::pivoted_qr);
-        return solve_direct(VandermondeAlgorithm::pivoted_qr, [&](const ScaledVandermondeSystem& scaled)
+        return solve_direct([&](const ScaledVandermondeSystem& scaled)
                             { return qr_linear_solve_result(solve_qr(scaled.system, scaled.rhs), n, rhs_cols, singular_message); });
     }
 
     if (selected_solver == VandermondeSolver::svd)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::svd);
-        return solve_direct(VandermondeAlgorithm::svd, [&](const ScaledVandermondeSystem& scaled)
+        return solve_direct([&](const ScaledVandermondeSystem& scaled)
                             { return svd_linear_solve_result(solve_svd(scaled.system, scaled.rhs), n, rhs_cols, singular_message); });
     }
 
@@ -275,13 +274,12 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::svd);
         // The truncated minimum-norm solution is minimal in the scaled unknowns Y,
         // and rcond is relative to the singular values of the scaled system.
-        return solve_direct(VandermondeAlgorithm::moore_penrose,
-                            [&](const ScaledVandermondeSystem& scaled)
-                            {
-                                return svd_linear_solve_result(
-                                    solve_svd_pseudoinverse(factorize_svd(scaled.system), scaled.rhs, options.moore_penrose_rcond), n, rhs_cols,
-                                    singular_message);
-                            });
+        return solve_direct(
+            [&](const ScaledVandermondeSystem& scaled)
+            {
+                return svd_linear_solve_result(solve_svd_pseudoinverse(factorize_svd(scaled.system), scaled.rhs, options.moore_penrose_rcond), n,
+                                               rhs_cols, singular_message);
+            });
     }
 
     performance::record_vandermonde_solve(performance::VandermondeSolveKind::bjorck_pereyra);
@@ -320,7 +318,7 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         }
     }
 
-    return vandermonde_result(std::move(bjorck_pereyra), requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra);
+    return vandermonde_result(std::move(bjorck_pereyra), requested_solver, selected_solver);
 }
 
 } // namespace qmomkit::internal

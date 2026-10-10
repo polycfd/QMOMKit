@@ -9,15 +9,6 @@
 namespace qmomkit::internal
 {
 
-enum class VandermondeAlgorithm
-{
-    dense,
-    pivoted_qr,
-    svd,
-    moore_penrose,
-    bjorck_pereyra
-};
-
 struct VandermondeSolveOptions
 {
     VandermondeSolver solver = VandermondeSolver::automatic;
@@ -32,7 +23,6 @@ struct VandermondeSolveResult
     std::string message;
     VandermondeSolver requested_solver = VandermondeSolver::automatic;
     VandermondeSolver selected_solver = VandermondeSolver::dense;
-    VandermondeAlgorithm algorithm_used = VandermondeAlgorithm::dense;
 };
 
 /**

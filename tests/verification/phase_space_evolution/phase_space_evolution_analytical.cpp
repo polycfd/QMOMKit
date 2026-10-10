@@ -100,16 +100,15 @@ struct TestCqmomPhaseSpaceEvolutionResult
     }
 };
 
-// Advances a state built directly from a CqmomCase made of these moments and
-// the case options in `options`. The state has no accepted quadrature, so
-// phase-space evolution performs the initial CQMOM inversion itself.
+// Advances the state that a CqmomCase of these moments and the case options in
+// `options` creates.
 TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentData& moments, const double t, const double time_step,
                                                              const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                              const TestCqmomPhaseSpaceEvolutionOptions& options)
 {
     const CqmomMomentLayout& layout = moments.layout;
-    CqmomCase cqmom_case{moments, options.conditional_options, options.qmom_options, options.diagnostic_level, options.vandermonde_solver};
-    CqmomState state = internal::CqmomConstructionAccess::create_state(cqmom_case);
+    const CqmomCase cqmom_case{moments, options.conditional_options, options.qmom_options, options.diagnostic_level, options.vandermonde_solver};
+    const CqmomState state = cqmom_case.initial_state();
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
     const CqmomState& result_state = result.ok() ? result.state : state;
@@ -428,7 +427,7 @@ bool diagnostics_are_successful(const qmomkit::PhaseSpaceEvolutionDiagnostics& d
 
 bool cqmom_diagnostics_are_successful(const qmomkit::PhaseSpaceEvolutionDiagnostics& diagnostics)
 {
-    return diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none && diagnostics.initial_cqmom_status == qmomkit::CqmomStatus::success &&
+    return diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none &&
            diagnostics.post_source_cqmom_status == qmomkit::CqmomStatus::success &&
            diagnostics.first_advection_status == qmomkit::NodeAdvectionStatus::success &&
            diagnostics.second_advection_status == qmomkit::NodeAdvectionStatus::success &&
@@ -458,7 +457,7 @@ bool cqmom_split_diagnostics_are_successful(const qmomkit::PhaseSpaceEvolutionDi
         reconstruction_success = diagnostics.final_reconstruction_diagnostics.success;
         break;
     }
-    return diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none && diagnostics.initial_cqmom_status == qmomkit::CqmomStatus::success &&
+    return diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none &&
            diagnostics.post_source_cqmom_status == qmomkit::CqmomStatus::success && advection_success &&
            diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success && diagnostics.moment_source_diagnostics.accepted &&
            !diagnostics.moment_source_diagnostics.rejected && diagnostics.moment_source_retries == 0 && reconstruction_success;
@@ -510,17 +509,13 @@ void verify_helper_based_common_cqmom_policies(const std::string& case_name, con
     {
         append_failure(verification, case_name + " helper did not propagate VandermondeSolver::dense.");
     }
-    if (!cqmom_diagnostics_enable_adaptive_branch_counts(diagnostics.initial_cqmom_diagnostics))
+    if (!cqmom_diagnostics_enable_adaptive_branch_counts(diagnostics.post_source_cqmom_diagnostics))
     {
         append_failure(verification, case_name + " helper did not propagate adaptive branch-count diagnostics.");
     }
-    if (!cqmom_diagnostics_request_solver(diagnostics.initial_cqmom_diagnostics, dimensions, qmomkit::VandermondeSolver::dense))
+    if (!cqmom_diagnostics_request_solver(diagnostics.post_source_cqmom_diagnostics, dimensions, qmomkit::VandermondeSolver::dense))
     {
         append_failure(verification, case_name + " helper did not use the dense Vandermonde solver in conditional reconstruction.");
-    }
-    if (diagnostics.cqmom_node_count_transitions.empty())
-    {
-        append_failure(verification, case_name + " helper did not expose adaptive active-count transition diagnostics.");
     }
 }
 
@@ -2536,45 +2531,41 @@ void verify_cqmom_post_source_inversion_failure_result(const qmomkit::CqmomPhase
     }
 }
 
-void verify_cqmom_initial_inversion_failure_result(const qmomkit::CqmomPhaseSpaceEvolutionResult& result, VerificationResult& verification)
+void verify_cqmom_initial_reconstruction_failure(const qmomkit::CqmomPreparedCase& cqmom_prepared_case, const qmomkit::CqmomMomentData& moments,
+                                                 VerificationResult& verification)
 {
-    // This represents a configured CQMOM state whose selected moments are
-    // finite but not realizable. Phase-space evolution should fail during the initial
-    // public CQMOM reconstruction, before phase-space advection or moment-source
-    // integration can produce misleading progress diagnostics.
-    if (result.ok())
+    // The configured moments are finite but not realizable, so no state can be
+    // created from them: the candidate reports the failed reconstruction with a
+    // realizability message instead of a state, and initial_state() throws.
+    const qmomkit::CqmomStateCandidate candidate = cqmom_prepared_case.state_candidate(moments);
+    if (candidate.ok() || candidate.state.has_value())
     {
-        append_failure(verification, "CQMOM initial inversion failure unexpectedly reported phase-space evolution success.");
+        append_failure(verification, "CQMOM state creation from unrealizable moments unexpectedly created a state.");
     }
-    if (result.status != qmomkit::PhaseSpaceEvolutionStatus::inversion_failed)
+    if (candidate.status != qmomkit::StateCandidateStatus::reconstruction_failed)
     {
-        append_failure(verification, "CQMOM initial inversion failure did not report PhaseSpaceEvolutionStatus::inversion_failed.");
+        append_failure(verification, "CQMOM state creation from unrealizable moments did not report reconstruction_failed.");
     }
-    if (result.diagnostics.failed_stage != qmomkit::PhaseSpaceEvolutionStage::initial_inversion)
+    if (!candidate.reconstruction_status.has_value() || *candidate.reconstruction_status == qmomkit::CqmomStatus::success)
     {
-        append_failure(verification, "CQMOM initial inversion failure did not identify initial_inversion as the failed stage.");
+        append_failure(verification, "CQMOM state creation from unrealizable moments did not report the failed reconstruction status.");
     }
-    if (result.diagnostics.initial_cqmom_status == qmomkit::CqmomStatus::success)
+    if (!contains_text(candidate.message, "m0") && !contains_text(candidate.message, "realizable"))
     {
-        append_failure(verification, "CQMOM initial inversion failure preserved a successful initial_cqmom_status.");
+        append_failure(verification, "CQMOM state creation from unrealizable moments did not provide a meaningful realizability message.");
     }
-    if (result.diagnostics.initial_cqmom_diagnostics.empty())
+    bool threw = false;
+    try
     {
-        append_failure(verification, "CQMOM initial inversion failure did not provide CQMOM diagnostics.");
+        static_cast<void>(cqmom_prepared_case.initial_state());
     }
-    if (result.message.empty() || result.diagnostics.message.empty() ||
-        (!contains_text(result.message, "m0") && !contains_text(result.message, "realizable")))
+    catch (const std::runtime_error&)
     {
-        append_failure(verification, "CQMOM initial inversion failure did not provide a meaningful realizability message.");
+        threw = true;
     }
-    if (std::abs(result.final_time) > 1.0e-14)
+    if (!threw)
     {
-        append_failure(verification, "CQMOM initial inversion failure advanced final_time.");
-    }
-    if (result.diagnostics.moment_source_diagnostics.accepted || result.diagnostics.first_reconstruction_diagnostics.success ||
-        result.diagnostics.final_reconstruction_diagnostics.success)
-    {
-        append_failure(verification, "CQMOM initial inversion failure reported later-stage completion.");
+        append_failure(verification, "CqmomPreparedCase::initial_state() did not throw for unrealizable moments.");
     }
 }
 
@@ -2737,8 +2728,8 @@ void verify_helper_based_common_cqmom_phase_space_evolution(const qmomkit::Cqmom
     summary.success =
         result.ok() && result.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic &&
         result.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense &&
-        cqmom_diagnostics_enable_adaptive_branch_counts(result.diagnostics.initial_cqmom_diagnostics) &&
-        cqmom_diagnostics_request_solver(result.diagnostics.initial_cqmom_diagnostics,
+        cqmom_diagnostics_enable_adaptive_branch_counts(result.diagnostics.post_source_cqmom_diagnostics) &&
+        cqmom_diagnostics_request_solver(result.diagnostics.post_source_cqmom_diagnostics,
                                          policy_cqmom_case.moments.layout.hierarchy.number_of_dimensions(), qmomkit::VandermondeSolver::dense);
     verification.runs.push_back(summary);
 }
@@ -2895,43 +2886,22 @@ VerificationResult run_cqmom_phase_space_evolution_inversion_failures(const std:
         return verification;
     }
 
-    const auto configured_cqmom_case_result = qmomkit::config::load_cqmom(configuration_path);
-    if (!configured_cqmom_case_result.ok())
-    {
-        print_configuration_errors(configured_cqmom_case_result);
-        append_failure(verification, "unable to load CQMOM phase-space evolution inversion-failure configuration as a CqmomCase.");
-        return verification;
-    }
-
-    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(configured_cqmom_case_result.value());
-    qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_state_options();
-    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
-    const qmomkit::PhaseSpaceVelocity zero_velocity =
-        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const qmomkit::CqmomPhaseSpaceEvolutionResult result =
-        qmomkit::advance_cqmom_phase_space(state, 0.0, 0.08, zero_velocity, cqmom_state_zero_source, options);
-    verify_cqmom_initial_inversion_failure_result(result, verification);
+    const qmomkit::CqmomPreparedCase& cqmom_prepared_case = configured.value();
+    verify_cqmom_initial_reconstruction_failure(
+        cqmom_prepared_case, qmomkit::internal::CqmomConstructionAccess::case_definition(cqmom_prepared_case).moments, verification);
 
     RunSummary summary;
-    summary.scheme = options.scheme;
-    summary.dt = 0.08;
-    summary.steps = 1;
-    summary.final_time = result.final_time;
-    summary.retry_count = result.diagnostics.moment_source_retries;
-    summary.success = !result.ok() && result.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed &&
-                      result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::initial_inversion &&
-                      result.diagnostics.initial_cqmom_status != qmomkit::CqmomStatus::success;
+    summary.success = verification.passed;
     verification.runs.push_back(summary);
     return verification;
 }
 
 VerificationResult run_cqmom_case_phase_space_evolution_failures(const std::filesystem::path& configuration_path)
 {
-    // Failure propagation for states built directly from the configured
-    // CqmomCase, with no accepted quadrature, so phase-space evolution performs
-    // the initial inversion: failing velocity and source callbacks, a source
-    // that makes the post-source inversion fail, and the case policies reaching
-    // the CQMOM reconstructions. run_cqmom_phase_space_evolution_failures covers
+    // Failure propagation for states created from the configured CqmomCase:
+    // failing velocity and source callbacks, a source that makes the
+    // post-source inversion fail, and the case policies reaching the CQMOM
+    // reconstructions. run_cqmom_phase_space_evolution_failures covers
     // states created by a prepared case.
     VerificationResult verification;
     const auto configured = qmomkit::config::load_cqmom(configuration_path);
@@ -2976,11 +2946,14 @@ VerificationResult run_cqmom_case_phase_space_evolution_failures(const std::file
          },
          "Phase-space velocity callback returned a non-finite value:"}};
 
+    // A state stores the moments of its accepted quadrature, which a failed
+    // step returns unchanged.
+    const qmomkit::CqmomMomentData initial_state_moments{configured_cqmom_case.moments.layout, configured_cqmom_case.initial_state().moment_values()};
     for (const AdvectionFailureCase& failure_case : advection_failure_cases)
     {
         const qmomkit::TestCqmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_cqmom_phase_space(configured_cqmom_case.moments, 0.0, dt, failure_case.velocity, zero_source, options);
-        verify_cqmom_case_advection_failure_result(failure_case.name, result, configured_cqmom_case.moments, failure_case.expected_message_fragment,
+        verify_cqmom_case_advection_failure_result(failure_case.name, result, initial_state_moments, failure_case.expected_message_fragment,
                                                    verification);
 
         RunSummary summary;

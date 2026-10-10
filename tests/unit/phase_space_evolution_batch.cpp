@@ -97,9 +97,7 @@ void assert_phase_space_evolution_diagnostics_equal(const qmomkit::PhaseSpaceEvo
     assert(actual.cqmom_diagnostic_level == expected.cqmom_diagnostic_level);
     assert(actual.cqmom_vandermonde_solver == expected.cqmom_vandermonde_solver);
     assert(actual.post_source_qmom_status == expected.post_source_qmom_status);
-    assert(actual.initial_cqmom_status == expected.initial_cqmom_status);
     assert(actual.post_source_cqmom_status == expected.post_source_cqmom_status);
-    assert_cqmom_diagnostics_equal(actual.initial_cqmom_diagnostics, expected.initial_cqmom_diagnostics);
     assert_cqmom_diagnostics_equal(actual.post_source_cqmom_diagnostics, expected.post_source_cqmom_diagnostics);
     assert(actual.first_advection_status == expected.first_advection_status);
     assert(actual.second_advection_status == expected.second_advection_status);

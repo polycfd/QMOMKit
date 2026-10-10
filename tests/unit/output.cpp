@@ -394,8 +394,7 @@ void test_cqmom_state_generalized_moment_output()
     {
         required_values.push_back(tensor_values[qmomkit::flatten_multi_index(index, extents)]);
     }
-    const qmomkit::CqmomState state =
-        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomCase{qmomkit::CqmomMomentData{layout, required_values}, {}, {}});
+    const qmomkit::CqmomState state = qmomkit::CqmomCase{qmomkit::CqmomMomentData{layout, required_values}, {}, {}}.initial_state();
     const std::filesystem::path state_path = temporary_output_path("qmomkit_cqmom_state_generalized");
     {
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(state_path, state, output_options);
@@ -514,8 +513,8 @@ void test_writer_rejects_rows_from_other_factories()
 
     const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> layout_values(moment_layout.required_indices.size(), 1.0);
-    const qmomkit::CqmomState cqmom_state = qmomkit::internal::CqmomConstructionAccess::create_state(
-        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, tensor_values}, moment_layout), {}, {}});
+    const qmomkit::CqmomState cqmom_state =
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, tensor_values}, moment_layout), {}, {}}.initial_state();
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{qmomkit::MomentSet{1.0, 4.0}, 1}.initial_state();
 
     const std::string qmom_factory = "MomentWriter::for_qmom(path, moment_count[, output_options]) or MomentWriter::for_qmom(path, selected_orders)";

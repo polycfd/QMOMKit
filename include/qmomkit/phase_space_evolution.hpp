@@ -36,7 +36,6 @@ enum class PhaseSpaceEvolutionScheme
 enum class PhaseSpaceEvolutionStage
 {
     none,
-    initial_inversion,
     first_advection_half_step,
     first_moment_reconstruction,
     moment_source_step,
@@ -91,9 +90,7 @@ struct PhaseSpaceEvolutionDiagnostics
     CqmomDiagnosticLevel cqmom_diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver cqmom_vandermonde_solver = VandermondeSolver::automatic;
     QmomStatus post_source_qmom_status = QmomStatus::success;
-    CqmomStatus initial_cqmom_status = CqmomStatus::success;
     CqmomStatus post_source_cqmom_status = CqmomStatus::success;
-    std::vector<CqmomDiagnostics> initial_cqmom_diagnostics;
     std::vector<CqmomDiagnostics> post_source_cqmom_diagnostics;
     NodeAdvectionStatus first_advection_status = NodeAdvectionStatus::success;
     NodeAdvectionStatus second_advection_status = NodeAdvectionStatus::success;

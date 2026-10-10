@@ -664,6 +664,32 @@ void test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive()
     assert(adaptive.diagnostics.front().adaptive_node_count_reduced);
 }
 
+// Given prepared metadata is used, so it must have been prepared for the
+// adaptivity of the request; metadata of the other adaptivity is invalid input
+// instead of being replaced by layouts built for the call.
+void test_recursive_rejects_prepared_metadata_of_the_other_adaptivity()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{2.0, 2.0, 3.0, 3.0}, {-1.0, 1.0, -1.0, 1.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const std::shared_ptr<const qmomkit::internal::PreparedCqmomMetadata> fixed_metadata =
+        qmomkit::internal::create_prepared_cqmom_metadata(layout, false);
+
+    qmomkit::internal::RecursiveQuadratureMomentDataRequest fixed_request = moment_data_request(hierarchy, {extents, moments});
+    fixed_request.prepared_metadata = fixed_metadata.get();
+    assert(qmomkit::internal::compute_recursive_quadrature_from_moment_data(fixed_request).ok());
+
+    qmomkit::internal::RecursiveQuadratureMomentDataRequest adaptive_request =
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{true});
+    adaptive_request.prepared_metadata = fixed_metadata.get();
+    const qmomkit::internal::RecursiveQuadratureResult rejected = qmomkit::internal::compute_recursive_quadrature_from_moment_data(adaptive_request);
+    assert(rejected.status == qmomkit::internal::RecursiveQuadratureStatus::invalid_input);
+    assert(rejected.message == "Prepared CQMOM metadata does not match the adaptivity of the reconstruction.");
+}
+
 void test_recursive_bounded_support_rejects_fixed_infeasible_count()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -2037,6 +2063,7 @@ int main(const int argc, char** argv)
             {"recursive_shifted_bounded_support_accepts_feasible_fixed_branch", test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch},
             {"recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive",
              test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive},
+            {"recursive_rejects_prepared_metadata_of_the_other_adaptivity", test_recursive_rejects_prepared_metadata_of_the_other_adaptivity},
             {"recursive_bounded_support_rejects_fixed_infeasible_count", test_recursive_bounded_support_rejects_fixed_infeasible_count},
             {"recursive_bounded_support_adaptive_falls_back_to_supported_count",
              test_recursive_bounded_support_adaptive_falls_back_to_supported_count},

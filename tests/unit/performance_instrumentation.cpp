@@ -154,12 +154,6 @@ qmomkit::CqmomState adaptive_ragged_state()
     return qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_case).initial_state();
 }
 
-qmomkit::CqmomState adaptive_ragged_state_without_cache(const qmomkit::CqmomState& state)
-{
-    return qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::internal::CqmomConstructionAccess::state_definition(state),
-                                                                    state.active_branch_counts());
-}
-
 void test_instrumentation_mode_matches_build_option()
 {
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
@@ -225,64 +219,37 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
     const auto exercise_adaptive_storage = [&](const qmomkit::CqmomState& initialized_state)
     {
         qmomkit::CqmomPhaseSpaceEvolutionOptions options;
-        qmomkit::internal::performance::CounterSession advection_hit_session;
+        // Advection keeps the counts of the state; only the reconstruction
+        // after a source step derives and checks them.
+        qmomkit::internal::performance::CounterSession advection_session;
         {
-            qmomkit::internal::performance::CounterScope scope(advection_hit_session);
+            qmomkit::internal::performance::CounterScope scope(advection_session);
             const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_advection(initialized_state, 0.0, 0.1, velocity, options);
             assert(result.ok());
         }
-        assert_active_count_counters(advection_hit_session.snapshot(), 0, 0, 0);
+        assert_active_count_counters(advection_session.snapshot(), 0, 0, 0);
 
-        const qmomkit::CqmomState cache_miss_state = adaptive_ragged_state_without_cache(initialized_state);
-        qmomkit::internal::performance::CounterSession advection_miss_session;
+        qmomkit::internal::performance::CounterSession moment_source_session;
         {
-            qmomkit::internal::performance::CounterScope scope(advection_miss_session);
-            const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_advection(cache_miss_state, 0.0, 0.1, velocity, options);
-            assert(result.ok());
-        }
-        assert_active_count_counters(advection_miss_session.snapshot(), 1, 1, 1);
-
-        qmomkit::internal::performance::CounterSession moment_source_hit_session;
-        {
-            qmomkit::internal::performance::CounterScope scope(moment_source_hit_session);
+            qmomkit::internal::performance::CounterScope scope(moment_source_session);
             const qmomkit::CqmomPhaseSpaceEvolutionResult result =
                 qmomkit::advance_cqmom_moment_source(initialized_state, 0.0, 0.1, zero_source, options);
             assert(result.ok());
         }
-        assert_active_count_counters(moment_source_hit_session.snapshot(), 1, 1, 1);
-
-        const qmomkit::CqmomState moment_source_cache_miss_state = adaptive_ragged_state_without_cache(initialized_state);
-        qmomkit::internal::performance::CounterSession moment_source_miss_session;
-        {
-            qmomkit::internal::performance::CounterScope scope(moment_source_miss_session);
-            const qmomkit::CqmomPhaseSpaceEvolutionResult result =
-                qmomkit::advance_cqmom_moment_source(moment_source_cache_miss_state, 0.0, 0.1, zero_source, options);
-            assert(result.ok());
-        }
-        assert_active_count_counters(moment_source_miss_session.snapshot(), 2, 2, 2);
+        assert_active_count_counters(moment_source_session.snapshot(), 1, 1, 1);
 
         for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
              {qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv, qmomkit::PhaseSpaceEvolutionScheme::strang})
         {
             options.scheme = scheme;
-            qmomkit::internal::performance::CounterSession hit_session;
+            qmomkit::internal::performance::CounterSession scheme_session;
             {
-                qmomkit::internal::performance::CounterScope scope(hit_session);
+                qmomkit::internal::performance::CounterScope scope(scheme_session);
                 const qmomkit::CqmomPhaseSpaceEvolutionResult result =
                     qmomkit::advance_cqmom_phase_space(initialized_state, 0.0, 0.1, velocity, zero_source, options);
                 assert(result.ok());
             }
-            assert_active_count_counters(hit_session.snapshot(), 1, 1, 1);
-
-            const qmomkit::CqmomState cache_miss_scheme_state = adaptive_ragged_state_without_cache(initialized_state);
-            qmomkit::internal::performance::CounterSession miss_session;
-            {
-                qmomkit::internal::performance::CounterScope scope(miss_session);
-                const qmomkit::CqmomPhaseSpaceEvolutionResult result =
-                    qmomkit::advance_cqmom_phase_space(cache_miss_scheme_state, 0.0, 0.1, velocity, zero_source, options);
-                assert(result.ok());
-            }
-            assert_active_count_counters(miss_session.snapshot(), 2, 2, 2);
+            assert_active_count_counters(scheme_session.snapshot(), 1, 1, 1);
         }
     };
 
@@ -301,17 +268,13 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
     const qmomkit::CqmomCase fixed_cqmom_case{
         qmomkit::extract_cqmom_moments(independent_product_moment_tensor(fixed_hierarchy), fixed_layout), {}, qmomkit::QmomOptions{false}};
     const qmomkit::CqmomState fixed_state = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(fixed_cqmom_case).initial_state();
-    const qmomkit::CqmomState fixed_cache_miss_state = qmomkit::internal::CqmomConstructionAccess::create_state(
-        fixed_cqmom_case, qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_state));
     const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_state);
     assert(fixed_metadata != nullptr);
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_cache_miss_state).get() == fixed_metadata.get());
     qmomkit::internal::performance::CounterSession fixed_session;
     {
         qmomkit::internal::performance::CounterScope scope(fixed_session);
         qmomkit::CqmomPhaseSpaceEvolutionOptions options;
-        const qmomkit::CqmomPhaseSpaceEvolutionResult advection =
-            qmomkit::advance_cqmom_advection(fixed_cache_miss_state, 0.0, 0.1, velocity, options);
+        const qmomkit::CqmomPhaseSpaceEvolutionResult advection = qmomkit::advance_cqmom_advection(fixed_state, 0.0, 0.1, velocity, options);
         const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source =
             qmomkit::advance_cqmom_moment_source(fixed_state, 0.0, 0.1, zero_source, options);
         assert(advection.ok());
@@ -321,7 +284,9 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
     }
     assert_active_count_counters(fixed_session.snapshot(), 0, 0, 0);
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
-    assert(fixed_session.snapshot().reconstruction.cqmom_prepared_metadata_uses == 2);
+    // Only the reconstruction after the source step uses the prepared metadata;
+    // advection reconstructs nothing.
+    assert(fixed_session.snapshot().reconstruction.cqmom_prepared_metadata_uses == 1);
     assert(fixed_session.snapshot().reconstruction.cqmom_dynamic_metadata_builds == 0);
 #endif
 }
@@ -856,18 +821,21 @@ void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_me
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomCase cqmom_case{independent_product_moments(layout), {}, qmomkit::QmomOptions{false}};
     const qmomkit::CqmomState initial_state = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_case).initial_state();
-    const qmomkit::CqmomQuadrature initial_quadrature = *qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(initial_state);
+    const qmomkit::CqmomQuadrature initial_quadrature = initial_state.quadrature();
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
     qmomkit::internal::performance::CounterSession session;
     {
         qmomkit::internal::performance::CounterScope scope(session);
+        // Each factory builds the metadata of a new lineage once; the prepared
+        // case's candidate shares that of its case.
+        const qmomkit::CqmomPreparedCase prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_case);
         std::vector<qmomkit::CqmomState> states;
         states.reserve(4);
-        states.push_back(qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case));
-        states.push_back(qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case, std::vector<qmomkit::CqmomActiveBranchCount>{}));
-        states.push_back(qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case, {}, std::nullopt));
+        states.push_back(cqmom_case.initial_state());
+        states.push_back(prepared_case.initial_state());
+        states.push_back(*prepared_case.state_candidate(cqmom_case.moments).state);
         states.push_back(qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case, {}, qmomkit::CqmomQuadrature{initial_quadrature}));
 
         for (const qmomkit::CqmomState& state : states)
@@ -882,7 +850,10 @@ void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_me
 
     const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
-    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 4);
+    // Three new lineages build metadata: CqmomCase::initial_state(), the
+    // prepared case and create_state(...). Three reconstructions create states
+    // and four follow their source steps.
+    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 3);
     assert(counters.reconstruction.cqmom_prepared_metadata_uses == 7);
     assert(counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
 #else

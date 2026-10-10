@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <optional>
 #include <utility>
 #include <vector>
 
@@ -70,18 +69,13 @@ class CqmomConstructionAccess
 {
 public:
     [[nodiscard]] static CqmomPreparedCase create_prepared_case(CqmomCase cqmom_case, PreparedCqmomMetadataPtr prepared_metadata = nullptr);
-    [[nodiscard]] static CqmomState create_state(CqmomCase cqmom_case, PreparedCqmomMetadataPtr prepared_metadata = nullptr);
+    // The quadrature must be the accepted quadrature of the moments of the
+    // case, and the active branch counts those it was reconstructed with.
     [[nodiscard]] static CqmomState create_state(CqmomCase cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                                 PreparedCqmomMetadataPtr prepared_metadata = nullptr);
-    [[nodiscard]] static CqmomState create_state(CqmomCase cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                                 std::optional<CqmomQuadrature> accepted_quadrature,
-                                                 PreparedCqmomMetadataPtr prepared_metadata = nullptr);
-    [[nodiscard]] static CqmomState create_state(CqmomCase cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                                 CqmomQuadrature&& accepted_quadrature, PreparedCqmomMetadataPtr prepared_metadata = nullptr);
+                                                 CqmomQuadrature accepted_quadrature, PreparedCqmomMetadataPtr prepared_metadata = nullptr);
     [[nodiscard]] static const CqmomCase& case_definition(const CqmomPreparedCase& cqmom_prepared_case);
     [[nodiscard]] static const CqmomCase& state_definition(const CqmomState& state);
     [[nodiscard]] static const std::vector<CqmomActiveBranchCount>& state_active_branch_counts(const CqmomState& state);
-    [[nodiscard]] static const std::optional<CqmomQuadrature>& state_accepted_quadrature(const CqmomState& state);
     [[nodiscard]] static const PreparedCqmomMetadataPtr& case_prepared_metadata(const CqmomPreparedCase& cqmom_prepared_case);
     [[nodiscard]] static const PreparedCqmomMetadataPtr& state_prepared_metadata(const CqmomState& state);
     [[nodiscard]] static CqmomQuadrature create_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
@@ -92,13 +86,15 @@ public:
 // Reconstruction of a QMOMKit-owned CQMOM case or state. Every prepared case
 // and state carries prepared metadata that matches its hierarchy and
 // adaptivity: callers either pass on the metadata of the same lineage or start
-// a new one. Internal reconstruction rechecks evolving numerical values only.
-// A successful reconstruction stores its active branch counts in
+// a new one. Given metadata is used, and metadata of the other adaptivity is
+// invalid input; without metadata the branch layouts are built for this call.
+// Internal reconstruction rechecks evolving numerical values only. A
+// successful reconstruction stores its active branch counts in
 // `accepted_active_branch_counts` when that is given; they are empty for a
 // fixed case.
 [[nodiscard]] CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {},
                                                  bool allow_active_branch_count_growth = false,
-                                                 const PreparedCqmomMetadata* prepared_metadata = nullptr, bool require_prepared_metadata = false,
+                                                 const PreparedCqmomMetadata* prepared_metadata = nullptr,
                                                  std::vector<CqmomActiveBranchCount>* accepted_active_branch_counts = nullptr);
 
 } // namespace qmomkit::internal

@@ -355,7 +355,13 @@ void run_captured_physical_regression()
     report_tree_spread("[physical captured tree]", captured);
     report_tree_spread("[physical preceding tree]", captured_preceding_success_quadrature());
 
-    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case, captured_active_branch_counts());
+    // The state reconstructs the captured active counts from the moments.
+    const qmomkit::CqmomState state = cqmom_case.initial_state();
+    QMOMKIT_VERIFY_CHECK(state.active_branch_counts().size() == captured_active_branch_counts().size());
+    for (const qmomkit::CqmomActiveBranchCount& captured_count : captured_active_branch_counts())
+    {
+        QMOMKIT_VERIFY_CHECK(active_count_present(state.active_branch_counts(), captured_count.parent_path, captured_count.active_node_count));
+    }
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)

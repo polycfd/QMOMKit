@@ -251,7 +251,7 @@ public:
     ~CqmomState();
 
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
-    [[nodiscard]] const CqmomQuadrature& quadrature() const;
+    [[nodiscard]] const CqmomQuadrature& quadrature() const noexcept;
     [[nodiscard]] const QmomOptions& qmom_options() const noexcept;
     [[nodiscard]] const ConditionalMomentOptions& conditional_options() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;

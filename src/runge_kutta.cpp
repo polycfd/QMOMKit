@@ -171,19 +171,21 @@ struct SspRk3Attempt
 
 SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, const double time_step, const OdeRhs& rhs, const SspRk3Options& options)
 {
+    const auto invalid_input = [&state](std::string message)
+    { return SspRk3Result{state, std::nullopt, SspRk3Status::invalid_input, 0, 0.0, std::move(message)}; };
     if (state.empty())
     {
-        throw std::invalid_argument("SSP-RK3 state must not be empty.");
+        return invalid_input("SSP-RK3 state must not be empty.");
     }
     if (!internal::all_finite(state) || !std::isfinite(t) || !std::isfinite(time_step))
     {
-        throw std::invalid_argument("SSP-RK3 input contains non-finite values.");
+        return invalid_input("SSP-RK3 input contains non-finite values.");
     }
     // A step already shorter than min_time_step is attempted, just not halved,
     // so that a caller retrying with a shorter step is not refused for it.
     if (time_step <= 0.0 || !std::isfinite(options.min_time_step) || options.min_time_step < 0.0)
     {
-        throw std::invalid_argument("SSP-RK3 timestep controls must be positive.");
+        return invalid_input("SSP-RK3 timestep controls must be positive.");
     }
 
     double candidate_dt = time_step;

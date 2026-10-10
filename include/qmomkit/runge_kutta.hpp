@@ -42,6 +42,7 @@ using StageAcceptancePredicate = std::function<bool(SspRk3Stage, const std::vect
 enum class SspRk3Status
 {
     success,
+    invalid_input,
     rejected_by_predicate,
     minimum_timestep_reached
 };
@@ -75,7 +76,8 @@ struct SspRk3Options
  * The optional error estimate is ||y_new - y_test|| / ||y_new||, where y_test
  * is the embedded second-order state used only for timestep estimation. When
  * ||y_new|| is zero, the estimate falls back to the unscaled absolute
- * difference norm ||y_new - y_test||.
+ * difference norm ||y_new - y_test||. `message` says why the input is invalid
+ * and is empty for every other status.
  */
 struct SspRk3Result
 {
@@ -84,6 +86,7 @@ struct SspRk3Result
     SspRk3Status status = SspRk3Status::success;
     std::size_t retries = 0;
     double time_step_used = 0.0;
+    std::string message{};
 
     [[nodiscard]] bool ok() const noexcept
     {
@@ -94,6 +97,12 @@ struct SspRk3Result
 /**
  * Advance a vector-valued state by one SSP-RK3 step with optional generic
  * acceptance/rejection.
+ *
+ * An empty or non-finite state, a non-finite time, a step that is not
+ * positive, or an invalid `min_time_step` is reported as `invalid_input`,
+ * with the input state, before `rhs` is called. Exceptions from `rhs` and the
+ * acceptance predicates propagate; a broken `OdeRhs` contract or a non-finite
+ * candidate state throws `std::invalid_argument`.
  */
 [[nodiscard]] SspRk3Result ssp_rk3_step(const std::vector<double>& state, double t, double time_step, const OdeRhs& rhs,
                                         const SspRk3Options& options);

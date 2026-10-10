@@ -28,6 +28,8 @@ namespace
     {
     case SspRk3Status::success:
         return MomentSourceUpdateStatus::success;
+    case SspRk3Status::invalid_input:
+        return MomentSourceUpdateStatus::invalid_input;
     case SspRk3Status::rejected_by_predicate:
         return MomentSourceUpdateStatus::rejected_by_predicate;
     case SspRk3Status::minimum_timestep_reached:

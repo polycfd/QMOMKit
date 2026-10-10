@@ -971,8 +971,8 @@ struct CqmomStageOutcome
     CqmomCase post_source_cqmom_case = internal::with_moments(cqmom_case, std::move(source_update.moments));
     std::vector<CqmomActiveBranchCount> after_source_active_branch_counts;
     CqmomResult post_source_quadrature =
-        internal::compute_cqmom_internal(post_source_cqmom_case, before_source_active_branch_counts, cqmom_case.qmom_options.adaptive,
-                                         prepared_metadata.get(), &after_source_active_branch_counts);
+        internal::compute_cqmom_internal(post_source_cqmom_case, *prepared_metadata, before_source_active_branch_counts,
+                                         cqmom_case.qmom_options.adaptive, &after_source_active_branch_counts);
     diagnostics.post_source_cqmom_status = post_source_quadrature.status;
     diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
     if (!post_source_quadrature.ok())

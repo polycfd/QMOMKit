@@ -172,13 +172,12 @@ namespace
                : check_realizability(moments, policy.support, policy.options);
 }
 
-// Boundary moments below the number-density cutoff, such as the zero moments of
-// an empty cell, are accepted even by a policy that rejects boundary moments,
-// so that the reconstruction reports them as empty, as it does without a check.
+// Moments below the number-density cutoff, such as the zero or rounding-level
+// moments of an empty cell, are accepted whatever the verdict, so that the
+// reconstruction reports them as empty, as it does without a check.
 [[nodiscard]] bool policy_accepts(const RealizabilityResult& verdict, const RealizabilityPolicy& policy, const double m0, const QmomOptions& options)
 {
-    return accepts_realizability_status(policy, verdict.status) ||
-           (verdict.status == RealizabilityStatus::boundary && below_number_density_cutoff(m0, options));
+    return accepts_realizability_status(policy, verdict.status) || below_number_density_cutoff(m0, options);
 }
 
 // The check is optional, and the quadrature it is followed by is the one the

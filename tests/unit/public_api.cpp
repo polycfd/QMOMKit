@@ -581,6 +581,17 @@ void test_cqmom_state_candidate_reports_failures_without_throwing()
     assert_failed(prepared_case.state_candidate(zero_data, {strict, strict}), qmomkit::StateCandidateStatus::empty,
                   qmomkit::CqmomStatus::qmom_failed);
 
+    // It is empty whatever the verdict on its marginals, also when they are
+    // not realizable.
+    const std::vector<qmomkit::MultiIndex> zero_indices = zero_data.layout.required_indices.to_multi_indices();
+    qmomkit::CqmomMomentData unrealizable_zero_data = zero_data;
+    unrealizable_zero_data
+        .values[static_cast<std::size_t>(std::find(zero_indices.begin(), zero_indices.end(), qmomkit::MultiIndex{1, 0}) - zero_indices.begin())] =
+        1.0;
+    const qmomkit::CqmomStateCandidate emptied = prepared_case.state_candidate(unrealizable_zero_data, {strict, strict});
+    assert_failed(emptied, qmomkit::StateCandidateStatus::empty, qmomkit::CqmomStatus::qmom_failed);
+    assert(!emptied.realizability.has_value());
+
     // A negative variance of the first coordinate fails the fixed
     // reconstruction.
     const std::vector<qmomkit::MultiIndex> indices = moments.layout.required_indices.to_multi_indices();
@@ -1205,10 +1216,21 @@ void test_qmom_state_candidate_reports_failures_without_throwing()
         assert_failed(strictly_checked, qmomkit::StateCandidateStatus::empty, qmomkit::QmomStatus::not_realizable);
         assert(strictly_checked.realizability->status == qmomkit::RealizabilityStatus::boundary);
     }
-    // Without number density, moments that are not realizable are still
-    // rejected, and with it, a strict check still rejects boundary moments.
-    assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{0.0, 1.0, 0.0, 0.0}, real_line), qmomkit::StateCandidateStatus::realizability_rejected,
-                  std::nullopt);
+    // Without number density, moments are empty whatever the verdict, also
+    // when they are not realizable, as rounding-level moments of a cell
+    // emptied by transport can be. A negative m0 is no empty cell, a
+    // non-finite moment stays invalid input, and with number density a strict
+    // check still rejects boundary moments.
+    for (const qmomkit::MomentSet& not_realizable : {qmomkit::MomentSet{0.0, 1.0, 0.0, 0.0}, qmomkit::MomentSet{1.0e-31, 0.0, -1.0e-31, 0.0}})
+    {
+        const qmomkit::QmomStateCandidate emptied = qmom_case.state_candidate(not_realizable, real_line);
+        assert_failed(emptied, qmomkit::StateCandidateStatus::empty, qmomkit::QmomStatus::not_realizable);
+        assert(emptied.realizability->status == qmomkit::RealizabilityStatus::not_realizable);
+    }
+    assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{-1.0e-31, 0.0, 1.0e-31, 0.0}, real_line),
+                  qmomkit::StateCandidateStatus::realizability_rejected, std::nullopt);
+    assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{1.0e-31, std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0}, real_line),
+                  qmomkit::StateCandidateStatus::invalid_input, std::nullopt);
     assert_failed(qmom_case.state_candidate(qmomkit::MomentSet{1.0e-20, 0.0, 0.0, 0.0}, strict),
                   qmomkit::StateCandidateStatus::realizability_rejected, std::nullopt);
 

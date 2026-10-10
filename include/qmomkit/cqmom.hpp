@@ -348,14 +348,15 @@ public:
      * Create an evolution state as above, after checking the marginal moments
      * of every coordinate that has a policy in `coordinate_policies`, unless
      * its `check_mode` is `None`. A check accepts strictly realizable moments,
-     * boundary moments when its `accept_boundary` is set or M[0,...,0] lies
-     * below the cutoff, so that moment data without number density is `empty`
-     * whatever the policies, and indeterminate moments when its
-     * `accept_indeterminate` is set. Mixed and conditional moments are not
-     * checked; the reconstruction tests them. A policy beyond the dimensions
-     * of the hierarchy, whatever its mode, and an invalid policy, such as a
-     * bounded interval without an interval, are invalid input before any
-     * coordinate is checked, as in the moment-source update.
+     * boundary moments when its `accept_boundary` is set, and indeterminate
+     * moments when its `accept_indeterminate` is set. Moment data with
+     * M[0,...,0] below the cutoff is accepted whatever the verdict, so that
+     * moment data without number density is `empty` whatever the policies.
+     * Mixed and conditional moments are not checked; the reconstruction tests
+     * them. A policy beyond the dimensions of the hierarchy, whatever its
+     * mode, and an invalid policy, such as a bounded interval without an
+     * interval, are invalid input before any coordinate is checked, as in the
+     * moment-source update.
      */
     [[nodiscard]] CqmomStateCandidate state_candidate(const CqmomMomentData& candidate_moments,
                                                       const std::vector<std::optional<RealizabilityPolicy>>& coordinate_policies) const;

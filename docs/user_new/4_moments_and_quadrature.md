@@ -97,6 +97,35 @@ moments in `[moments]` or distributions in `[initial]`; the
 `load_cqmom(...)` returns an editable `CqmomCase` instead, to change in code
 before preparing it.
 
+For example, this file, `qmom.qmom`, holds the one-dimensional case from
+[Getting started](2_getting_started.md) and, for its evolution, the splitting
+scheme:
+
+```ini
+[phase_space]
+node_counts = 2
+
+[moments]
+values = 1.0, 0.8, 2.8, 4.4
+
+[time_integration]
+scheme = strang
+```
+
+It is loaded with:
+
+```cpp
+const auto configured = qmomkit::config::load_qmom("qmom.qmom");
+if (!configured)
+{
+    std::cerr << configured.error() << '\n';
+    return 1;
+}
+const qmomkit::QmomCase qmom_case = configured.value();
+```
+
+The following pages use this file.
+
 To keep a loaded case's settings but replace its moments, for example with
 moments from another code:
 
@@ -166,7 +195,8 @@ qmom_case.abscissa_bounds = qmomkit::AbscissaBounds{0.0, 10.0};
 Nodes outside the interval are never moved into it. An adaptive reconstruction
 then retries with fewer nodes; a fixed one fails. The bounds hold for every
 later reconstruction of the states made from the case; node motion between
-reconstructions does not enforce them. For CQMOM, set one optional interval per
+reconstructions does not enforce them. Bounds are never inferred from a
+distribution or a coordinate name. For CQMOM, set one optional interval per
 coordinate on the `CqmomCase` before preparing it, for example
 `abscissa_bounds = {std::nullopt, qmomkit::AbscissaBounds{0.0, 1.0}}`.
 

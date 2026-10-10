@@ -146,7 +146,9 @@ const qmomkit::CqmomMomentSource cqmom_removal = [](double, const qmomkit::Cqmom
 };
 ```
 
-A model without a source passes one that returns zero rates.
+A model without a source passes one that returns zero rates. A model without
+a velocity passes one that writes zeros, or calls `advance_qmom_moment_source(...)`
+alone, as in [Coupling QMOMKit](6_coupling_qmomkit.md#driving-the-stages-yourself).
 
 ### Boundary contribution
 

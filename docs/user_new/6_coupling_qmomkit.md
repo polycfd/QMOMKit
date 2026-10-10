@@ -18,6 +18,9 @@ every step:
 3. advance the state;
 4. store the moments of the advanced state.
 
+Start each cell from your own moments, in the case's moment order, or from
+`initial_state().moment_values()`.
+
 ```cpp
 const qmomkit::QmomCase qmom_case = qmomkit::config::load_qmom("qmom.qmom").value();
 const qmomkit::QmomPhaseSpaceEvolutionOptions options =
@@ -79,8 +82,10 @@ for (std::vector<double>& moments : cqmom_cells)
 ```
 
 A new state stores the moments of its quadrature. They equal the given moments
-unless an adaptive reconstruction dropped nodes the moments do not support;
-storing `moment_values()` back keeps each cell consistent with what was evolved.
+up to order $2N - 1$, or for CQMOM the required moments, unless an adaptive
+reconstruction dropped nodes the moments do not support; every other moment is
+that of the quadrature. Storing `moment_values()` back keeps each cell
+consistent with what was evolved.
 The same pattern restarts a run: store the moments of each state, and create
 the states again from them with `state_candidate(...)`.
 

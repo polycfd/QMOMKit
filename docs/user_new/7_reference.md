@@ -92,7 +92,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 
 ### Evolution options
 
-| Key | Default | Meaning | C++ |
+| Key | Default | Meaning | C++ (`QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`) |
 | --- | --- | --- | --- |
 | `[time_integration] scheme` | `strang` | Splitting: `strang`, `advsrc`, or `srcadv`. | `scheme` |
 | `[time_integration.node_advection] scheme` | `rk23` | Node motion: `rk23`, `rk45`, or `ssp_rk3`. | `node_options.scheme` |

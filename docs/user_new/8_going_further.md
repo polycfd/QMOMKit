@@ -50,11 +50,6 @@ noise: it is a reference, not an exact solution. See
 If QMOMKit contributes to your work, please cite it as given in the
 [repository README](../../README.md#how-to-cite).
 
-## Getting help
-
-Questions and bug reports go to the
-[issue tracker](https://github.com/polycfd/QMOMKit/issues).
-
 ## Developer documentation
 
 The [developer documentation](../developer/README.md) describes the algorithms,

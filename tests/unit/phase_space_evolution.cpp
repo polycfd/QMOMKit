@@ -1745,6 +1745,40 @@ void test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes
     assert_qmom_quadrature_near(strang.state.quadrature(), state.quadrature(), 0.0);
 }
 
+void test_qmom_post_source_moment_overflow_is_not_recorded_as_final_advection()
+{
+    // One node at 10 with 200 tracked moments; the source moves it to 100, so
+    // the post-source inversion succeeds but m_199 = 100^199 overflows.
+    std::vector<double> moments(200);
+    double power = 1.0;
+    for (double& moment : moments)
+    {
+        moment = power;
+        power *= 10.0;
+    }
+    const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
+    const qmomkit::PhaseSpaceVelocity zero_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
+    const qmomkit::QmomMomentSource moving_source = [](double, const qmomkit::QmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size(), 0.0);
+        rates[1] = 900.0;
+        return qmomkit::QmomMomentRate{std::move(rates)};
+    };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(state, 0.0, 0.1, zero_velocity, moving_source);
+    assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::moment_reconstruction_failed);
+    assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::post_source_inversion);
+    assert(result.message.rfind("QMOM post-source moment reconstruction failed: ", 0) == 0);
+
+    // The records belong to the advection stages: the first ran, the second
+    // did not, and the post-source failure is reported by status and message.
+    assert(result.diagnostics.first_reconstruction_diagnostics.success);
+    assert(!result.diagnostics.final_reconstruction_diagnostics.success);
+    assert(result.diagnostics.final_reconstruction_diagnostics.moment_count == 0);
+    assert(result.diagnostics.final_reconstruction_diagnostics.message.empty());
+}
+
 // A failed step returns its input state, so final_time must be the input time
 // whichever stage failed. The injected failures include stages whose own time
 // differs from t: the second Strang half-step starts at t + dt/2, and moment
@@ -4716,6 +4750,8 @@ int main(const int argc, char** argv)
              test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input},
             {"qmom_macro_rollbacks_preserve_the_original_state_after_later_successes",
              test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes},
+            {"qmom_post_source_moment_overflow_is_not_recorded_as_final_advection",
+             test_qmom_post_source_moment_overflow_is_not_recorded_as_final_advection},
             {"qmom_failed_steps_report_the_time_of_the_returned_state", test_qmom_failed_steps_report_the_time_of_the_returned_state},
             {"cqmom_initial_state_stores_accepted_quadrature", test_cqmom_initial_state_stores_accepted_quadrature},
             {"cqmom_initial_state_canonicalizes_adaptively_reduced_moments", test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments},

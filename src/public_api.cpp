@@ -176,8 +176,8 @@ namespace
 // so that the reconstruction reports them as empty, as it does without a check.
 [[nodiscard]] bool policy_accepts(const RealizabilityResult& verdict, const RealizabilityPolicy& policy, const double m0, const QmomOptions& options)
 {
-    return verdict.status == RealizabilityStatus::strictly_realizable ||
-           (verdict.status == RealizabilityStatus::boundary && (policy.accept_boundary || below_number_density_cutoff(m0, options)));
+    return accepts_realizability_status(policy, verdict.status) ||
+           (verdict.status == RealizabilityStatus::boundary && below_number_density_cutoff(m0, options));
 }
 
 // The check is optional, and the quadrature it is followed by is the one the

@@ -119,7 +119,26 @@ void test_strict_boundary_and_failure_statuses()
     assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, -1.0}, identity_moments));
 }
 
-void test_numerically_indeterminate_is_rejected()
+void test_policy_flags_decide_which_statuses_are_accepted()
+{
+    using Status = qmomkit::RealizabilityStatus;
+    qmomkit::RealizabilityPolicy policy;
+    assert(qmomkit::accepts_realizability_status(policy, Status::strictly_realizable));
+    assert(qmomkit::accepts_realizability_status(policy, Status::boundary));
+    assert(!qmomkit::accepts_realizability_status(policy, Status::numerically_indeterminate));
+    assert(!qmomkit::accepts_realizability_status(policy, Status::not_realizable));
+    assert(!qmomkit::accepts_realizability_status(policy, Status::invalid_input));
+
+    policy.accept_boundary = false;
+    policy.accept_indeterminate = true;
+    assert(qmomkit::accepts_realizability_status(policy, Status::strictly_realizable));
+    assert(!qmomkit::accepts_realizability_status(policy, Status::boundary));
+    assert(qmomkit::accepts_realizability_status(policy, Status::numerically_indeterminate));
+    assert(!qmomkit::accepts_realizability_status(policy, Status::not_realizable));
+    assert(!qmomkit::accepts_realizability_status(policy, Status::invalid_input));
+}
+
+void test_numerically_indeterminate_is_rejected_unless_accepted()
 {
     qmomkit::RealizabilityPolicy policy;
     policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
@@ -128,7 +147,15 @@ void test_numerically_indeterminate_is_rejected()
 
     // Two points at -1 and 1 with m_4 moved by 1e-10: H_2 is within the
     // tolerance of singular, so the classification is indeterminate.
-    assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, 1.0, 0.0, 1.0 + 1.0e-10}, identity_moments));
+    const std::vector<double> indeterminate{1.0, 0.0, 1.0, 0.0, 1.0 + 1.0e-10};
+    assert(!qmomkit::accepts_realizability_policy(policy, indeterminate, identity_moments));
+
+    // Accepting indeterminate moments accepts nothing else.
+    policy.accept_indeterminate = true;
+    policy.accept_boundary = false;
+    assert(qmomkit::accepts_realizability_policy(policy, indeterminate, identity_moments));
+    assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, -1.0}, identity_moments));
+    assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, 1.0, 0.0, 1.0}, identity_moments));
 }
 
 void test_converter_failures_propagate()
@@ -237,7 +264,8 @@ int main(const int argc, char** argv)
             {"support_and_interval_are_forwarded", test_support_and_interval_are_forwarded},
             {"explicit_bounded_interval_policy_accepts_realizable_moments", test_explicit_bounded_interval_policy_accepts_realizable_moments},
             {"strict_boundary_and_failure_statuses", test_strict_boundary_and_failure_statuses},
-            {"numerically_indeterminate_is_rejected", test_numerically_indeterminate_is_rejected},
+            {"policy_flags_decide_which_statuses_are_accepted", test_policy_flags_decide_which_statuses_are_accepted},
+            {"numerically_indeterminate_is_rejected_unless_accepted", test_numerically_indeterminate_is_rejected_unless_accepted},
             {"converter_failures_propagate", test_converter_failures_propagate},
             {"ssp_rk3_accepts_realizable_candidate", test_ssp_rk3_accepts_realizable_candidate},
             {"ssp_rk3_rejects_and_retries_with_realizability_predicate", test_ssp_rk3_rejects_and_retries_with_realizability_predicate},

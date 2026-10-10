@@ -375,6 +375,57 @@ qmomkit::OdeRhs exponential_decay_rhs()
     return [](double, const std::vector<double>& y, std::vector<double>& derivative) { derivative[0] = -y[0]; };
 }
 
+void test_ssp_rk3_invalid_input_is_reported_before_the_rhs_runs()
+{
+    std::size_t rhs_calls = 0;
+    const qmomkit::OdeRhs rhs = [&rhs_calls](double, const std::vector<double>&, std::vector<double>& derivative)
+    {
+        ++rhs_calls;
+        std::fill(derivative.begin(), derivative.end(), 1.0);
+    };
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    qmomkit::SspRk3Options negative_minimum;
+    negative_minimum.min_time_step = -1.0;
+    qmomkit::SspRk3Options nonfinite_minimum;
+    nonfinite_minimum.min_time_step = nan;
+
+    struct InvalidCase
+    {
+        std::vector<double> state;
+        double t;
+        double time_step;
+        qmomkit::SspRk3Options options;
+        std::string message;
+    };
+    const std::vector<InvalidCase> cases{
+        {{}, 0.0, 0.1, {}, "SSP-RK3 state must not be empty."},
+        {{1.0, nan}, 0.0, 0.1, {}, "SSP-RK3 input contains non-finite values."},
+        {{1.0}, nan, 0.1, {}, "SSP-RK3 input contains non-finite values."},
+        {{1.0}, 0.0, std::numeric_limits<double>::infinity(), {}, "SSP-RK3 input contains non-finite values."},
+        {{1.0}, 0.0, 0.0, {}, "SSP-RK3 timestep controls must be positive."},
+        {{1.0}, 0.0, -0.1, {}, "SSP-RK3 timestep controls must be positive."},
+        {{1.0}, 0.0, 0.1, negative_minimum, "SSP-RK3 timestep controls must be positive."},
+        {{1.0}, 0.0, 0.1, nonfinite_minimum, "SSP-RK3 timestep controls must be positive."},
+    };
+    for (const InvalidCase& invalid : cases)
+    {
+        const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(invalid.state, invalid.t, invalid.time_step, rhs, invalid.options);
+        assert(!result.ok());
+        assert(result.status == qmomkit::SspRk3Status::invalid_input);
+        assert(result.message == invalid.message);
+        assert(result.retries == 0);
+        assert(result.time_step_used == 0.0);
+        assert(!result.error_estimate.has_value());
+        assert(result.state.size() == invalid.state.size());
+    }
+    assert(rhs_calls == 0);
+
+    // A valid step carries no message.
+    const qmomkit::SspRk3Result valid = qmomkit::ssp_rk3_step({1.0}, 0.0, 0.1, rhs, {});
+    assert(valid.ok());
+    assert(valid.message.empty());
+}
+
 void test_ssp_rk3_accept_all_predicate()
 {
     qmomkit::SspRk3Options options;
@@ -1156,6 +1207,7 @@ int main(const int argc, char** argv)
             {"embedded_rk_fsal_reuses_accepted_endpoint_derivative", test_embedded_rk_fsal_reuses_accepted_endpoint_derivative},
             {"embedded_rk_adaptive_controls_for_both_methods", test_embedded_rk_adaptive_controls_for_both_methods},
             {"embedded_rk_public_backward_integration", test_embedded_rk_public_backward_integration},
+            {"ssp_rk3_invalid_input_is_reported_before_the_rhs_runs", test_ssp_rk3_invalid_input_is_reported_before_the_rhs_runs},
             {"ssp_rk3_accept_all_predicate", test_ssp_rk3_accept_all_predicate},
             {"ssp_rk3_reject_negative_values_then_success", test_ssp_rk3_reject_negative_values_then_success},
             {"ssp_rk3_multiple_retries", test_ssp_rk3_multiple_retries},

@@ -154,10 +154,6 @@ int main(const int argc, char** argv)
         // names should not silently fall back to the default policy.
         {"cqmom_invalid_vandermonde_solver.qmom", Loader::cqmom, "vandermonde.solver must be"},
 
-        // The former branch-count switch is now [qmom] adaptive; old files name
-        // the replacement instead of failing on an unknown key.
-        {"cqmom_removed_adaptive_branch_counts.qmom", Loader::cqmom, "phase_space.adaptive_branch_counts was removed; use [qmom] adaptive."},
-
         // The public CQMOM loader cannot infer a phase-space hierarchy. Missing
         // node counts should be reported as missing required configuration.
         {"cqmom_missing_phase_space.qmom", Loader::cqmom, "Missing required key 'phase_space.node_counts'.", false},

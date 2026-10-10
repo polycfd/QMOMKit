@@ -234,13 +234,12 @@ struct CqmomCase
 };
 
 /**
- * User-facing mutable CQMOM runtime state.
+ * Immutable CQMOM state that phase-space evolution advances.
  *
- * A state owns the current CQMOM moments and reconstruction policies. Normal
- * CQMOM phase-space evolution creates this state with
- * `CqmomPreparedCase::initial_state()`; `CqmomCase::initial_state()` creates
- * the same state. Its accepted terminal quadrature is available through
- * `quadrature()`. The state can be passed to `advance_cqmom_phase_space(...)`.
+ * A state holds the CQMOM moments, the reconstruction settings of its case and
+ * the accepted terminal quadrature, available through `quadrature()`. It is
+ * created by `CqmomPreparedCase::initial_state()`, `CqmomCase::initial_state()`
+ * or `state_candidate(...)`, and each evolution step returns a new state.
  */
 class CqmomState
 {

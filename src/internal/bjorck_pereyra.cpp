@@ -34,9 +34,9 @@ namespace
 }
 
 // The system counts as singular when its condition number reaches
-// 1 / singular_tolerance, the threshold of the dense pivot test and of the QR
-// and SVD rank tests. With the nodes divided by the power of two above the
-// largest |x|, every entry of V^T lies in [-1, 1], so ||V^T||_inf <= n, and
+// 1 / singular_tolerance; the dense solver's pivot test uses the same
+// tolerance. With the nodes divided by the power of two above the largest |x|,
+// every entry of V^T lies in [-1, 1], so ||V^T||_inf <= n, and
 // Gautschi's bound ||V^-T||_inf <= max_i prod_{j != i} (1 + |x_j|) / |x_i - x_j|
 // (Numer. Math. 4, 117-123, 1962, Theorem 1; an equality when the nodes share
 // a sign) gives the condition number up to the factor n. The estimate does not

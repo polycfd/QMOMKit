@@ -6,7 +6,6 @@ set(configuration_failure_cases
     qmom_missing_moments.qmom
     qmom_insufficient_moments.qmom
     cqmom_invalid_vandermonde_solver.qmom
-    cqmom_removed_adaptive_branch_counts.qmom
     cqmom_missing_phase_space.qmom
     cqmom_invalid_conditioning_order.qmom
     cqmom_incomplete_tensor.qmom

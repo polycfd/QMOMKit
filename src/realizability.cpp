@@ -700,8 +700,8 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
 // the power of two just above m0. Realizability is invariant under this
 // affine change of coordinate, and the moment matrices change by a
 // congruence, which keeps the signs of their eigenvalues; the tolerance,
-// relative to the standardized matrices, then no longer depends on where the
-// distribution sits or in which unit it is given.
+// relative to the standardized matrices, then depends neither on where the
+// distribution sits nor on the unit it is given in.
 struct TestedMoments
 {
     MomentSequence moments;

@@ -20,15 +20,12 @@ struct PreparedCqmomMetadata;
 using PreparedCqmomMetadataPtr = std::shared_ptr<const PreparedCqmomMetadata>;
 
 // A successor case is the same case with new moment values: every other
-// setting is carried unchanged. This helper is the one place that knows how to
-// carry them, so the four sites that build a successor no longer each re-list
-// the settings. Adding a setting to the case struct means adding it here as
-// well, which is one place to miss rather than four.
+// setting is carried unchanged. This helper is the one place that carries them,
+// so a setting added to the case struct is added here as well.
 //
 // The settings are listed individually rather than carried by copying the whole
-// case and then replacing its moments: a wholesale copy also duplicates the
-// outgoing moment values that are about to be replaced, which measured at
-// +12 allocations per phase-space step.
+// case and then replacing its moments, because a wholesale copy also copies the
+// moment values that are about to be replaced.
 [[nodiscard]] inline CqmomCase with_moments(const CqmomCase& cqmom_case, CqmomMomentData moments)
 {
     return CqmomCase{std::move(moments),          cqmom_case.conditional_options, cqmom_case.qmom_options,
@@ -92,13 +89,13 @@ public:
                                                            bool rectangular_storage, ConditioningPathTable terminal_paths);
 };
 
-// Internal construction access for QMOMKit-owned CQMOM objects. Fixed normal
-// cases and states always receive a compatible eagerly prepared owner: callers
-// either propagate one from the same lineage or start a new lineage. Adaptive
-// states carry no fixed prepared owner. Internal reconstruction rechecks
-// evolving numerical values only. A successful reconstruction stores its active
-// branch counts in `accepted_active_branch_counts` when that is given; they
-// are empty for a fixed case.
+// Reconstruction of a QMOMKit-owned CQMOM case or state. Every prepared case
+// and state carries prepared metadata that matches its hierarchy and
+// adaptivity: callers either pass on the metadata of the same lineage or start
+// a new one. Internal reconstruction rechecks evolving numerical values only.
+// A successful reconstruction stores its active branch counts in
+// `accepted_active_branch_counts` when that is given; they are empty for a
+// fixed case.
 [[nodiscard]] CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {},
                                                  bool allow_active_branch_count_growth = false,
                                                  const PreparedCqmomMetadata* prepared_metadata = nullptr, bool require_prepared_metadata = false,

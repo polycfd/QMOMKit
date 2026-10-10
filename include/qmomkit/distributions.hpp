@@ -175,10 +175,9 @@ struct TensorMomentResult
  * Build a selected raw moment result after validating request/result shape.
  *
  * A valid request is empty, or contains only non-empty multi-indices of one
- * common rank. The maximum `std::size_t` value is rejected as a moment order to
- * preserve the existing overflow-guard convention used by rectangular moment
- * generation. Values must be finite and have the same count as requested
- * indices.
+ * common rank. The maximum `std::size_t` value is rejected as a moment order,
+ * as in rectangular moment generation, where it would overflow an extent.
+ * Values must be finite and have the same count as requested indices.
  */
 [[nodiscard]] SelectedRawMomentResult make_selected_raw_moment_result(const RawMomentRequest& request, std::vector<double> values);
 

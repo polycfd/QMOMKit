@@ -58,8 +58,9 @@ struct BranchMomentLayout
 };
 
 /**
- * Immutable fixed-topology reconstruction metadata prepared by a normal
- * CQMOM case. The layout owns no numerical values or solver workspaces.
+ * Immutable reconstruction metadata, prepared once for a CQMOM case: the
+ * required moment layout and the branch-layout tree, fixed or adaptive. It owns
+ * no numerical values or solver workspaces.
  */
 struct PreparedCqmomMetadata
 {
@@ -259,7 +260,7 @@ struct RecursiveQuadratureResult
  * The caller guarantees that immutable layout metadata has already been
  * validated through a QMOMKit-owned case/state construction path. This skips
  * repeated layout/hierarchy validation, but still validates changing moment
- * values and numerical options before using the existing recursive algorithm.
+ * values and numerical options before the recursion.
  */
 [[nodiscard]] RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request);
 

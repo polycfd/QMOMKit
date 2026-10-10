@@ -16,8 +16,8 @@ namespace qmomkit
  * Mode for optional runtime realizability checks during SSP-RK3 integration.
  *
  * `None` installs no acceptance predicate. `FinalOnly` checks only complete
- * candidate states, preserving the original SSP-RK3 acceptance behavior.
- * `EveryStage` checks stage-1, stage-2, and final candidate states.
+ * candidate states. `EveryStage` checks stage-1, stage-2, and final candidate
+ * states.
  */
 enum class RealizabilityCheckMode
 {
@@ -105,7 +105,8 @@ using MomentStateConverter = std::function<MomentSet(const std::vector<double>&)
 }
 
 /**
- * Adapt a realizability policy to the existing SSP-RK3 acceptance callback.
+ * Adapt a realizability policy to the SSP-RK3 acceptance callback
+ * `SspRk3Options::accept`.
  *
  * Only FinalOnly policies produce a predicate for the final-candidate
  * acceptance callback. None and EveryStage policies return an empty predicate; use

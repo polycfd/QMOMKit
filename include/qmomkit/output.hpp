@@ -54,7 +54,6 @@ struct OutputOptions
  * `for_cqmom(path, state, output_options)`, and a bare `CqmomQuadrature` row to
  * `for_cqmom(path, request)`. Passing a row to a writer built by a different
  * factory throws `std::invalid_argument` naming the factory the caller needs.
- * `docs/developer/output_design.md` tabulates the same pairing.
  */
 class MomentWriter
 {

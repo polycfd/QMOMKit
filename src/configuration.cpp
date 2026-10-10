@@ -896,11 +896,22 @@ bool has_explicit_cqmom_moments(const ParsedFile& parsed)
     return find_entry(parsed, "moments.extents") != nullptr || !parsed.moments.empty();
 }
 
-std::vector<std::string> qmom_allowed_keys()
+// Each group of keys is listed once. The case parsers accept every key the
+// parsers of the time-integration and output settings read, so that one file
+// can serve all of them.
+std::vector<std::string> qmom_explicit_allowed_keys()
 {
-    std::vector<std::string> allowed{
-        "format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive",
-        "moments.values", "initial.type",      "initial.family",          "initial.number_density",    "initial.maximum_order"};
+    return {"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower", "phase_space.support_upper",
+            "qmom.adaptive",  "moments.values"};
+}
+
+std::vector<std::string> qmom_initial_allowed_keys()
+{
+    std::vector<std::string> allowed = qmom_explicit_allowed_keys();
+    for (const char* const key : {"initial.type", "initial.family", "initial.number_density", "initial.maximum_order"})
+    {
+        allowed.emplace_back(key);
+    }
     for (const std::string& parameter : distribution_parameters())
     {
         allowed.push_back("initial." + parameter);
@@ -908,36 +919,45 @@ std::vector<std::string> qmom_allowed_keys()
     return allowed;
 }
 
+const std::vector<std::string>& realizability_policy_fields()
+{
+    static const std::vector<std::string> fields{"check_mode", "accept_boundary", "accept_indeterminate", "support", "tolerance", "lower", "upper"};
+    return fields;
+}
+
+const std::vector<std::string>& node_advection_allowed_keys()
+{
+    static const std::vector<std::string> allowed{std::string(node_advection_scheme_key),       std::string(adaptive_relative_tolerance_key),
+                                                  std::string(adaptive_absolute_tolerance_key), std::string(adaptive_initial_step_key),
+                                                  std::string(adaptive_max_step_key),           std::string(adaptive_min_step_key),
+                                                  std::string(adaptive_max_steps_key)};
+    return allowed;
+}
+
+const std::vector<std::string>& output_allowed_keys()
+{
+    static const std::vector<std::string> allowed{"output.directory", "output.write_moments", "output.write_quadrature", "output.interval",
+                                                  "output.generalized_moments"};
+    return allowed;
+}
+
 void append_time_integration_allowed_keys(std::vector<std::string>& allowed, const RealizabilitySettings realizability)
 {
     allowed.push_back(std::string(phase_space_evolution_scheme_key));
-    allowed.push_back(std::string(node_advection_scheme_key));
-    allowed.push_back(std::string(adaptive_relative_tolerance_key));
-    allowed.push_back(std::string(adaptive_absolute_tolerance_key));
-    allowed.push_back(std::string(adaptive_initial_step_key));
-    allowed.push_back(std::string(adaptive_max_step_key));
-    allowed.push_back(std::string(adaptive_min_step_key));
-    allowed.push_back(std::string(adaptive_max_steps_key));
+    allowed.insert(allowed.end(), node_advection_allowed_keys().begin(), node_advection_allowed_keys().end());
     if (!accepts_unnumbered_realizability(realizability))
     {
         return;
     }
-    allowed.push_back("time_integration.realizability.check_mode");
-    allowed.push_back("time_integration.realizability.accept_boundary");
-    allowed.push_back("time_integration.realizability.accept_indeterminate");
-    allowed.push_back("time_integration.realizability.support");
-    allowed.push_back("time_integration.realizability.tolerance");
-    allowed.push_back("time_integration.realizability.lower");
-    allowed.push_back("time_integration.realizability.upper");
+    for (const std::string& field : realizability_policy_fields())
+    {
+        allowed.push_back(std::string(realizability_key_prefix) + field);
+    }
 }
 
 void append_output_allowed_keys(std::vector<std::string>& allowed)
 {
-    allowed.push_back("output.directory");
-    allowed.push_back("output.write_moments");
-    allowed.push_back("output.write_quadrature");
-    allowed.push_back("output.interval");
-    allowed.push_back("output.generalized_moments");
+    allowed.insert(allowed.end(), output_allowed_keys().begin(), output_allowed_keys().end());
 }
 
 std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allowed, const RealizabilitySettings realizability)
@@ -974,14 +994,11 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
 {
     if (explicit_moments)
     {
-        reject_unknown_keys(parsed,
-                            with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower",
-                                                       "phase_space.support_upper", "qmom.adaptive", "moments.values"},
-                                                      RealizabilitySettings::qmom),
-                            {"initial."}, RealizabilitySettings::qmom, source_name);
+        reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_explicit_allowed_keys(), RealizabilitySettings::qmom), {"initial."},
+                            RealizabilitySettings::qmom, source_name);
         return;
     }
-    reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys(), RealizabilitySettings::qmom),
+    reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_initial_allowed_keys(), RealizabilitySettings::qmom),
                         {std::string(mixture_component_section_prefix)}, RealizabilitySettings::qmom, source_name);
 }
 
@@ -1124,8 +1141,8 @@ bool has_mixture_component_sections(const ParsedFile& parsed, const std::string&
 std::vector<std::string> cqmom_explicit_allowed_keys()
 {
     return with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.conditioning_order",
-                                      "phase_space.adaptive_branch_counts", "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive",
-                                      "cqmom.diagnostic_level", "vandermonde.solver", "vandermonde.rcond", "moments.extents"},
+                                      "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive", "cqmom.diagnostic_level",
+                                      "vandermonde.solver", "vandermonde.rcond", "moments.extents"},
                                      RealizabilitySettings::cqmom);
 }
 
@@ -1153,14 +1170,6 @@ void reject_unknown_cqmom_sections(ParsedFile& parsed, const bool explicit_momen
 
 void reject_unknown_cqmom_keys(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
 {
-    // `[qmom] adaptive` decides both the inversions and the branch counts. The
-    // former key stays recognised so that a file using it gets this message
-    // rather than a bare unknown-key error.
-    if (const Entry* removed = find_entry(parsed, "phase_space.adaptive_branch_counts"); removed != nullptr)
-    {
-        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, removed->line,
-                  "phase_space.adaptive_branch_counts was removed; use [qmom] adaptive.");
-    }
     if (explicit_moments)
     {
         reject_unknown_keys(parsed, cqmom_explicit_allowed_keys(), {"initial."}, RealizabilitySettings::cqmom, source_name);
@@ -1484,24 +1493,9 @@ bool is_realizability_key(const std::string& key)
     return key.rfind(std::string(realizability_key_prefix), 0) == 0;
 }
 
-const std::vector<std::string>& realizability_policy_fields()
-{
-    static const std::vector<std::string> fields{"check_mode", "accept_boundary", "accept_indeterminate", "support", "tolerance", "lower", "upper"};
-    return fields;
-}
-
 bool is_node_advection_key(const std::string& key)
 {
     return key.rfind(std::string(node_advection_key_prefix), 0) == 0;
-}
-
-const std::vector<std::string>& node_advection_allowed_keys()
-{
-    static const std::vector<std::string> allowed{std::string(node_advection_scheme_key),       std::string(adaptive_relative_tolerance_key),
-                                                  std::string(adaptive_absolute_tolerance_key), std::string(adaptive_initial_step_key),
-                                                  std::string(adaptive_max_step_key),           std::string(adaptive_min_step_key),
-                                                  std::string(adaptive_max_steps_key)};
-    return allowed;
 }
 
 std::optional<QmomOptions> parse_qmom_options_from_parsed(ParsedFile& parsed, const std::string& source_name)
@@ -2218,8 +2212,7 @@ OutputOptions parse_output_options_from_parsed(ParsedFile& parsed, const std::st
         return options;
     }
 
-    static const std::vector<std::string> allowed = {"output.directory", "output.write_moments", "output.write_quadrature", "output.interval",
-                                                     "output.generalized_moments"};
+    const std::vector<std::string>& allowed = output_allowed_keys();
     for (const auto& item : parsed.scalars)
     {
         if (!is_output_key(item.first))

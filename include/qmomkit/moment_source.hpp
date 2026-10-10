@@ -307,7 +307,7 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance a raw-moment vector through a
- * moment-source operator using the existing SSP-RK3 integrator.
+ * moment-source operator using the SSP-RK3 integrator `ssp_rk3_step(...)`.
  * Optional acceptability checks are supplied through
  * `options.ssp_rk3_options.accept`; rejected candidates use the SSP-RK3 retry
  * policy with timestep halving.
@@ -328,8 +328,9 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance fixed-layout CQMOM moments through a
- * moment-source operator using the existing vector SSP-RK3 integrator. The RK stages
- * are exposed to the CQMOM source callback through `CqmomSourceContext`.
+ * moment-source operator using the SSP-RK3 integrator `ssp_rk3_step(...)`.
+ * The RK stages are exposed to the CQMOM source callback through
+ * `CqmomSourceContext`.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
                                                                               const CqmomMomentSource& source,

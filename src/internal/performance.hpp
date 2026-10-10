@@ -17,10 +17,7 @@ struct ReconstructionCounters
 {
     std::size_t qmom_reconstructions = 0;
     std::size_t cqmom_reconstructions = 0;
-    std::size_t cqmom_branch_solves = 0;
     std::size_t wheeler_calls = 0;
-    std::size_t wheeler_adaptive_reductions = 0;
-    std::size_t terminal_nodes_assembled = 0;
     std::size_t moment_layout_builds = 0;
     std::size_t cqmom_prepared_metadata_builds = 0;
     std::size_t cqmom_prepared_metadata_uses = 0;
@@ -41,10 +38,6 @@ struct LinearAlgebraCounters
 
 struct PhaseSpaceEvolutionCounters
 {
-    std::size_t phase_space_evolution_macro_steps = 0;
-    std::size_t advection_operator_calls = 0;
-    std::size_t moment_source_operator_calls = 0;
-    std::size_t moment_reconstruction_calls = 0;
     std::size_t post_source_inversions = 0;
 };
 
@@ -143,35 +136,11 @@ inline void record_cqmom_reconstruction() noexcept
     }
 }
 
-inline void record_cqmom_branch_solve() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->reconstruction.cqmom_branch_solves;
-    }
-}
-
 inline void record_wheeler_call() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
     {
         ++counters->reconstruction.wheeler_calls;
-    }
-}
-
-inline void record_wheeler_adaptive_reduction() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->reconstruction.wheeler_adaptive_reductions;
-    }
-}
-
-inline void record_terminal_node_assembled() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->reconstruction.terminal_nodes_assembled;
     }
 }
 
@@ -256,38 +225,6 @@ inline void record_condition_estimate() noexcept
     if (PerformanceCounters* counters = active_counters())
     {
         ++counters->linear_algebra.condition_estimates;
-    }
-}
-
-inline void record_phase_space_evolution_macro_step() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->phase_space_evolution.phase_space_evolution_macro_steps;
-    }
-}
-
-inline void record_advection_operator_call() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->phase_space_evolution.advection_operator_calls;
-    }
-}
-
-inline void record_moment_source_operator_call() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->phase_space_evolution.moment_source_operator_calls;
-    }
-}
-
-inline void record_moment_reconstruction_call() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->phase_space_evolution.moment_reconstruction_calls;
     }
 }
 
@@ -388,10 +325,7 @@ public:
 
 inline void record_qmom_reconstruction() noexcept {}
 inline void record_cqmom_reconstruction() noexcept {}
-inline void record_cqmom_branch_solve() noexcept {}
 inline void record_wheeler_call() noexcept {}
-inline void record_wheeler_adaptive_reduction() noexcept {}
-inline void record_terminal_node_assembled() noexcept {}
 inline void record_moment_layout_build() noexcept {}
 inline void record_cqmom_prepared_metadata_build() noexcept {}
 inline void record_cqmom_prepared_metadata_use() noexcept {}
@@ -401,10 +335,6 @@ inline void record_bjorck_pereyra_transform_update() noexcept {}
 inline void record_dense_linear_solve() noexcept {}
 inline void record_residual_check() noexcept {}
 inline void record_condition_estimate() noexcept {}
-inline void record_phase_space_evolution_macro_step() noexcept {}
-inline void record_advection_operator_call() noexcept {}
-inline void record_moment_source_operator_call() noexcept {}
-inline void record_moment_reconstruction_call() noexcept {}
 inline void record_post_source_inversion() noexcept {}
 inline void record_active_count_derivation() noexcept {}
 inline void record_active_count_validation() noexcept {}

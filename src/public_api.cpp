@@ -404,9 +404,8 @@ namespace
         }
     }
 
-    const internal::PreparedCqmomMetadata* prepared_metadata = prepared_metadata_handle.get();
     std::vector<CqmomActiveBranchCount> active_counts;
-    CqmomResult accepted = internal::compute_cqmom_internal(cqmom_case, {}, false, prepared_metadata, &active_counts);
+    CqmomResult accepted = internal::compute_cqmom_internal(cqmom_case, *prepared_metadata_handle, {}, false, &active_counts);
     candidate.reconstruction_status = accepted.status;
     if (!accepted.ok())
     {
@@ -827,8 +826,8 @@ CqmomResult compute_cqmom(const CqmomCase& cqmom_case)
 namespace internal
 {
 
-CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                   const bool allow_active_branch_count_growth, const PreparedCqmomMetadata* const prepared_metadata,
+CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, const PreparedCqmomMetadata& prepared_metadata,
+                                   std::vector<CqmomActiveBranchCount> active_branch_counts, const bool allow_active_branch_count_growth,
                                    std::vector<CqmomActiveBranchCount>* const accepted_active_branch_counts)
 {
     const PhaseSpaceHierarchy& hierarchy = cqmom_case.moments.layout.hierarchy;
@@ -855,7 +854,7 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
     RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
         {hierarchy, cqmom_case.moments, cqmom_case.conditional_options, to_wheeler_options(cqmom_case.qmom_options), cqmom_case.diagnostic_level,
          cqmom_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth, cqmom_case.abscissa_bounds,
-         prepared_metadata, record_active_branch_counts});
+         &prepared_metadata, record_active_branch_counts});
 
     return finish(result);
 }
@@ -864,8 +863,7 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
 
 CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case)
 {
-    const internal::PreparedCqmomMetadata* prepared_metadata = cqmom_prepared_case.data_->prepared_metadata.get();
-    return internal::compute_cqmom_internal(cqmom_prepared_case.data_->cqmom_case, {}, false, prepared_metadata);
+    return internal::compute_cqmom_internal(cqmom_prepared_case.data_->cqmom_case, *cqmom_prepared_case.data_->prepared_metadata);
 }
 
 } // namespace qmomkit

@@ -377,7 +377,6 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
                                                 const bool final_advection, PhaseSpaceEvolutionDiagnostics& diagnostics, QmomState& accepted_state,
                                                 std::optional<QmomPhaseSpaceEvolutionResult>& failure)
 {
-    internal::performance::record_advection_operator_call();
     const QmomNodeAdvectionResult advection = advance_nodes(state.quadrature(), t, time_step, velocity, options.node_options);
     record_advection_diagnostics(diagnostics, final_advection, advection.status, advection.diagnostics);
     if (!advection.ok())
@@ -391,7 +390,6 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
 
     try
     {
-        internal::performance::record_moment_reconstruction_call();
         accepted_state = internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moment_values().size(),
                                                                     state.maximum_node_count(), state.qmom_options(), state.abscissa_bounds());
         if (final_advection)
@@ -427,7 +425,6 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
                                                     const QmomPhaseSpaceEvolutionOptions& options, PhaseSpaceEvolutionDiagnostics& diagnostics,
                                                     QmomState& accepted_state, std::optional<QmomPhaseSpaceEvolutionResult>& failure)
 {
-    internal::performance::record_moment_source_operator_call();
     MomentSourceUpdateOptions source_options = options.source_options;
     const MomentStateConverter to_moment_set = [](const std::vector<double>& values) { return MomentSet(values); };
     if (options.realizability_policy.check_mode == RealizabilityCheckMode::FinalOnly)
@@ -470,7 +467,6 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     }
     try
     {
-        internal::performance::record_moment_reconstruction_call();
         accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moment_values().size(),
                                                                     state.maximum_node_count(), state.qmom_options(), state.abscissa_bounds());
     }
@@ -653,7 +649,6 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomSta
                                                                    const QmomMomentBoundaryContribution* const boundary,
                                                                    const QmomPhaseSpaceEvolutionOptions& options)
 {
-    internal::performance::record_phase_space_evolution_macro_step();
     PhaseSpaceEvolutionDiagnostics diagnostics;
     diagnostics.scheme = options.scheme;
     try
@@ -898,7 +893,6 @@ struct CqmomStageOutcome
                                                               const CqmomPhaseSpaceEvolutionOptions& options, const bool final_advection,
                                                               PhaseSpaceEvolutionDiagnostics& diagnostics)
 {
-    internal::performance::record_advection_operator_call();
     CqmomNodeAdvectionResult advection = advance_nodes(state.quadrature(), t, time_step, velocity, options.node_options);
     record_advection_diagnostics(diagnostics, final_advection, advection.status, advection.diagnostics);
     if (!advection.ok())
@@ -913,7 +907,6 @@ struct CqmomStageOutcome
     const internal::PreparedCqmomMetadataPtr& prepared_metadata = internal::CqmomConstructionAccess::state_prepared_metadata(state);
     try
     {
-        internal::performance::record_moment_reconstruction_call();
         CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(advection.quadrature, cqmom_case.moments.layout);
         if (final_advection)
         {
@@ -950,7 +943,6 @@ struct CqmomStageOutcome
                                                                   const CqmomPhaseSpaceEvolutionOptions& options,
                                                                   PhaseSpaceEvolutionDiagnostics& diagnostics)
 {
-    internal::performance::record_moment_source_operator_call();
     const CqmomCase& cqmom_case = internal::CqmomConstructionAccess::state_definition(state);
     const internal::PreparedCqmomMetadataPtr& prepared_metadata = internal::CqmomConstructionAccess::state_prepared_metadata(state);
     const std::vector<CqmomActiveBranchCount>& before_source_active_branch_counts = state.active_branch_counts();
@@ -971,8 +963,8 @@ struct CqmomStageOutcome
     CqmomCase post_source_cqmom_case = internal::with_moments(cqmom_case, std::move(source_update.moments));
     std::vector<CqmomActiveBranchCount> after_source_active_branch_counts;
     CqmomResult post_source_quadrature =
-        internal::compute_cqmom_internal(post_source_cqmom_case, before_source_active_branch_counts, cqmom_case.qmom_options.adaptive,
-                                         prepared_metadata.get(), &after_source_active_branch_counts);
+        internal::compute_cqmom_internal(post_source_cqmom_case, *prepared_metadata, before_source_active_branch_counts,
+                                         cqmom_case.qmom_options.adaptive, &after_source_active_branch_counts);
     diagnostics.post_source_cqmom_status = post_source_quadrature.status;
     diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
     if (!post_source_quadrature.ok())
@@ -983,7 +975,6 @@ struct CqmomStageOutcome
 
     try
     {
-        internal::performance::record_moment_reconstruction_call();
         CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(post_source_quadrature.quadrature, cqmom_case.moments.layout);
         record_cqmom_node_count_transitions(diagnostics, PhaseSpaceEvolutionStage::post_source_inversion, before_source_active_branch_counts,
                                             after_source_active_branch_counts);
@@ -1018,7 +1009,6 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomS
                                                                     const CqmomMomentBoundaryContribution* const boundary,
                                                                     const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    internal::performance::record_phase_space_evolution_macro_step();
     PhaseSpaceEvolutionDiagnostics diagnostics;
     diagnostics.scheme = options.scheme;
     initialize_cqmom_diagnostics(diagnostics, state);

@@ -827,7 +827,7 @@ const CqmomQuadrature& CqmomSourceContext::reconstructed_stage_quadrature() cons
         // step but grows only in the reconstruction after the accepted step.
         // A branch that replaces others after its parent lost nodes starts
         // from its configured maximum, as in the reconstruction after the step.
-        CqmomResult quadrature = internal::compute_cqmom_internal(stage_cqmom_case, *active_branch_counts_, false, prepared_metadata_);
+        CqmomResult quadrature = internal::compute_cqmom_internal(stage_cqmom_case, *prepared_metadata_, *active_branch_counts_);
         if (!quadrature.ok())
         {
             throw std::runtime_error("CQMOM source-stage quadrature reconstruction failed: " + quadrature.message);

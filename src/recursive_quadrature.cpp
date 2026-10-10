@@ -1574,7 +1574,6 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
 
         for (const BranchState& branch : current_branches)
         {
-            internal::performance::record_cqmom_branch_solve();
             BranchNodeCountLimit node_count_limit{configured_node_count, std::nullopt};
             try
             {
@@ -1739,7 +1738,6 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
 
                 if (level + 1 == dimensions)
                 {
-                    internal::performance::record_terminal_node_assembled();
                     terminal_weights.push_back(child.accumulated_weight);
                     for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
                     {

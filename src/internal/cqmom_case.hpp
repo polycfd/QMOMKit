@@ -83,18 +83,16 @@ public:
                                                            bool rectangular_storage, ConditioningPathTable terminal_paths);
 };
 
-// Reconstruction of a QMOMKit-owned CQMOM case or state. Every prepared case
-// and state carries prepared metadata that matches its hierarchy and
-// adaptivity: callers either pass on the metadata of the same lineage or start
-// a new one. Given metadata is used, and metadata of the other adaptivity is
-// invalid input; without metadata the branch layouts are built for this call.
-// Internal reconstruction rechecks evolving numerical values only. A
-// successful reconstruction stores its active branch counts in
+// Reconstruction of a QMOMKit-owned CQMOM case or state with the prepared
+// metadata of its lineage. Every prepared case and state carries metadata that
+// matches its hierarchy and adaptivity; metadata of the other adaptivity is
+// invalid input. Internal reconstruction rechecks evolving numerical values
+// only. A successful reconstruction stores its active branch counts in
 // `accepted_active_branch_counts` when that is given; they are empty for a
 // fixed case.
-[[nodiscard]] CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {},
+[[nodiscard]] CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, const PreparedCqmomMetadata& prepared_metadata,
+                                                 std::vector<CqmomActiveBranchCount> active_branch_counts = {},
                                                  bool allow_active_branch_count_growth = false,
-                                                 const PreparedCqmomMetadata* prepared_metadata = nullptr,
                                                  std::vector<CqmomActiveBranchCount>* accepted_active_branch_counts = nullptr);
 
 } // namespace qmomkit::internal

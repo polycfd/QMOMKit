@@ -73,14 +73,14 @@ docs/user/
 
 docs/developer/
     Architecture, numerical conventions, algorithm design, phase-space evolution,
-    validation, testing, benchmarking, and engineering practices.
+    validation, testing, and engineering practices.
 
 examples/
     Standalone applications consuming an installed QMOMKit package.
 
 tests/
-    Standalone unit, regression, verification, public-header,
-    package-consumer, and benchmark projects.
+    Standalone unit, regression, verification, public-header, and
+    package-consumer projects.
 
 tools/monte_carlo/
     Optional QMOMKitMonteCarlo companion package for finite-sample reference
@@ -143,9 +143,8 @@ The root CMake project builds and installs only the core library target:
 qmomkit::qmomkit
 ```
 
-Tests, benchmarks, examples, plotting utilities, and Monte Carlo tools are
-standalone consumers. They must not become dependencies of the root core
-package.
+Tests, examples, plotting utilities, and Monte Carlo tools are standalone
+consumers. They must not become dependencies of the root core package.
 
 The optional Monte Carlo companion package provides:
 
@@ -160,10 +159,6 @@ infrastructure.
 Keep mandatory dependencies minimal. Do not add a mandatory numerical backend,
 test framework, application framework, or other third-party dependency without
 an explicit design decision.
-
-Google Benchmark is permitted only in the standalone benchmark project under
-`tests/benchmarks/`. Benchmark infrastructure must not become a core runtime,
-test, example, or Monte Carlo dependency.
 
 ## Configuration and Supported Workflows
 
@@ -412,9 +407,6 @@ tests/public_headers/
 
 tests/package_consumer/
     Installed-package discovery, exported targets, includes, and linkage.
-
-tests/benchmarks/
-    Performance measurement only.
 ```
 
 Numerical algorithm changes must be supported by evidence beyond agreement with the 
@@ -428,7 +420,7 @@ with evidence proportionate to the change, such as focused unit or regression
 tests, analytical or manufactured verification, convergence evidence,
 independent numerical comparison, or established literature results.
 
-Do not use benchmark timings as correctness evidence.
+Do not use timings as correctness evidence.
 
 Do not hide discrepancies by silently loosening tolerances. Changes to
 tolerances, acceptance criteria, node reduction, fallback behavior, node
@@ -456,8 +448,8 @@ The root project owns and installs the core QMOMKit package.
 The normal root CTest suite runs in a Debug build against the build-tree
 `qmomkit` target. Installed-package validation is separate:
 `tests/package_consumer/` is the dedicated installed-package consumer check.
-Examples, benchmarks, and companion tools may also consume an installed package
-where appropriate. Run installed-package validation when changing installation,
+Examples and companion tools may also consume an installed package where
+appropriate. Run installed-package validation when changing installation,
 exports, package metadata, installed public headers, or public behavior whose
 downstream consumption is relevant.
 
@@ -477,8 +469,8 @@ Avoid:
 - hard-coding dimensions, coordinate positions, or node counts into general
   algorithms;
 - exposing internal implementation machinery as ordinary public API;
-- coupling the core package to tests, examples, Monte Carlo tools, plotting
-  scripts, or benchmarks;
+- coupling the core package to tests, examples, Monte Carlo tools, or plotting
+  scripts;
 - introducing CFD meshes, cells, MPI operations, spatial discretizations, or
   application physics into the core library;
 - treating non-empty output from a failed result as a successful

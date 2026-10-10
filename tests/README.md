@@ -177,9 +177,6 @@ tests/
         CMakeLists.txt
         README.md
         main.cpp
-    benchmarks/
-        CMakeLists.txt
-        *_benchmark.cpp
     verification/
         CMakeLists.txt
         README.md
@@ -322,9 +319,3 @@ ctest --test-dir build-tests -R verification_qmom_analytical --output-on-failure
 ctest --test-dir build-tests -R component_regression_node_advection --output-on-failure
 ctest --test-dir build-tests -R unit_wheeler --output-on-failure
 ```
-
-## Benchmarks
-
-Benchmarks are timing tools, not correctness tests, and are not part of the
-normal CTest suite. More details about benchmark build commands, workload descriptions, 
-and interpretation guidance can be found in the [benchmark guide](../docs/developer/benchmarks.md).

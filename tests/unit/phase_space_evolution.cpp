@@ -692,8 +692,8 @@ bool diagnostics_request_solver(const std::vector<qmomkit::CqmomDiagnostics>& di
 
 // An adaptive case prepares metadata as a fixed one does, so its successors
 // must share the same immutable tree rather than rebuild one per step. Without
-// this, an adaptive lineage could silently fall back to rebuilding and only a
-// benchmark would notice.
+// this, an adaptive lineage could silently fall back to rebuilding, which costs
+// time but changes no result, so no other test would notice.
 void test_adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata()
 {
     const qmomkit::CqmomPreparedCase cqmom_prepared_case = adaptive_cqmom_prepared_case();

@@ -152,5 +152,3 @@ CMake installed-package workflow but are not registered as CTest tests.
 
 Numerical verification lives under `tests/`. See the associated
 [README](../tests/README.md) for the test categories and how to run them.
-Performance benchmarks live under `tests/benchmarks/`. They are timing
-measurements, not examples or correctness tests.

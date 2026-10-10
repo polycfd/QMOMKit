@@ -8,8 +8,8 @@
 #include <vector>
 
 // Active branch counts derived from the terminal paths of a CQMOM quadrature.
-// The library records these counts while it reconstructs; tests and benchmarks
-// derive them independently with this helper to check the recorded counts.
+// The library records these counts while it reconstructs; tests derive them
+// independently with this helper to check the recorded counts.
 namespace qmomkit::test
 {
 

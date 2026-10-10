@@ -96,8 +96,7 @@ The repository has a comprehensive test suite that covers all parts of the codeb
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
 - verification tests against analytical, manufactured, convergence, or reconstruction references;
-- public-header checks and installed-package consumer checks;
-- separate performance benchmarks.
+- public-header checks and installed-package consumer checks.
 
 To enable the core test suite, use a _Debug build_ because the unit tests use
 `assert()`:
@@ -107,8 +106,8 @@ cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
 cmake --build build-tests --parallel
 ctest --test-dir build-tests --output-on-failure
 ```
-See the [tests README](tests/README.md), [testing guide](docs/developer/testing.md),
-and [benchmarks guide](docs/developer/benchmarks.md) for details.
+See the [tests README](tests/README.md) and [testing guide](docs/developer/testing.md)
+for details.
 
 ## Documentation
 
@@ -116,7 +115,7 @@ and [benchmarks guide](docs/developer/benchmarks.md) for details.
 - **Using QMOMKit:** [configuration](docs/user/configuration.md), [QMOM](docs/user/qmom.md), [CQMOM](docs/user/cqmom.md), [distributions](docs/user/distributions.md), [realizability](docs/user/realizability.md), and [phase-space evolution](docs/user/phase_space_evolution.md).
 - **Examples:** [repository example index](examples/README.md) and [user example guide](docs/user/examples.md).
 - **Optional Monte Carlo tooling:** [Monte Carlo companion guide](docs/user/monte_carlo.md).
-- **Development:** [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), [testing](docs/developer/testing.md), and [benchmarks](docs/developer/benchmarks.md).
+- **Development:** [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing](docs/developer/testing.md).
 - **Coupling to host codes:** [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings)
 
 ## Repository structure

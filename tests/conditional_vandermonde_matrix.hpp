@@ -7,8 +7,8 @@
 #include <vector>
 
 // The weighted conditional Vandermonde matrix A(k, j) = w_j x_j^k, which the
-// library solves without forming it. Tests and benchmarks build it
-// independently as the reference the solvers are compared against.
+// library solves without forming it. Tests build it independently as the
+// reference the solvers are compared against.
 namespace qmomkit::test
 {
 

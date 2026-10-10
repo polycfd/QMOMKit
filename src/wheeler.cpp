@@ -260,7 +260,6 @@ struct WheelerAttemptResult
                 n = k - 1;
                 if (n == 1)
                 {
-                    internal::performance::record_wheeler_adaptive_reduction();
                     return {one_node_result(moments, QuadratureStatus::success, ""), false};
                 }
             }
@@ -331,10 +330,6 @@ struct WheelerAttemptResult
         {
             if (adaptive_accepts(eigen.eigenvalues, weights, options))
             {
-                if (n1 < max_nodes)
-                {
-                    internal::performance::record_wheeler_adaptive_reduction();
-                }
                 return {Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""}, false};
             }
         }
@@ -399,10 +394,6 @@ struct WheelerAttemptResult
             WheelerAttemptResult attempt = attempt_quadrature_count(moments, candidate_count, options, coordinate_scale);
             if (attempt.quadrature.ok())
             {
-                if (candidate_count < max_nodes && attempt.quadrature.weights.size() == candidate_count)
-                {
-                    internal::performance::record_wheeler_adaptive_reduction();
-                }
                 return std::move(attempt.quadrature);
             }
             if (!attempt.negative_sigma_diagonal)
@@ -411,7 +402,6 @@ struct WheelerAttemptResult
             }
         }
 
-        internal::performance::record_wheeler_adaptive_reduction();
         return one_node_result(moments, QuadratureStatus::success, "");
     }
 

@@ -559,27 +559,6 @@ std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomPreparedCase& c
     return states;
 }
 
-qmomkit::CqmomState state_without_accepted_quadrature(const qmomkit::CqmomState& state)
-{
-    const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(state);
-    const qmomkit::CqmomCase& cqmom_case = qmomkit::internal::CqmomConstructionAccess::state_definition(state);
-    return qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case, state.active_branch_counts(), prepared_metadata);
-}
-
-std::vector<qmomkit::CqmomState> make_phase_space_evolution_states(const qmomkit::CqmomPreparedCase& cqmom_prepared_case,
-                                                                   const std::size_t state_count, const bool cache_miss)
-{
-    std::vector<qmomkit::CqmomState> states = make_states(cqmom_prepared_case, state_count);
-    if (cache_miss)
-    {
-        for (qmomkit::CqmomState& state : states)
-        {
-            state = state_without_accepted_quadrature(state);
-        }
-    }
-    return states;
-}
-
 enum class NodeTrajectory
 {
     constant,
@@ -1076,8 +1055,7 @@ void bm_cqmom_phase_space_evolution_workload(benchmark::State& state, const qmom
 }
 
 void bm_cqmom_phase_space_evolution_ownership_workload(benchmark::State& state, const CqmomPhaseSpaceEvolutionWorkflow workflow,
-                                                       const std::vector<std::size_t>& node_counts, const bool adaptive, const bool cache_miss,
-                                                       const std::string& name)
+                                                       const std::vector<std::size_t>& node_counts, const bool adaptive, const std::string& name)
 {
     if (!instrumentation_is_available(state))
     {
@@ -1112,7 +1090,7 @@ void bm_cqmom_phase_space_evolution_ownership_workload(benchmark::State& state, 
     for (auto _ : state)
     {
         state.PauseTiming();
-        std::vector<qmomkit::CqmomState> states = make_phase_space_evolution_states(workload.cqmom_prepared_case, state_count, cache_miss);
+        std::vector<qmomkit::CqmomState> states = make_states(workload.cqmom_prepared_case, state_count);
         state.ResumeTiming();
 
         const auto run_steps = [&]() -> bool
@@ -1880,15 +1858,12 @@ const bool ownership_phase_space_evolution_benchmarks_registered = []
         const char* name;
         std::vector<std::size_t> node_counts;
         bool adaptive;
-        bool cache_miss;
     };
-    const std::vector<Fixture> fixtures{{"fixed_2d_2x2", nodes_2x2(), false, false},
-                                        {"fixed_2d_3x3", nodes_3x3(), false, false},
-                                        {"fixed_3d_2x2x2", nodes_2x2x2(), false, false},
-                                        {"adaptive_ragged_2d", nodes_2x2(), true, false},
-                                        {"adaptive_ragged_3d", nodes_2x2x2(), true, false},
-                                        {"adaptive_ragged_2d_cache_miss", nodes_2x2(), true, true},
-                                        {"adaptive_ragged_3d_cache_miss", nodes_2x2x2(), true, true}};
+    const std::vector<Fixture> fixtures{{"fixed_2d_2x2", nodes_2x2(), false},
+                                        {"fixed_2d_3x3", nodes_3x3(), false},
+                                        {"fixed_3d_2x2x2", nodes_2x2x2(), false},
+                                        {"adaptive_ragged_2d", nodes_2x2(), true},
+                                        {"adaptive_ragged_3d", nodes_2x2x2(), true}};
     // Isolated operators plus one composite. The first-order splitting orders
     // (advsrc/srcadv) are covered by the dedicated
     // performance_cqmom_phase_space_evolution_{advsrc,srcadv} benchmarks; repeating
@@ -1901,13 +1876,10 @@ const bool ownership_phase_space_evolution_benchmarks_registered = []
         {
             const std::string name = "performance_cqmom_phase_space_evolution_ownership_" + std::string(fixture.name) + "_" +
                                      phase_space_evolution_workflow_name(workflow);
-            benchmark::RegisterBenchmark(name.c_str(),
-                                         [fixture, workflow, name](benchmark::State& state)
-                                         {
-                                             bm_cqmom_phase_space_evolution_ownership_workload(state, workflow, fixture.node_counts, fixture.adaptive,
-                                                                                               fixture.cache_miss, name);
-                                         })
-                ->Args({32, fixture.cache_miss ? 1 : 4});
+            benchmark::RegisterBenchmark(
+                name.c_str(), [fixture, workflow, name](benchmark::State& state)
+                { bm_cqmom_phase_space_evolution_ownership_workload(state, workflow, fixture.node_counts, fixture.adaptive, name); })
+                ->Args({32, 4});
         }
     }
     return true;

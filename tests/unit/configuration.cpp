@@ -1554,11 +1554,11 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(fixed_cqmom_prepared_case);
     assert(prepared_metadata != nullptr);
 
-    const qmomkit::CqmomState new_lineage_state = qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case);
+    const qmomkit::CqmomState new_lineage_state = cqmom_case.initial_state();
     assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(new_lineage_state) != nullptr);
     assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(new_lineage_state).get() != prepared_metadata.get());
 
-    const qmomkit::CqmomState descendant_state = qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case, prepared_metadata);
+    const qmomkit::CqmomState descendant_state = fixed_cqmom_prepared_case.initial_state();
     assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(descendant_state).get() == prepared_metadata.get());
 
     const auto assert_rejected = [&prepared_metadata](const qmomkit::CqmomCase& incompatible_cqmom_case)
@@ -1566,7 +1566,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
         bool rejected = false;
         try
         {
-            static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(incompatible_cqmom_case, prepared_metadata));
+            static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_prepared_case(incompatible_cqmom_case, prepared_metadata));
         }
         catch (const std::invalid_argument& error)
         {
@@ -1589,7 +1589,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     bool reordered_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(reordered_cqmom_case, prepared_metadata));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_prepared_case(reordered_cqmom_case, prepared_metadata));
     }
     catch (const std::invalid_argument& error)
     {
@@ -1601,7 +1601,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     bool malformed_new_lineage_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(reordered_cqmom_case));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_prepared_case(reordered_cqmom_case));
     }
     catch (const std::invalid_argument& error)
     {
@@ -1619,7 +1619,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     bool adaptive_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(adaptive_cqmom_case, prepared_metadata));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_prepared_case(adaptive_cqmom_case, prepared_metadata));
     }
     catch (const std::invalid_argument& error)
     {
@@ -1629,7 +1629,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     assert(adaptive_rejected);
     // An adaptive case prepares its own metadata instead of rebuilding the
     // branch tree at every reconstruction.
-    const qmomkit::CqmomState adaptive_state = qmomkit::internal::CqmomConstructionAccess::create_state(std::move(adaptive_cqmom_case));
+    const qmomkit::CqmomState adaptive_state = adaptive_cqmom_case.initial_state();
     const auto& adaptive_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(adaptive_state);
     assert(adaptive_metadata != nullptr);
     assert(adaptive_metadata->adaptive_branch_counts);

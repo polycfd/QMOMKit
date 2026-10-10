@@ -183,11 +183,9 @@ struct RecursiveQuadratureMomentDataRequest
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;
     CqmomAbscissaBounds coordinate_support;
+    // Metadata prepared for the hierarchy and adaptivity of the request, or
+    // null to build the branch layouts for this reconstruction.
     const PreparedCqmomMetadata* prepared_metadata = nullptr;
-    // Normal fixed case/state reconstruction requires prepared metadata.
-    // Explicit standalone reconstruction leaves this false and remains
-    // dynamically prepared.
-    bool require_prepared_metadata = false;
     // A reconstruction that feeds a `CqmomState` asks for the active branch
     // counts it accepts; other callers leave them unrecorded. Only an adaptive
     // reconstruction has counts to record.

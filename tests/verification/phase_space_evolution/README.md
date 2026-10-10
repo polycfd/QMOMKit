@@ -404,9 +404,8 @@ before the second advection half-step.
 
 The same valid configuration also drives
 `verification_phase_space_evolution_cqmom_case_phase_space_evolution_failures`.
-It advances a `CqmomState` built directly from the configured `CqmomCase`
-rather than created by a prepared case. That state has no accepted quadrature,
-so phase-space evolution performs the initial CQMOM inversion itself. For the
+It advances the state that the configured `CqmomCase` creates rather than one
+created by the configured prepared case. For the
 same velocity-callback and post-source reconstruction failures, plus a source
 callback that returns a wrong-sized rate vector, it checks the same high-level
 status, failed stage, preserved diagnostics, and useful messages, and that the
@@ -419,16 +418,12 @@ counts.
 
 Configuration: `cqmom_phase_space_evolution_inversion_failures.qmom`
 
-This companion case verifies initial CQMOM inversion failure propagation
-through `CqmomState`. The configuration loads finite moments with
-`M[0,0] < 0`, so the initial recursive CQMOM reconstruction is not realizable.
-`CqmomPreparedCase::initial_state()` would throw for these moments, so the
-state is built directly from the configured `CqmomCase`, with no accepted
-quadrature, and the failure surfaces in phase-space evolution. The verifier
-checks that phase-space evolution distinguishes this from advection or source
-failure, reports `PhaseSpaceEvolutionStage::initial_inversion`, preserves
-CQMOM diagnostics and a realizability message, does not advance time, and does
-not report later stages as completed.
+This companion case verifies that no `CqmomState` is created from moments
+that cannot be reconstructed. The configuration loads finite moments with
+`M[0,0] < 0`, so the recursive CQMOM reconstruction is not realizable. The
+verifier checks that `state_candidate(...)` reports `reconstruction_failed`
+with the failed reconstruction status and a realizability message instead of
+a state, and that `CqmomPreparedCase::initial_state()` throws.
 
 ## Boundary Contributions
 

@@ -1511,24 +1511,22 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     std::shared_ptr<const BranchMomentLayout> dynamic_root_branch_layout;
     try
     {
-        // Adaptive requests use prepared metadata too: the tree it holds already
-        // covers every parent node count, so nothing about it depends on what
-        // Wheeler realizes at run time. Compatibility requires the flags to
-        // match, so an adaptive request never picks up a fixed tree.
-        const bool use_prepared_metadata =
-            request.prepared_metadata != nullptr && request.prepared_metadata->adaptive_branch_counts == wheeler_options.adaptive;
-        if (use_prepared_metadata)
+        // Given metadata is used, and must have been prepared for the same
+        // adaptivity: an adaptive tree covers every parent node count Wheeler can
+        // return, a fixed one only the configured count. Without metadata the
+        // branch layouts are built for this reconstruction.
+        if (request.prepared_metadata != nullptr)
         {
             const PreparedCqmomMetadata& metadata = *request.prepared_metadata;
+            if (metadata.adaptive_branch_counts != wheeler_options.adaptive)
+            {
+                throw std::invalid_argument("Prepared CQMOM metadata does not match the adaptivity of the reconstruction.");
+            }
             internal::performance::record_cqmom_prepared_metadata_use();
             root_slice = create_ordered_root_slice(request.moments, *metadata.root_branch_layout);
         }
         else
         {
-            if (request.require_prepared_metadata)
-            {
-                throw std::logic_error("Normal CQMOM reconstruction requires prepared metadata.");
-            }
             internal::performance::record_cqmom_dynamic_metadata_build();
             dynamic_root_branch_layout = internal::create_ordered_root_layout(request.moments.layout, wheeler_options.adaptive);
             root_slice = create_ordered_root_slice(request.moments, *dynamic_root_branch_layout);

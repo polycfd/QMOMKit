@@ -1,3 +1,4 @@
+#include "../conditional_vandermonde_matrix.hpp"
 #include "internal/bjorck_pereyra.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/vandermonde.hpp"
@@ -120,7 +121,7 @@ VandermondeFixture make_fixture(const std::size_t n, const std::size_t rhs_cols,
     std::vector<double> abscissas = make_abscissas(n, numerical_case);
     std::vector<double> weights = make_weights(n, numerical_case);
     qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, make_solution(n, rhs_cols));
-    qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
     return VandermondeFixture{std::move(abscissas), std::move(weights), std::move(rhs), std::move(system)};
 }
 
@@ -202,10 +203,6 @@ void set_solver_selection_counters(benchmark::State& state, const qmomkit::inter
     state.counters["selected_qr"] = result.selected_solver == qmomkit::VandermondeSolver::pivoted_qr ? 1.0 : 0.0;
     state.counters["selected_svd"] = result.selected_solver == qmomkit::VandermondeSolver::svd ? 1.0 : 0.0;
     state.counters["selected_bp"] = result.selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra ? 1.0 : 0.0;
-    state.counters["used_dense"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::dense ? 1.0 : 0.0;
-    state.counters["used_qr"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::pivoted_qr ? 1.0 : 0.0;
-    state.counters["used_svd"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd ? 1.0 : 0.0;
-    state.counters["used_bp"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra ? 1.0 : 0.0;
 }
 
 void run_bjorck_pereyra_solve(benchmark::State& state, const std::size_t n, const std::size_t rhs_cols, const NumericalCase numerical_case)
@@ -247,7 +244,7 @@ void run_weighted_wrapper_solve(benchmark::State& state, const std::size_t n, co
         return;
     }
 
-    const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance};
     const qmomkit::internal::VandermondeSolveResult setup_check =
         qmomkit::internal::solve_conditional_vandermonde_system(fixture.abscissas, fixture.weights, fixture.rhs, options, singular_message);
     if (!setup_check.success)

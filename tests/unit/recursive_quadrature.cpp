@@ -1322,7 +1322,6 @@ void test_recursive_dense_and_bp_equivalence_fixed()
         {
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
-            assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra);
         }
     }
 }
@@ -1356,7 +1355,6 @@ void test_recursive_dense_and_pivoted_qr_equivalence_fixed()
         {
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::pivoted_qr);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::pivoted_qr);
-            assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::pivoted_qr);
         }
     }
 }
@@ -1389,7 +1387,6 @@ void test_recursive_dense_and_svd_equivalence_fixed()
         {
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::svd);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::svd);
-            assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd);
         }
     }
 }
@@ -1425,7 +1422,6 @@ void test_recursive_dense_and_moore_penrose_equivalence_fixed()
         {
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::moore_penrose);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::moore_penrose);
-            assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::moore_penrose);
         }
     }
 }
@@ -1533,7 +1529,7 @@ void test_recursive_bp_success_independent_of_diagnostic_level()
         {
             if (diagnostics.conditioning_level + 1 < hierarchy.number_of_dimensions())
             {
-                assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra);
+                assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
             }
         }
     }
@@ -1567,7 +1563,6 @@ void test_recursive_automatic_uses_plain_bp_for_small_branches()
         {
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::automatic);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
-            assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra);
         }
     }
 }

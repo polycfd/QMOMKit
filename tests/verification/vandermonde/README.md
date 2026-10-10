@@ -22,42 +22,16 @@ branch-local weighted Vandermonde solves are representative without being a
 stress test. The expected terminal quadrature and raw moments are known from
 the product formula, independently of the solver implementation.
 
-## Solver Policy Versus Algorithm
+## Solver Policies
 
-`VandermondeSolver` is the user-selected policy loaded from configuration:
+`VandermondeSolver` is the policy loaded from configuration: `automatic`,
+`dense`, `pivoted_qr`, `svd`, `moore_penrose` or `bjorck_pereyra`. Every
+explicit policy runs that solver; `automatic` resolves to `bjorck_pereyra`.
+`moore_penrose` is explicit only, and its fixture sets `rcond = 1.0e-14`.
 
-- `automatic`
-- `dense`
-- `pivoted_qr`
-- `svd`
-- `moore_penrose`
-- `bjorck_pereyra`
-
-The algorithm actually used is the numerical path selected after policy
-resolution:
-
-- `dense`
-- `pivoted_qr`
-- `svd`
-- `moore_penrose`
-- `bjorck_pereyra`
-
-For this well-conditioned case, `automatic` is expected to resolve to
-`bjorck_pereyra` and use the Björck-Pereyra algorithm.
-`pivoted_qr` is an explicit policy only and is expected
-to solve the weighted conditional Vandermonde system directly. `svd` is also an
-explicit policy only and is expected to solve the weighted conditional
-Vandermonde system directly. `moore_penrose` is likewise explicit only; its
-fixture sets `rcond = 1.0e-14`.
-
-The public CQMOM result exposes branch success diagnostics, the requested
-Vandermonde solver, and the selected solver after policy resolution. The
-internal `VandermondeAlgorithm` field identifies
-the backend actually used (`dense`, `pivoted_qr`, `svd`, `moore_penrose`, or
-`bjorck_pereyra`);
-that algorithm-used field is not exposed as the same public CQMOM diagnostic
-field. This verifier loads public `.qmom` files, verifies public CQMOM results,
-and inspects internal recursive diagnostics for algorithm-used checks.
+The public CQMOM result reports, per branch, the requested solver and the
+solver selected after resolution. This verifier loads public `.qmom` files and
+checks public CQMOM results only.
 
 ## Checks
 
@@ -70,8 +44,7 @@ The verifier:
   quadrature;
 - reconstructs the configured required CQMOM moments from the computed
   quadrature;
-- checks that diagnostics report the requested solver policy, selected policy,
-  and algorithm actually used;
+- checks that diagnostics report the requested and the selected solver;
 - compares dense and Björck-Pereyra results as an additional consistency check.
   This is its own case, selected by `dense_matches_bjorck_pereyra` and
   registered as `verification_vandermonde_solver_dense_matches_bjorck_pereyra`;
@@ -131,6 +104,17 @@ of `1e-7 + 1e-8 max(1, |M|)`. These leave cross-platform margin while still
 rejecting a materially wrong terminal rule. The independent quadrature, rather
 than residual alone, is the primary oracle.
 
+## Detailed Diagnostics Verification
+
+`diagnostics_invariance.cpp` checks that the condition estimate and relative
+residual reported at `CqmomDiagnosticLevel::detailed` describe the system the
+solvers decide on: for the 2D product case above, the scaled Vandermonde
+matrix of the parent nodes has the analytical condition number 7, which does
+not change with the number density or with a power-of-two change of the unit
+of the parent coordinate. In units 2^40 times larger, the unscaled weighted
+matrix would exceed the default warning threshold; the warning stays off. The
+source header states the reference, the tolerances and why.
+
 ## Tolerance Policy
 
 The pass tolerance is `1e-12` absolute for terminal nodes, terminal weights,
@@ -160,4 +144,10 @@ Run the clustered solver-policy verification:
 
 ```bash
 ctest --test-dir build -R '^verification_vandermonde_clustered_' --output-on-failure
+```
+
+Run the detailed-diagnostics verification:
+
+```bash
+ctest --test-dir build -R '^verification_vandermonde_diagnostics_' --output-on-failure
 ```

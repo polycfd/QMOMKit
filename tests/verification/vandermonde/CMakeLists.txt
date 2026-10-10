@@ -11,3 +11,6 @@ foreach(case_name IN ITEMS automatic dense pivoted_qr svd moore_penrose bjorck_p
     qmomkit_register_test_case(clustered_solver_policy_verification "verification_vandermonde_clustered_${case_name}" verification
         "${CMAKE_CURRENT_LIST_DIR}/clustered_policy_automatic.qmom;${case_name}")
 endforeach()
+
+qmomkit_add_test_executable(test_vandermonde_diagnostics diagnostics_invariance.cpp)
+qmomkit_register_source_logical_cases(test_vandermonde_diagnostics verification "${CMAKE_CURRENT_LIST_DIR}/diagnostics_invariance.cpp")

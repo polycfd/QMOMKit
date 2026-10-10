@@ -481,7 +481,6 @@ struct ConditionalSliceResult
     ConditionalMomentDiagnostics diagnostics;
     VandermondeSolver vandermonde_requested_solver = VandermondeSolver::automatic;
     VandermondeSolver vandermonde_selected_solver = VandermondeSolver::dense;
-    internal::VandermondeAlgorithm vandermonde_algorithm_used = internal::VandermondeAlgorithm::dense;
 };
 
 [[nodiscard]] bool valid_conditional_options(const ConditionalMomentOptions& options)
@@ -571,13 +570,11 @@ struct ConditionalSliceResult
 
     // Solve (V^T diag(w)) C = RHS for C: branch-local conditional moments of
     // the remaining axes at each parent node.
-    const internal::VandermondeSolveOptions solve_options{vandermonde_solver, options.singular_tolerance, false, 1.0e-10,
-                                                          options.moore_penrose_rcond};
+    const internal::VandermondeSolveOptions solve_options{vandermonde_solver, options.singular_tolerance, options.moore_penrose_rcond};
     internal::VandermondeSolveResult solve = internal::solve_conditional_vandermonde_system(parent_abscissas, parent_weights, rhs, solve_options,
                                                                                             "Branch-local weighted Vandermonde system is singular.");
     result.vandermonde_requested_solver = solve.requested_solver;
     result.vandermonde_selected_solver = solve.selected_solver;
-    result.vandermonde_algorithm_used = solve.algorithm_used;
     if (!solve.success)
     {
         result.status = ConditionalMomentStatus::singular_system;
@@ -587,12 +584,11 @@ struct ConditionalSliceResult
 
     if (diagnostic_level == CqmomDiagnosticLevel::detailed)
     {
-        DenseMatrix system = internal::make_conditional_vandermonde_matrix(parent_abscissas, parent_weights);
-        const double residual = internal::residual_norm(system, solve.solution, rhs);
-        const double condition = internal::condition_estimate(system, options.singular_tolerance);
-        result.diagnostics.residual_norm = residual;
-        result.diagnostics.condition_estimate = condition;
-        result.diagnostics.conditioning_warning = condition > options.conditioning_warning_threshold;
+        const internal::ConditionalVandermondeDiagnostics diagnostics =
+            internal::conditional_vandermonde_diagnostics(parent_abscissas, parent_weights, rhs, solve.solution, options.singular_tolerance);
+        result.diagnostics.residual_norm = diagnostics.relative_residual;
+        result.diagnostics.condition_estimate = diagnostics.condition_estimate;
+        result.diagnostics.conditioning_warning = diagnostics.condition_estimate > options.conditioning_warning_threshold;
     }
 
     const BranchMomentSlice empty_child_slice{child_case->child_layout.get(), std::vector<double>(rhs_cols, 0.0)};
@@ -1701,7 +1697,6 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                 branch_diagnostics.conditional_moment_diagnostics = conditional_slices.diagnostics;
                 branch_diagnostics.conditional_vandermonde_requested_solver = conditional_slices.vandermonde_requested_solver;
                 branch_diagnostics.conditional_vandermonde_selected_solver = conditional_slices.vandermonde_selected_solver;
-                branch_diagnostics.conditional_vandermonde_algorithm_used = conditional_slices.vandermonde_algorithm_used;
                 if (conditional_slices.status != ConditionalMomentStatus::success)
                 {
                     branch_diagnostics.message = conditional_slices.message;

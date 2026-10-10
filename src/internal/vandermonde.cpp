@@ -59,10 +59,9 @@ namespace
 }
 
 [[nodiscard]] VandermondeSolveResult vandermonde_result(LinearSolveResult result, const VandermondeSolver requested_solver,
-                                                        const VandermondeSolver selected_solver, const VandermondeAlgorithm algorithm_used)
+                                                        const VandermondeSolver selected_solver)
 {
-    return VandermondeSolveResult{std::move(result.solution), result.success,  std::move(result.message),
-                                  requested_solver,           selected_solver, algorithm_used};
+    return VandermondeSolveResult{std::move(result.solution), result.success, std::move(result.message), requested_solver, selected_solver};
 }
 
 [[nodiscard]] LinearSolveResult qr_linear_solve_result(QrSolveResult result, const std::size_t rows, const std::size_t cols,
@@ -97,18 +96,6 @@ namespace
 
     const std::string message = result.message.empty() ? singular_message : result.message;
     return failure_result(rows, cols, message);
-}
-
-[[nodiscard]] bool residual_is_accepted(const DenseMatrix& system, const DenseMatrix& solution, const DenseMatrix& rhs, const double tolerance)
-{
-    const double residual = residual_norm(system, solution, rhs);
-    if (!std::isfinite(residual))
-    {
-        return false;
-    }
-    // Relative to the system itself, so scaling it does not change the result.
-    const double scale = std::max(matrix_infinity_norm(system) * matrix_infinity_norm(solution), matrix_infinity_norm(rhs));
-    return residual <= tolerance * scale;
 }
 
 // The checks every solver path applies before solving. A weight counts as zero
@@ -223,18 +210,21 @@ struct ScaledVandermondeSystem
 
 } // namespace
 
-DenseMatrix make_conditional_vandermonde_matrix(const std::vector<double>& nodes, const std::vector<double>& weights)
+ConditionalVandermondeDiagnostics conditional_vandermonde_diagnostics(const std::vector<double>& nodes, const std::vector<double>& weights,
+                                                                      DenseMatrix rhs, const DenseMatrix& solution, const double singular_tolerance)
 {
-    const std::size_t n = nodes.size();
-    DenseMatrix matrix(n, n);
-    for (std::size_t power = 0; power < n; ++power)
+    const ScaledVandermondeSystem scaled = make_scaled_vandermonde_system(nodes, std::move(rhs));
+    DenseMatrix scaled_solution = solution;
+    for (std::size_t row = 0; row < scaled_solution.rows(); ++row)
     {
-        for (std::size_t node = 0; node < n; ++node)
+        for (std::size_t col = 0; col < scaled_solution.cols(); ++col)
         {
-            matrix(power, node) = std::pow(nodes[node], static_cast<int>(power)) * weights[node];
+            scaled_solution(row, col) *= weights[row];
         }
     }
-    return matrix;
+    const double residual = residual_norm(scaled.system, scaled_solution, scaled.rhs);
+    const double scale = std::max(matrix_infinity_norm(scaled.system) * matrix_infinity_norm(scaled_solution), matrix_infinity_norm(scaled.rhs));
+    return ConditionalVandermondeDiagnostics{scale > 0.0 ? residual / scale : residual, condition_estimate(scaled.system, singular_tolerance)};
 }
 
 VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<double>& nodes, const std::vector<double>& weights, DenseMatrix rhs,
@@ -246,42 +236,36 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
     const VandermondeSolver selected_solver = resolve_solver(requested_solver);
 
     // The direct solvers share the input checks and the scaled system; only the
-    // kernel differs. Dense elimination applies no residual acceptance.
-    const auto solve_direct = [&](const VandermondeAlgorithm algorithm, const bool residual_applies, const auto& solve_scaled_system)
+    // kernel differs.
+    const auto solve_direct = [&](const auto& solve_scaled_system)
     {
         if (std::optional<LinearSolveResult> failure =
                 weighted_vandermonde_input_failure(nodes, weights, rhs, options.singular_tolerance, singular_message))
         {
-            return vandermonde_result(std::move(*failure), requested_solver, selected_solver, algorithm);
+            return vandermonde_result(std::move(*failure), requested_solver, selected_solver);
         }
         const ScaledVandermondeSystem scaled = make_scaled_vandermonde_system(nodes, std::move(rhs));
-        LinearSolveResult solved = solve_scaled_system(scaled);
-        if (solved.success && residual_applies && options.validate_residual &&
-            !residual_is_accepted(scaled.system, solved.solution, scaled.rhs, options.residual_tolerance))
-        {
-            solved = failure_result(n, rhs_cols, singular_message);
-        }
-        return vandermonde_result(divide_by_weights(std::move(solved), weights), requested_solver, selected_solver, algorithm);
+        return vandermonde_result(divide_by_weights(solve_scaled_system(scaled), weights), requested_solver, selected_solver);
     };
 
     if (selected_solver == VandermondeSolver::dense)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::dense);
-        return solve_direct(VandermondeAlgorithm::dense, false, [&](const ScaledVandermondeSystem& scaled)
+        return solve_direct([&](const ScaledVandermondeSystem& scaled)
                             { return solve_dense(scaled.system, scaled.rhs, options.singular_tolerance, singular_message); });
     }
 
     if (selected_solver == VandermondeSolver::pivoted_qr)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::pivoted_qr);
-        return solve_direct(VandermondeAlgorithm::pivoted_qr, true, [&](const ScaledVandermondeSystem& scaled)
+        return solve_direct([&](const ScaledVandermondeSystem& scaled)
                             { return qr_linear_solve_result(solve_qr(scaled.system, scaled.rhs), n, rhs_cols, singular_message); });
     }
 
     if (selected_solver == VandermondeSolver::svd)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::svd);
-        return solve_direct(VandermondeAlgorithm::svd, true, [&](const ScaledVandermondeSystem& scaled)
+        return solve_direct([&](const ScaledVandermondeSystem& scaled)
                             { return svd_linear_solve_result(solve_svd(scaled.system, scaled.rhs), n, rhs_cols, singular_message); });
     }
 
@@ -290,13 +274,12 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::svd);
         // The truncated minimum-norm solution is minimal in the scaled unknowns Y,
         // and rcond is relative to the singular values of the scaled system.
-        return solve_direct(VandermondeAlgorithm::moore_penrose, true,
-                            [&](const ScaledVandermondeSystem& scaled)
-                            {
-                                return svd_linear_solve_result(
-                                    solve_svd_pseudoinverse(factorize_svd(scaled.system), scaled.rhs, options.moore_penrose_rcond), n, rhs_cols,
-                                    singular_message);
-                            });
+        return solve_direct(
+            [&](const ScaledVandermondeSystem& scaled)
+            {
+                return svd_linear_solve_result(solve_svd_pseudoinverse(factorize_svd(scaled.system), scaled.rhs, options.moore_penrose_rcond), n,
+                                               rhs_cols, singular_message);
+            });
     }
 
     performance::record_vandermonde_solve(performance::VandermondeSolveKind::bjorck_pereyra);
@@ -335,7 +318,7 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         }
     }
 
-    return vandermonde_result(std::move(bjorck_pereyra), requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra);
+    return vandermonde_result(std::move(bjorck_pereyra), requested_solver, selected_solver);
 }
 
 } // namespace qmomkit::internal

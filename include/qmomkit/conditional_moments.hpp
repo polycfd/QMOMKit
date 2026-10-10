@@ -23,10 +23,13 @@ enum class ConditionalMomentStatus
 /**
  * Numerical controls for the conditional-moment solves performed by CQMOM.
  *
- * `singular_tolerance` is the relative pivot floor for the conditional solve
- * and for its condition estimate. `conditioning_warning_threshold` is compared
- * against that estimate, so it has an effect only where the estimate is
- * computed. `moore_penrose_rcond` is the truncation cutoff used by
+ * `singular_tolerance` is relative: a weight at most this fraction of the
+ * largest weight fails every solver, and it is the pivot tolerance of
+ * `VandermondeSolver::dense` and of the condition estimate, and the
+ * singularity tolerance of `VandermondeSolver::bjorck_pereyra`.
+ * `conditioning_warning_threshold` is compared against the condition estimate,
+ * so it has an effect only where the estimate is computed.
+ * `moore_penrose_rcond` is the truncation cutoff used by
  * `VandermondeSolver::moore_penrose` and is ignored by the other solvers.
  *
  * `singular_tolerance` and `conditioning_warning_threshold` must be finite and
@@ -43,6 +46,16 @@ struct ConditionalMomentOptions
 
 /**
  * Optional per-branch diagnostics from a conditional-moment solve.
+ *
+ * Both values describe the system the solvers decide on: the Vandermonde
+ * matrix of the parent nodes divided by the power of two above the largest
+ * |node|, with the weights divided out. `condition_estimate` is its
+ * infinity-norm condition number, and `residual_norm` the residual of the
+ * solution relative to the norms of the matrix, the solution and the
+ * right-hand side. Neither depends on the number density, nor on a change of
+ * the unit of the parent coordinate by a power of two; another change of unit
+ * changes the condition estimate by less than a factor 2^(n-1) for n parent
+ * nodes.
  *
  * Every member is populated only at `CqmomDiagnosticLevel::detailed`, because
  * the condition estimate costs a full inverse of the conditional Vandermonde

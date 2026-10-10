@@ -131,6 +131,17 @@ of `1e-7 + 1e-8 max(1, |M|)`. These leave cross-platform margin while still
 rejecting a materially wrong terminal rule. The independent quadrature, rather
 than residual alone, is the primary oracle.
 
+## Detailed Diagnostics Verification
+
+`diagnostics_invariance.cpp` checks that the condition estimate and relative
+residual reported at `CqmomDiagnosticLevel::detailed` describe the system the
+solvers decide on: for the 2D product case above, the scaled Vandermonde
+matrix of the parent nodes has the analytical condition number 7, which does
+not change with the number density or with a power-of-two change of the unit
+of the parent coordinate. In units 2^40 times larger, the unscaled weighted
+matrix would exceed the default warning threshold; the warning stays off. The
+source header states the reference, the tolerances and why.
+
 ## Tolerance Policy
 
 The pass tolerance is `1e-12` absolute for terminal nodes, terminal weights,
@@ -160,4 +171,10 @@ Run the clustered solver-policy verification:
 
 ```bash
 ctest --test-dir build -R '^verification_vandermonde_clustered_' --output-on-failure
+```
+
+Run the detailed-diagnostics verification:
+
+```bash
+ctest --test-dir build -R '^verification_vandermonde_diagnostics_' --output-on-failure
 ```

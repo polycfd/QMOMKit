@@ -49,4 +49,24 @@ struct VandermondeSolveResult
                                                                           DenseMatrix rhs, const VandermondeSolveOptions& options,
                                                                           const std::string& singular_message);
 
+struct ConditionalVandermondeDiagnostics
+{
+    double relative_residual = 0.0;
+    double condition_estimate = 0.0;
+};
+
+/**
+ * Diagnostics of a successful solve of A*C = rhs, evaluated on the system the
+ * direct solvers decide on, V*Y = S^-1*rhs with A = S*V*D and Y = D*C: the
+ * infinity-norm condition estimate of V, and the Frobenius norm of
+ * V*Y - S^-1*rhs relative to max(||V|| ||Y||, ||S^-1*rhs||) in the infinity
+ * norm. Neither depends on the number density, nor on a change of the unit of
+ * the nodes by a power of two. Another change of unit changes the condition
+ * estimate by less than a factor 2^(n-1), because the nodes are normalized
+ * only up to a factor of two.
+ */
+[[nodiscard]] ConditionalVandermondeDiagnostics conditional_vandermonde_diagnostics(const std::vector<double>& nodes,
+                                                                                    const std::vector<double>& weights, DenseMatrix rhs,
+                                                                                    const DenseMatrix& solution, double singular_tolerance);
+
 } // namespace qmomkit::internal

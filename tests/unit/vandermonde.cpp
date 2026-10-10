@@ -917,6 +917,78 @@ void test_node_separation_is_relative_to_node_magnitude()
     }
 }
 
+void test_diagnostics_of_symmetric_nodes_are_exact()
+{
+    // Nodes -1 and 1 are divided by s = 2, so V = [[1, 1], [-0.5, 0.5]] with
+    // infinity norm 2, and V^-1 = [[0.5, -1], [0.5, 1]] with infinity norm 1.5:
+    // the condition estimate is exactly 3, whatever the weights.
+    const std::vector<double> abscissas{-1.0, 1.0};
+    const std::vector<double> weights{0.25, 4.0};
+    const qmomkit::internal::DenseMatrix expected_solution = make_solution({{2.0}, {3.0}});
+    const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
+    const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
+        abscissas, weights, rhs, qmomkit::internal::VandermondeSolveOptions{}, singular_message);
+    assert(result.success);
+
+    const qmomkit::internal::ConditionalVandermondeDiagnostics diagnostics =
+        qmomkit::internal::conditional_vandermonde_diagnostics(abscissas, weights, rhs, result.solution, singular_tolerance);
+    assert(diagnostics.condition_estimate == 3.0);
+    assert(diagnostics.relative_residual <= 1.0e-15);
+}
+
+void test_diagnostics_do_not_depend_on_number_density_or_unit()
+{
+    const std::vector<double> abscissas{-0.75, -0.1, 0.4, 0.9};
+    const std::vector<double> unit_weights{0.25, 0.5, -0.75, 1.25};
+    const qmomkit::internal::DenseMatrix solution = make_patterned_solution(4, 8);
+    const auto diagnose = [&solution](const std::vector<double>& nodes, const std::vector<double>& weights)
+    {
+        const qmomkit::internal::DenseMatrix rhs = make_rhs(nodes, weights, solution);
+        const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
+            nodes, weights, rhs, qmomkit::internal::VandermondeSolveOptions{}, singular_message);
+        assert(result.success);
+        return qmomkit::internal::conditional_vandermonde_diagnostics(nodes, weights, rhs, result.solution, singular_tolerance);
+    };
+    const auto scaled = [](std::vector<double> values, const double factor)
+    {
+        for (double& value : values)
+        {
+            value *= factor;
+        }
+        return values;
+    };
+
+    const qmomkit::internal::ConditionalVandermondeDiagnostics reference = diagnose(abscissas, unit_weights);
+    assert(reference.relative_residual <= 1.0e-14);
+
+    // The weights never enter V, so the condition estimate is unchanged at any
+    // number density, and the residual stays at rounding level.
+    for (const double number_density : {std::ldexp(1.0, -70), 3.7e-9, 1.0e9})
+    {
+        const qmomkit::internal::ConditionalVandermondeDiagnostics diagnostics = diagnose(abscissas, scaled(unit_weights, number_density));
+        assert(diagnostics.condition_estimate == reference.condition_estimate);
+        assert(diagnostics.relative_residual <= 1.0e-14);
+    }
+
+    // A power-of-two unit leaves the scaled nodes, and so V, unchanged.
+    const qmomkit::internal::ConditionalVandermondeDiagnostics binary_unit = diagnose(scaled(abscissas, std::ldexp(1.0, 20)), unit_weights);
+    assert(binary_unit.condition_estimate == reference.condition_estimate);
+    assert(binary_unit.relative_residual <= 1.0e-14);
+
+    // Another unit normalizes the nodes only up to a factor of two, which
+    // bounds the change by 2^(n-1); the unscaled weighted matrix changes by
+    // roughly the unit to the power n-1.
+    const double unit = 1000.0;
+    const qmomkit::internal::ConditionalVandermondeDiagnostics decimal_unit = diagnose(scaled(abscissas, unit), unit_weights);
+    const double ratio = decimal_unit.condition_estimate / reference.condition_estimate;
+    assert(ratio < 8.0 && ratio > 1.0 / 8.0);
+    const double unscaled =
+        qmomkit::internal::condition_estimate(qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, unit_weights), singular_tolerance);
+    const double unscaled_in_unit = qmomkit::internal::condition_estimate(
+        qmomkit::internal::make_conditional_vandermonde_matrix(scaled(abscissas, unit), unit_weights), singular_tolerance);
+    assert(unscaled_in_unit / unscaled > 1.0e6);
+}
+
 void test_dense_elimination_does_not_depend_on_matrix_scale()
 {
     // Scaling a whole matrix changes neither whether it is singular nor its
@@ -989,6 +1061,8 @@ int main(const int argc, char** argv)
             {"solvers_do_not_depend_on_number_density_or_unit", test_solvers_do_not_depend_on_number_density_or_unit},
             {"node_separation_is_relative_to_node_magnitude", test_node_separation_is_relative_to_node_magnitude},
             {"bjorck_pereyra_refuses_what_dense_refuses", test_bjorck_pereyra_refuses_what_dense_refuses},
+            {"diagnostics_of_symmetric_nodes_are_exact", test_diagnostics_of_symmetric_nodes_are_exact},
+            {"diagnostics_do_not_depend_on_number_density_or_unit", test_diagnostics_do_not_depend_on_number_density_or_unit},
             {"dense_elimination_does_not_depend_on_matrix_scale", test_dense_elimination_does_not_depend_on_matrix_scale},
         });
 }

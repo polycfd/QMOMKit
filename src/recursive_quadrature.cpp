@@ -586,12 +586,11 @@ struct ConditionalSliceResult
 
     if (diagnostic_level == CqmomDiagnosticLevel::detailed)
     {
-        DenseMatrix system = internal::make_conditional_vandermonde_matrix(parent_abscissas, parent_weights);
-        const double residual = internal::residual_norm(system, solve.solution, rhs);
-        const double condition = internal::condition_estimate(system, options.singular_tolerance);
-        result.diagnostics.residual_norm = residual;
-        result.diagnostics.condition_estimate = condition;
-        result.diagnostics.conditioning_warning = condition > options.conditioning_warning_threshold;
+        const internal::ConditionalVandermondeDiagnostics diagnostics =
+            internal::conditional_vandermonde_diagnostics(parent_abscissas, parent_weights, rhs, solve.solution, options.singular_tolerance);
+        result.diagnostics.residual_norm = diagnostics.relative_residual;
+        result.diagnostics.condition_estimate = diagnostics.condition_estimate;
+        result.diagnostics.conditioning_warning = diagnostics.condition_estimate > options.conditioning_warning_threshold;
     }
 
     const BranchMomentSlice empty_child_slice{child_case->child_layout.get(), std::vector<double>(rhs_cols, 0.0)};

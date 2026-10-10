@@ -225,6 +225,23 @@ DenseMatrix make_conditional_vandermonde_matrix(const std::vector<double>& nodes
     return matrix;
 }
 
+ConditionalVandermondeDiagnostics conditional_vandermonde_diagnostics(const std::vector<double>& nodes, const std::vector<double>& weights,
+                                                                      DenseMatrix rhs, const DenseMatrix& solution, const double singular_tolerance)
+{
+    const ScaledVandermondeSystem scaled = make_scaled_vandermonde_system(nodes, std::move(rhs));
+    DenseMatrix scaled_solution = solution;
+    for (std::size_t row = 0; row < scaled_solution.rows(); ++row)
+    {
+        for (std::size_t col = 0; col < scaled_solution.cols(); ++col)
+        {
+            scaled_solution(row, col) *= weights[row];
+        }
+    }
+    const double residual = residual_norm(scaled.system, scaled_solution, scaled.rhs);
+    const double scale = std::max(matrix_infinity_norm(scaled.system) * matrix_infinity_norm(scaled_solution), matrix_infinity_norm(scaled.rhs));
+    return ConditionalVandermondeDiagnostics{scale > 0.0 ? residual / scale : residual, condition_estimate(scaled.system, singular_tolerance)};
+}
+
 VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<double>& nodes, const std::vector<double>& weights, DenseMatrix rhs,
                                                             const VandermondeSolveOptions& options, const std::string& singular_message)
 {

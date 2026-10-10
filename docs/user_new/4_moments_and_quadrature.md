@@ -1,0 +1,255 @@
+# Moments and quadrature
+
+This page covers the first half of every workflow: setting up a case,
+reconstructing its quadrature, and checking whether moments are realizable.
+The examples continue those of [Getting started](2_getting_started.md).
+
+## Set up a case
+
+A case holds the initial moments, the node counts, and the reconstruction
+options. Its moments can come from your own data, from distributions, or from a
+configuration file.
+
+### From your own moments
+
+A QMOM case takes the moments in ascending order, $m_0, m_1, \ldots$:
+
+```cpp
+qmomkit::QmomCase qmom_case;
+qmom_case.moments = qmomkit::MomentSet({1.0, 0.8, 2.8, 4.4});
+qmom_case.node_count = 2;
+```
+
+A CQMOM case needs only the moments its node counts and conditioning order
+require. `create_cqmom_moment_layout(hierarchy)` lists them in
+`layout.required_indices`; supply one value per entry, in that order:
+
+```cpp
+const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+const qmomkit::CqmomCase cqmom_case{qmomkit::CqmomMomentData{layout, values}};
+const qmomkit::CqmomPreparedCase prepared_case{cqmom_case};
+```
+
+If you hold a full tensor of moments instead, `extract_cqmom_moments(tensor,
+layout)` selects the required ones and throws if one is missing. Prepare a
+CQMOM case once, as `CqmomPreparedCase`, and reuse it: it builds the
+conditioning structure once and shares it with every reconstruction and state.
+
+### From distributions
+
+`compute_raw_moments(...)` generates moments from a distribution, scaled by a
+number density. For two nodes, generate $m_0$ to $m_3$, so the maximum order is
+$2N - 1 = 3$:
+
+```cpp
+const qmomkit::RawMomentResult generated = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{-0.2, 0.4}, 3, 2.5);
+if (!generated.ok())
+{
+    std::cerr << generated.message << '\n';
+    return 1;
+}
+qmom_case.moments = generated.moments;
+```
+
+A mixture adds the moments of its components. Each component carries its own
+number density, so this mixture has $m_0 = 1.5 + 0.8 = 2.3$:
+
+```cpp
+const qmomkit::DistributionMixture mixture{{
+    {qmomkit::GammaDistribution{2.0, 0.4}, 1.5},
+    {qmomkit::LogNormalDistribution{-0.2, 0.5}, 0.8},
+}};
+const qmomkit::RawMomentResult generated = qmomkit::compute_raw_moments(mixture, 5);
+```
+
+For CQMOM, an independent product combines one distribution per coordinate
+with one total number density. Ask for exactly the moments the layout requires:
+
+```cpp
+const qmomkit::IndependentProductDistribution distribution{
+    {qmomkit::GammaDistribution{3.0, 0.2}, qmomkit::NormalDistribution{-0.5, 1.25}}, 2.5};
+
+const qmomkit::SelectedRawMomentResult generated =
+    qmomkit::compute_raw_moments(distribution, qmomkit::RawMomentRequest{layout.required_indices.to_multi_indices()});
+if (!generated.ok())
+{
+    std::cerr << generated.message << '\n';
+    return 1;
+}
+const qmomkit::CqmomCase cqmom_case{qmomkit::create_cqmom_moment_data(layout, generated)};
+```
+
+A coordinate may also follow a mixture. Correlated distributions cannot be
+expressed this way; supply their moments yourself. The
+[Reference](7_reference.md#distribution-families) lists the families and
+their parameters.
+
+### From a configuration file
+
+`load_qmom(...)` and `load_cqmom_prepared(...)` read a case from a `.qmom` file,
+as in [Getting started](2_getting_started.md). The file gives either explicit
+moments in `[moments]` or distributions in `[initial]`; the
+[Reference](7_reference.md#configuration-file) lists every key.
+`load_cqmom(...)` returns an editable `CqmomCase` instead, to change in code
+before preparing it.
+
+To keep a loaded case's settings but replace its moments, for example with
+moments from another code:
+
+```cpp
+const auto replaced = qmomkit::config::with_initial_moments(prepared_case, moments);
+if (!replaced)
+{
+    std::cerr << replaced.error() << '\n';
+    return 1;
+}
+const qmomkit::CqmomPreparedCase new_case = replaced.value();
+```
+
+`moments` may be a full tensor or the required moment data.
+
+## Reconstruct
+
+`compute_qmom(qmom_case)` returns the weights and abscissas, in ascending order
+of abscissa. `compute_cqmom(prepared_case)` returns a `CqmomQuadrature` whose
+nodes you iterate:
+
+```cpp
+const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(prepared_case);
+if (cqmom.ok())
+{
+    const qmomkit::CqmomQuadrature& quadrature = cqmom.quadrature;
+    for (std::size_t i = 0; i < quadrature.total_nodes(); ++i)
+    {
+        std::cout << quadrature.weights()[i] << " at (" << quadrature.abscissas()[0][i] << ", " << quadrature.abscissas()[1][i] << ")\n";
+    }
+}
+```
+
+### Adaptive or fixed node counts
+
+By default the node counts are maxima, and a reconstruction uses fewer nodes
+where the moments do not support more. A fixed reconstruction returns every
+requested node or fails:
+
+```cpp
+qmom_case.qmom_options.adaptive = false;
+```
+
+For CQMOM the setting applies to every branch. Only a fixed CQMOM quadrature
+lets you address a node by its multi-index, with `weight(index)` and
+`abscissa(dimension, index)`.
+
+Choose node counts by the resolution your model needs. More nodes need more,
+and higher, moments; fewer nodes are cheaper and more robust when only the low
+moments are reliable.
+
+### Bounds on the nodes
+
+When a coordinate cannot leave an interval, require the nodes to lie in it:
+
+```cpp
+qmom_case.abscissa_bounds = qmomkit::AbscissaBounds{0.0, 10.0};
+```
+
+Nodes outside the interval are never moved into it. An adaptive reconstruction
+then retries with fewer nodes; a fixed one fails. The bounds hold for every
+later reconstruction of the states made from the case; node motion between
+reconstructions does not enforce them. A CQMOM case takes one
+optional interval per coordinate, for example
+`cqmom_case.abscissa_bounds = {std::nullopt, qmomkit::AbscissaBounds{0.0, 1.0}}`.
+
+### Conditioning order
+
+The second argument of `PhaseSpaceHierarchy` sets the CQMOM conditioning order;
+here the second coordinate is reconstructed first:
+
+```cpp
+const qmomkit::PhaseSpaceHierarchy reordered({2, 3}, {1, 0});
+```
+
+The node counts still belong to the coordinates in their declared order.
+Different orders give different quadratures of the same moments, and their
+reconstructions can be conditioned differently.
+
+### Solver and diagnostics
+
+CQMOM solves a small linear system for each conditional reconstruction. The
+default solver suits most cases; `[vandermonde] solver` selects another, and
+`[cqmom] diagnostic_level` records more detail about each branch. See the
+[Reference](7_reference.md#cqmom-and-vandermonde), and the
+[developer documentation](../developer/linear_algebra.md) for the solvers.
+
+### Derived quantities
+
+Moments of any non-negative real order can be evaluated from a quadrature, for
+example $m_{1/3}$ or, in two dimensions, $M_{1/3,\,2}$:
+
+```cpp
+const double m_third = qmomkit::evaluate_generalized_moment(result, 1.0 / 3.0);
+const double cqmom_m = qmomkit::evaluate_generalized_moment(cqmom.quadrature, {1.0 / 3.0, 2.0});
+```
+
+Fractional orders need non-negative abscissas. These values are computed from
+the quadrature only; they are not added to the moments a case or state holds.
+
+## Check realizability
+
+Not every list of numbers is the moments of a non-negative number density.
+Whether it is depends on the *support*, the range of the coordinate.
+`check_realizability(...)` decides this for one coordinate:
+
+```cpp
+const qmomkit::RealizabilityResult check =
+    qmomkit::check_realizability(qmomkit::MomentSet({1.0, 0.8, 2.8, 4.4}), qmomkit::MomentSupport::nonnegative);
+if (!check.realizable())
+{
+    std::cerr << check.message << '\n';
+}
+```
+
+```text
+Moment sequence is not realizable: S_1 has a negative eigenvalue beyond tolerance. Support: nonnegative.
+```
+
+These moments have a node at $-1$, so they are realizable on the real line but
+not satisfy the condition of being non-negative. The supports are `MomentSupport::real_line`,
+`MomentSupport::nonnegative`, and an interval, `BoundedInterval{lower, upper}`.
+`realizable()` is true for moments strictly inside the realizable set and on
+its boundary, which `on_boundary()` reports. The message names the moment order
+that fails.
+
+A successful reconstruction is no realizability check: QMOM works on the real
+line, and an adaptive reconstruction drops nodes the moments do not support.
+To keep nodes inside an interval, use bounds as above.
+
+For a distribution far from the origin compared with its width, at high
+orders, the moments carry too few digits to decide, and the check reports
+`boundary` or `numerically_indeterminate`. Measuring the coordinate from a
+nearby reference point avoids this.
+
+### During evolution
+
+A realizability policy checks the moments after each source step of an
+evolution:
+
+```cpp
+qmomkit::RealizabilityPolicy policy;
+policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+policy.support = qmomkit::MomentSupport::nonnegative;
+
+qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options;
+qmom_options.realizability_policy = policy;
+
+qmomkit::CqmomPhaseSpaceEvolutionOptions cqmom_options;
+cqmom_options.source_options.coordinate_realizability_policies = {policy, std::nullopt};
+```
+
+`FinalOnly` checks the result of the source step, `EveryStage` also its
+intermediate stages. Boundary moments are accepted unless `accept_boundary` is
+false. A rejected source step fails, or is retried with a smaller step if you
+allow retries, as described in [Evolving in time](5_evolving_in_time.md). For
+CQMOM, each coordinate's policy checks only the moments of that coordinate,
+$M_{0,\ldots,k,\ldots,0}$. In a file, these settings form the
+`[time_integration.realizability]` section.

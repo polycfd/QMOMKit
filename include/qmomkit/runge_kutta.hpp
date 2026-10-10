@@ -63,8 +63,8 @@ enum class SspRk3Status
 struct SspRk3Options
 {
     bool estimate_error = false;
-    StateAcceptancePredicate accept;
-    StageAcceptancePredicate stage_accept;
+    StateAcceptancePredicate accept{};
+    StageAcceptancePredicate stage_accept{};
     std::size_t max_retries = 0;
     double min_time_step = 0.0;
 };

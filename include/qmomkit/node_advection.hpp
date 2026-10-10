@@ -75,7 +75,7 @@ enum class NodeAdvectionScheme
 struct NodeAdvectionOptions
 {
     NodeAdvectionScheme scheme = NodeAdvectionScheme::rk23;
-    AdaptiveRkOptions adaptive_options;
+    AdaptiveRkOptions adaptive_options{};
 };
 
 struct NodeAdvectionDiagnostics

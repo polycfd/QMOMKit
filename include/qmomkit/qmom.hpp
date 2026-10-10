@@ -169,8 +169,8 @@ struct QmomCase
 {
     MomentSet moments;
     std::size_t node_count = 0;
-    QmomOptions qmom_options;
-    std::optional<AbscissaBounds> abscissa_bounds;
+    QmomOptions qmom_options{};
+    std::optional<AbscissaBounds> abscissa_bounds{};
 
     /**
      * Create an evolution state from other moments, with the node count,
@@ -190,8 +190,10 @@ struct QmomCase
      * realizable moments, boundary moments when `policy.accept_boundary` is
      * set or m0 lies below the cutoff, so that moments without number density
      * are `empty` whatever the policy, and indeterminate moments when
-     * `policy.accept_indeterminate` is set. Moments too few for the node
-     * count are invalid input, checked or not.
+     * `policy.accept_indeterminate` is set. An invalid policy, such as a
+     * bounded interval without an interval, is invalid input before the
+     * moments are checked, and moments too few for the node count are
+     * invalid input, checked or not.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments, const RealizabilityPolicy& policy) const;
 

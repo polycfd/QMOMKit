@@ -239,6 +239,40 @@ void test_rk45_uses_default_adaptive_initial_step_when_omitted()
     assert_near(result.quadrature.abscissas[0], 1.0 + 3.0 * time_step, 1.0e-15);
 }
 
+void test_invalid_adaptive_options_are_invalid_input_before_the_velocity_runs()
+{
+    const qmomkit::Quadrature1D quadrature{{1.0}, {1.0}, qmomkit::QuadratureStatus::success, ""};
+    const qmomkit::CqmomResult cqmom = make_fixed_two_dimensional_cqmom();
+    std::size_t velocity_calls = 0;
+    const qmomkit::PhaseSpaceVelocity velocity = [&velocity_calls](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+    {
+        ++velocity_calls;
+        std::fill(velocities.begin(), velocities.end(), 1.0);
+    };
+
+    qmomkit::NodeAdvectionOptions options;
+    options.adaptive_options.relative_tolerance = -1.0;
+    for (const qmomkit::NodeAdvectionScheme scheme : {qmomkit::NodeAdvectionScheme::rk23, qmomkit::NodeAdvectionScheme::rk45})
+    {
+        options.scheme = scheme;
+        const qmomkit::QmomNodeAdvectionResult qmom = qmomkit::advance_nodes(quadrature, 0.0, 0.1, velocity, options);
+        assert(qmom.status == qmomkit::NodeAdvectionStatus::invalid_input);
+        assert(qmom.message == "Embedded Runge-Kutta tolerances must be finite and positive.");
+        assert(!qmom.diagnostics.adaptive_status.has_value());
+        assert(qmom.quadrature.abscissas == quadrature.abscissas);
+
+        const qmomkit::CqmomNodeAdvectionResult cqmom_result = qmomkit::advance_nodes(cqmom.quadrature, 0.0, 0.1, velocity, options);
+        assert(cqmom_result.status == qmomkit::NodeAdvectionStatus::invalid_input);
+        assert(cqmom_result.message == qmom.message);
+    }
+    assert(velocity_calls == 0);
+
+    // SSP-RK3 does not read the adaptive options, so they are not checked.
+    options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    assert(qmomkit::advance_nodes(quadrature, 0.0, 0.1, velocity, options).ok());
+    assert(velocity_calls == 3);
+}
+
 void test_ssp_rk3_ignores_embedded_initial_step()
 {
     qmomkit::Quadrature1D quadrature;
@@ -878,6 +912,8 @@ int main(const int argc, char** argv)
             {"cqmom_rk45_preserves_fixed_topology_and_advects_coordinates", test_cqmom_rk45_preserves_fixed_topology_and_advects_coordinates},
             {"cqmom_ssp_rk3_preserves_fixed_topology_and_advects_coordinates", test_cqmom_ssp_rk3_preserves_fixed_topology_and_advects_coordinates},
             {"invalid_input_status_covers_quadrature_and_callback_contracts", test_invalid_input_status_covers_quadrature_and_callback_contracts},
+            {"invalid_adaptive_options_are_invalid_input_before_the_velocity_runs",
+             test_invalid_adaptive_options_are_invalid_input_before_the_velocity_runs},
             {"wrong_size_velocity_diagnostic_reports_expected_and_returned_size",
              test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size},
             {"non_finite_velocity_diagnostic_reports_callback_context", test_non_finite_velocity_diagnostic_reports_callback_context},

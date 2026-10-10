@@ -210,11 +210,11 @@ struct CqmomMomentData
 struct CqmomCase
 {
     CqmomMomentData moments;
-    ConditionalMomentOptions conditional_options;
-    QmomOptions qmom_options;
+    ConditionalMomentOptions conditional_options{};
+    QmomOptions qmom_options{};
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
-    CqmomAbscissaBounds abscissa_bounds;
+    CqmomAbscissaBounds abscissa_bounds{};
 
     /**
      * Construct the accepted initial phase-space evolution state and
@@ -351,10 +351,11 @@ public:
      * boundary moments when its `accept_boundary` is set or M[0,...,0] lies
      * below the cutoff, so that moment data without number density is `empty`
      * whatever the policies, and indeterminate moments when its
-     * `accept_indeterminate` is set. Mixed and
-     * conditional moments are not checked; the reconstruction tests them. A
-     * policy beyond the dimensions of the hierarchy is invalid input, as in
-     * the moment-source update.
+     * `accept_indeterminate` is set. Mixed and conditional moments are not
+     * checked; the reconstruction tests them. A policy beyond the dimensions
+     * of the hierarchy, whatever its mode, and an invalid policy, such as a
+     * bounded interval without an interval, are invalid input before any
+     * coordinate is checked, as in the moment-source update.
      */
     [[nodiscard]] CqmomStateCandidate state_candidate(const CqmomMomentData& candidate_moments,
                                                       const std::vector<std::optional<RealizabilityPolicy>>& coordinate_policies) const;

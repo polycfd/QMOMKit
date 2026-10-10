@@ -47,8 +47,8 @@ struct RealizabilityPolicy
 {
     RealizabilityCheckMode check_mode = RealizabilityCheckMode::None;
     MomentSupport support = MomentSupport::real_line;
-    std::optional<BoundedInterval> interval;
-    RealizabilityOptions options;
+    std::optional<BoundedInterval> interval{};
+    RealizabilityOptions options{};
     bool accept_boundary = true;
     bool accept_indeterminate = false;
 };

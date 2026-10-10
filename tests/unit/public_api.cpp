@@ -495,7 +495,9 @@ void test_cqmom_state_candidate_applies_coordinate_policies()
     interval.support = qmomkit::MomentSupport::bounded_interval;
     const qmomkit::CqmomStateCandidate no_bounds = prepared_case.state_candidate(at_origin, {std::nullopt, interval});
     assert(no_bounds.status == qmomkit::StateCandidateStatus::invalid_input);
-    assert(no_bounds.rejected_coordinate == std::size_t{1});
+    assert(no_bounds.message == "CQMOM coordinate 1 realizability policy: A bounded-interval realizability policy requires an interval.");
+    assert(!no_bounds.rejected_coordinate.has_value());
+    assert(!no_bounds.realizability.has_value());
     interval.interval = qmomkit::BoundedInterval{0.0, 1.5};
     assert(prepared_case.state_candidate(at_origin, {std::nullopt, interval}).status == qmomkit::StateCandidateStatus::realizability_rejected);
     interval.interval = qmomkit::BoundedInterval{0.0, 2.5};
@@ -521,6 +523,16 @@ void test_cqmom_state_candidate_applies_coordinate_policies()
         assert(candidate.status == qmomkit::StateCandidateStatus::invalid_input);
         assert(candidate.message == beyond_message);
     }
+
+    // An invalid policy is invalid input before any coordinate is checked,
+    // even when an earlier coordinate would reject its moments.
+    qmomkit::RealizabilityPolicy unknown_mode;
+    unknown_mode.check_mode = static_cast<qmomkit::RealizabilityCheckMode>(7);
+    nonnegative.accept_boundary = false;
+    assert(prepared_case.state_candidate(at_origin, {nonnegative}).status == qmomkit::StateCandidateStatus::realizability_rejected);
+    const qmomkit::CqmomStateCandidate unknown = prepared_case.state_candidate(at_origin, {nonnegative, unknown_mode});
+    assert(unknown.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(unknown.message == "CQMOM coordinate 1 realizability policy: Unknown realizability check mode.");
 }
 
 void test_cqmom_state_candidate_reports_failures_without_throwing()
@@ -1083,7 +1095,20 @@ void test_qmom_state_candidate_applies_the_realizability_policy()
     qmomkit::RealizabilityPolicy unit_interval;
     unit_interval.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
     unit_interval.support = qmomkit::MomentSupport::bounded_interval;
-    assert(qmom_case.state_candidate(qmomkit::MomentSet{1.0, 2.0}, unit_interval).status == qmomkit::StateCandidateStatus::invalid_input);
+    const qmomkit::QmomStateCandidate no_bounds = qmom_case.state_candidate(qmomkit::MomentSet{1.0, 2.0}, unit_interval);
+    assert(no_bounds.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(no_bounds.message == "QMOM realizability policy: A bounded-interval realizability policy requires an interval.");
+    assert(!no_bounds.realizability.has_value());
+
+    // An invalid policy is invalid input whatever the moments, also when they
+    // are too few for the node count, and a check mode outside the enumeration
+    // is invalid rather than applied.
+    assert(qmom_case.state_candidate(qmomkit::MomentSet{1.0}, unit_interval).message == no_bounds.message);
+    qmomkit::RealizabilityPolicy unknown_mode;
+    unknown_mode.check_mode = static_cast<qmomkit::RealizabilityCheckMode>(7);
+    const qmomkit::QmomStateCandidate unknown = qmom_case.state_candidate(qmomkit::MomentSet{1.0, 0.5}, unknown_mode);
+    assert(unknown.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(unknown.message == "QMOM realizability policy: Unknown realizability check mode.");
     unit_interval.interval = qmomkit::BoundedInterval{0.0, 1.0};
     assert(qmom_case.state_candidate(qmomkit::MomentSet{1.0, 2.0}, unit_interval).status == qmomkit::StateCandidateStatus::realizability_rejected);
     const qmomkit::QmomStateCandidate inside = qmom_case.state_candidate(qmomkit::MomentSet{1.0, 0.5}, unit_interval);

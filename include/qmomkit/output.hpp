@@ -29,8 +29,8 @@ struct OutputOptions
     std::filesystem::path directory = ".";
     bool write_moments = false;
     bool write_quadrature = false;
-    std::optional<double> interval;
-    std::vector<std::vector<double>> generalized_moment_orders;
+    std::optional<double> interval{};
+    std::vector<std::vector<double>> generalized_moment_orders{};
 };
 
 /**

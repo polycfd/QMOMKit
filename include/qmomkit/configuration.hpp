@@ -94,7 +94,7 @@ struct MixtureInitialization
 struct IndependentProductInitialization
 {
     IndependentProductDistribution distribution;
-    std::optional<std::vector<std::size_t>> maximum_orders;
+    std::optional<std::vector<std::size_t>> maximum_orders{};
 };
 
 using InitialConditionSpecification = std::variant<ExplicitMomentInitialization, ExplicitTensorInitialization, DistributionInitialization,

@@ -4535,7 +4535,7 @@ void test_packed_velocity_advection_entry_points_match_and_reject_empty_callback
 
 void test_cqmom_case_failure_propagation_from_inversion()
 {
-    // A source that removes all of M[0,0] within the step leaves moments the
+    // A source that drives M[0,0] negative within the step leaves moments the
     // reconstruction after the step refuses.
     const qmomkit::CqmomState state = fixed_cqmom_prepared_case().initial_state();
     const qmomkit::PhaseSpaceVelocity zero_velocity =

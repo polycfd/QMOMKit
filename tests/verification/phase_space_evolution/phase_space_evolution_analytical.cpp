@@ -100,15 +100,15 @@ struct TestCqmomPhaseSpaceEvolutionResult
     }
 };
 
-// Advances the state that a prepared case of these moments and the case options
-// in `options` creates.
+// Advances the state that a CqmomCase of these moments and the case options in
+// `options` creates.
 TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentData& moments, const double t, const double time_step,
                                                              const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                              const TestCqmomPhaseSpaceEvolutionOptions& options)
 {
     const CqmomMomentLayout& layout = moments.layout;
-    CqmomCase cqmom_case{moments, options.conditional_options, options.qmom_options, options.diagnostic_level, options.vandermonde_solver};
-    const CqmomState state = CqmomPreparedCase{cqmom_case}.initial_state();
+    const CqmomCase cqmom_case{moments, options.conditional_options, options.qmom_options, options.diagnostic_level, options.vandermonde_solver};
+    const CqmomState state = cqmom_case.initial_state();
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
     const CqmomState& result_state = result.ok() ? result.state : state;
@@ -2948,8 +2948,7 @@ VerificationResult run_cqmom_case_phase_space_evolution_failures(const std::file
 
     // A state stores the moments of its accepted quadrature, which a failed
     // step returns unchanged.
-    const qmomkit::CqmomMomentData initial_state_moments{configured_cqmom_case.moments.layout,
-                                                         qmomkit::CqmomPreparedCase{configured_cqmom_case}.initial_state().moment_values()};
+    const qmomkit::CqmomMomentData initial_state_moments{configured_cqmom_case.moments.layout, configured_cqmom_case.initial_state().moment_values()};
     for (const AdvectionFailureCase& failure_case : advection_failure_cases)
     {
         const qmomkit::TestCqmomPhaseSpaceEvolutionResult result =

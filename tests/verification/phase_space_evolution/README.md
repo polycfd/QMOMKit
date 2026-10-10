@@ -405,9 +405,9 @@ before the second advection half-step.
 The same valid configuration also drives
 `verification_phase_space_evolution_cqmom_case_phase_space_evolution_failures`.
 It advances the state that the configured `CqmomCase` creates rather than one
-created by the configured prepared case. For the
-same velocity-callback and post-source reconstruction failures, plus a source
-callback that returns a wrong-sized rate vector, it checks the same high-level
+created by the configured prepared case. For the same velocity-callback and
+post-source reconstruction failures, plus a source callback that returns a
+wrong-sized rate vector, it checks the same high-level
 status, failed stage, preserved diagnostics, and useful messages, and that the
 moments are unchanged after a failed advection. It does not require identical
 internal diagnostic details. It also checks that diagnostic-level,

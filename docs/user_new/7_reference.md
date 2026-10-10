@@ -86,7 +86,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 
 | Key | Default | Meaning | C++ |
 | --- | --- | --- | --- |
-| `[cqmom] diagnostic_level` | `none` | `basic` records branch structure, `detailed` adds residuals and condition estimates. Results are unchanged. | `CqmomCase::diagnostic_level` |
+| `[cqmom] diagnostic_level` | `none` | `basic` records branch structure, `detailed` adds the relative residual and condition estimate of each conditional system. Results are unchanged. | `CqmomCase::diagnostic_level` |
 | `[vandermonde] solver` | `automatic` | Solver of the conditional systems: `automatic` (Björck–Pereyra), `bjorck_pereyra`, `dense`, `pivoted_qr`, `svd`, `moore_penrose`. | `CqmomCase::vandermonde_solver` |
 | `[vandermonde] rcond` | `1e-14` | `moore_penrose` only: singular values at or below `rcond` times the largest are discarded. `0 <= rcond < 1`. | `ConditionalMomentOptions::moore_penrose_rcond` |
 
@@ -115,6 +115,7 @@ For QMOM; a CQMOM file gives one section per checked coordinate,
 | `support` | — | `real_line`, `nonnegative`, or `bounded_interval`. Required unless `check_mode = none`. | `support` |
 | `lower`, `upper` | — | Required for `bounded_interval`, an error otherwise. | `interval` |
 | `accept_boundary` | `true` | Accept moments on the boundary of the realizable set. | `accept_boundary` |
+| `accept_indeterminate` | `false` | Accept moments that carry too few digits to decide (`numerically_indeterminate`). | `accept_indeterminate` |
 | `tolerance` | `1e-12` | Relative tolerance of the check. | `options.tolerance` |
 
 ### `[output]`
@@ -174,9 +175,9 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | Evolution results | `invalid_input` | Invalid state, time, callbacks, or options; nothing ran. |
 | | `inversion_failed` | The quadrature could not be reconstructed after the source step. |
 | | `advection_failed` | The velocity or the node integration failed. |
-| | `moment_reconstruction_failed` | The moments of the moved nodes do not fit in a double. |
+| | `moment_reconstruction_failed` | The moments of the moved or reconstructed nodes do not fit in a double. |
 | | `moment_source_failed` | The source, or its integration or check, failed. |
-| `QmomStateCandidate`, `CqmomStateCandidate` | `empty` | $m_0$ is below the cutoff: nothing to evolve. |
+| `QmomStateCandidate`, `CqmomStateCandidate` | `empty` | $m_0$ is below the cutoff, whatever a policy says: nothing to evolve. |
 | | `realizability_rejected` | The policy rejected the moments. |
 | | `reconstruction_failed` | No quadrature from these moments. |
 | | `invalid_input` | Non-finite moments, too few, a wrong layout, or an invalid policy. |

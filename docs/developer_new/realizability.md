@@ -5,7 +5,7 @@ nonnegative measure on that support has these moments.
 `check_realizability(...)` in [`src/realizability.cpp`](../../src/realizability.cpp)
 decides this for one coordinate; a realizability policy applies the check
 inside a workflow. A successful reconstruction is no realizability check
-([QMOM](3_qmom.md)). Usage is in the
+([QMOM](qmom.md)). Usage is in the
 [user documentation](../user_new/4_moments_and_quadrature.md#check-realizability).
 
 ## Moment matrices
@@ -91,7 +91,7 @@ relative to the terms involved and lies within the roundoff allowance below.
 ### Eigenvalue partition
 
 `analyze_matrix` computes every eigenvalue with the Jacobi eigensolver
-([Linear algebra](5_linear_algebra.md)), and `classify_eigenvalue` assigns
+([Linear algebra](linear_algebra.md)), and `classify_eigenvalue` assigns
 each one a class, tested in this order, with the zero band $\zeta$ and the
 threshold $\tau$:
 
@@ -177,7 +177,9 @@ $\nu_k$ like $\varepsilon (|c|/\sigma)^k$: the centring sum cancels the
 leading digits. Where it cancels all of them, the check reports `boundary` or
 `numerically_indeterminate` instead of the exact verdict, but never the
 opposite one: a realizable sequence is never rejected, and a non-realizable or
-boundary one is never strictly realizable.
+boundary one is never strictly realizable. A policy with
+`accept_indeterminate` set lets such sequences through to the reconstruction,
+which reduces the node count in adaptive mode and may fail in fixed mode.
 
 ## Policies
 
@@ -185,9 +187,13 @@ boundary one is never strictly realizable.
 [`include/qmomkit/realizability_policy.hpp`](../../include/qmomkit/realizability_policy.hpp),
 holds `check_mode` (`None`, the default, `FinalOnly` or `EveryStage`),
 `support` (default `real_line`), `interval` (required for `bounded_interval`),
-`options` (its tolerance), and `accept_boundary` (default `true`). A policy accepts
-`strictly_realizable`, and `boundary` if `accept_boundary` is set; it rejects
-the other statuses. `internal::realizability_policy_error`, declared in
+`options` (its tolerance), `accept_boundary` (default `true`) and
+`accept_indeterminate` (default `false`). The public
+`accepts_realizability_status(policy, status)` is the one acceptance rule: it
+accepts `strictly_realizable`, `boundary` if `accept_boundary` is set, and
+`numerically_indeterminate` if `accept_indeterminate` is set, and rejects the
+other statuses; the check mode only decides when a check runs.
+`internal::realizability_policy_error`, declared in
 [`src/internal/realizability.hpp`](../../src/internal/realizability.hpp),
 validates a policy with the rules `check_realizability` applies to its options
 and interval; a `None` policy is always valid.
@@ -199,17 +205,18 @@ and interval; a `None` policy is always valid.
 | QMOM moment-source step | `QmomPhaseSpaceEvolutionOptions::realizability_policy` | the source-step candidates |
 | CQMOM moment-source step, `advance_cqmom_moments_with_source` | `MomentSourceUpdateOptions::coordinate_realizability_policies` | each coordinate's marginal moments of the candidates |
 
-`state_candidate` checks once, before the reconstruction, for any mode other
-than `None`. A rejection returns `realizability_rejected`, with
-`rejected_coordinate` for CQMOM, and an invalid policy `invalid_input`.
-Boundary moments with $m_0$ below `QmomOptions::cutoff` are accepted even if
-`accept_boundary` is false, so that they are reported `empty`, as without a
-check. A QMOM sequence too short for the node count is left to the
-reconstruction.
+`state_candidate` validates every policy first: an invalid one, or in CQMOM
+one indexed beyond the dimensions, is `invalid_input` before any moment is
+checked, and carries no verdict. It then checks once, before the
+reconstruction, for any mode other than `None`. A rejection returns
+`realizability_rejected`, with `rejected_coordinate` for CQMOM. Moments with
+$m_0$ below `QmomOptions::cutoff` are accepted whatever the verdict, so that
+they are reported `empty`, as without a check. A QMOM sequence too short for
+the node count is left to the reconstruction.
 
 In the moment-source step a policy is an acceptance predicate; how it
 interacts with the step is in
-[Phase-space evolution](8_phase_space_evolution.md#moment-source). The
+[Phase-space evolution](phase_space_evolution.md#moment-source). The
 stateless `advance_qmom_moments_with_source` rejects coordinate policies; a
 caller who wants a check installs `make_realizability_acceptance_predicate(...)` or
 `make_realizability_stage_acceptance_predicate(...)`.

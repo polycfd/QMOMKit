@@ -15,7 +15,6 @@ lists them all. The rules on what every change must be tested with are in
 | [`tests/verification/`](../../tests/verification) | `verification` | a mathematical property or public workflow against an analytical, manufactured, convergence or otherwise independent reference |
 | [`tests/public_headers/`](../../tests/public_headers) | `public_headers` | that each installed header compiles when included first; add an `include_<header>.cpp` with every public header |
 | [`tests/package_consumer/`](../../tests/package_consumer) | not in CTest | that an external project finds, includes and links the installed package |
-| [`tests/benchmarks/`](../../tests/benchmarks) | not in CTest | performance only; see [Benchmarks and performance](11_benchmarks_and_performance.md) |
 
 Examples under [`examples/`](../../examples) are user documentation built
 against the installed package, never tests
@@ -98,7 +97,7 @@ ctest --test-dir build-tests --output-on-failure -j8
 
 The instrumented build compiles a different counter implementation and the
 counter assertions in the tests; neither exists in the build above (see
-[Benchmarks and performance](11_benchmarks_and_performance.md#performance-counters)):
+[Performance counters](performance_counters.md)):
 
 ```bash
 cmake -S . -B build-tests-instrumented -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON \

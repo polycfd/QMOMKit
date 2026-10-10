@@ -115,7 +115,7 @@ The case parsers go through the same steps a caller can take separately:
 `create_cqmom_case(...)` build the case. A QMOM case needs at least $2N$
 moments at this point. A CQMOM explicit tensor must be complete within its
 `extents`, and the case keeps only the moments its layout requires
-([CQMOM](4_cqmom.md)). Options without a key, such as `QmomOptions::cutoff` or
+([CQMOM](cqmom.md)). Options without a key, such as `QmomOptions::cutoff` or
 the source-step retries, keep their C++ defaults.
 
 `with_initial_moments(...)` replaces the moments of a `CqmomCase` or
@@ -127,16 +127,15 @@ whether the moments can be reconstructed is left to `compute_cqmom(...)` and
 
 ## Adding a key
 
-1. Add the qualified key to the allowed list of every parser that accepts it:
-   `qmom_allowed_keys` and the explicit-moment list in
-   `reject_unknown_qmom_keys` for QMOM; `cqmom_explicit_allowed_keys`, which
-   `cqmom_initial_allowed_keys` extends, for CQMOM;
-   `append_time_integration_allowed_keys` for `[time_integration]` keys, and
-   `append_output_allowed_keys` for `[output]` keys. The parsers of these
-   settings check them again, against `node_advection_allowed_keys`,
-   `realizability_policy_fields` or the list in
-   `parse_output_options_from_parsed`. A new section also goes into
-   `reject_unknown_qmom_sections`, `reject_unknown_cqmom_sections` or
+1. Add the qualified key to the one list that owns it:
+   `qmom_explicit_allowed_keys`, which `qmom_initial_allowed_keys` extends,
+   for QMOM; `cqmom_explicit_allowed_keys`, which
+   `cqmom_initial_allowed_keys` extends, for CQMOM; `node_advection_allowed_keys`
+   or `realizability_policy_fields` for `[time_integration]` keys; and
+   `output_allowed_keys` for `[output]` keys. `with_runtime_allowed_keys` adds
+   the time-integration and output keys to the case parsers, and the parsers
+   of those settings check against the same lists. A new section also goes
+   into `reject_unknown_qmom_sections`, `reject_unknown_cqmom_sections` or
    `time_integration_sections`.
 2. Parse it in the function that builds its object, record an error with the
    line for an invalid value, and reject it where the other settings make it

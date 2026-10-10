@@ -19,7 +19,7 @@ n(\xi) = n_0\, p(\xi), \qquad m_k = n_0 \int \xi^k p(\xi)\,\mathrm{d}\xi, \qquad
 ```
 
 Mixtures and independent products follow from this rule; see
-[Distributions](7_distributions.md).
+[Distributions](distributions.md).
 
 Moments have integer orders. Generalized moments with real exponents are
 derived from a quadrature, never an input to reconstruction or evolution.
@@ -47,7 +47,7 @@ Maximum orders are inclusive: a maximum order $K$ gives an extent $K + 1$.
 required layout from `create_cqmom_moment_layout` is a subset of that box.
 Its entries are listed level by level of the conditioning order, and each is a
 multi-index in phase-space order. The layout depends only on the hierarchy, so
-a host creates it once and replaces the values. [CQMOM](4_cqmom.md) derives
+a host creates it once and replaces the values. [CQMOM](cqmom.md) derives
 it.
 
 `MultiIndexTable` and `ConditioningPathTable` store equal-length rows
@@ -70,7 +70,7 @@ The conditioning order changes the reconstruction, never a storage order or the
 meaning of a node count. Only two things are ordered by conditioning level:
 conditioning paths, whose entry `l` is a node index in dimension
 `conditioning_order[l]`, and the internal per-branch data of the recursion
-([CQMOM](4_cqmom.md)). Everything public is ordered by dimension.
+([CQMOM](cqmom.md)). Everything public is ordered by dimension.
 
 ## Quadrature storage
 
@@ -102,7 +102,7 @@ counts are maxima, and Wheeler returns fewer nodes where the moments do not
 support more. In CQMOM the one flag governs every marginal and conditional
 inversion and every branch count. A fixed reconstruction returns exactly the
 configured count in every inversion, or fails. Criteria:
-[QMOM](3_qmom.md); branches: [CQMOM](4_cqmom.md).
+[QMOM](qmom.md); branches: [CQMOM](cqmom.md).
 
 ## Tolerances
 
@@ -118,9 +118,9 @@ the coordinates; and the step sizes of the integrators (`initial_step`,
 `min_step`, `max_step`, `min_time_step`), in units of the time argument.
 
 Each value is given once, on the page that owns it:
-[QMOM](3_qmom.md), [Linear algebra](5_linear_algebra.md),
-[Realizability](6_realizability.md), and
-[Phase-space evolution](8_phase_space_evolution.md).
+[QMOM](qmom.md), [Linear algebra](linear_algebra.md),
+[Realizability](realizability.md), and
+[Phase-space evolution](phase_space_evolution.md).
 
 ## Supports and abscissa bounds
 
@@ -129,7 +129,7 @@ The two concepts are distinct and never derived from each other.
 A **support** (`MomentSupport::real_line`, `nonnegative`, or
 `bounded_interval` with an explicit `BoundedInterval`) is an argument of a
 realizability check or policy and does not constrain reconstruction
-([Realizability](6_realizability.md)).
+([Realizability](realizability.md)).
 
 **Abscissa bounds** (`AbscissaBounds`, or `CqmomAbscissaBounds` per coordinate)
 are acceptance criteria for reconstructed abscissas. A candidate rule with a
@@ -139,17 +139,17 @@ clipped or projected. Bounds exist only when the caller gives them. In a
 `.qmom` file, they are the keys `phase_space.support_lower` and
 `phase_space.support_upper`, which set abscissa bounds despite their names.
 They are never inferred from a realizability support, a coordinate name, or the
-moments. The margin is in [QMOM](3_qmom.md).
+moments. The margin is in [QMOM](qmom.md).
 
 ## Units and scales
 
 Coordinate names are metadata: they carry no unit, support, or meaning.
 QMOMKit never rescales moments or coordinates for the caller; results are in
 the caller's units. Internal kernels may scale the systems they solve, invisibly
-in the results ([Linear algebra](5_linear_algebra.md)).
+in the results ([Linear algebra](linear_algebra.md)).
 
 The only internal coordinate scales bound the rounding of CQMOM conditional
-moments in adaptive reduction; see [QMOM](3_qmom.md#coordinate-scales).
+moments in adaptive reduction; see [QMOM](qmom.md#coordinate-scales).
 
 ## Terms
 
@@ -160,7 +160,7 @@ Terms the [user guide](../user_new/3_concepts.md#terms) does not define:
 | active node count | Nodes that a branch or a QMOM state uses; at most the configured count. |
 | canonical moments | Moments recomputed from an accepted quadrature; a state stores these, not the moments it was given. |
 | ceiling | The largest node count a branch may return in one reconstruction: its recorded active count when a state's counts are passed in, otherwise its configured count. |
-| child case | Internal layout data for the children of a branch with a given node count ([CQMOM](4_cqmom.md#branch-layouts)). |
+| child case | Internal layout data for the children of a branch with a given node count ([CQMOM](cqmom.md#branch-layouts)). |
 | conditional moments | Moments of later coordinates conditioned on a node of earlier ones, from a conditional Vandermonde solve. |
 | conditioning level | Position `l` in the conditioning order. |
 | conditioning path | `ConditioningPath`: the node index chosen at each level from the root to a node. |

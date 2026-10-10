@@ -5,7 +5,7 @@ splitting of a step into node advection and the moment source, the
 reconstruction after the source, how node counts change, and how failures are
 reported. Public usage is in [Evolving in time](../user_new/5_evolving_in_time.md) and
 [Coupling QMOMKit](../user_new/6_coupling_qmomkit.md); the reconstructions
-called here are in [QMOM](3_qmom.md) and [CQMOM](4_cqmom.md).
+called here are in [QMOM](qmom.md) and [CQMOM](cqmom.md).
 
 ## States
 
@@ -13,7 +13,7 @@ called here are in [QMOM](3_qmom.md) and [CQMOM](4_cqmom.md).
 constructor. `initial_state()` and `state_candidate(...)` create them from
 moments (`QmomCase`, `CqmomCase::initial_state()`, `CqmomPreparedCase`), and
 the evolution stages create them from other states through the internal
-access classes ([Architecture](1_architecture.md#public-and-internal-boundary)).
+access classes ([Architecture](architecture.md#public-and-internal-boundary)).
 
 | | `QmomState` | `CqmomState` |
 | --- | --- | --- |
@@ -35,10 +35,7 @@ the candidate `reconstruction_failed`.
 
 Moments and quadrature of a state therefore always agree, and a step starts
 from the stored quadrature without reconstructing it. Every successful stage
-builds its result state the same way, from the quadrature it accepted. Only
-states that tests build through `internal::CqmomConstructionAccess` can lack a
-quadrature; the CQMOM stages then reconstruct it first and report a failure as
-`PhaseSpaceEvolutionStage::initial_inversion`.
+builds its result state the same way, from the quadrature it accepted.
 
 ## Step structure
 
@@ -142,9 +139,10 @@ whenever its solution and error are finite, so `success` means the interval
 was covered, not that every step met the tolerance. `step_size_underflow`
 reports a step at that bound whose solution or error estimate is not finite;
 `max_steps_exceeded` reports that `max_steps` accepted steps did not cover the
-interval. An explicit `min_step` above an explicit `max_step` is
-`invalid_input`. On any of these, node advection reports `integration_failed`
-and keeps the input nodes.
+interval. On either, node advection reports `integration_failed` and keeps
+the input nodes. Invalid options, such as an explicit `min_step` above an
+explicit `max_step`, are `NodeAdvectionStatus::invalid_input` before the
+velocity is called.
 
 ## Moment source
 
@@ -234,7 +232,7 @@ Active node counts follow one policy:
   (`recursive_branch_node_count_limit` and `branch_growth_trial_allowed` in
   [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp)).
   Below a branch whose count changed, branches start from their configured
-  maximum, as [CQMOM](4_cqmom.md#active-branch-counts) explains.
+  maximum, as [CQMOM](cqmom.md#active-branch-counts) explains.
 - **Created states**: `initial_state()` and `state_candidate(...)` start from
   the configured maximum; a state rebuilt from moments keeps no earlier
   counts.
@@ -251,7 +249,7 @@ Policies act only as acceptance predicates of the source step; advection and
 the post-source reconstruction run none. `FinalOnly` checks $y^{n+1}$,
 `EveryStage` also $y^{(1)}$ and $y^{(2)}$, and a rejection follows the retry
 rule above. Where policies are set and which moments they check is in
-[Realizability](6_realizability.md#policies).
+[Realizability](realizability.md#policies).
 
 ## Option validation
 
@@ -298,17 +296,20 @@ source operator one from a source, boundary, or stage reconstruction as
 `moment_source_failed`, keeping the message. A non-finite or unwritten
 velocity is reported with the time, dimension, and coordinates of its node.
 Exceptions not derived from `std::exception` propagate. The generic
-`ssp_rk3_step` and `integrate_embedded_rk` let callback exceptions propagate,
-and `ssp_rk3_step` throws `std::invalid_argument` for invalid input.
+`ssp_rk3_step` and `integrate_embedded_rk` let callback exceptions propagate.
+`ssp_rk3_step` reports invalid input, such as an empty or non-finite state or
+a step that is not positive, as `SspRk3Status::invalid_input` with a message
+before calling `rhs`, and throws `std::invalid_argument` when `rhs` breaks its
+contract or a candidate state is not finite.
 
 Unwritten entries are detected in debug builds only. Without `NDEBUG`,
 `internal::poison_output_buffer`
 ([`src/internal/numeric_utils.hpp`](../../src/internal/numeric_utils.hpp))
 fills the buffer with a NaN of a reserved bit pattern before the call, and an
 entry holding that pattern afterwards is reported as unwritten, before
-the finiteness check. Release builds cannot detect an unwritten entry, and its
-value is unspecified: the embedded path zeroes the buffer before each call,
-while the `ssp_rk3` path reuses it across stages.
+the finiteness check. Release builds cannot detect an unwritten entry; both
+node-advection paths zero the buffer before each call, so such an entry
+contributes a zero derivative.
 
 ## Statuses
 
@@ -316,9 +317,14 @@ while the `ssp_rk3` path reuses it across stages.
 | --- | --- | --- |
 | `invalid_input` | input or option check | `failed_stage == none` |
 | `advection_failed` | velocity callback or node integration | `first_advection_status`, `second_advection_status`, `NodeAdvectionDiagnostics::adaptive_status` |
-| `moment_reconstruction_failed` | moments of the moved or reconstructed quadrature not finite | `first_reconstruction_diagnostics`, `final_reconstruction_diagnostics` |
+| `moment_reconstruction_failed` | moments of the moved or reconstructed quadrature not finite | `first_reconstruction_diagnostics`, `final_reconstruction_diagnostics` after advection; `failed_stage` and the message after the source |
 | `moment_source_failed` | source or boundary callback, stage reconstruction, predicate rejection, minimum step | `moment_source_status`, `moment_source_diagnostics` |
-| `inversion_failed` | post-source reconstruction, or the initial reconstruction of a state without a quadrature | `post_source_qmom_status`, `post_source_cqmom_status`, `post_source_cqmom_diagnostics` |
+| `inversion_failed` | post-source reconstruction | `post_source_qmom_status`, `post_source_cqmom_status`, `post_source_cqmom_diagnostics` |
+
+`first_reconstruction_diagnostics` and `final_reconstruction_diagnostics`
+describe the moment sums of the first and second advection stage, and only of
+an advection stage that ran; the moments summed after the post-source
+reconstruction have no record of their own.
 
 On failure, `CqmomPhaseSpaceEvolutionResult::diagnostic_quadrature` holds the
 quadrature the failing stage produced or started from: the rejected

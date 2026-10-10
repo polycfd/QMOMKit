@@ -9,7 +9,7 @@ picture is in [Concepts](../user_new/3_concepts.md#qmom-and-cqmom).
 
 The hierarchy stores node counts in phase-space order, and the conditioning
 order is a separate permutation that only sets the traversal; see
-[Numerical conventions](2_numerical_conventions.md). Below, $c_l$ is the
+[Numerical conventions](numerical_conventions.md). Below, $c_l$ is the
 coordinate at conditioning level $l$ and $N_l$ its configured node count.
 
 ## The recursion
@@ -22,7 +22,7 @@ needs, indexed in conditioning order with $c_l$ first.
    conditioning order. Its leading sequence $M_{k\,e_{c_0}}$, $k<2N_0$, is the
    marginal of $c_0$, which the Wheeler algorithm
    [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)] inverts as
-   in [QMOM](3_qmom.md). The root weights add up to $M_{0,\ldots,0}$.
+   in [QMOM](qmom.md). The root weights add up to $M_{0,\ldots,0}$.
 2. **Conditional moments.** For a nonterminal branch whose inversion accepted
    $n$ nodes $x_i$ with weights $w_i$, the slices of its $n$ children solve one
    weighted Vandermonde system with one column per trailing multi-index
@@ -38,7 +38,7 @@ needs, indexed in conditioning order with $c_l$ first.
    $S_{p,\beta}$ is the slice moment of order $p$ in $c_l$ and $\beta$ in the
    later coordinates; row $i$ of $C$ is the slice of child $i$. All columns
    are solved together by `solve_conditional_vandermonde_system`;
-   [Linear algebra](5_linear_algebra.md) describes how. Only parent orders
+   [Linear algebra](linear_algebra.md) describes how. Only parent orders
    $p<n$ enter, so a branch with fewer nodes than configured solves a square
    system of its own size. Column $\beta=0$ reproduces moments that Wheeler
    matched, so $c_{i,0}=1$ up to rounding: child slices are normalized
@@ -49,7 +49,7 @@ needs, indexed in conditioning order with $c_l$ first.
    which is relative to the scale of their coordinate, not to their own
    magnitude. In adaptive mode each inversion therefore receives the scale $s$
    of the coordinate it inverts, which sets the floor of its rounding bound
-   ([QMOM](3_qmom.md#rounding-bound-on-the-recurrence)).
+   ([QMOM](qmom.md#rounding-bound-on-the-recurrence)).
    `cqmom_coordinate_scales`
    ([`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp)) takes
    $s=\sqrt{M_2/M_0}$ of that coordinate's marginal, else $|M_1|/M_0$, else
@@ -113,7 +113,7 @@ branch that returns any other count than its configured one fails with
 `qmom_failed`. In adaptive mode, each branch accepts at most its ceiling, and
 the children of a reduced branch use the child case of the accepted count. The
 two storage layouts are in
-[Numerical conventions](2_numerical_conventions.md#quadrature-storage).
+[Numerical conventions](numerical_conventions.md#quadrature-storage).
 
 ### Active branch counts
 
@@ -137,7 +137,7 @@ they condition on other nodes, so the records below it do not describe them.
 The traversal therefore drops the records of its whole subtree, and those
 branches are reconstructed up to their configured counts. How phase-space
 evolution uses the records as ceilings in the moment-source stages is in
-[Phase-space evolution](8_phase_space_evolution.md).
+[Phase-space evolution](phase_space_evolution.md).
 
 ### Bounds
 
@@ -146,7 +146,7 @@ dimension, or nothing at all. A non-empty vector of the wrong length, or an
 interval that is not finite with lower below upper, is `invalid_input`. Every
 branch of a bounded coordinate goes through the same `select_bounded_quadrature`
 as QMOM, with that branch's ceiling, recorded count and growth permission; see
-[QMOM](3_qmom.md#abscissa-bounds).
+[QMOM](qmom.md#abscissa-bounds).
 
 ## Prepared cases
 
@@ -168,8 +168,12 @@ built once and never depends on the moments.
   hierarchy and the flag and so stays compatible.
 
 `prepared_cqmom_metadata_is_compatible` compares node counts, conditioning
-order, required indices and the flag. Reconstructions of a prepared case or a
-state candidate require compatible metadata and fail rather than rebuild it.
+order, required indices and the flag; a prepared case or state given
+incompatible metadata throws `std::invalid_argument`. Every reconstruction of
+a prepared case or state, including those inside evolution steps, goes
+through `compute_cqmom_internal`, which takes the metadata of the lineage by
+reference and never builds branch layouts; metadata prepared for the other
+adaptivity is `invalid_input`.
 
 `CqmomCase` holds no metadata. `compute_cqmom(cqmom_case)` checks the layout
 and builds the branch layouts on every call; `CqmomCase::initial_state()`
@@ -185,10 +189,13 @@ successors. Both routes give the same quadrature.
 | --- | --- |
 | `none` (default) | Only the failing branch, if a branch failed. |
 | `basic` | One record per reconstructed branch: level, parent path, dimension, ceiling (`requested_node_count`) and accepted count, `adaptive_node_count_reduced`, Wheeler status as `QmomStatus`, conditional-moment status, requested and selected Vandermonde solver, and bounds details. |
-| `detailed` | As `basic`, plus the residual norm and condition estimate of each conditional system and `conditioning_warning` when the estimate exceeds `ConditionalMomentOptions::conditioning_warning_threshold` ($10^{12}$ by default). |
+| `detailed` | As `basic`, plus the relative residual and condition estimate of each conditional system and `conditioning_warning` when the estimate exceeds `ConditionalMomentOptions::conditioning_warning_threshold` ($10^{12}$ by default). |
 
-The detailed quantities need the explicit weighted matrix and its full inverse,
-which is why they have their own level. The level never changes a quadrature,
+The detailed quantities describe the scaled system the solvers decide on
+([Linear algebra](linear_algebra.md#diagnostics)), so they do not depend on
+the number density, and a change of unit moves the condition estimate by a
+bounded factor only. They need the explicit matrix and its full inverse, which is why they
+have their own level. The level never changes a quadrature,
 a status or a node count. Records of the last level have no conditional
 solve, so their solver fields keep their defaults. The selected solver is the
 one `automatic` resolves to. A conditional solve fails only when its solver
@@ -222,7 +229,7 @@ $\sum_j W_j\prod_d x_{d,j}^{k_d}$ for both QMOM and CQMOM:
   needs non-negative abscissas.
 
 These functions throw on malformed input or overflow
-([Architecture](1_architecture.md#errors-and-statuses)). States store the moments of their
+([Architecture](architecture.md#errors-and-statuses)). States store the moments of their
 accepted quadrature: QMOM states through `reconstruct_raw_moments`, CQMOM
 states through `internal::reconstruct_trusted_cqmom_moments`, which skips the
 layout checks. Source contexts and output writers use the public functions.

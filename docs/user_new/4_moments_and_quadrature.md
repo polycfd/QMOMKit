@@ -268,7 +268,9 @@ To keep nodes inside an interval, use bounds as above.
 For a distribution far from the origin compared with its width, at high
 orders, the moments carry too few digits to decide, and the check reports
 `boundary` or `numerically_indeterminate`. Measuring the coordinate from a
-nearby reference point avoids this.
+nearby reference point avoids this. A policy (below) rejects indeterminate
+moments unless `accept_indeterminate` is set; accepted, they may lie just
+outside the realizable set, and an adaptive reconstruction then drops nodes.
 
 ### During evolution
 
@@ -289,7 +291,7 @@ cqmom_options.source_options.coordinate_realizability_policies = {policy, std::n
 
 `FinalOnly` checks the result of the source step, `EveryStage` also its
 intermediate stages. Boundary moments are accepted unless `accept_boundary` is
-false. A rejected source step fails, or is retried with a smaller step if you
+false, indeterminate ones only if `accept_indeterminate` is set. A rejected source step fails, or is retried with a smaller step if you
 allow retries, as described in [Evolving in time](5_evolving_in_time.md). For
 CQMOM, each coordinate's policy checks only the moments of that coordinate,
 $M_{0,\ldots,k,\ldots,0}$. In a file, these settings form the

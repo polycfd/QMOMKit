@@ -4,10 +4,10 @@ QMOM turns the raw moments $m_0,\ldots,m_{2N-1}$ of a one-dimensional number
 density into an $N$-node Gauss quadrature with the Wheeler algorithm
 [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. The same
 inversion reconstructs every one-dimensional sequence of recursive
-[CQMOM](4_cqmom.md). Public usage is in
+[CQMOM](cqmom.md). Public usage is in
 [Moments and quadrature](../user_new/4_moments_and_quadrature.md#reconstruct);
 moment and ordering conventions are in
-[Numerical conventions](2_numerical_conventions.md).
+[Numerical conventions](numerical_conventions.md).
 
 ## Wheeler inversion
 
@@ -32,7 +32,7 @@ normalized eigenvectors $Jv_i=\lambda_i v_i$,
 x_i=\lambda_i,\qquad w_i=m_0\,v_{0,i}^2 .
 ```
 
-`symmetric_jacobi_eigen` ([Linear algebra](5_linear_algebra.md)) returns the
+`symmetric_jacobi_eigen` ([Linear algebra](linear_algebra.md)) returns the
 eigenvalues in ascending order, so abscissas come out sorted with their
 weights. The moments are used as given, without centering or normalization,
 and $\sum_i w_i=m_0$.
@@ -56,7 +56,7 @@ not realizable with $k$ nodes. Both tests below act on $\sigma_{k,k}$.
 decision of the inversion that depends on the number density. Every other test
 gives the same result after scaling all moments by a constant or changing the
 unit of the coordinate. State candidates report $0\le m_0<$ `cutoff` as `empty`
-instead of a failure ([Phase-space evolution](8_phase_space_evolution.md)).
+instead of a failure ([Phase-space evolution](phase_space_evolution.md)).
 
 ## Rounding bound on the recurrence
 
@@ -130,7 +130,7 @@ and `WheelerOptions`
 `compute_quadrature(...)` and `compute_qmom(...)` use $s=0$: given moments
 carry no solve rounding. CQMOM conditional moments do, so their inversion,
 `internal::compute_conditional_quadrature`, receives a positive $s$ in
-adaptive mode ([CQMOM](4_cqmom.md#the-recursion)). In fixed mode CQMOM passes
+adaptive mode ([CQMOM](cqmom.md#the-recursion)). In fixed mode CQMOM passes
 $s=0$ at every level, so its fixed-count test uses the bound without the
 floor.
 

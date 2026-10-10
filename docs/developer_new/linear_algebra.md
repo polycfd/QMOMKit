@@ -19,8 +19,8 @@ density nor the unit of the coordinate.
 `symmetric_jacobi_eigen` in
 [`src/internal/linear_algebra.cpp`](../../src/internal/linear_algebra.cpp) is
 the classical Jacobi method. It diagonalizes the Jacobi matrix of the Wheeler
-inversion ([QMOM](3_qmom.md)) and the moment matrices of the realizability
-checks ([Realizability](6_realizability.md)).
+inversion ([QMOM](qmom.md)) and the moment matrices of the realizability
+checks ([Realizability](realizability.md)).
 
 The matrix is first scaled by the power of two that places its largest entry in
 $[1,2)$. Rotation parameters are ratios of entries, so the rotations are those
@@ -92,7 +92,7 @@ the discarded directions.
 
 At a CQMOM branch with parent nodes $x_i$ and weights $w_i$, $i<n$, the branch
 moments of parent orders $p<n$ determine the conditional moments $C_{i,q}$ of
-the remaining coordinates at each parent node ([CQMOM](4_cqmom.md)):
+the remaining coordinates at each parent node ([CQMOM](cqmom.md)):
 
 ```math
 M_{p,q}=\sum_{i=0}^{n-1}w_i\,x_i^p\,C_{i,q},
@@ -159,13 +159,24 @@ and set through `CqmomCase::conditional_options`; only `rcond` is a `.qmom`
 key. `singular_tolerance` and `conditioning_warning_threshold` must be finite
 and positive, `rcond` in $[0,1)$; otherwise the case is invalid input.
 
-At `CqmomDiagnosticLevel::detailed`, a successful solve also records
-`residual_norm` and `condition_estimate` of $A$ as given, not of the scaled
-system, and the warning flag. The estimate costs a full inverse; none of these
-change the result. `VandermondeSolveOptions::validate_residual`
-([`src/internal/vandermonde.hpp`](../../src/internal/vandermonde.hpp)), off by
-default, enables an internal residual check on the QR, SVD and Moore–Penrose paths that only
-`tests/unit/vandermonde.cpp` uses.
+### Diagnostics
+
+At `CqmomDiagnosticLevel::detailed`, `conditional_vandermonde_diagnostics`
+describes a successful solve on the system the solvers decide on,
+$\tilde V^TY=S^{-1}M$ with $Y=DC$, whatever solver ran:
+
+- `condition_estimate` is the condition estimate of $\tilde V^T$;
+- `residual_norm` is the relative residual
+  $\lVert\tilde V^TY-S^{-1}M\rVert_F/\max\bigl(\lVert\tilde V^T\rVert_\infty\lVert Y\rVert_\infty,\lVert S^{-1}M\rVert_\infty\bigr)$;
+- `conditioning_warning` is set when the estimate exceeds the threshold.
+
+Neither value depends on the number density, nor on a change of the parent
+coordinate's unit by a power of two; another change of unit moves the estimate
+by less than a factor $2^{n-1}$. The estimate costs a full inverse, and none of
+the three changes the result. No solver checks its residual: a solve fails only
+by its own test in the table above. `make_conditional_vandermonde_matrix`,
+which forms $A$ explicitly as an independent reference, lives with the tests in
+[`tests/conditional_vandermonde_matrix.hpp`](../../tests/conditional_vandermonde_matrix.hpp).
 
 Coverage is in `tests/unit/linear_algebra.cpp`,
 `tests/unit/bjorck_pereyra.cpp`, `tests/unit/householder_qr.cpp`,

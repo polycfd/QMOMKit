@@ -102,8 +102,8 @@ overload collects the distinct orders per dimension, plus order zero,
 evaluates each marginal once through its own selected overload, and assembles
 the requested moments. CQMOM initialization from a configuration file requests
 exactly the required moments of the layout and converts them with
-`create_cqmom_moment_data`; see [CQMOM](4_cqmom.md#required-moments) and
-[Configuration and output](9_configuration_and_output.md).
+`create_cqmom_moment_data`; see [CQMOM](cqmom.md#required-moments) and
+[Configuration and output](configuration_and_output.md).
 
 ## Validation and failure
 

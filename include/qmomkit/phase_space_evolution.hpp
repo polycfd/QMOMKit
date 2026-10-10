@@ -119,15 +119,15 @@ struct PhaseSpaceEvolutionDiagnostics
 struct QmomPhaseSpaceEvolutionOptions
 {
     NodeAdvectionOptions node_options;
-    MomentSourceUpdateOptions source_options;
+    MomentSourceUpdateOptions source_options{};
     PhaseSpaceEvolutionScheme scheme = PhaseSpaceEvolutionScheme::strang;
-    RealizabilityPolicy realizability_policy;
+    RealizabilityPolicy realizability_policy{};
 };
 
 struct CqmomPhaseSpaceEvolutionOptions
 {
     NodeAdvectionOptions node_options;
-    MomentSourceUpdateOptions source_options;
+    MomentSourceUpdateOptions source_options{};
     PhaseSpaceEvolutionScheme scheme = PhaseSpaceEvolutionScheme::strang;
 };
 

@@ -1,6 +1,7 @@
 add_executable(
     test_public_headers
     main.cpp
+    brace_initialization.cpp
     include_abscissa_bounds.cpp
     include_conditional_moments.cpp
     include_conditioning_path.cpp
@@ -26,5 +27,10 @@ add_executable(
     include_wheeler.cpp
 )
 target_link_libraries(test_public_headers PRIVATE qmomkit)
+# The test tree disables -Wmissing-field-initializers; this file enables it to
+# check that callers can omit trailing members of the input aggregates.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set_source_files_properties(brace_initialization.cpp PROPERTIES COMPILE_OPTIONS $<$<CONFIG:Debug>:-Wmissing-field-initializers>)
+endif()
 add_test(NAME public_headers COMMAND test_public_headers)
 set_tests_properties(public_headers PROPERTIES LABELS public_headers TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})

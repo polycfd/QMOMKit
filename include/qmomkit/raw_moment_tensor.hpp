@@ -15,7 +15,7 @@ namespace qmomkit
 struct RawMomentTensor
 {
     std::vector<std::size_t> extents;
-    std::vector<double> values;
+    std::vector<double> values{};
 };
 
 } // namespace qmomkit

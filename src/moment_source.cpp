@@ -501,29 +501,15 @@ void validate_qmom_moment_source_options(const MomentSourceUpdateOptions& option
     }
 }
 
-// Any policy beyond the dimensions is invalid, whatever its mode; a policy
-// within them is checked only if it is applied.
 void validate_cqmom_moment_source_options(const MomentSourceUpdateOptions& options, const std::size_t dimensions)
 {
     if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0)
     {
         throw std::invalid_argument("CQMOM moment-source update timestep controls are invalid.");
     }
-    const std::vector<std::optional<RealizabilityPolicy>>& policies = options.coordinate_realizability_policies;
-    for (std::size_t coordinate = dimensions; coordinate < policies.size(); ++coordinate)
+    if (const std::string error = coordinate_realizability_policies_error(options.coordinate_realizability_policies, dimensions); !error.empty())
     {
-        if (policies[coordinate].has_value())
-        {
-            throw std::invalid_argument("CQMOM coordinate realizability policy index is outside the phase-space dimension.");
-        }
-    }
-    for (std::size_t coordinate = 0; coordinate < std::min(dimensions, policies.size()); ++coordinate)
-    {
-        const char* error = policies[coordinate].has_value() ? realizability_policy_error(*policies[coordinate]) : nullptr;
-        if (error != nullptr)
-        {
-            throw std::invalid_argument("CQMOM coordinate " + std::to_string(coordinate) + " realizability policy: " + error);
-        }
+        throw std::invalid_argument(error);
     }
 }
 

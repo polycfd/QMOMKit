@@ -874,4 +874,25 @@ const char* internal::realizability_policy_error(const RealizabilityPolicy& poli
     return "Unknown moment support.";
 }
 
+std::string internal::coordinate_realizability_policies_error(const std::vector<std::optional<RealizabilityPolicy>>& policies,
+                                                              const std::size_t dimensions)
+{
+    for (std::size_t coordinate = dimensions; coordinate < policies.size(); ++coordinate)
+    {
+        if (policies[coordinate].has_value())
+        {
+            return "CQMOM coordinate realizability policy index is outside the phase-space dimension.";
+        }
+    }
+    for (std::size_t coordinate = 0; coordinate < std::min(dimensions, policies.size()); ++coordinate)
+    {
+        const char* error = policies[coordinate].has_value() ? realizability_policy_error(*policies[coordinate]) : nullptr;
+        if (error != nullptr)
+        {
+            return "CQMOM coordinate " + std::to_string(coordinate) + " realizability policy: " + error;
+        }
+    }
+    return {};
+}
+
 } // namespace qmomkit

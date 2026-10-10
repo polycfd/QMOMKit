@@ -5,6 +5,7 @@
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/qmom_state_access.hpp"
+#include "internal/realizability.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
@@ -187,6 +188,14 @@ namespace
 [[nodiscard]] QmomStateCandidate qmom_state_candidate(const QmomCase& qmom_case, const MomentSet& moments, const RealizabilityPolicy* const policy)
 {
     QmomStateCandidate candidate;
+    if (policy != nullptr)
+    {
+        if (const char* error = internal::realizability_policy_error(*policy); error != nullptr)
+        {
+            candidate.message = std::string("QMOM realizability policy: ") + error;
+            return candidate;
+        }
+    }
     const std::size_t node_count = qmom_case.node_count;
     const bool enough_moments = node_count > 0 && node_count <= std::numeric_limits<std::size_t>::max() / 2 && moments.size() >= 2 * node_count;
     if (policy != nullptr && policy->check_mode != RealizabilityCheckMode::None && enough_moments)
@@ -366,17 +375,14 @@ namespace
     CqmomStateCandidate candidate;
     if (coordinate_policies != nullptr)
     {
-        // As in the moment-source update, any policy beyond the hierarchy is
-        // invalid, whatever its mode, before any coordinate is checked.
+        // As in the moment-source update, the policies are validated before
+        // any coordinate is checked.
         const CqmomMomentLayout& layout = cqmom_case.moments.layout;
         const std::size_t dimensions = layout.hierarchy.number_of_dimensions();
-        for (std::size_t coordinate = dimensions; coordinate < coordinate_policies->size(); ++coordinate)
+        if (std::string error = internal::coordinate_realizability_policies_error(*coordinate_policies, dimensions); !error.empty())
         {
-            if ((*coordinate_policies)[coordinate].has_value())
-            {
-                candidate.message = "CQMOM coordinate realizability policy index is outside the phase-space dimension.";
-                return candidate;
-            }
+            candidate.message = std::move(error);
+            return candidate;
         }
         for (std::size_t coordinate = 0; coordinate < std::min(dimensions, coordinate_policies->size()); ++coordinate)
         {

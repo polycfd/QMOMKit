@@ -1,6 +1,7 @@
 #include "qmomkit/node_advection.hpp"
 
 #include "internal/cqmom_case.hpp"
+#include "internal/embedded_runge_kutta.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/phase_space_velocity_validation.hpp"
@@ -295,6 +296,16 @@ struct IntegratedNodes
     if (!std::isfinite(t) || !std::isfinite(time_step) || !std::isfinite(t + time_step))
     {
         return IntegratedNodes{abscissas, NodeAdvectionStatus::invalid_input, {}, "Node advection time input contains non-finite values."};
+    }
+
+    // Invalid adaptive options are the caller's input, not a failure of the
+    // integration, and are reported before the velocity is called.
+    if (options.scheme != NodeAdvectionScheme::ssp_rk3)
+    {
+        if (const char* error = internal::adaptive_rk_options_error(options.adaptive_options); error != nullptr)
+        {
+            return IntegratedNodes{abscissas, NodeAdvectionStatus::invalid_input, {}, error};
+        }
     }
 
     const std::size_t dimensions = abscissas.size();

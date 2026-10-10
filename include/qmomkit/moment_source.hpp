@@ -265,7 +265,7 @@ struct MomentSourceUpdateOptions
     // `MomentSourceUpdateStatus::invalid_input`; a vector that is merely sized but
     // holds no policy is inert and accepted, matching the CQMOM path's own
     // treatment of unconfigured entries.
-    std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies;
+    std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies{};
 };
 
 struct MomentSourceUpdateDiagnostics

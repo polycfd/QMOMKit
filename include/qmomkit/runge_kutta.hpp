@@ -100,8 +100,9 @@ struct SspRk3Result
  *
  * An empty or non-finite state, a non-finite time, a step that is not
  * positive, or an invalid `min_time_step` is reported as `invalid_input`,
- * with the input state, before `rhs` is called. A callback that throws or
- * breaks the `OdeRhs` contract, and a non-finite candidate state, throw.
+ * with the input state, before `rhs` is called. Exceptions from `rhs` and the
+ * acceptance predicates propagate; a broken `OdeRhs` contract or a non-finite
+ * candidate state throws `std::invalid_argument`.
  */
 [[nodiscard]] SspRk3Result ssp_rk3_step(const std::vector<double>& state, double t, double time_step, const OdeRhs& rhs,
                                         const SspRk3Options& options);

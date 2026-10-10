@@ -211,20 +211,6 @@ struct ScaledVandermondeSystem
 
 } // namespace
 
-DenseMatrix make_conditional_vandermonde_matrix(const std::vector<double>& nodes, const std::vector<double>& weights)
-{
-    const std::size_t n = nodes.size();
-    DenseMatrix matrix(n, n);
-    for (std::size_t power = 0; power < n; ++power)
-    {
-        for (std::size_t node = 0; node < n; ++node)
-        {
-            matrix(power, node) = std::pow(nodes[node], static_cast<int>(power)) * weights[node];
-        }
-    }
-    return matrix;
-}
-
 ConditionalVandermondeDiagnostics conditional_vandermonde_diagnostics(const std::vector<double>& nodes, const std::vector<double>& weights,
                                                                       DenseMatrix rhs, const DenseMatrix& solution, const double singular_tolerance)
 {

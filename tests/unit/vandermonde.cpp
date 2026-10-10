@@ -1,5 +1,6 @@
 #include "internal/vandermonde.hpp"
 
+#include "conditional_vandermonde_matrix.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/performance.hpp"
 #include "test_case_dispatch.hpp"
@@ -106,7 +107,7 @@ void assert_matches_dense_reference(const std::vector<double>& abscissas, const 
                                     const double residual_tolerance)
 {
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
 
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
     assert(dense.success);
@@ -127,7 +128,7 @@ void assert_wrapper_matches_dense_reference(const std::vector<double>& abscissas
                                             const qmomkit::internal::VandermondeAlgorithm expected_algorithm_used, const double solution_tolerance)
 {
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
     assert(dense.success);
 
@@ -145,7 +146,7 @@ void assert_pivoted_qr_success(const std::vector<double>& abscissas, const std::
                                const qmomkit::internal::DenseMatrix& expected_solution, const double solution_tolerance)
 {
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
     assert(dense.success);
 
@@ -190,7 +191,7 @@ void assert_svd_success(const std::vector<double>& abscissas, const std::vector<
                         const qmomkit::internal::DenseMatrix& expected_solution, const double absolute_tolerance, const double relative_tolerance)
 {
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
     assert(dense.success);
 
@@ -324,7 +325,7 @@ void test_large_dynamic_range_rhs()
     const qmomkit::internal::DenseMatrix expected =
         make_solution({{1.0e-4, -1.0e12, 3.0}, {-2.0e-4, 4.0e9, -5.0}, {3.0e-4, -6.0e6, 7.0}, {-4.0e-4, 8.0e3, -9.0}});
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
     const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, singular_tolerance};
     const qmomkit::internal::VandermondeSolveResult result =
         qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
@@ -983,9 +984,9 @@ void test_diagnostics_do_not_depend_on_number_density_or_unit()
     const double ratio = decimal_unit.condition_estimate / reference.condition_estimate;
     assert(ratio < 8.0 && ratio > 1.0 / 8.0);
     const double unscaled =
-        qmomkit::internal::condition_estimate(qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, unit_weights), singular_tolerance);
+        qmomkit::internal::condition_estimate(qmomkit::test::make_conditional_vandermonde_matrix(abscissas, unit_weights), singular_tolerance);
     const double unscaled_in_unit = qmomkit::internal::condition_estimate(
-        qmomkit::internal::make_conditional_vandermonde_matrix(scaled(abscissas, unit), unit_weights), singular_tolerance);
+        qmomkit::test::make_conditional_vandermonde_matrix(scaled(abscissas, unit), unit_weights), singular_tolerance);
     assert(unscaled_in_unit / unscaled > 1.0e6);
 }
 

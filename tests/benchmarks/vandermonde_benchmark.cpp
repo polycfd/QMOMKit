@@ -1,3 +1,4 @@
+#include "../conditional_vandermonde_matrix.hpp"
 #include "internal/bjorck_pereyra.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/vandermonde.hpp"
@@ -120,7 +121,7 @@ VandermondeFixture make_fixture(const std::size_t n, const std::size_t rhs_cols,
     std::vector<double> abscissas = make_abscissas(n, numerical_case);
     std::vector<double> weights = make_weights(n, numerical_case);
     qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, make_solution(n, rhs_cols));
-    qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
     return VandermondeFixture{std::move(abscissas), std::move(weights), std::move(rhs), std::move(system)};
 }
 

@@ -1,5 +1,6 @@
 #include "internal/householder_qr.hpp"
 
+#include "conditional_vandermonde_matrix.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/vandermonde.hpp"
 #include "test_case_dispatch.hpp"
@@ -441,7 +442,7 @@ void test_success_requires_finite_solution()
 void assert_vandermonde_case_matches_references(const std::vector<double>& abscissas, const std::vector<double>& weights,
                                                 const qmomkit::internal::DenseMatrix& expected_solution, const double tolerance)
 {
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(abscissas, weights);
     const qmomkit::internal::DenseMatrix rhs = make_rhs(system, expected_solution);
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, 1.0e-14, "singular");
     const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, 1.0e-14};

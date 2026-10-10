@@ -36,12 +36,6 @@ struct VandermondeSolveResult
 };
 
 /**
- * Construct the conditional Vandermonde matrix A = V^T diag(w), with
- * A(power, node) = weights[node] * nodes[node]^power.
- */
-[[nodiscard]] DenseMatrix make_conditional_vandermonde_matrix(const std::vector<double>& nodes, const std::vector<double>& weights);
-
-/**
  * Solve the complete conditional system A*C = rhs, where
  * A(power, node) = weights[node] * nodes[node]^power.
  */

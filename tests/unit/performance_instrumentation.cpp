@@ -1,3 +1,4 @@
+#include "conditional_vandermonde_matrix.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/moment_source.hpp"
 #include "internal/performance.hpp"
@@ -328,7 +329,7 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
 qmomkit::internal::DenseMatrix make_vandermonde_rhs(const std::vector<double>& nodes, const std::vector<double>& weights,
                                                     const qmomkit::internal::DenseMatrix& solution)
 {
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(nodes, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::test::make_conditional_vandermonde_matrix(nodes, weights);
     qmomkit::internal::DenseMatrix rhs(system.rows(), solution.cols());
     for (std::size_t row = 0; row < system.rows(); ++row)
     {

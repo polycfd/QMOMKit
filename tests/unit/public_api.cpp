@@ -507,6 +507,8 @@ void test_cqmom_state_candidate_applies_coordinate_policies()
     const qmomkit::CqmomStateCandidate indeterminate = prepared_case.state_candidate(moments, {coarse});
     assert(indeterminate.status == qmomkit::StateCandidateStatus::realizability_rejected);
     assert(indeterminate.realizability->status == qmomkit::RealizabilityStatus::numerically_indeterminate);
+    coarse.accept_indeterminate = true;
+    assert(prepared_case.state_candidate(moments, {coarse}).ok());
 
     // A policy beyond the hierarchy is invalid input, whatever its mode and
     // before any coordinate is checked, as in the moment-source update.
@@ -1100,6 +1102,8 @@ void test_qmom_state_candidate_applies_the_realizability_policy()
     const qmomkit::QmomStateCandidate indeterminate = two_node_case.state_candidate(two_points, coarse);
     assert(indeterminate.status == qmomkit::StateCandidateStatus::realizability_rejected);
     assert(indeterminate.realizability->status == qmomkit::RealizabilityStatus::numerically_indeterminate);
+    coarse.accept_indeterminate = true;
+    assert(two_node_case.state_candidate(two_points, coarse).ok());
 
     // An adaptive reconstruction keeps the nodes the moments support, so a
     // negative variance gives a single node at the mean without a check; the
@@ -1109,6 +1113,32 @@ void test_qmom_state_candidate_applies_the_realizability_policy()
     qmomkit::RealizabilityPolicy real_line;
     real_line.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
     assert(two_node_case.state_candidate(negative_variance, real_line).status == qmomkit::StateCandidateStatus::realizability_rejected);
+}
+
+void test_qmom_state_candidate_accepts_indeterminate_moments_when_allowed()
+{
+    // A log-normal with sigma = 0.05 has 12 moments that six-node Wheeler
+    // inverts to rounding, but too few digits for the realizability check to
+    // decide at order 11: the verdict is indeterminate.
+    const qmomkit::RawMomentResult narrow = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{0.0, 0.05}, 11);
+    assert(narrow.ok());
+    const qmomkit::QmomCase six_node_case{narrow.moments, 6};
+
+    qmomkit::RealizabilityPolicy policy;
+    policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    policy.support = qmomkit::MomentSupport::nonnegative;
+    const qmomkit::QmomStateCandidate rejected = six_node_case.state_candidate(narrow.moments, policy);
+    assert(rejected.status == qmomkit::StateCandidateStatus::realizability_rejected);
+    assert(rejected.realizability->status == qmomkit::RealizabilityStatus::numerically_indeterminate);
+
+    policy.accept_indeterminate = true;
+    const qmomkit::QmomStateCandidate accepted = six_node_case.state_candidate(narrow.moments, policy);
+    assert(accepted.ok());
+    assert(accepted.state->active_node_count() == 6);
+    for (std::size_t k = 0; k < narrow.moments.size(); ++k)
+    {
+        assert(std::abs(accepted.state->moment_values()[k] / narrow.moments[k] - 1.0) < 1.0e-13);
+    }
 }
 
 void test_qmom_state_candidate_reports_failures_without_throwing()
@@ -1715,6 +1745,7 @@ int main(const int argc, char** argv)
             {"qmom_public_api_matches_wheeler", test_qmom_public_api_matches_wheeler},
             {"qmom_state_candidate_matches_initial_state", test_qmom_state_candidate_matches_initial_state},
             {"qmom_state_candidate_applies_the_realizability_policy", test_qmom_state_candidate_applies_the_realizability_policy},
+            {"qmom_state_candidate_accepts_indeterminate_moments_when_allowed", test_qmom_state_candidate_accepts_indeterminate_moments_when_allowed},
             {"qmom_state_candidate_reports_failures_without_throwing", test_qmom_state_candidate_reports_failures_without_throwing},
             {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},

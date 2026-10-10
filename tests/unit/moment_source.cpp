@@ -642,6 +642,31 @@ void test_cqmom_invalid_coordinate_policies_are_invalid_input()
     assert(qmomkit::advance_cqmom_moments_with_source(initial, 0.0, 0.2, source, options).ok());
 }
 
+void test_cqmom_coordinate_policy_accepts_indeterminate_marginals_when_allowed()
+{
+    // With tolerance 0.9 the standardized H_1 of two points at -1 and 1 has
+    // an eigenvalue below the threshold but above the zero band, so the
+    // verdict on the unchanged marginal is indeterminate.
+    qmomkit::CqmomMomentData initial = create_coordinate_policy_moment_data(2);
+    set_coordinate_marginal(initial, 0, {1.0, 0.0, 1.0, 0.0});
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
+
+    qmomkit::RealizabilityPolicy policy;
+    policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    policy.options.tolerance = 0.9;
+    qmomkit::MomentSourceUpdateOptions options;
+    options.coordinate_realizability_policies = {policy};
+    const qmomkit::CqmomMomentSourceUpdateResult rejected = qmomkit::advance_cqmom_moments_with_source(initial, 0.0, 0.2, zero_source, options);
+    assert(rejected.status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
+
+    policy.accept_indeterminate = true;
+    options.coordinate_realizability_policies = {policy};
+    const qmomkit::CqmomMomentSourceUpdateResult accepted = qmomkit::advance_cqmom_moments_with_source(initial, 0.0, 0.2, zero_source, options);
+    assert(accepted.ok());
+    assert_vector_near(accepted.moments.values, initial.values, 1.0e-15);
+}
+
 void test_cqmom_coordinate_final_only_policy_rejects_final_candidate()
 {
     qmomkit::CqmomMomentData initial = create_coordinate_policy_moment_data(2);
@@ -1070,6 +1095,8 @@ int main(const int argc, char** argv)
             {"cqmom_moment_data_non_finite_source_fails", test_cqmom_moment_data_non_finite_source_fails},
             {"cqmom_moment_data_rk_failure_propagates_and_preserves_state", test_cqmom_moment_data_rk_failure_propagates_and_preserves_state},
             {"cqmom_invalid_coordinate_policies_are_invalid_input", test_cqmom_invalid_coordinate_policies_are_invalid_input},
+            {"cqmom_coordinate_policy_accepts_indeterminate_marginals_when_allowed",
+             test_cqmom_coordinate_policy_accepts_indeterminate_marginals_when_allowed},
             {"cqmom_coordinate_final_only_policy_rejects_final_candidate", test_cqmom_coordinate_final_only_policy_rejects_final_candidate},
             {"cqmom_coordinate_every_stage_policy_rejects_stage_candidate", test_cqmom_coordinate_every_stage_policy_rejects_stage_candidate},
             {"cqmom_coordinate_policies_check_configured_marginals_only", test_cqmom_coordinate_policies_check_configured_marginals_only},

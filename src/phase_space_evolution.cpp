@@ -477,7 +477,6 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     catch (const std::exception& error)
     {
         std::string message = std::string("QMOM post-source moment reconstruction failed: ") + error.what();
-        diagnostics.final_reconstruction_diagnostics = {false, state.moment_values().size(), message};
         failure = qmom_failure(rollback_state, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                PhaseSpaceEvolutionStage::post_source_inversion, diagnostics, t, std::move(message));
         return false;
@@ -1069,7 +1068,6 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     catch (const std::exception& error)
     {
         std::string message = std::string("CQMOM post-source moment reconstruction failed: ") + error.what();
-        diagnostics.final_reconstruction_diagnostics = {false, cqmom_case.moments.values.size(), message};
         return cqmom_state_failure(rollback_state, post_source_quadrature.quadrature, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                    PhaseSpaceEvolutionStage::post_source_inversion, diagnostics, t, std::move(message));
     }

@@ -224,6 +224,7 @@ void assert_realizability_policies_match(const qmomkit::RealizabilityPolicy& act
     assert(actual.check_mode == expected.check_mode);
     assert(actual.support == expected.support);
     assert(actual.accept_boundary == expected.accept_boundary);
+    assert(actual.accept_indeterminate == expected.accept_indeterminate);
     assert_near(actual.options.tolerance, expected.options.tolerance);
     assert(actual.interval.has_value() == expected.interval.has_value());
     if (actual.interval.has_value())
@@ -2331,18 +2332,21 @@ support = nonnegative
     assert(every_stage.ok());
     assert(every_stage.value().check_mode == qmomkit::RealizabilityCheckMode::EveryStage);
     assert(every_stage.value().support == qmomkit::MomentSupport::nonnegative);
+    assert(!every_stage.value().accept_indeterminate);
 
     const auto final_only = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
 check_mode = final_only
 support = nonnegative
 accept_boundary = false
+accept_indeterminate = true
 tolerance = 1e-10
 )");
     assert(final_only.ok());
     assert(final_only.value().check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
     assert(final_only.value().support == qmomkit::MomentSupport::nonnegative);
     assert(!final_only.value().accept_boundary);
+    assert(final_only.value().accept_indeterminate);
     assert_near(final_only.value().options.tolerance, 1.0e-10);
 }
 
@@ -2523,6 +2527,7 @@ lower = 0.0
 upper = 1.0
 tolerance = 1e-10
 accept_boundary = false
+accept_indeterminate = true
 )";
     const std::string second = R"(
 [phase_space]
@@ -2544,6 +2549,7 @@ lower = 0.0
 upper = 1.0
 tolerance = 1e-10
 accept_boundary = false
+accept_indeterminate = true
 )";
 
     assert(qmomkit::config::parse_cqmom_prepared(first).ok());
@@ -2557,6 +2563,7 @@ accept_boundary = false
     assert(first_policies.value()[1].has_value());
     assert(second_policies.value()[1].has_value());
     assert_realizability_policies_match(*first_policies.value()[1], *second_policies.value()[1]);
+    assert(first_policies.value()[1]->accept_indeterminate);
 }
 
 void test_coordinate_realizability_policy_does_not_alter_quadrature_bounds()
@@ -2654,6 +2661,15 @@ accept_boundary = yes
 )");
     assert(!malformed_bool.ok());
     assert(has_failure(malformed_bool));
+
+    const auto malformed_indeterminate = qmomkit::config::parse_realizability_policy(R"(
+[time_integration.realizability]
+check_mode = final_only
+support = nonnegative
+accept_indeterminate = 1
+)");
+    assert(!malformed_indeterminate.ok());
+    assert(has_failure(malformed_indeterminate));
 }
 
 void test_realizability_policy_rejects_invalid_bounded_interval()
@@ -2728,6 +2744,8 @@ values = 1.0, 0.0
 [time_integration.realizability]
 check_mode = final_only
 support = real_line
+accept_boundary = false
+accept_indeterminate = true
 )");
     assert(qmom_case_result.ok());
     assert(qmom_case_result.value().moments.values() == std::vector<double>({1.0, 0.0}));

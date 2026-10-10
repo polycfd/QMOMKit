@@ -187,9 +187,10 @@ struct QmomCase
     /**
      * Create an evolution state as above, after checking the moments against
      * `policy` unless its `check_mode` is `None`. The check accepts strictly
-     * realizable moments, and boundary moments when `policy.accept_boundary`
-     * is set or m0 lies below the cutoff, so that moments without number
-     * density are `empty` whatever the policy. Moments too few for the node
+     * realizable moments, boundary moments when `policy.accept_boundary` is
+     * set or m0 lies below the cutoff, so that moments without number density
+     * are `empty` whatever the policy, and indeterminate moments when
+     * `policy.accept_indeterminate` is set. Moments too few for the node
      * count are invalid input, checked or not.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments, const RealizabilityPolicy& policy) const;

@@ -32,6 +32,16 @@ enum class RealizabilityCheckMode
  *
  * The policy is separate from the generic Runge-Kutta solvers. Callers own any
  * conversion from their numerical state representation to `MomentSet`.
+ *
+ * A policy accepts strictly realizable moments, boundary moments when
+ * `accept_boundary` is set, and moments the check cannot classify
+ * (`numerically_indeterminate`) when `accept_indeterminate` is set. The latter
+ * arises, for example, for distributions that are narrow compared with their
+ * distance from the origin, at high orders, where the moments carry too few
+ * digits to decide, or with a coarse tolerance. Such moments may lie just
+ * outside the realizable set within the precision of the data; accepting them
+ * leaves them to the reconstruction, which reduces the node count in adaptive
+ * mode and may fail in fixed mode.
  */
 struct RealizabilityPolicy
 {
@@ -40,18 +50,40 @@ struct RealizabilityPolicy
     std::optional<BoundedInterval> interval;
     RealizabilityOptions options;
     bool accept_boundary = true;
+    bool accept_indeterminate = false;
 };
 
 using MomentStateConverter = std::function<MomentSet(const std::vector<double>&)>;
 
 /**
+ * Whether `policy` accepts moments that the check classified as `status`. The
+ * check mode decides when a check runs, not what it accepts.
+ */
+[[nodiscard]] inline bool accepts_realizability_status(const RealizabilityPolicy& policy, const RealizabilityStatus status) noexcept
+{
+    switch (status)
+    {
+    case RealizabilityStatus::strictly_realizable:
+        return true;
+    case RealizabilityStatus::boundary:
+        return policy.accept_boundary;
+    case RealizabilityStatus::numerically_indeterminate:
+        return policy.accept_indeterminate;
+    case RealizabilityStatus::not_realizable:
+    case RealizabilityStatus::invalid_input:
+        return false;
+    }
+    return false;
+}
+
+/**
  * Evaluate a policy against a candidate generic state.
  *
  * Disabled policies accept without invoking the converter. Enabled policies
- * convert exactly once, run `check_realizability(...)`, and accept strict
- * states plus boundary states when configured to do so. Converter exceptions
- * are not caught; they follow the existing acceptance-predicate exception
- * behavior of the calling integrator or wrapper.
+ * convert exactly once, run `check_realizability(...)`, and accept the result
+ * as `accepts_realizability_status(...)` does. Converter exceptions are not
+ * caught; they follow the acceptance-predicate exception behavior of the
+ * calling integrator or wrapper.
  */
 [[nodiscard]] inline bool accepts_realizability_policy(const RealizabilityPolicy& policy, const std::vector<double>& state,
                                                        const MomentStateConverter& converter)
@@ -69,19 +101,7 @@ using MomentStateConverter = std::function<MomentSet(const std::vector<double>&)
     const RealizabilityResult result = (policy.support == MomentSupport::bounded_interval && policy.interval.has_value())
                                            ? check_realizability(moments, *policy.interval, policy.options)
                                            : check_realizability(moments, policy.support, policy.options);
-
-    switch (result.status)
-    {
-    case RealizabilityStatus::strictly_realizable:
-        return true;
-    case RealizabilityStatus::boundary:
-        return policy.accept_boundary;
-    case RealizabilityStatus::not_realizable:
-    case RealizabilityStatus::invalid_input:
-    case RealizabilityStatus::numerically_indeterminate:
-        return false;
-    }
-    return false;
+    return accepts_realizability_status(policy, result.status);
 }
 
 /**

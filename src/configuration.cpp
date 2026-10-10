@@ -924,6 +924,7 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed, con
     }
     allowed.push_back("time_integration.realizability.check_mode");
     allowed.push_back("time_integration.realizability.accept_boundary");
+    allowed.push_back("time_integration.realizability.accept_indeterminate");
     allowed.push_back("time_integration.realizability.support");
     allowed.push_back("time_integration.realizability.tolerance");
     allowed.push_back("time_integration.realizability.lower");
@@ -1485,7 +1486,7 @@ bool is_realizability_key(const std::string& key)
 
 const std::vector<std::string>& realizability_policy_fields()
 {
-    static const std::vector<std::string> fields{"check_mode", "accept_boundary", "support", "tolerance", "lower", "upper"};
+    static const std::vector<std::string> fields{"check_mode", "accept_boundary", "accept_indeterminate", "support", "tolerance", "lower", "upper"};
     return fields;
 }
 
@@ -1709,6 +1710,7 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
     const std::string check_mode_key = key_prefix + "check_mode";
     const std::string support_key = key_prefix + "support";
     const std::string accept_boundary_key = key_prefix + "accept_boundary";
+    const std::string accept_indeterminate_key = key_prefix + "accept_indeterminate";
     const std::string tolerance_key = key_prefix + "tolerance";
     const std::string lower_key = key_prefix + "lower";
     const std::string upper_key = key_prefix + "upper";
@@ -1722,6 +1724,7 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
     RealizabilityPolicy policy;
     policy.check_mode = *check_mode;
     parse_optional_bool(parsed, accept_boundary_key, source_name, policy.accept_boundary);
+    parse_optional_bool(parsed, accept_indeterminate_key, source_name, policy.accept_indeterminate);
     parse_optional_double(parsed, tolerance_key, source_name, policy.options.tolerance);
     if (policy.options.tolerance <= 0.0)
     {

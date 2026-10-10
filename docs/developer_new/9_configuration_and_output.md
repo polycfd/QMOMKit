@@ -25,10 +25,9 @@ Errors are `ConfigurationError` records with a `ConfigurationErrorCode`, a
 source name, a line and a message; both types are internal to
 `configuration.cpp`. The public `ConfigurationResult<T>` carries either the
 value or one error string, the first recorded error formatted as
-`<source>:<line>: <message>`, without the line when it is unknown. `ok()` and
-`operator bool` test success; `value()` of a failed result throws
-`std::bad_optional_access`. Each `load_*` function reads exactly the named file
-and passes its text to the `parse_*` counterpart, with the path as source name.
+`<source>:<line>: <message>`, without the line when it is unknown. Each
+`load_*` function reads exactly the named file and passes its text to the
+`parse_*` counterpart, with the path as source name.
 
 ## Syntax
 
@@ -82,11 +81,12 @@ When a QMOM file has `[moments] values`, or a CQMOM file has `[moments] extents`
 or `M[...]` entries, every key and section under `initial` is accepted without
 being read or checked.
 
-Two keys are accepted although they can be without effect:
-`[vandermonde] rcond` is stored whatever the solver, though only
-`moore_penrose` reads it, and `[initial] maximum_orders` goes into the
-specification for `initialize_cqmom_moment_tensor(...)`, while the case
-parsers generate only the moments the layout requires.
+Two keys are accepted although they can be without effect.
+`[vandermonde] rcond` is stored for every solver but read only by
+`moore_penrose`, since a loaded `CqmomCase` can still change its solver.
+`[initial] maximum_orders` is read only by
+`initialize_cqmom_moment_tensor(...)`; the case parsers generate just the
+moments the layout requires.
 
 ## Mapping to objects
 

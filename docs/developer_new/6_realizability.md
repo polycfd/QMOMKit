@@ -22,7 +22,7 @@ measure by $x - a$, $b - x$ and $(x - a)(b - x)$:
 \ell^{ab}_k = (a + b)\,\nu_{k+1} - ab\,\nu_k - \nu_{k+2}.
 ```
 
-Realizability makes every tested matrix positive semidefinite. With
+For a realizable sequence, every tested matrix is positive semidefinite. With
 $N = 2n$ or $N = 2n + 1$, the check tests, in this order:
 
 | Support | $N = 2n$ | $N = 2n + 1$ |
@@ -35,7 +35,8 @@ For $N = 0$ only $H_0$ is tested. `RealizabilityResult::failed_matrix` names
 them `H_n`, `S_n`, `L_interval_n`, `L_lower_n` and `L_upper_n`. On a bounded
 interval positive semidefiniteness is also sufficient. On the real line and the
 half-line a singular matrix needs a further test: its rank must not grow with
-the next moments.
+the next moments
+[[Curto & Fialkow, 1991](https://www.math.uh.edu/~hjm/v017n4/0603CURTO.pdf)].
 
 ## Standardization
 
@@ -54,7 +55,7 @@ $(a - c)/2^{e_s}$.
 
 Realizability is invariant under an affine change of coordinate, and the
 moment and localizing matrices change by a congruence, which by Sylvester's
-law of inertia keeps the signs of their eigenvalues. The tolerance applies to
+law of inertia [[Sylvester, 1852](https://www.doi.org/10.1080/14786445208647087)] keeps the signs of their eigenvalues. The tolerance applies to
 the standardized matrices, so the classification depends neither on the
 location of the distribution, nor on the unit of its coordinate, nor on $m_0$.
 Scaling by powers of two is exact, so only the centring sum rounds.
@@ -106,9 +107,9 @@ threshold $\tau$:
 | ambiguous | $\lambda < \tau$ |
 | positive | otherwise |
 
-An eigenvalue within the roundoff of the eigen solve has no sign, so the zero
-band comes first; a tolerance below $1000\varepsilon$ therefore resolves
-nothing finer. The factor is `roundoff_allowance`.
+The factor 1000, `roundoff_allowance`, bounds the rounding of the eigensolve.
+An eigenvalue inside that band has no sign, so the zero class is tested first,
+and a tolerance below $1000\varepsilon$ resolves nothing finer.
 
 A matrix with a negative eigenvalue is not positive semidefinite; otherwise,
 one with an ambiguous eigenvalue is indeterminate, one with a zero eigenvalue
@@ -137,14 +138,14 @@ $\theta$ the sequence is `not_realizable`, above $\theta/10$
 (`kernel_projection_tolerance`) is the largest of $\tau$, $t$ times the
 largest column entry, and ten times the uncertainty of the projection: that
 of the column plus its norm times the rotation of the kernel vectors. By the
-Davis–Kahan theorem that rotation is at most $\delta$ over the gap between the
+Davis–Kahan theorem [[Davis & Kahan, 1970](https://www.doi.org/10.1137/0707001)] that rotation is at most $\delta$ over the gap between the
 zero and the positive eigenvalues, which the smallest positive eigenvalue
 minus $\zeta$ bounds from below.
 
 The **flat-extension test** decides a singular $H_n$ on the real line: it is
-flat if it has no more positive eigenvalues than $H_{n-1}$. Since $H_{n-1}$ is
-a principal submatrix with a narrower zero band, $H_n$ can count fewer; it
-then resolves the same eigenvalues less finely and counts as flat. A higher
+flat if it has no more positive eigenvalues than $H_{n-1}$. $H_{n-1}$ has a
+narrower zero band, so $H_n$ may count fewer positive eigenvalues; that is a
+coarser view of the same eigenvalues and still counts as flat. A higher
 rank makes the sequence `not_realizable` only if every zero eigenvalue of
 $H_{n-1}$ lies within its roundoff allowance,
 $1000\,\varepsilon \lVert H_{n-1} \rVert_\infty$. If one is zero only within
@@ -163,8 +164,8 @@ sequence, the zero measure, is `boundary`. `realizable()` is true for `strictly_
 `boundary`, `on_boundary()` only for `boundary`.
 
 `checked_order` is $N$. `failed_matrix` and `failed_matrix_order` name the
-matrix that decided a failure or, on success, the limiting matrix: the one
-whose smallest eigenvalue is closest to its threshold, relative to it.
+matrix that decided a failure or, on success, the matrix closest to failing:
+the one with the smallest ratio of its smallest eigenvalue to its threshold.
 `minimum_pivot` is that eigenvalue, or the kernel projection of a range test,
 and `tolerance_used` the threshold it was compared with, both for the
 standardized matrices.
@@ -184,7 +185,7 @@ boundary one is never strictly realizable.
 [`include/qmomkit/realizability_policy.hpp`](../../include/qmomkit/realizability_policy.hpp),
 holds `check_mode` (`None`, the default, `FinalOnly` or `EveryStage`),
 `support` (default `real_line`), `interval` (required for `bounded_interval`),
-`options`, the tolerance, and `accept_boundary` (default `true`). A policy accepts
+`options` (its tolerance), and `accept_boundary` (default `true`). A policy accepts
 `strictly_realizable`, and `boundary` if `accept_boundary` is set; it rejects
 the other statuses. `internal::realizability_policy_error`, declared in
 [`src/internal/realizability.hpp`](../../src/internal/realizability.hpp),
@@ -206,13 +207,11 @@ Boundary moments with $m_0$ below `QmomOptions::cutoff` are accepted even if
 check. A QMOM sequence too short for the node count is left to the
 reconstruction.
 
-In the moment-source step, `FinalOnly` checks each candidate step and
-`EveryStage` also its intermediate stages; a caller's acceptance predicate
-must accept as well. A rejection is retried as
-[Phase-space evolution](8_phase_space_evolution.md) describes, and an invalid
-policy makes the evolution return `invalid_input` before anything runs.
-`advance_qmom_moments_with_source` rejects coordinate policies; its caller
-installs `make_realizability_acceptance_predicate(...)` or
+In the moment-source step a policy is an acceptance predicate; how it
+interacts with the step is in
+[Phase-space evolution](8_phase_space_evolution.md#moment-source). The
+stateless `advance_qmom_moments_with_source` rejects coordinate policies; a
+caller who wants a check installs `make_realizability_acceptance_predicate(...)` or
 `make_realizability_stage_acceptance_predicate(...)`.
 
 In CQMOM a policy checks only the marginal moments $M_{0,\ldots,k,\ldots,0}$

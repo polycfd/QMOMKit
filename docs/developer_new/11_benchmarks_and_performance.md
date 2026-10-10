@@ -44,11 +44,10 @@ definition propagates through the installed target, so the benchmark project
 needs no flag. Against an uninstrumented library its counter cases skip with a
 message.
 
-Interpretation:
+Interpretation and design:
 
-- Timings are never correctness evidence. A benchmark may check that its
-  fixture is valid and skip itself if not; correctness assertions belong in
-  the tests.
+- A benchmark may check that its fixture is valid and skip itself if not;
+  correctness assertions belong in the tests.
 - Compare only runs from the same machine, compiler, build type and load.
   Absolute timings do not transfer.
 - To measure instrumentation overhead, install two libraries that differ only
@@ -108,7 +107,6 @@ To add a counter:
 5. Report it in `performance_instrumentation_benchmark` if it explains a
    workload.
 
-Counters are not diagnostics. They are internal, not public API; they change no
-result, status or output, and they are separate from `CqmomDiagnosticLevel` and
-`PhaseSpaceEvolutionDiagnostics`. Diagnostics tell a caller what happened
-numerically; counters tell a maintainer how much work it took.
+Counters are internal and change no result, status or output. Diagnostics
+tell a caller what happened numerically; counters tell a maintainer how much
+work it took.

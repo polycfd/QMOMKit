@@ -1,9 +1,10 @@
 # Testing and validation
 
-Tests are plain C++ executables registered with CTest; there is no test
-framework. The registered tests are the inventory: list them with `ctest`
-rather than maintaining a list by hand. The rules on what every change must be
-tested with are in [AGENTS.md](../../AGENTS.md#testing-and-validation).
+This page covers where a test goes, how it is registered, built and run, the
+CI checks, and the evidence a numerical change needs. Tests are plain C++
+executables registered with CTest; there is no test framework, and `ctest -N`
+lists them all. The rules on what every change must be tested with are in
+[AGENTS.md](../../AGENTS.md#testing-and-validation).
 
 ## The test tree
 
@@ -16,7 +17,10 @@ tested with are in [AGENTS.md](../../AGENTS.md#testing-and-validation).
 | [`tests/package_consumer/`](../../tests/package_consumer) | not in CTest | that an external project finds, includes and links the installed package |
 | [`tests/benchmarks/`](../../tests/benchmarks) | not in CTest | performance only; see [Benchmarks and performance](11_benchmarks_and_performance.md) |
 
-Examples are never tests and are never registered with CTest.
+Examples under [`examples/`](../../examples) are user documentation built
+against the installed package, never tests
+([AGENTS.md](../../AGENTS.md#tests-and-examples)). When a change affects an
+example, run it and check its numbers.
 
 Unit tests check with `assert()`. Verification and component-regression tests
 check with the `QMOMKIT_VERIFY_*` macros of
@@ -27,11 +31,8 @@ case prints nothing when it passes; its source header states the reference,
 its construction and the tolerance, and each area under `tests/verification/`
 has a README.
 
-## Debug rule
-
-`NDEBUG` removes `assert()`, so a Release build compiles the unit checks out.
-The suite is authoritative only in a Debug build; a Release CTest result is not
-evidence that the unit suite passed.
+`NDEBUG` removes `assert()`, so only a Debug build of the suite is evidence
+that the unit tests passed.
 
 ## Registering a test case
 
@@ -84,7 +85,10 @@ The labels are `unit`, `component_regression`, `verification` and
 ## Building and running
 
 These commands are those of the CI workflows. The suite links the build-tree
-`qmomkit` target and needs no installation:
+`qmomkit` target and needs no installation. Without `CMAKE_BUILD_TYPE`, a
+single-configuration generator builds `Release`, so always give `Debug` for
+tests; without an install prefix, the prefix is `install/` in the source
+directory.
 
 ```bash
 cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
@@ -165,29 +169,25 @@ compatible with it.
 
 ## Validation evidence
 
-A numerical change needs evidence beyond agreement with the
-implementation it replaces. What counts:
+A numerical change needs evidence beyond agreement with the implementation
+it replaces, and a validation change states its reference, assumptions, error
+metric, tolerance and reproduction
+([AGENTS.md](../../AGENTS.md#testing-and-validation)). The references used
+here:
 
 - analytical results: exact discrete quadratures, classical Gaussian rules,
   closed-form ODE, source and node trajectories;
 - manufactured cases: moments generated from prescribed nodes, weights or
   conditional quadratures, which the method must recover;
-- convergence: observed order under step refinement; formal order only with
-  fixed steps, while adaptive cases measure controller behavior;
+- convergence: the observed order under step refinement, compared with the
+  formal order only for fixed steps; adaptive steps test the controller;
 - independent references: separately constructed data or implementations;
 - Monte Carlo references, below.
 
-The expected values must come from the mathematical case, not from another call
-into the production code under test. Benchmark timings are never evidence of
-correctness. A validation change states how the reference is constructed, the
-assumptions, the error metric, why the tolerance is appropriate, and how to
-reproduce the result
-([AGENTS.md](../../AGENTS.md#testing-and-validation)); changing a tolerance,
-fallback, node ordering or status mapping needs explicit approval.
-
-Evidence that the suite enforces lives in `tests/verification/`.
-[`paper/verification/`](../../paper/verification) holds paper-specific studies;
-it is not part of CTest or of this suite.
+Expected values come from the mathematical case, never from another call into
+the code under test. Evidence that the suite enforces lives in
+`tests/verification/`. [`paper/verification/`](../../paper/verification)
+holds paper-specific studies outside CTest.
 
 ## Monte Carlo references
 

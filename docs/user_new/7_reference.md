@@ -88,7 +88,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | --- | --- | --- | --- |
 | `[cqmom] diagnostic_level` | `none` | `basic` records branch structure, `detailed` adds residuals and condition estimates. Results are unchanged. | `CqmomCase::diagnostic_level` |
 | `[vandermonde] solver` | `automatic` | Solver of the conditional systems: `automatic` (Björck–Pereyra), `bjorck_pereyra`, `dense`, `pivoted_qr`, `svd`, `moore_penrose`. | `CqmomCase::vandermonde_solver` |
-| `[vandermonde] rcond` | `1e-14` | `moore_penrose` only: singular values below `rcond` times the largest are discarded. `0 <= rcond < 1`. | `ConditionalMomentOptions::moore_penrose_rcond` |
+| `[vandermonde] rcond` | `1e-14` | `moore_penrose` only: singular values at or below `rcond` times the largest are discarded. `0 <= rcond < 1`. | `ConditionalMomentOptions::moore_penrose_rcond` |
 
 ### Evolution options
 
@@ -112,7 +112,7 @@ For QMOM; a CQMOM file gives one section per checked coordinate,
 | Key | Default | Meaning | C++ (`RealizabilityPolicy`) |
 | --- | --- | --- | --- |
 | `check_mode` | `none` | `none`, `final_only` (after the source step), or `every_stage` (also its stages). | `check_mode` |
-| `support` | `real_line` | `real_line`, `nonnegative`, or `bounded_interval`. | `support` |
+| `support` | — | `real_line`, `nonnegative`, or `bounded_interval`. Required unless `check_mode = none`. | `support` |
 | `lower`, `upper` | — | Required for `bounded_interval`, an error otherwise. | `interval` |
 | `accept_boundary` | `true` | Accept moments on the boundary of the realizable set. | `accept_boundary` |
 | `tolerance` | `1e-12` | Relative tolerance of the check. | `options.tolerance` |
@@ -185,7 +185,7 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | `RealizabilityResult` | `strictly_realizable`, `boundary` | Realizable; `realizable()` is true. |
 | | `not_realizable` | Not realizable on the support. |
 | | `numerically_indeterminate` | The moments carry too few digits to decide. |
-| | `invalid_input` | Empty or non-finite moments, or an invalid support. |
+| | `invalid_input` | Empty or non-finite moments, an invalid tolerance, or an invalid support or interval. |
 
 Every result type also has `success`. An evolution result's
 `diagnostics.failed_stage` names the part of the step that failed:
@@ -198,7 +198,10 @@ These throw instead of returning a status:
 | Function | Throws |
 | --- | --- |
 | `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed |
-| `extract_cqmom_moments(...)` | `std::out_of_range` when the tensor lacks a required moment |
+| `PhaseSpaceHierarchy`, `CqmomPreparedCase` constructors | `std::invalid_argument` for an invalid conditioning order, a zero node count, or moments that do not fit the hierarchy |
+| `extract_cqmom_moments(...)` | `std::invalid_argument` when the tensor's rank or value count is wrong; `std::out_of_range` when it lacks a required moment |
+| `reconstruct_raw_moments(...)`, `evaluate_generalized_moment(...)` | `std::invalid_argument` for malformed input, `std::domain_error` for a fractional order with a negative abscissa, `std::overflow_error` for a value beyond the range of a double |
+| `weight(index)`, `abscissa(dimension, index)` of an adaptive `CqmomQuadrature` | `std::logic_error`; iterate over `weights()` and `abscissas()` instead |
 | `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written |
 | `value()` of a failed configuration result | `std::bad_optional_access` |
 
@@ -223,8 +226,8 @@ For more detail on a CQMOM failure, set `[cqmom] diagnostic_level = detailed`.
 
 ## Output files
 
-Writers produce text tables with a header line starting with `#`, columns
-separated by whitespace, and full double precision.
+Writers produce text tables: one header line, `# time` and a label per column,
+then columns separated by whitespace, in full double precision.
 
 | Writer | Columns |
 | --- | --- |

@@ -71,35 +71,36 @@ value and takes a multiple of its diagonal as the rounding of $\sigma_{k,k}$:
 ```
 
 with $\varepsilon$ the double epsilon and $s$ the coordinate scale below
-($s=0$ drops the floor for $k\ge2$). $\sigma_{k,k}$ and $\tau_k$ both scale as
-$m_0$ times the coordinate to the power $2(k-1)$, so the test depends on
-neither unit nor number density, and $\tau_k$ grows with the cancellation of a
-distribution far from the origin.
+($s=0$ drops the floor for $k\ge2$). Both $\sigma_{k,k}$ and $\tau_k$ scale
+as $m_0$ times the coordinate to the power $2(k-1)$, so the test depends on
+neither unit nor number density. $\tau_k$ also grows with the cancellation of
+a distribution far from the origin.
 
 ## Fixed node count
 
 With `adaptive = false`, the first $k\in\{2,\ldots,N\}$ with
 $|\sigma_{k,k}|\le\tau_k$ ends the inversion with `not_realizable` and the
 message `Moment sequence supports at most k-1 nodes: …`, with $k-1$ filled in.
-Without this test a sequence on the boundary would be accepted or rejected by
-the sign of its rounding, which changes with unit and number density, and an
-accepted rule would carry nodes made of rounding. A non-finite recurrence or a
+Without this test, rounding would decide whether a sequence on the boundary
+passes, and that changes with unit and number density; an accepted rule would
+also carry nodes made only of rounding. A non-finite recurrence or a
 negative $b_k$ is also `not_realizable`. Otherwise the result has exactly $N$
 nodes; `rmin` and `eabs` are not applied.
 
 ## Adaptive reduction
 
-Adaptive inversion (`adaptive = true`, the default) tries candidate counts
+Adaptive inversion [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]
+(`adaptive = true`, the default) tries candidate counts
 $n=N,N-1,\ldots,2$:
 
 1. Scan $k=n,\ldots,2$. $\sigma_{k,k}<-\tau_k$ rejects the candidate and the
-   next count is tried. $|\sigma_{k,k}|\le\tau_k$ lowers the active count to
+   next count is tried. $|\sigma_{k,k}|\le\tau_k$ lowers the usable count to
    $k-1$; the scan goes on, so the lowest such $k$ decides.
-2. For $n_1$ from the active count down to 2, form the $n_1$-node rule from the
+2. For $n_1$ from the usable count down to 2, form the $n_1$-node rule from the
    leading coefficients and return the first that passes the two criteria
    below.
 
-If the active count reaches 1, no rule passes, or every candidate count meets a
+If the usable count reaches 1, no rule passes, or every candidate count meets a
 negative $\sigma_{k,k}$, the result is the one-node rule $(m_1/m_0,\ m_0)$
 with `success`. A sequence with negative variance therefore succeeds with one
 node that matches $m_0$ and $m_1$ only (`tests/unit/wheeler.cpp`).
@@ -126,18 +127,12 @@ and `WheelerOptions`
 
 ## Coordinate scales
 
-Conditional moments in CQMOM come from a linear solve whose rounding is
-relative to the scale of their coordinate, not to their own magnitudes. Their
-inversion, `internal::compute_conditional_quadrature`, passes that scale to
-the bound. `cqmom_coordinate_scales`
-([`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp)) takes
-$s=\sqrt{M_2/M_0}$ of the marginal of the whole distribution, else
-$|M_1|/M_0$, else one. The root level inverts marginal moments, which are
-data, with $s=0$, as do `compute_quadrature(...)` and `compute_qmom(...)`.
-[`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) computes
-the scales only for adaptive reconstruction and passes zero at every level
-otherwise, so the fixed-count test on conditional levels uses the bound
-without the floor.
+`compute_quadrature(...)` and `compute_qmom(...)` use $s=0$: given moments
+carry no solve rounding. CQMOM conditional moments do, so their inversion,
+`internal::compute_conditional_quadrature`, receives a positive $s$ in
+adaptive mode ([CQMOM](4_cqmom.md#the-recursion)). In fixed mode CQMOM passes
+$s=0$ at every level, so its fixed-count test uses the bound without the
+floor.
 
 ## Abscissa bounds
 
@@ -152,14 +147,13 @@ succeeds with exactly $c$ nodes, all in $[\ell-t,\ u+t]$ with
 t=10^{-12}\max(|\ell|,|u|).
 ```
 
-A node on a bound comes off it by the rounding of the moments amplified by the
-inversion, which scales with the nodes, so a margin relative to the bounds
-decides alike in any unit. Nodes are never clipped. A fixed reconstruction
+Rounding can move a node that lies on a bound slightly outside it. That error
+scales with the coordinate, so the margin is relative to the bounds and decides
+the same in any unit. A fixed reconstruction
 evaluates $c=N$ only; an adaptive one tries $c=N,\ldots,1$ and keeps the first
 accepted, and if $c=1$ also fails, returns its status and message. Bounds must
 be finite with $\ell<u$, and $2N$ moments are required whatever count is
-accepted. `AbscissaBounds` is independent of the support used by
-[realizability](6_realizability.md).
+accepted.
 
 ## Cases, results and statuses
 

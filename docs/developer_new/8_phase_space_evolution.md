@@ -1,6 +1,9 @@
 # Phase-space evolution
 
-Public usage is in [Evolving in time](../user_new/5_evolving_in_time.md) and
+This page explains how a state advances by one step: the state itself, the
+splitting of a step into node advection and the moment source, the
+reconstruction after the source, how node counts change, and how failures are
+reported. Public usage is in [Evolving in time](../user_new/5_evolving_in_time.md) and
 [Coupling QMOMKit](../user_new/6_coupling_qmomkit.md); the reconstructions
 called here are in [QMOM](3_qmom.md) and [CQMOM](4_cqmom.md).
 
@@ -9,10 +12,8 @@ called here are in [QMOM](3_qmom.md) and [CQMOM](4_cqmom.md).
 `QmomState` and `CqmomState` are immutable: they have no setters and no public
 constructor. `initial_state()` and `state_candidate(...)` create them from
 moments (`QmomCase`, `CqmomCase::initial_state()`, `CqmomPreparedCase`), and
-the evolution stages create them from other states, through
-`internal::QmomStateAccess::from_quadrature`
-([`src/internal/qmom_state_access.hpp`](../../src/internal/qmom_state_access.hpp))
-and `internal::CqmomConstructionAccess::create_state`.
+the evolution stages create them from other states through the internal
+access classes ([Architecture](1_architecture.md#public-and-internal-boundary)).
 
 | | `QmomState` | `CqmomState` |
 | --- | --- | --- |
@@ -34,11 +35,10 @@ the candidate `reconstruction_failed`.
 
 Moments and quadrature of a state therefore always agree, and a step starts
 from the stored quadrature without reconstructing it. Every successful stage
-builds its result state the same way, from the quadrature it accepted. The
-CQMOM stages first reconstruct a state that carries no quadrature and then report
-`PhaseSpaceEvolutionStage::initial_inversion` and `initial_cqmom_status`; only
-states built through `internal::CqmomConstructionAccess` in tests reach this
-path.
+builds its result state the same way, from the quadrature it accepted. Only
+states that tests build through `internal::CqmomConstructionAccess` can lack a
+quadrature; the CQMOM stages then reconstruct it first and report a failure as
+`PhaseSpaceEvolutionStage::initial_inversion`.
 
 ## Step structure
 
@@ -54,12 +54,12 @@ the scheme:
 | `advsrc` | advection $\Delta t$, then source $\Delta t$, both from $t$ | first (Lie) |
 | `srcadv` | source $\Delta t$, then advection $\Delta t$, both from $t$ | first (Lie) |
 
-The source always integrates over the whole interval and samples its rates at
-the SSP-RK3 stage times $t$, $t+\Delta t$, and $t+\Delta t/2$, in Strang
-splitting too. A boundary contribution is added to the source rate inside the
+The source always integrates over the whole interval from $t$, also in Strang
+splitting, and evaluates its rates at the SSP-RK3 stage times $t$,
+$t+\Delta t$ and $t+\Delta t/2$. A boundary contribution is added to the source rate inside the
 source operator; it is not a third split operator.
 
-A macro step is transactional. Each stage works on the state returned by the
+A step is all-or-nothing. Each stage works on the state returned by the
 previous one; if a stage fails, the result holds the input state and
 `final_time` is $t$, otherwise $t+\Delta t$. The stage helpers
 `advance_qmom_advection`, `advance_qmom_moment_source`,
@@ -100,10 +100,10 @@ node and evaluation.
 | `ssp_rk3` | SSP-RK3 [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)] | none: one step over the interval |
 
 The embedded pairs run through `integrate_embedded_rk`. Node advection
-integrates over the local time $\tau \in [0, \Delta t]$ and evaluates the
-velocity at $t+\tau$, so the nodes move over $\Delta t$ itself rather than
-over the rounded $(t+\Delta t)-t$, and the step floor follows the spacing of
-$\tau$ rather than of $t$. `ssp_rk3` uses its own three-stage
+integrates in the local time $\tau \in [0, \Delta t]$ and evaluates the
+velocity at $t+\tau$. The nodes then move over exactly $\Delta t$, not over
+the rounded $(t+\Delta t)-t$, and the step floor follows the spacing of $\tau$,
+not of $t$. `ssp_rk3` uses its own three-stage
 formula, `integrate_nodes_ssp_rk3`, without the predicates and retries of the
 source operator.
 
@@ -118,8 +118,8 @@ E = \left[\frac{1}{n}\sum_{i=1}^{n}\left(\frac{y_i - \hat{y}_i}{a + r\max(|y^0_i
 
 $a$ and $r$ the absolute and relative tolerances. A step with $E < 1$ is
 accepted and keeps $y$. The next step size is the last one times
-$0.9\,E^{-1/(\hat{p}+1)}$, clipped to $[0.2, 10]$ and to at most 1 for a step
-accepted after a rejection; $\hat{p}$ is the embedded order, so the exponent
+$0.9\,E^{-1/(\hat{p}+1)}$, at most 10 after an accepted step (at most 1 if
+it followed a rejection) and at least 0.2 after a rejected one; $\hat{p}$ is the embedded order, so the exponent
 is $-1/3$ for `rk23` and $-1/5$ for `rk45`. Both pairs are
 first-same-as-last: the last stage derivative of an accepted step is the first
 of the next, and a rejected trial reuses the first derivative.
@@ -146,9 +146,6 @@ interval. An explicit `min_step` above an explicit `max_step` is
 `invalid_input`. On any of these, node advection reports `integration_failed`
 and keeps the input nodes.
 
-`format_node_advection_options` writes the effective settings, only the scheme
-for `ssp_rk3`.
-
 ## Moment source
 
 The source operator advances the stored moment vector with SSP-RK3
@@ -166,7 +163,8 @@ y^{n+1} &= \tfrac{1}{3} y^n + \tfrac{2}{3}\bigl(y^{(2)} + \Delta t\, f(t+\tfrac{
 It is explicit and has no error control; `SspRk3Options::estimate_error` is a
 diagnostic only.
 
-Acceptance predicates can reject a step: a realizability policy and the
+Acceptance predicates can reject a step
+[[Nguyen et al., 2016](https://www.doi.org/10.1016/j.jcp.2016.08.017)]: a realizability policy and the
 caller's `accept` and `stage_accept` in
 `MomentSourceUpdateOptions::ssp_rk3_options`, combined by logical and.
 `stage_accept` sees $y^{(1)}$, $y^{(2)}$, and $y^{n+1}$, and a rejected stage
@@ -220,8 +218,10 @@ other closures throw `std::out_of_range`, which fails the update.
 Active node counts follow one policy:
 
 - **Advection** keeps every count.
-- **Source stages**: a stage reconstruction may lose nodes but never gains
-  one, because the state's counts are its ceilings.
+- **Source stages**: a stage reconstruction uses the state's counts as
+  ceilings, so a branch may lose nodes but never grows. Only the branches
+  below a branch that lost nodes, which condition on other nodes, start from
+  their configured maximum.
 - **QMOM post-source reconstruction**, `select_post_source_qmom`: a fixed case
   must return its configured count. An adaptive case reconstructs at the
   state's active count $n$ and accepts a reduction as is; if $n$ is kept and
@@ -232,10 +232,9 @@ Active node counts follow one policy:
 - **CQMOM post-source reconstruction**, `internal::compute_cqmom_internal` with
   growth enabled: every branch follows the QMOM rule with its own active count
   (`recursive_branch_node_count_limit` and `branch_growth_trial_allowed` in
-  [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp)). When
-  a branch changes its count, its children condition on different nodes, so
-  their recorded counts are dropped and they start from their configured
-  maximum. This is intended, also in a source-stage reconstruction.
+  [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp)).
+  Below a branch whose count changed, branches start from their configured
+  maximum, as [CQMOM](4_cqmom.md#active-branch-counts) explains.
 - **Created states**: `initial_state()` and `state_candidate(...)` start from
   the configured maximum; a state rebuilt from moments keeps no earlier
   counts.
@@ -281,11 +280,10 @@ report `MomentSourceUpdateStatus::invalid_input`.
 | `PhaseSpaceVelocity` | fills `velocities`, packed like `coordinates` | no resize; every entry written and finite |
 | `QmomMomentSource`, `CqmomMomentSource`, boundary contributions | return a rate | one finite value per context entry, in context order |
 
-The velocity and `OdeRhs` fill a buffer the library supplies because they run
-on every stage of every node-advection step for all nodes, and filling keeps
-those evaluations free of heap allocation; a source runs once per SSP-RK3
-stage, independent of node count and dimension, so returning a vector costs
-little and keeps the most common callback simple.
+The velocity and `OdeRhs` fill a buffer because they run at every stage of
+every node-advection step, and filling keeps those calls free of allocation. A
+source runs once per SSP-RK3 stage, so returning a vector costs little and
+keeps the most common callback simple.
 
 Size and finiteness are checked after every call
 (`internal::validate_packed_phase_space_velocity_result` in
@@ -320,7 +318,7 @@ while the `ssp_rk3` path reuses it across stages.
 | `advection_failed` | velocity callback or node integration | `first_advection_status`, `second_advection_status`, `NodeAdvectionDiagnostics::adaptive_status` |
 | `moment_reconstruction_failed` | moments of the moved or reconstructed quadrature not finite | `first_reconstruction_diagnostics`, `final_reconstruction_diagnostics` |
 | `moment_source_failed` | source or boundary callback, stage reconstruction, predicate rejection, minimum step | `moment_source_status`, `moment_source_diagnostics` |
-| `inversion_failed` | post-source reconstruction | `post_source_qmom_status`, `post_source_cqmom_status`, `post_source_cqmom_diagnostics` |
+| `inversion_failed` | post-source reconstruction, or the initial reconstruction of a state without a quadrature | `post_source_qmom_status`, `post_source_cqmom_status`, `post_source_cqmom_diagnostics` |
 
 On failure, `CqmomPhaseSpaceEvolutionResult::diagnostic_quadrature` holds the
 quadrature the failing stage produced or started from: the rejected

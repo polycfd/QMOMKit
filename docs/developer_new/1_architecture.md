@@ -25,8 +25,29 @@ Everything else is a standalone consumer, and the core never depends on one:
 | `examples/*` | The installed package, or `qmomkit::qmomkit` when the enclosing build already defines it; the Monte Carlo examples find `QMOMKitMonteCarlo` instead. |
 | `tools/monte_carlo/` | The installed package; it exports `qmomkit_monte_carlo::qmomkit_monte_carlo`, which links `qmomkit::qmomkit` publicly. |
 
-The test tree cannot be configured on its own; it refuses unless the root
-project adds it.
+Configuring `tests/` on its own stops with an error; it is enabled from the
+root with `QMOMKIT_BUILD_TESTS=ON`.
+
+## Data flow
+
+A configured workflow passes through the library in this order:
+
+1. A case holds moments, node counts and reconstruction options. Its entry
+   points validate them once.
+2. Reconstruction turns the moments into a quadrature: Wheeler inversion for
+   QMOM ([QMOM](3_qmom.md)), and for CQMOM a recursion that alternates Wheeler
+   inversions with conditional Vandermonde solves ([CQMOM](4_cqmom.md),
+   [Linear algebra](5_linear_algebra.md)).
+3. A state stores the accepted quadrature and the moments summed from it.
+4. A step moves the nodes without reconstructing, integrates the moments with
+   the source, and reconstructs once after it; a source may also request a
+   quadrature of its stage moments
+   ([Phase-space evolution](8_phase_space_evolution.md)).
+
+Realizability checks ([Realizability](6_realizability.md)), analytical moments
+([Distributions](7_distributions.md)) and the `.qmom` parser and writers
+([Configuration and output](9_configuration_and_output.md)) sit beside this
+path.
 
 ## Source map
 
@@ -63,44 +84,42 @@ construction access), `cqmom_validation.hpp` (layout and storage checks),
 Installed headers live in `include/qmomkit/`; `qmomkit.hpp` includes them all.
 They never include `src/internal/`. Implementation helpers live in
 `src/internal/`, in namespace `qmomkit::internal`, and are not installed. Tests
-that include them do not make them public. Configuration functions live in
-`qmomkit::config`.
+may include them; that does not make them public. Configuration functions live
+in `qmomkit::config`.
 
 Public headers expose requests, options, results, statuses, moment containers,
 quadratures and states. They do not expose solver workspaces, branch layouts or
 parser internals. States, prepared cases and `CqmomQuadrature` have private
-constructors. The implementation builds them through friend access classes,
+constructors; the implementation builds them through friend access classes,
 such as `internal::QmomStateAccess` and `internal::CqmomConstructionAccess`,
-which public headers only forward-declare. This keeps the invariant that the
-moments of a state are those of its accepted quadrature. `CqmomPreparedCase`
-and `CqmomState` hold their data behind `std::unique_ptr<Data>`, so the
-prepared branch structure stays internal.
+which public headers only forward-declare. So only the library creates states,
+and a state's moments are always those of its accepted quadrature.
+`CqmomPreparedCase` and `CqmomState` hold their data behind
+`std::unique_ptr<Data>`, so the prepared branch structure stays internal.
 
-[AGENTS.md](../../AGENTS.md) has the full rules for public API changes.
+A new public header is included by `qmomkit.hpp` and gets an
+`include_<header>.cpp` in `tests/public_headers/`; a change to installed
+headers or exports also runs the package consumer
+([Testing and validation](10_testing_and_validation.md)).
+[AGENTS.md](../../AGENTS.md#public-and-internal-apis) has the full rules for
+public API changes.
 
 ## Errors and statuses
 
 An operation whose failure is a possible outcome of valid use returns a result
-with a status, `ok()`, and a message. An exception means that the calling code
-broke a contract, that I/O failed, or that a setup cannot start.
+with a status, `ok()`, and a message: reconstruction, moment generation,
+realizability checks, state candidates, every evolution operator, and
+configuration loading. Internal helpers may throw; a function that promises a
+status catches what they throw and maps it to a status. Callback exceptions
+are mapped the same way
+([Phase-space evolution](8_phase_space_evolution.md#callbacks)).
 
-Results with a status:
+An exception means that the calling code broke a contract, that I/O failed, or
+that a setup cannot start:
 
-- reconstruction: `compute_qmom`, `compute_quadrature`, and `compute_cqmom`, including
-  a moment layout that does not match the hierarchy;
-- `compute_raw_moments` and `check_realizability`;
-- `state_candidate(...)`, including non-finite moments, a wrong layout, or an
-  invalid policy;
-- node advection, moment-source updates, phase-space evolution (scalar and
-  batch), and `integrate_embedded_rk`;
-- configuration parsers and loaders (`ConfigurationResult`), including
-  unreadable files, and `config::with_initial_moments` for a malformed tensor.
-
-Exceptions:
-
-- malformed structure while constructing objects: `PhaseSpaceHierarchy` with an invalid
-  conditioning order or a zero node count, and `CqmomPreparedCase` from a case
-  whose layout is not the required layout of its hierarchy
+- malformed structure while constructing objects: `PhaseSpaceHierarchy` with
+  an invalid conditioning order or a zero node count, and `CqmomPreparedCase`
+  from a case whose layout is not the required layout of its hierarchy
   (`std::invalid_argument`);
 - `initial_state()` when the moments of the case cannot be reconstructed
   (`std::runtime_error`);
@@ -113,52 +132,27 @@ Exceptions:
 - `ssp_rk3_step` with empty or non-finite input;
 - output writers.
 
-A phase-space step validates its state, time, callbacks and options first.
-Invalid node-advection or source options give `invalid_input` before any stage
-runs. A velocity, source, or boundary callback that throws a
-`std::exception` is caught. The exception becomes `velocity_failed` or `source_failed` in
-the stage result, and `advection_failed` or `moment_source_failed` in the
-evolution result.
-
 Data returned with a non-success status is diagnostic. A failed Wheeler
-inversion can carry a one-node rule, and a failed step returns its input state.
-Neither is a result. The [user reference](../user_new/7_reference.md#statuses)
+inversion can carry a one-node rule, and a failed step returns its input state;
+neither is a result. The [user reference](../user_new/7_reference.md#statuses)
 lists the statuses and the throwing functions a user meets.
 
 ## Thread safety
 
 The library has no global mutable state. There are two thread-local objects:
 the pool of coordinate scratch buffers in `src/node_advection.cpp`, and the
-active counter session in `src/internal/performance.hpp`. Every other workspace,
-such as `EmbeddedRkWorkspace`, is a local of its call. Calls on different
-states, cases and results may therefore run concurrently. This holds also for
-states of one prepared case, which share its branch structure read-only through
-`std::shared_ptr<const ...>`. A source context caches lazily (`mutable`
-members) and is valid only during the callback that receives it. Code added to
-the library keeps these properties: no mutable `static` data, and
-`thread_local` for scratch reused across calls.
-
-## Building for development
-
-With a single-configuration generator and no `CMAKE_BUILD_TYPE`, the build type
-becomes `Release`. Without an install prefix, the prefix becomes `install/` in
-the source directory. The library compiles with `-Wall -Wextra -Wpedantic`
-(`/W4 /permissive-` on MSVC).
-
-| Option | Default | Effect |
-| --- | --- | --- |
-| `QMOMKIT_BUILD_TESTS` | `OFF` | Adds `tests/` to the build. |
-| `QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION` | `OFF` | Compiles the work counters in; the definition is `PUBLIC`, so it reaches consumers. See [Benchmarks and performance](11_benchmarks_and_performance.md). |
-
-Build and run the tests in Debug, as
-[Testing and validation](10_testing_and_validation.md#building-and-running)
-describes; that page also covers formatting, static analysis and the warning
-gates of CI. Installing and embedding are in
-[Installation](../user_new/1_installation.md).
+active counter session in `src/internal/performance.hpp`. Every other
+workspace, such as `EmbeddedRkWorkspace`, is local to its call. Calls on
+different states, cases and results may therefore run concurrently, also for
+states of one prepared case, which share its branch structure read-only
+through `std::shared_ptr<const ...>`. A source context caches lazily
+(`mutable` members) and is valid only during the callback that receives it.
+Code added to the library keeps these properties: no mutable `static` data,
+and `thread_local` for scratch reused across calls.
 
 ## Coding rules
 
-[AGENTS.md](../../AGENTS.md) holds the general rules. Four more apply to the
+[AGENTS.md](../../AGENTS.md) holds the general rules. Three more apply to the
 core:
 
 - **Runtime checks versus assertions.** Runtime checks protect what a caller
@@ -166,18 +160,18 @@ core:
   They map to a status or an exception by the rule above. `assert` states an
   internal invariant that earlier validation or construction guarantees, such
   as the index bounds of `DenseMatrix`. `NDEBUG` removes it, so it must never
-  guard anything a caller can cause. An intermediate state of an algorithm can
-  legitimately violate what the final output must satisfy.
+  guard anything a caller can cause. Do not assert properties of the final
+  output on intermediate values of an algorithm.
 - **Validate once, at the boundary.** Public entry points validate. Internal
   `*_trusted_*` entry points, such as
   `compute_recursive_quadrature_from_trusted_moment_data` and
   `advance_trusted_qmom_moments_with_source`, skip checks that their caller
   already made, such as the layout of a prepared case. To speed up a check on
   a hot path, move it to such a boundary rather than remove it.
-- **Callback buffers.** Debug builds fill every buffer handed to a callback
-  with a NaN payload, so an entry the callback did not write is reported
-  ([`numeric_utils.hpp`](../../src/internal/numeric_utils.hpp)). Release builds
-  compile this away.
 - **Sizes.** Size arithmetic that can overflow, such as `2 * n` moments or
   products of extents, goes through
   [`checked_size.hpp`](../../src/internal/checked_size.hpp).
+
+Building, formatting and CI are in
+[Testing and validation](10_testing_and_validation.md); installing and
+embedding are in [Installation](../user_new/1_installation.md).

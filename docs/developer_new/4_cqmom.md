@@ -15,8 +15,8 @@ coordinate at conditioning level $l$ and $N_l$ its configured node count.
 ## The recursion
 
 A *branch* at level $l$ is identified by its parent path, the node indices
-chosen at levels $0,\ldots,l-1$. Each branch carries a *slice*: moments in
-conditioning order whose leading axis is $c_l$.
+chosen at levels $0,\ldots,l-1$. Each branch carries a *slice*: the moments it
+needs, indexed in conditioning order with $c_l$ first.
 
 1. **Root.** The root slice is the required moment data, reordered into
    conditioning order. Its leading sequence $M_{k\,e_{c_0}}$, $k<2N_0$, is the
@@ -45,15 +45,23 @@ conditioning order whose leading axis is $c_l$.
    conditional moments, and weights below the root are conditional
    probabilities.
 3. **Next level.** Wheeler inverts the leading sequence of every child slice.
-   In adaptive mode these inversions receive the coordinate scale of $c_l$,
-   because conditional moments carry the rounding of the solve that produced
-   them; see [QMOM](3_qmom.md#coordinate-scales).
+   Conditional moments carry the rounding of the solve that produced them,
+   which is relative to the scale of their coordinate, not to their own
+   magnitude. In adaptive mode each inversion therefore receives the scale $s$
+   of the coordinate it inverts, which sets the floor of its rounding bound
+   ([QMOM](3_qmom.md#rounding-bound-on-the-recurrence)).
+   `cqmom_coordinate_scales`
+   ([`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp)) takes
+   $s=\sqrt{M_2/M_0}$ of that coordinate's marginal, else $|M_1|/M_0$, else
+   one. The root inverts given moments and uses $s=0$, as does every level in
+   fixed mode.
 4. **Terminal nodes.** At the last level, every accepted node becomes a
    terminal node. Its weight is the product of the local weights along its
    path, and its abscissas are collected in phase-space order.
 
 The traversal visits levels in order and branches within a level in path
-order. It stops at the first failing branch. The driver is
+order. It stops at the first failing branch. It also records a traversal tree
+in `internal::RecursiveQuadrature`, which only tests read. The driver is
 `compute_recursive_quadrature_from_validated_moment_data` in
 [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp); the
 conditional step is the file-local `reconstruct_child_slices`.
@@ -81,7 +89,7 @@ adaptive mode, where a reduced branch reads only part of it.
 when a required moment lies outside the tensor, or with
 `create_cqmom_moment_data` from a successful `SelectedRawMomentResult` with
 exactly the layout's indices in layout order. A missing moment is never
-treated as zero. Reconstruction requires the canonical layout of the hierarchy
+treated as zero. Reconstruction requires exactly the required layout of the hierarchy
 and compares against it once, when a case or candidate is created or when a
 `CqmomCase` is reconstructed; the root slice then takes the values in stored
 order without lookups.
@@ -89,7 +97,7 @@ order without lookups.
 ### Branch layouts
 
 `create_branch_moment_layout` turns a slice's indices into lookup metadata: the
-offsets of the Wheeler sequence, an index table keyed by mixed-radix code, and,
+offsets of the Wheeler sequence, a table from each multi-index to its position, and,
 for each parent node count, a *child case*: the slice offsets that form each
 right-hand-side column and the child slice's own layout, built recursively.
 Child cases depend only on the parent node count, so every branch with the
@@ -100,31 +108,29 @@ to the configured maximum.
 ## Fixed and adaptive reconstruction
 
 `QmomOptions::adaptive` decides both whether each Wheeler inversion may
-reduce its node count and whether branches may differ in size; there is no
-separate switch. In fixed mode, a branch that returns any count other than
-its configured one fails with `qmom_failed`, and the quadrature has rectangular
-storage. In adaptive mode, each branch accepts at most its ceiling, children
-of a reduced branch use the child case of the accepted count, and the
-quadrature has ragged storage: terminal arrays and terminal paths in traversal
-order, which is lexicographic order of the paths. Storage conventions are in
-[Numerical conventions](2_numerical_conventions.md).
+reduce its node count and whether branches may differ in size. In fixed mode, a
+branch that returns any other count than its configured one fails with
+`qmom_failed`. In adaptive mode, each branch accepts at most its ceiling, and
+the children of a reduced branch use the child case of the accepted count. The
+two storage layouts are in
+[Numerical conventions](2_numerical_conventions.md#quadrature-storage).
 
 ### Active branch counts
 
-A reconstruction that creates a `CqmomState` records one
+A reconstruction that creates an adaptive `CqmomState` records one
 `CqmomActiveBranchCount` per accepted branch at every level: the level, the
 parent path, the phase-space dimension, the configured count and the accepted
-count. The records are sorted by parent path, which puts every branch before
-its descendants. A fixed state records none.
+count.
 
 A later reconstruction can receive these records. `validate_active_branch_counts`
 then checks, in one pass over the sorted records, that each matches the
 hierarchy and that every reachable branch has exactly one record; records in
 another order are sorted into a copy first, and a malformed set is
 `invalid_input`. `recursive_branch_node_count_limit` makes each branch's
-recorded count its ceiling. When the caller allows growth, a branch that
-reproduced exactly its recorded count below the configured maximum tries one
-more node and keeps the larger rule only if Wheeler returns all of its nodes.
+recorded count its ceiling. If growth is allowed, which only the
+reconstruction after a source step does, a branch that returns exactly its
+recorded count, below its configured maximum, also tries one more node. It
+keeps that rule only if Wheeler returns all of its nodes.
 
 A branch whose accepted count differs from its record has different children:
 they condition on other nodes, so the records below it do not describe them.
@@ -142,17 +148,17 @@ branch of a bounded coordinate goes through the same `select_bounded_quadrature`
 as QMOM, with that branch's ceiling, recorded count and growth permission; see
 [QMOM](3_qmom.md#abscissa-bounds).
 
-## Prepared and unprepared cases
+## Prepared cases
 
 `create_prepared_cqmom_metadata` builds a `PreparedCqmomMetadata`: the
-canonical moment layout, the root branch layout with every child case below
+required moment layout, the root branch layout with every child case below
 it, and the adaptive flag. It holds no moment values, quadratures, or solver
-workspaces. It depends only on the hierarchy and the flag. An adaptive tree is
-wider, but because it holds a child case for every count Wheeler can return,
-it covers every run-time outcome and is prepared like a fixed one.
+workspaces, and depends only on the hierarchy and the flag. The adaptive
+structure holds a child case for every count Wheeler can return, so it too is
+built once and never depends on the moments.
 
 `CqmomPreparedCase` builds it once in its constructor, which throws
-`std::invalid_argument` for a non-canonical layout, and shares it through a
+`std::invalid_argument` for a layout other than the required one, and shares it through a
 `std::shared_ptr<const PreparedCqmomMetadata>` with:
 
 - every `compute_cqmom(prepared_case)`;
@@ -185,9 +191,8 @@ The detailed quantities need the explicit weighted matrix and its full inverse,
 which is why they have their own level. The level never changes a quadrature,
 a status or a node count. Records of the last level have no conditional
 solve, so their solver fields keep their defaults. The selected solver is the
-policy after `automatic` is resolved; the algorithm the adapter finally ran
-stays internal. CQMOM requests no residual acceptance from the adapter: a
-conditional solve fails only when the solver reports failure.
+one `automatic` resolves to. A conditional solve fails only when its solver
+reports failure.
 
 ## Statuses
 
@@ -216,10 +221,8 @@ $\sum_j W_j\prod_d x_{d,j}^{k_d}$ for both QMOM and CQMOM:
 - `evaluate_generalized_moment` takes finite real orders; a non-integer order
   needs non-negative abscissas.
 
-Integer powers use repeated squaring, and sums are plain double sums. These
-functions throw `std::invalid_argument` for malformed input,
-`std::domain_error` for a negative abscissa with a non-integer order, and
-`std::overflow_error` for a non-finite value. States store the moments of their
+These functions throw on malformed input or overflow
+([Architecture](1_architecture.md#errors-and-statuses)). States store the moments of their
 accepted quadrature: QMOM states through `reconstruct_raw_moments`, CQMOM
 states through `internal::reconstruct_trusted_cqmom_moments`, which skips the
 layout checks. Source contexts and output writers use the public functions.

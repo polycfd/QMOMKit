@@ -60,7 +60,9 @@ $r(x) = r(x+1)\,x/(x+\tfrac12)$, then sums eight terms of the asymptotic series
 ```
 
 with Bernoulli numbers $B_m$. From $x = 10$ the truncation error is below
-$10^{-17}$. The source comment gives the derivation.
+$10^{-17}$. The series follows from the expansions of $\ln\Gamma(x+h)$ at
+$h=\tfrac12$ and $h=0$ [[DLMF, 5.11.8](https://dlmf.nist.gov/5.11.E8)] with
+$B_m(\tfrac12)=-(1-2^{1-m})B_m$ [[DLMF, 24.4.27](https://dlmf.nist.gov/24.4.E27)].
 
 ## Mixtures
 

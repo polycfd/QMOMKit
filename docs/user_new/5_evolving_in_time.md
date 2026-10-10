@@ -177,8 +177,9 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
 - Return exactly the number of values requested, all finite.
 - A callback runs many times per step, at every Runge–Kutta stage and for
   retried steps, so it must not count calls or assume increasing time.
-- A callback that throws, returns the wrong size, or returns a non-finite value
-  makes the step fail with a message, without an exception reaching you.
+- A callback that throws a `std::exception`, returns the wrong size, or
+  returns a non-finite value makes the step fail with a message, without an
+  exception reaching you. Other exceptions propagate.
 - Debug builds detect an unwritten velocity entry; release builds cannot, so
   develop callbacks in a debug build.
 

@@ -223,7 +223,7 @@ default solver suits most cases; `[vandermonde] solver` selects another, and
 
 ### Derived quantities
 
-Moments of any non-negative real order can be evaluated from a quadrature, for
+Moments of any real order can be evaluated from a quadrature, for
 example $m_{1/3}$ of the log-normal case above or, in two dimensions,
 $M_{1/3,\,2}$:
 

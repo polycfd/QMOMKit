@@ -137,6 +137,7 @@ function.
 | Generate moments | `compute_raw_moments` | `distributions.hpp` |
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
+| Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `active_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
 | Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` forms | `phase_space_evolution.hpp` |
 | Check realizability | `check_realizability` | `realizability.hpp` |
 | Derived moments | `evaluate_generalized_moment`, `reconstruct_raw_moments` | `moment_reconstruction.hpp` |
@@ -192,6 +193,15 @@ Every result type also has `success`. An evolution result's
 `post_source_inversion`, `second_advection_half_step`, or
 `final_moment_reconstruction`.
 
+These throw instead of returning a status:
+
+| Function | Throws |
+| --- | --- |
+| `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed |
+| `extract_cqmom_moments(...)` | `std::out_of_range` when the tensor lacks a required moment |
+| `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written |
+| `value()` of a failed configuration result | `std::bad_optional_access` |
+
 ## Troubleshooting
 
 | Message | Cause and remedy |
@@ -220,7 +230,7 @@ separated by whitespace, and full double precision.
 | --- | --- |
 | `MomentWriter` | `time`, then one column per moment: `M[0] M[1] …` for QMOM, `M[0,0] M[1,0] …` for CQMOM, then generalized moments, such as `G[0.5]`. |
 | `QuadratureWriter`, QMOM | `time node_index weight x0`, one row per node. |
-| `QuadratureWriter`, CQMOM | `time node_index path_0 … weight x0 …`, one row per terminal node. |
+| `QuadratureWriter`, CQMOM | `time node_index path_0 … weight x0 …`, one row per terminal node; `path_0 …` are the node's index at each conditioning level. |
 
 An adaptive quadrature can have a different number of rows at different times;
 group rows by `time`.

@@ -151,7 +151,9 @@ lets you address a node by its multi-index, with `weight(index)` and
 
 Choose node counts by the resolution your model needs. More nodes need more,
 and higher, moments; fewer nodes are cheaper and more robust when only the low
-moments are reliable.
+moments are reliable. In CQMOM the number of nodes is the product of the node
+counts of the coordinates, and the number of required moments grows with it, so
+each added coordinate or node makes every step more expensive.
 
 ### Bounds on the nodes
 

@@ -32,6 +32,10 @@ node motion:
 | Splitting, `options.scheme` | `strang` (default): half a step of node motion, the source step, half a step of node motion [[Strang, 1968](https://www.doi.org/10.1137/0705041)]. `advsrc` and `srcadv`: node motion then source, or the reverse, first-order Lie splitting. |
 | Node motion, `options.node_options.scheme` | `rk23` (default), adaptive [[Bogacki & Shampine, 1989](https://www.doi.org/10.1016/0893-9659(89)90079-7)]; `rk45`, adaptive [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)]; `ssp_rk3`, three stages per step, no step control. |
 
+Only node motion with `rk23` or `rk45` adapts its steps to a tolerance. The
+source step is explicit and has no error control: its accuracy and stability
+depend on the time step you choose, so a stiff source needs a small step.
+
 The options can be loaded from a `.qmom` file and changed in code:
 
 ```cpp
@@ -184,6 +188,27 @@ nodes; after the accepted source step it may gain one, if the moments support
 it. In CQMOM, a branch that replaces others after its parent lost nodes starts from its
 configured maximum. Node counts therefore shrink readily and grow one at a
 time.
+
+## Reading a state
+
+A QMOM state gives its moments $m_0, m_1, \ldots$ with `moment_values()` and its
+quadrature with `quadrature()`; `active_node_count()` and `maximum_node_count()`
+give the current and the configured number of nodes. A CQMOM state lists its
+moments in the order of `moment_indices()`, and `moment(index)` returns one of
+them if the state holds it:
+
+```cpp
+const std::vector<qmomkit::MultiIndex> indices = state.moment_indices();
+const std::vector<double>& values = state.moment_values();
+for (std::size_t i = 0; i < values.size(); ++i)
+{
+    std::cout << "M[" << indices[i][0] << "," << indices[i][1] << "] = " << values[i] << '\n';
+}
+const std::optional<double> m10 = state.moment(qmomkit::MultiIndex{1, 0});
+```
+
+`quadrature()` gives its nodes, and `active_branch_counts()` the current node
+count of each branch.
 
 ## Checking the result
 

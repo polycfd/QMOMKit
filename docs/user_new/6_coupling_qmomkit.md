@@ -81,6 +81,8 @@ for (std::vector<double>& moments : cqmom_cells)
 A new state stores the moments of its quadrature. They equal the given moments
 unless an adaptive reconstruction dropped nodes the moments do not support;
 storing `moment_values()` back keeps each cell consistent with what was evolved.
+The same pattern restarts a run: store the moments of each state, and create
+the states again from them with `state_candidate(...)`.
 
 Keeping the moments realizable during transport is your code's part. A scheme
 whose new cell values are convex combinations of realizable neighbour values,
@@ -125,7 +127,9 @@ const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> indexed =
 ```
 
 Batches run serially; a failed state does not stop the others. To run states in
-parallel, call the single-state functions from your own parallel loop. The
+parallel, call the single-state functions from your own parallel loop. QMOMKit
+keeps no global mutable state, so calls on different states can run at the same
+time; your callbacks must then be safe to call concurrently. The
 [`cqmom_2d_batch_host_data`](../../examples/cqmom_2d_batch_host_data/README.md)
 example uses host data per state.
 

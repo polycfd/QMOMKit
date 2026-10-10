@@ -86,6 +86,8 @@ The [Reference](7_reference.md) lists all statuses.
 | callback | A function you supply with the physics: a velocity, a source, or a boundary contribution. |
 | case | The fixed setup of a reconstruction: moments, node counts, options. |
 | conditioning order | The order in which CQMOM reconstructs the coordinates. |
+| hierarchy | The node counts of a CQMOM case and its conditioning order, `PhaseSpaceHierarchy`. |
+| layout | The moments a CQMOM hierarchy requires, in a fixed order, `CqmomMomentLayout`. |
 | node | A weighted point of a quadrature. |
 | number density | The population per unit of phase space; its zeroth moment is the total. |
 | realizability | Whether moments can come from a non-negative number density on a given support. |

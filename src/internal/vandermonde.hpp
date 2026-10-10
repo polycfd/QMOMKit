@@ -22,8 +22,6 @@ struct VandermondeSolveOptions
 {
     VandermondeSolver solver = VandermondeSolver::automatic;
     double singular_tolerance = 1.0e-14;
-    bool validate_residual = false;
-    double residual_tolerance = 1.0e-10;
     double moore_penrose_rcond = 1.0e-14;
 };
 

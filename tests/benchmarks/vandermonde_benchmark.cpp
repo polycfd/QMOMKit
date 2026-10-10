@@ -247,7 +247,7 @@ void run_weighted_wrapper_solve(benchmark::State& state, const std::size_t n, co
         return;
     }
 
-    const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance};
     const qmomkit::internal::VandermondeSolveResult setup_check =
         qmomkit::internal::solve_conditional_vandermonde_system(fixture.abscissas, fixture.weights, fixture.rhs, options, singular_message);
     if (!setup_check.success)

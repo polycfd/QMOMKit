@@ -360,7 +360,7 @@ void test_explicit_svd_vandermonde_records_only_svd_counter_when_enabled()
     qmomkit::internal::performance::CounterSession session;
     {
         qmomkit::internal::performance::CounterScope scope(session);
-        const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::svd, 1.0e-14, true, 1.0e-10};
+        const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::svd, 1.0e-14};
         const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
             nodes, weights, make_vandermonde_rhs(nodes, weights, solution), options, "singular");
         assert(result.success);
@@ -373,7 +373,7 @@ void test_explicit_svd_vandermonde_records_only_svd_counter_when_enabled()
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.dense_linear_solves == 0);
-    assert(counters.linear_algebra.residual_checks == 1);
+    assert(counters.linear_algebra.residual_checks == 0);
 #else
     assert(counters.linear_algebra.vandermonde_solves == 0);
     assert(counters.linear_algebra.svd_solves == 0);
@@ -393,7 +393,7 @@ void test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_en
     qmomkit::internal::performance::CounterSession session;
     {
         qmomkit::internal::performance::CounterScope scope(session);
-        const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::svd, 1.0e-14, false, 1.0e-10};
+        const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::svd, 1.0e-14};
         const qmomkit::internal::VandermondeSolveResult result =
             qmomkit::internal::solve_conditional_vandermonde_system(nodes, weights, rhs, options, "singular");
         assert(!result.success);

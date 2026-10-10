@@ -444,7 +444,7 @@ void assert_vandermonde_case_matches_references(const std::vector<double>& absci
     const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
     const qmomkit::internal::DenseMatrix rhs = make_rhs(system, expected_solution);
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, 1.0e-14, "singular");
-    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, 1.0e-14, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, 1.0e-14};
     const qmomkit::internal::VandermondeSolveResult bjorck_pereyra =
         qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, "singular");
     const qmomkit::internal::QrSolveResult qr = qmomkit::internal::solve_qr(system, rhs);

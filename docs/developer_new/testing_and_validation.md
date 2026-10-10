@@ -210,20 +210,11 @@ evolution. Starting QMOMKit from analytical moments instead leaves the sampling
 error of the initial ensemble in the comparison. The reference itself carries
 sampling noise that shrinks as $N^{-1/2}$.
 
-`compare_moments(reference, computed, standard_errors)` in
-[`src/comparison.cpp`](../../tools/monte_carlo/src/comparison.cpp) reports, per
-moment:
-
-| Metric | Definition |
-| --- | --- |
-| `signed_error` | computed − reference |
-| `absolute_error` | $\lvert$`signed_error`$\rvert$ |
-| `relative_error` | `absolute_error` / max($\lvert$reference$\rvert$, standard error, $10^{-300}$) |
-| `z_score` | `signed_error` / standard error; 0 for exact agreement and ±∞ otherwise when the standard error is zero |
-
-The script `scripts/compare_moments.py` uses $\lvert$reference$\rvert + \epsilon$
-as the relative-error denominator ($\epsilon = 10^{-30}$, `--epsilon`). A large
-z-score is a diagnostic, not a failure verdict.
+`compare_moments(reference, monte_carlo, standard_errors)` in
+[`src/comparison.cpp`](../../tools/monte_carlo/src/comparison.cpp) and the
+script `scripts/compare_moments.py` report signed, absolute and relative
+errors and z-scores per moment, as defined in the
+[companion README](../../tools/monte_carlo/README.md#comparing-qmomkit-with-a-sample).
 
 Conventions that matter when adding a case:
 

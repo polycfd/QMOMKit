@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Compare two QMOMKit/Monte Carlo moment-history text tables."""
+"""Compare two QMOMKit/Monte Carlo moment-history text tables.
+
+The first table is the reference, such as a QMOMKit history, and the second the
+Monte Carlo estimate. The errors follow `compare_moments(...)` of the C++
+package: signed_error = second - first, and the relative error divides by the
+largest of |reference|, the Monte Carlo standard error and a positive floor.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-default_epsilon = 1.0e-30
+default_epsilon = 1.0e-300
 metadata_columns = {"time", "sample_count", "seed", "number_density"}
 
 
@@ -211,8 +217,10 @@ def compare_histories(
             comparison_value = parse_float(comparison_row, moment, comparison.path)
             signed_error = comparison_value - reference_value
             absolute_error = abs(signed_error)
-            relative_error = absolute_error / (abs(reference_value) + epsilon)
             error_scale = None if statistics_row is None else standard_error(statistics_row, moment, statistics.path)
+            # Near-zero moments with visible sampling noise are measured against
+            # that noise rather than against their own magnitude.
+            relative_error = absolute_error / max(abs(reference_value), 0.0 if error_scale is None else error_scale, epsilon)
             points.append(
                 ComparisonPoint(
                     time=time,
@@ -289,31 +297,31 @@ def plot_metric(output_dir: Path, points: list[ComparisonPoint], moments: list[s
         ax.set_yscale("log")
     ax.grid(True, alpha=0.3)
     ax.legend(loc="best", ncols=1 if len(moments) <= 8 else 2)
-    fig.savefig(output_dir / Path(filename).with_suffix(".pdf"), bbox_inches="tight")
+    fig.savefig(output_dir / filename, bbox_inches="tight")
     plt.close(fig)
 
 
 def write_plots(output_dir: Path, points: list[ComparisonPoint], moments: list[str], include_z_score: bool) -> None:
     try:
-        plot_metric(output_dir, points, moments, "absolute_error", "absolute error", "absolute_error.png")
-        plot_metric(output_dir, points, moments, "relative_error", "relative error", "relative_error.png")
+        plot_metric(output_dir, points, moments, "absolute_error", "absolute error", "absolute_error.pdf")
+        plot_metric(output_dir, points, moments, "relative_error", "relative error", "relative_error.pdf")
         if include_z_score:
             z_points = [point for point in points if point.z_score is not None and math.isfinite(point.z_score)]
             if z_points:
-                plot_metric(output_dir, z_points, moments, "z_score", "z-score", "z_score.png")
+                plot_metric(output_dir, z_points, moments, "z_score", "z-score", "z_score.pdf")
     except ImportError as error:
         raise RuntimeError("matplotlib is required for --plots") from error
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compare two raw moment-history text tables.")
-    parser.add_argument("reference_table", type=Path, help="Reference moment-history text table.")
-    parser.add_argument("comparison_table", type=Path, help="Comparison moment-history text table.")
+    parser.add_argument("reference_table", type=Path, help="Reference moment-history text table, such as a QMOMKit history.")
+    parser.add_argument("comparison_table", type=Path, help="Monte Carlo moment-history text table.")
     parser.add_argument("--mc-statistics", type=Path, help="Optional Monte Carlo statistics text table with SE_<moment> columns.")
     parser.add_argument("--output-dir", type=Path, default=Path("."), help="Directory for moment_comparison.txt and optional plots.")
     parser.add_argument("--moments", nargs="+", help="Moment columns to compare, for example M0 M2 M5 or M00 M01 M10.")
     parser.add_argument("--epsilon", type=float, default=default_epsilon, help="Positive denominator floor for relative error.")
-    parser.add_argument("--plots", action="store_true", help="Write matplotlib PNG plots for error histories.")
+    parser.add_argument("--plots", action="store_true", help="Write matplotlib PDF plots of the error histories.")
     return parser.parse_args(argv)
 
 

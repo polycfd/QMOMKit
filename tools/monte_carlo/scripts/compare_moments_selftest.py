@@ -91,12 +91,17 @@ def test_mc_statistics(workdir: Path) -> None:
     reference = workdir / "stats_reference.txt"
     comparison = workdir / "stats_comparison.txt"
     statistics = workdir / "statistics.txt"
-    write_text(reference, ["time", "M0", "M1"], [[0.0, 2.0, 3.0]])
-    write_text(comparison, ["time", "M0", "M1"], [[0.0, 2.0, 3.2]])
-    write_text(statistics, ["time", "sample_count", "seed", "number_density", "SE_M0", "SE_M1"], [[0.0, 10, 7, 2.0, 0.0, 0.1]])
+    write_text(reference, ["time", "M0", "M1", "M2"], [[0.0, 2.0, 3.0, 0.01]])
+    write_text(comparison, ["time", "M0", "M1", "M2"], [[0.0, 2.0, 3.2, 0.03]])
+    write_text(statistics, ["time", "sample_count", "seed", "number_density", "SE_M0", "SE_M1", "SE_M2"], [[0.0, 10, 7, 2.0, 0.0, 0.1, 0.05]])
     rows = run_compare(reference, comparison, workdir / "stats_out", statistics=statistics)
     m1 = next(row for row in rows if row["moment"] == "M1")
     check(abs(float(m1["z_score"]) - 2.0) < 1.0e-14, "M1 z-score was not 2.0")
+    check(abs(float(m1["relative_error"]) - 0.2 / 3.0) < 1.0e-14, "M1 relative error was not measured against |reference|")
+    # A near-zero reference below its standard error is measured against the
+    # standard error, as in compare_moments(...) of the C++ package.
+    m2 = next(row for row in rows if row["moment"] == "M2")
+    check(abs(float(m2["relative_error"]) - 0.02 / 0.05) < 1.0e-14, "M2 relative error was not measured against the standard error")
 
 
 def test_multidimensional_labels(workdir: Path) -> None:

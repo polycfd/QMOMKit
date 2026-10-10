@@ -28,7 +28,7 @@ and expected output. In order of increasing scope:
 | **With a Monte Carlo reference** | |
 | [`qmom_1d_breakage_advection_with-mc`](../../examples/qmom_1d_breakage_advection_with-mc/README.md) | QMOM breakage and advection beside a particle simulation. |
 | [`cqmom_2d_breakage_advection_with-mc`](../../examples/cqmom_2d_breakage_advection_with-mc/README.md) | The same in two dimensions. |
-| **Physical models** (with a Monte Carlo reference)| |
+| **Physical models** (with a Monte Carlo reference) | |
 | [`cqmom_2d_bubbles_cavitation`](../../examples/cqmom_2d_bubbles_cavitation/README.md) | Nonlinear node motion of a cavitating bubble population. |
 | [`cqmom_3d_droplets_condensation-nucleation`](../../examples/cqmom_3d_droplets_condensation-nucleation/README.md) | Condensation and nucleation as a boundary contribution. |
 | [`cqmom_4d_particles_breakage_recoil`](../../examples/cqmom_4d_particles_breakage_recoil/README.md) | A breakage source evaluated over the nodes of the stage quadrature. |

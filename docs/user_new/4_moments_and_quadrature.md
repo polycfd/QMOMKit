@@ -10,6 +10,10 @@ A case holds the initial moments, the node counts, and the reconstruction
 options. Its moments can come from your own data, from distributions, or from a
 configuration file.
 
+Choose units in which the coordinates are of order one, for example droplet
+volumes in cubic micrometres rather than cubic metres. High powers of very large
+or very small values do not fit in a double.
+
 ### From your own moments
 
 A QMOM case takes the moments in ascending order, $m_0, m_1, \ldots$:
@@ -33,8 +37,7 @@ const qmomkit::CqmomPreparedCase prepared_case{cqmom_case};
 
 If you hold a full tensor of moments instead, `extract_cqmom_moments(tensor,
 layout)` selects the required ones and throws if one is missing. Prepare a
-CQMOM case once, as `CqmomPreparedCase`, and reuse it: it builds the
-conditioning structure once and shares it with every reconstruction and state.
+CQMOM case once, as `CqmomPreparedCase`, and reuse it.
 
 ### From distributions
 
@@ -111,9 +114,14 @@ const qmomkit::CqmomPreparedCase new_case = replaced.value();
 
 ## Reconstruct
 
-`compute_qmom(qmom_case)` returns the weights and abscissas, in ascending order
-of abscissa. `compute_cqmom(prepared_case)` returns a `CqmomQuadrature` whose
-nodes you iterate:
+`compute_qmom(...)` returns the weights and abscissas, in ascending order of
+abscissa:
+
+```cpp
+const qmomkit::QmomResult result = qmomkit::compute_qmom(qmom_case);
+```
+
+`compute_cqmom(...)` returns a `CqmomQuadrature` whose nodes you iterate:
 
 ```cpp
 const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(prepared_case);
@@ -129,9 +137,9 @@ if (cqmom.ok())
 
 ### Adaptive or fixed node counts
 
-By default the node counts are maxima, and a reconstruction uses fewer nodes
-where the moments do not support more. A fixed reconstruction returns every
-requested node or fails:
+Reconstruction is adaptive by default, as
+[Concepts](3_concepts.md#adaptive-and-fixed-node-counts) describes. Request a
+fixed one with:
 
 ```cpp
 qmom_case.qmom_options.adaptive = false;
@@ -156,9 +164,9 @@ qmom_case.abscissa_bounds = qmomkit::AbscissaBounds{0.0, 10.0};
 Nodes outside the interval are never moved into it. An adaptive reconstruction
 then retries with fewer nodes; a fixed one fails. The bounds hold for every
 later reconstruction of the states made from the case; node motion between
-reconstructions does not enforce them. A CQMOM case takes one
-optional interval per coordinate, for example
-`cqmom_case.abscissa_bounds = {std::nullopt, qmomkit::AbscissaBounds{0.0, 1.0}}`.
+reconstructions does not enforce them. For CQMOM, set one optional interval per
+coordinate on the `CqmomCase` before preparing it, for example
+`abscissa_bounds = {std::nullopt, qmomkit::AbscissaBounds{0.0, 1.0}}`.
 
 ### Conditioning order
 
@@ -184,7 +192,8 @@ default solver suits most cases; `[vandermonde] solver` selects another, and
 ### Derived quantities
 
 Moments of any non-negative real order can be evaluated from a quadrature, for
-example $m_{1/3}$ or, in two dimensions, $M_{1/3,\,2}$:
+example $m_{1/3}$ of the log-normal case above or, in two dimensions,
+$M_{1/3,\,2}$:
 
 ```cpp
 const double m_third = qmomkit::evaluate_generalized_moment(result, 1.0 / 3.0);
@@ -214,7 +223,7 @@ Moment sequence is not realizable: S_1 has a negative eigenvalue beyond toleranc
 ```
 
 These moments have a node at $-1$, so they are realizable on the real line but
-not satisfy the condition of being non-negative. The supports are `MomentSupport::real_line`,
+not on the non-negative numbers. The supports are `MomentSupport::real_line`,
 `MomentSupport::nonnegative`, and an interval, `BoundedInterval{lower, upper}`.
 `realizable()` is true for moments strictly inside the realizable set and on
 its boundary, which `on_boundary()` reports. The message names the moment order

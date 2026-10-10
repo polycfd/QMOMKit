@@ -144,8 +144,7 @@ The results are exact: the decay leaves $m_0 = e^{-0.1}$ after one time unit,
 and the drift scales every position, and so the mean, by $e^{-0.5}$, giving
 $0.8\,e^{-0.5}$.
 
-The loop and the step size are yours. If a step fails, the result holds the
-state the step started from, so you can retry with a smaller step or stop.
+The loop and the step size are yours.
 
 ## 3. Two dimensions from a configuration file
 

@@ -16,8 +16,9 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
 
 A step combines two operations by operator splitting:
 
-- **node motion** moves the quadrature nodes with the velocity through phase space and 
-  keeps their weights; the moments then follow from the moved nodes;
+- **node motion** (advection) moves the quadrature nodes with the velocity
+  through phase space and keeps their weights; the moments then follow from the
+  moved nodes;
 - **the source step** integrates the moments with the source rates, using the
   strong-stability-preserving SSP-RK3 scheme
   [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)], and

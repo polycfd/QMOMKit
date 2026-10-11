@@ -50,6 +50,11 @@ the scheme:
 | `advsrc` | advection $\Delta t$, then source $\Delta t$, both from $t$ | first (Lie) |
 | `srcadv` | source $\Delta t$, then advection $\Delta t$, both from $t$ | first (Lie) |
 
+Strang splitting is second order for a smooth solution whose callbacks receive
+time-dependent host data to second order at the stage times; how a host does
+that is in
+[Coupling QMOMKit](../user_new/6_coupling_qmomkit.md#host-data-that-changes-in-time).
+
 The source always integrates over the whole interval from $t$, also in Strang
 splitting, and evaluates its rates at the SSP-RK3 stage times $t$,
 $t+\Delta t$ and $t+\Delta t/2$. A boundary contribution is added to the source rate inside the

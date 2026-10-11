@@ -134,9 +134,21 @@ const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> indexed =
 Batches run serially; a failed state does not stop the others. To run states in
 parallel, call the single-state functions from your own parallel loop. QMOMKit
 keeps no global mutable state, so calls on different states can run at the same
-time; your callbacks must then be safe to call concurrently. The
+time; your callbacks must then be safe to call concurrently.
+
+## Host data that changes in time
+
+Strang splitting is second order when the solution is smooth and every
+time-dependent input of the callbacks, such as a carrier flow from your code,
+is accurate to second order at the times QMOMKit passes them. Those are stage
+times inside the step, where your code has no data. Keep its last two time
+levels and extrapolate linearly to the requested time; a value held constant
+over the step makes the step first order. The first step, with one level only,
+loses accuracy for that step alone.
+[`cqmom_5d_non-spherical-particles`](../../examples/cqmom_5d_non-spherical-particles/README.md#supplying-host-data-to-a-callback)
+shows the pattern and measures both orders, and
 [`cqmom_2d_batch_host_data`](../../examples/cqmom_2d_batch_host_data/README.md)
-example uses host data per state.
+applies it per state.
 
 ## Driving the stages yourself
 

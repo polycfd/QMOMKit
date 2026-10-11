@@ -1,10 +1,10 @@
 # Realizability
 
-A raw moment sequence $m_0, \ldots, m_N$ is realizable on a support when a
+A raw moment sequence $m_0, \ldots, m_K$ is realizable on a support when a
 nonnegative measure on that support has these moments.
 `check_realizability(...)` in [`src/realizability.cpp`](../../src/realizability.cpp)
 decides this for one coordinate; a realizability policy applies the check
-inside a workflow. A successful reconstruction is no realizability check
+inside a workflow. A successful reconstruction does not certify realizability
 ([QMOM](qmom.md)). Usage is in the
 [user documentation](../user_new/4_moments_and_quadrature.md#check-realizability).
 
@@ -23,16 +23,19 @@ measure by $x - a$, $b - x$ and $(x - a)(b - x)$:
 ```
 
 For a realizable sequence, every tested matrix is positive semidefinite. With
-$N = 2n$ or $N = 2n + 1$, the check tests, in this order:
+$K = 2n$ or $K = 2n + 1$, the check tests, in this order:
 
-| Support | $N = 2n$ | $N = 2n + 1$ |
+| Support | $K = 2n$ | $K = 2n + 1$ |
 | --- | --- | --- |
 | `real_line` | $H_n$; if singular, flat extension over $H_{n-1}$ | $H_n$; if singular, range test |
 | `nonnegative`, $a$ the image of 0 | $H_n$, $S_{n-1} = H_{n-1}(\ell^a)$; if $S_{n-1}$ is singular, range test | $H_n$, $S_n = H_n(\ell^a)$; if $H_n$ is singular, range test |
 | `bounded_interval` | $H_n$, $H_{n-1}(\ell^{ab})$ | $H_n(\ell^a)$, $H_n(\ell^b)$ |
 
-For $N = 0$ only $H_0$ is tested. `RealizabilityResult::failed_matrix` names
-them `H_n`, `S_n`, `L_interval_n`, `L_lower_n` and `L_upper_n`. On a bounded
+For $K = 0$ only $H_0$ is tested. `RealizabilityResult::failed_matrix` names
+them `H_n`, `S_n`, `L_interval_n`, `L_lower_n` and `L_upper_n`; a range test
+adds `_next_column` and a flat extension `_flat_extension` to the name of its
+matrix, and the checks before any matrix report `m0`, `zero_measure` or
+`bounded_interval`. On a bounded
 interval positive semidefiniteness is also sufficient. On the real line and the
 half-line a singular matrix needs a further test: its rank must not grow with
 the next moments
@@ -163,7 +166,7 @@ $m_0$ with a nonzero higher moment, is `not_realizable`; the all-zero
 sequence, the zero measure, is `boundary`. `realizable()` is true for `strictly_realizable` and
 `boundary`, `on_boundary()` only for `boundary`.
 
-`checked_order` is $N$. `failed_matrix` and `failed_matrix_order` name the
+`checked_order` is $K$. `failed_matrix` and `failed_matrix_order` name the
 matrix that decided a failure or, on success, the matrix closest to failing:
 the one with the smallest ratio of its smallest eigenvalue to its threshold.
 `minimum_pivot` is that eigenvalue, or the kernel projection of a range test,
@@ -210,7 +213,7 @@ one indexed beyond the dimensions, is `invalid_input` before any moment is
 checked, and carries no verdict. It then checks once, before the
 reconstruction, for any mode other than `None`. A rejection returns
 `realizability_rejected`, with `rejected_coordinate` for CQMOM. Moments with
-$m_0$ below `QmomOptions::cutoff` are accepted whatever the verdict, so that
+$0 \le m_0 <$ `QmomOptions::cutoff` are accepted whatever the verdict, so that
 they are reported `empty`, as without a check. A QMOM sequence too short for
 the node count is left to the reconstruction.
 
@@ -223,11 +226,16 @@ caller who wants a check installs `make_realizability_acceptance_predicate(...)`
 
 In CQMOM a policy checks only the marginal moments $M_{0,\ldots,k,\ldots,0}$
 of its coordinate, a necessary condition; mixed and conditional moments are
-never checked. A policy indexed beyond the phase-space dimensions is invalid
-whatever its mode.
+never checked.
 
-## Tests
+## Where the code lives
 
+The classification is `check_realizability` in
+[`src/realizability.cpp`](../../src/realizability.cpp); the policy rules are
+`accepts_realizability_status` in the public
+[`realizability_policy.hpp`](../../include/qmomkit/realizability_policy.hpp)
+and `internal::realizability_policy_error` in
+[`src/internal/realizability.hpp`](../../src/internal/realizability.hpp).
 [`tests/unit/realizability.cpp`](../../tests/unit/realizability.cpp) covers
 the classification and
 [`tests/unit/realizability_policy.cpp`](../../tests/unit/realizability_policy.cpp)

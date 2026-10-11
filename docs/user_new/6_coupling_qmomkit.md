@@ -56,7 +56,7 @@ reconstruction.
 
 For CQMOM, create the moment data once and replace only its values, in the
 order of its layout's `required_indices`. Every state then shares the prepared
-case's structure:
+case's branch structure:
 
 ```cpp
 const qmomkit::CqmomPreparedCase prepared_case = qmomkit::config::load_cqmom_prepared("configuration.qmom").value();
@@ -182,9 +182,3 @@ const qmomkit::QmomMomentSourceUpdateResult updated =
 Without a state there are no reconstruction settings, so the source context
 cannot reconstruct a quadrature: `moment(...)` works only for tracked orders,
 and `generalized_moment(...)` and the node visitors are unavailable.
-
-## Building QMOMKit with your code
-
-QMOMKit can be built as part of your project instead of installed; see
-[Installation](1_installation.md#build-qmomkit-inside-your-project) for how its
-defaults then apply to your project.

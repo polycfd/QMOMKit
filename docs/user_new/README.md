@@ -28,7 +28,7 @@ parallelism.
    output.
 6. [Coupling QMOMKit](6_coupling_qmomkit.md): use QMOMKit inside a simulation
    code.
-7. [Reference](7_reference.md): configuration keys, statuses, and
-   troubleshooting.
+7. [Reference](7_reference.md): configuration keys, C++ entry points and
+   callbacks, statuses and exceptions, troubleshooting, and output formats.
 8. [Going further](8_going_further.md): examples, the Monte Carlo companion,
-   and the developer documentation.
+   citing QMOMKit, and the developer documentation.

@@ -31,31 +31,31 @@ value or one error string, the first recorded error formatted as
 
 ## Syntax
 
-These rules are part of the file format; a change to them changes which files
-are valid:
+The rules a user sees, such as comments, plain decimals and canonical indices,
+are in the [Reference](../user_new/7_reference.md#configuration-file). The
+parser also fixes these, which are equally part of the file format:
 
-- `[name]` opens a section. Ordinary sections may be reopened; an indexed
-  section such as `[initial.mixture.component.0]` may appear once. A malformed
-  header closes the open section, so the keys after it are not attributed to
-  the section above it.
+- `[name]` opens a section. A mixture-component or product-dimension section,
+  such as `[initial.mixture.component.0]`, may appear once; other sections may
+  be reopened. A malformed header closes the open section, so the keys after it
+  are not attributed to the section above it.
 - A line is `key = value`; neither may be empty, and a key appears once.
-- `#` and `;` start a comment anywhere on a line, so no value can contain
-  either character.
 - Numbers must match the plain decimal grammar of `is_decimal_number` and are
   then read in the classic locale, whatever the host's locale. Non-finite,
   overflowing and subnormal values are rejected.
-- Integers are unsigned. Lists are comma-separated, with no empty entry and no
-  trailing comma.
-- An index in a section name is canonical, `0` and not `00`, because indexed
-  sections are looked up by that form.
-- Booleans are `true` or `false`. `format_version`, if present, must be `1`.
+- Integers are unsigned and booleans `true` or `false`. Lists are
+  comma-separated, with no empty entry and no trailing comma.
+- Indexed sections are looked up by their canonical index, so `00` never
+  matches `0`.
 
 ## Every key is checked
 
-The case parsers, `parse_qmom`, `parse_cqmom` and `parse_cqmom_prepared`,
-validate the whole file, including `[time_integration]` and `[output]`, though
-they return only the case. The other parsers check their own sections and
-ignore the rest, so one file can serve all of them.
+The case parsers, `parse_qmom`, `parse_cqmom` and `parse_cqmom_prepared`, and
+the initial-condition parsers `parse_qmom_initial_condition` and
+`parse_cqmom_initial_condition` validate the whole file, including
+`[time_integration]` and `[output]`, though they return only part of it. The
+option parsers check their own sections, the QMOM evolution options also the
+`[qmom]` keys, and ignore the rest, so one file can serve all of them.
 
 An unknown key or section is an error, and so is a key the selected settings
 would not read:
@@ -127,16 +127,25 @@ whether the moments can be reconstructed is left to `compute_cqmom(...)` and
 
 ## Adding a key
 
-1. Add the qualified key to the one list that owns it:
-   `qmom_explicit_allowed_keys`, which `qmom_initial_allowed_keys` extends,
-   for QMOM; `cqmom_explicit_allowed_keys`, which
-   `cqmom_initial_allowed_keys` extends, for CQMOM; `node_advection_allowed_keys`
-   or `realizability_policy_fields` for `[time_integration]` keys; and
-   `output_allowed_keys` for `[output]` keys. `with_runtime_allowed_keys` adds
-   the time-integration and output keys to the case parsers, and the parsers
-   of those settings check against the same lists. A new section also goes
-   into `reject_unknown_qmom_sections`, `reject_unknown_cqmom_sections` or
-   `time_integration_sections`.
+1. Add the qualified key to the lists that accept it:
+   - a case key to `qmom_explicit_allowed_keys`, which
+     `qmom_initial_allowed_keys` extends, for QMOM, and to
+     `cqmom_explicit_allowed_keys`, which `cqmom_initial_allowed_keys`
+     extends, for CQMOM; a key both accept goes into both, and a `[qmom]` key
+     also into the hard-coded check of `reject_unknown_qmom_option_keys`,
+     which the QMOM evolution-option parser applies;
+   - a `[time_integration]` key to `node_advection_allowed_keys` or
+     `realizability_policy_fields`; a top-level one, as `scheme` is, to
+     `append_time_integration_allowed_keys`;
+   - an `[output]` key to `output_allowed_keys`.
+
+   `with_runtime_allowed_keys` adds the time-integration and output keys to the
+   case parsers, and the option parsers check against the same lists. A new
+   section also goes into `reject_unknown_qmom_sections`,
+   `reject_unknown_cqmom_sections` or `time_integration_sections`, and, for a
+   `[time_integration]` section, into the section checks of
+   `reject_unknown_phase_space_evolution_sections` and
+   `parse_realizability_policy`.
 2. Parse it in the function that builds its object, record an error with the
    line for an invalid value, and reject it where the other settings make it
    ineffective.

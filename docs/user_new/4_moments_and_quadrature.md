@@ -126,8 +126,8 @@ const qmomkit::QmomCase qmom_case = configured.value();
 
 The following pages use this file.
 
-To keep a loaded case's settings but replace its moments, for example with
-moments from another code:
+For CQMOM, to keep a loaded case's settings but replace its moments, for
+example with moments from another code:
 
 ```cpp
 const auto replaced = qmomkit::config::with_initial_moments(prepared_case, moments);
@@ -139,7 +139,8 @@ if (!replaced)
 const qmomkit::CqmomPreparedCase new_case = replaced.value();
 ```
 
-`moments` may be a full tensor or the required moment data.
+`moments` may be a full tensor or the required moment data. For QMOM, assign
+the new moments to `qmom_case.moments`.
 
 ## Reconstruct
 
@@ -194,11 +195,13 @@ qmom_case.abscissa_bounds = qmomkit::AbscissaBounds{0.0, 10.0};
 
 Nodes outside the interval are never moved into it. An adaptive reconstruction
 then retries with fewer nodes; a fixed one fails. The bounds hold for every
-later reconstruction of the states made from the case; node motion between
+later reconstruction of the states made from the case; node advection between
 reconstructions does not enforce them. Bounds are never inferred from a
 distribution or a coordinate name. For CQMOM, set one optional interval per
 coordinate on the `CqmomCase` before preparing it, for example
-`abscissa_bounds = {std::nullopt, qmomkit::AbscissaBounds{0.0, 1.0}}`.
+`abscissa_bounds = {std::nullopt, qmomkit::AbscissaBounds{0.0, 1.0}}`. In a
+file, `[phase_space] support_lower` and `support_upper` set the bounds; they
+are unrelated to the `support` of a realizability check.
 
 ### Conditioning order
 
@@ -210,8 +213,8 @@ const qmomkit::PhaseSpaceHierarchy reordered({2, 3}, {1, 0});
 ```
 
 The node counts still belong to the coordinates in their declared order.
-Different orders give different quadratures of the same moments, and their
-reconstructions can be conditioned differently.
+Different orders give different quadratures of the same moments, and can
+differ in numerical robustness.
 
 ### Solver and diagnostics
 
@@ -223,16 +226,16 @@ default solver suits most cases; `[vandermonde] solver` selects another, and
 
 ### Derived quantities
 
-Moments of any real order can be evaluated from a quadrature, for
-example $m_{1/3}$ of the log-normal case above or, in two dimensions,
-$M_{1/3,\,2}$:
+Moments of any real order can be evaluated from a quadrature, here $m_{1/3}$
+of a QMOM result and, in two dimensions, $M_{1/3,\,2}$:
 
 ```cpp
 const double m_third = qmomkit::evaluate_generalized_moment(result, 1.0 / 3.0);
 const double cqmom_m = qmomkit::evaluate_generalized_moment(cqmom.quadrature, {1.0 / 3.0, 2.0});
 ```
 
-Fractional orders need non-negative abscissas. These values are computed from
+Fractional orders need non-negative abscissas, as for the log-normal moments
+above, and throw `std::domain_error` otherwise. These values are computed from
 the quadrature only; they are not added to the moments a case or state holds.
 
 ## Check realizability

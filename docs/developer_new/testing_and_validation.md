@@ -35,9 +35,11 @@ that the unit tests passed.
 
 ## Registering a test case
 
-Every test executable ends in a call to `qmomkit::test::dispatch_test_case`
-from [`tests/test_case_dispatch.hpp`](../../tests/test_case_dispatch.hpp),
-which maps selectors to functions. Without an argument the executable runs
+Every executable registered by the scanning helpers below ends in a call to
+`qmomkit::test::dispatch_test_case` from
+[`tests/test_case_dispatch.hpp`](../../tests/test_case_dispatch.hpp), which
+maps selectors to functions; the other executables parse their own arguments,
+a `.qmom` path and a case name, or a case name. Without an argument the executable runs
 every case; with one selector it runs that case; an unknown selector prints the
 available ones and returns 2, which CTest reports as a failure.
 
@@ -58,14 +60,30 @@ The selector is `<case>`. So:
 - In a scanned file, adding a case takes a `void test_<case>()` function and a
   `{"<case>", test_<case>}` entry in the dispatch table; CMake needs no change.
   A scanned function missing from the table fails with exit code 2.
-- Do not name helper functions `test_*` in a scanned file; they would be
+- Do not name helper functions `test_*` in a scanned file, nor zero-argument
+  helpers `verify_*` in a file scanned for logical cases; they would be
   registered.
 - A unit source file is listed in `unit_test_sources` in
-  [`tests/unit/CMakeLists.txt`](../../tests/unit/CMakeLists.txt).
+  [`tests/unit/CMakeLists.txt`](../../tests/unit/CMakeLists.txt), and a scanned
+  component-regression source in `component_case_sources` in
+  [`tests/component_regression/CMakeLists.txt`](../../tests/component_regression/CMakeLists.txt).
 
 Every registered test carries the label of its directory and a timeout of
 `QMOMKIT_TEST_TIMEOUT_SECONDS` (300 s), so a case that fails by not terminating
 reports a failure. In Debug, tests compile with `-Wall -Wextra`.
+
+## Public headers
+
+A new header in `include/qmomkit/` is included by `qmomkit.hpp`, listed in the
+`install(FILES …)` list of the root [`CMakeLists.txt`](../../CMakeLists.txt),
+and given an `include_<header>.cpp` in `tests/public_headers/`, listed in that
+directory's `CMakeLists.txt`. That file includes the header under test first,
+before any standard header, so a missing include fails to compile; where
+clang-format (`IncludeBlocks: Regroup`) would sort a standard header ahead of
+it, a comment line separates the two. It may pin declarations with
+`static_assert`s in namespace `public_header_pins`. An input aggregate also
+enters `brace_initialization.cpp`
+([Architecture](architecture.md#public-and-internal-boundary)).
 
 ## Listing and selecting tests
 
@@ -192,35 +210,29 @@ holds paper-specific studies outside CTest.
 
 The companion package under [`tools/monte_carlo/`](../../tools/monte_carlo)
 provides an independent finite-sample reference for raw moments, not for nodes
-or branch structure. An ensemble of $N$ samples with number density $n_0$
+or branch structure. An ensemble of $P$ samples with number density $n_0$
 estimates
 
 ```math
-M_\alpha = \frac{n_0}{N} \sum_{p=1}^{N} \prod_{d} \xi_{p,d}^{\alpha_d},
+M_\alpha = \frac{n_0}{P} \sum_{p=1}^{P} \prod_{d} x_{p,d}^{\alpha_d},
 ```
 
-with standard error $n_0 \sqrt{s^2/N}$, where $s^2$ is the unbiased sample
-variance of the monomial (zero for $N < 2$).
-
-`sample_initialization(...)` returns an ensemble together with the moments
-estimated from that same ensemble. Starting QMOMKit from those moments while
-the ensemble is evolved by `evolve_ensemble(...)` removes the initial sampling
-difference, so what remains comes from the quadrature representation and its
-evolution. Starting QMOMKit from analytical moments instead leaves the sampling
-error of the initial ensemble in the comparison. The reference itself carries
-sampling noise that shrinks as $N^{-1/2}$.
+with standard error $n_0 \sqrt{s^2/P}$, where $s^2$ is the unbiased sample
+variance of the monomial (zero for $P < 2$). Why a comparison starts QMOMKit
+from the moments of the sample is in the
+[companion README](../../tools/monte_carlo/README.md).
 
 A statistical test accepts an estimate within a few standard errors of a
 reference that comes from the mathematical case, not from the companion:
-[`tests/weighted_point_evolution.cpp`](../../tools/monte_carlo/tests/weighted_point_evolution.cpp)
+[`tools/monte_carlo/tests/weighted_point_evolution.cpp`](../../tools/monte_carlo/tests/weighted_point_evolution.cpp)
 samples a few weighted points, moves the samples with `evolve_ensemble(...)`,
 and compares the estimated moments within six standard errors with the exact
 moments of the points moved along their analytical trajectories.
 
 Conventions that matter when adding a case:
 
-- Each sampling call seeds one `std::mt19937_64` with the explicit `seed`.
-  Samples repeat for the same distribution, sample count, seed, compiler and
+- Each sampling call seeds its `std::mt19937_64` engines deterministically from
+  the explicit `seed`. Samples repeat for the same distribution, sample count, seed, compiler and
   standard library, but standard-library distributions differ between
   implementations; tests compare with tolerances or standard errors, never with
   exact sampled values.
@@ -228,10 +240,10 @@ Conventions that matter when adding a case:
   (`make_moment_history_writer(...)`), so they have the format of QMOMKit's own
   output.
 - Code that only tests use, such as a reference construction, lives under
-  `tests/`, not in the package.
+  `tools/monte_carlo/tests/`, not in the package.
 - Tests register as `monte_carlo_<subsystem>_<case>` (label `monte_carlo`) from
   `void test_<case>()` definitions, as in the core suite, and check with
-  [`tests/test_checks.hpp`](../../tools/monte_carlo/tests/test_checks.hpp), not
+  [`tools/monte_carlo/tests/test_checks.hpp`](../../tools/monte_carlo/tests/test_checks.hpp), not
   `assert()`.
 
 Build and usage are in [`tools/monte_carlo/README.md`](../../tools/monte_carlo/README.md).

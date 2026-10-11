@@ -140,9 +140,9 @@ The program has three parts:
 - the time loop. Each call to `advance_qmom_phase_space(...)` advances the
   state by one step and returns the new state and the time it has reached.
 
-The results are exact: the decay leaves $m_0 = e^{-0.1}$ after one time unit,
-and the drift scales every position, and so the mean, by $e^{-0.5}$, giving
-$0.8\,e^{-0.5}$.
+The results match the exact solution: the decay leaves $m_0 = e^{-0.1}$ after
+one time unit, and the drift scales every position, and so the mean, by
+$e^{-0.5}$, giving $0.8\,e^{-0.5}$.
 
 The loop and the step size are yours.
 
@@ -234,7 +234,7 @@ weight 0.3125 at size 1.0858, velocity 0.275909
 Compared with the one-dimensional program:
 
 - `load_cqmom_prepared(...)` reads the file and reports a problem with it
-  through `configured.error()`, with the line number;
+  through `configured.error()`, with the line number where there is one;
 - the velocity now returns two values, one per coordinate, in the order the
   file declares them;
 - this population has no source, which is expressed as a source that returns

@@ -118,7 +118,9 @@ A rule with $n_1$ nodes is accepted when
 
 Two nodes have a single distance, whose ratio to the span is always one, so
 they use the larger abscissa magnitude instead; two nodes at zero fail. Both
-criteria are dimensionless. `rmin` and `eabs` default to `1e-10` in
+criteria are independent of the unit, but the two-node test depends on the
+origin: a pair whose gap is below `eabs` times its distance from zero collapses
+to one node. `rmin` and `eabs` default to `1e-10` in
 `QmomOptions` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp))
 and `WheelerOptions`
 ([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); only
@@ -130,9 +132,12 @@ and `WheelerOptions`
 `compute_quadrature(...)` and `compute_qmom(...)` use $s=0$: given moments
 carry no solve rounding. CQMOM conditional moments do, so their inversion,
 `internal::compute_conditional_quadrature`, receives a positive $s$ in
-adaptive mode ([CQMOM](cqmom.md#the-recursion)). In fixed mode CQMOM passes
-$s=0$ at every level, so its fixed-count test uses the bound without the
-floor.
+adaptive mode ([CQMOM](cqmom.md#the-recursion)): `cqmom_coordinate_scales`
+([`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp)) takes
+$s=\sqrt{M_2/M_0}$ of the marginal of the coordinate being inverted, else
+$|M_1|/M_0$, else one. The CQMOM root inverts given moments and uses $s=0$. In
+fixed mode CQMOM passes $s=0$ at every level, so its fixed-count test uses the
+bound without the floor.
 
 ## Abscissa bounds
 
@@ -170,8 +175,9 @@ maps `QuadratureStatus` one to one onto `QmomStatus`:
 `ok()` is true only for `success`; the accepted node count is
 `weights.size()`. Data returned with a failure is diagnostic: the one-node
 rule $(m_1/m_0,\ m_0)$ where finite, $(m_1/m_0,\ |m_0|)$ for negative $m_0$,
-the placeholder node 0 with weight 1 below the cutoff, and nothing for invalid
-input. Callers test the status, never whether the vectors are empty.
+the placeholder node 0 with weight 1 below the cutoff, the rejected rule for a
+bounds failure (the full rule in fixed mode, the one-node candidate in adaptive
+mode), and nothing for invalid input. Callers test the status, never whether the vectors are empty.
 
 ## Where the code lives
 

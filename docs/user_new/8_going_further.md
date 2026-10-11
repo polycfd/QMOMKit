@@ -1,5 +1,8 @@
 # Going further
 
+This page points to the examples, the Monte Carlo companion, how to cite
+QMOMKit, and the developer documentation.
+
 ## Examples
 
 The examples under [`examples/`](../../examples/) are small standalone programs,
@@ -17,8 +20,8 @@ and expected output. In order of increasing scope:
 | [`cqmom_independent_product_initialization`](../../examples/cqmom_independent_product_initialization/README.md) | A CQMOM case from a configuration file, and the conditioning order. |
 | **Evolving in time** | |
 | [`qmom_1d_minimal`](../../examples/qmom_1d_minimal/README.md) | The smallest QMOM time loop, with a velocity and a fragmentation source. |
-| [`qmom_1d_aerosol_evaporation`](../../examples/qmom_1d_aerosol_evaporation/README.md) | Node motion alone: evaporating aerosol. |
-| [`qmom_1d_breakage_advection`](../../examples/qmom_1d_breakage_advection/README.md) | Node motion and a size-dependent breakage source written over the nodes. |
+| [`qmom_1d_aerosol_evaporation`](../../examples/qmom_1d_aerosol_evaporation/README.md) | Node advection alone: evaporating aerosol. |
+| [`qmom_1d_breakage_advection`](../../examples/qmom_1d_breakage_advection/README.md) | Node advection and a size-dependent breakage source written over the nodes. |
 | [`cqmom_2d_minimal`](../../examples/cqmom_2d_minimal/README.md) | The CQMOM time loop with velocity, source, and boundary contribution. |
 | [`cqmom_2d_adaptive_node_counts`](../../examples/cqmom_2d_adaptive_node_counts/README.md) | Branches losing and regaining nodes during a run. |
 | **Coupling** | |
@@ -29,7 +32,7 @@ and expected output. In order of increasing scope:
 | [`qmom_1d_breakage_advection_with-mc`](../../examples/qmom_1d_breakage_advection_with-mc/README.md) | QMOM breakage and advection beside a particle simulation. |
 | [`cqmom_2d_breakage_advection_with-mc`](../../examples/cqmom_2d_breakage_advection_with-mc/README.md) | The same in two dimensions. |
 | **Physical models** (with a Monte Carlo reference) | |
-| [`cqmom_2d_bubbles_cavitation`](../../examples/cqmom_2d_bubbles_cavitation/README.md) | Nonlinear node motion of a cavitating bubble population. |
+| [`cqmom_2d_bubbles_cavitation`](../../examples/cqmom_2d_bubbles_cavitation/README.md) | Nonlinear node advection of a cavitating bubble population. |
 | [`cqmom_3d_droplets_condensation-nucleation`](../../examples/cqmom_3d_droplets_condensation-nucleation/README.md) | Condensation and nucleation as a boundary contribution. |
 | [`cqmom_4d_particles_breakage_recoil`](../../examples/cqmom_4d_particles_breakage_recoil/README.md) | A breakage source evaluated over the nodes of the stage quadrature. |
 | [`cqmom_5d_particles_breakage_heat-transfer`](../../examples/cqmom_5d_particles_breakage_heat-transfer/README.md) | A source needing fractional moments. |
@@ -37,13 +40,9 @@ and expected output. In order of increasing scope:
 
 ## Monte Carlo companion
 
-The optional `QMOMKitMonteCarlo` package samples a finite population from a
-distribution, estimates its moments with their standard errors, and evolves the
-sampled particles with the same velocity as QMOMKit. Starting QMOMKit and the
-particle simulation from the same sample removes the initial sampling
-difference, so that what remains comes from the evolution. A Monte Carlo result
-carries sampling noise: it is a reference, not an exact solution. See
-[tools/monte_carlo/README.md](../../tools/monte_carlo/README.md).
+The optional `QMOMKitMonteCarlo` package represents a population by sampled
+particles, a reference with sampling noise for QMOM and CQMOM calculations. Its
+[README](../../tools/monte_carlo/README.md) describes how to use it.
 
 ## Citing QMOMKit
 
@@ -54,8 +53,3 @@ If QMOMKit contributes to your work, please cite it as given in the
 
 The [developer documentation](../developer/README.md) describes the algorithms,
 numerical conventions, and design of QMOMKit, and how to test and extend it.
-
-## Coupling to host codes
-
-Examples of couplings of QMOMKit to host simulation codes are maintained in
-[QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings).

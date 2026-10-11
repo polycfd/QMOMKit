@@ -44,14 +44,15 @@ Headers are included as `<monte_carlo/...>`, and everything lives in
 | `ensemble.hpp` | `Ensemble`, a vector of samples in phase-space order, and `SamplingOptions` (sample count, seed) |
 | `sampling.hpp` | Samples of a distribution, mixture or independent product |
 | `sampled_initialization.hpp` | `sample_initialization(...)`: a sample together with the moments of that sample, all of them up to a maximum order or only those of a `RawMomentRequest` |
-| `moments.hpp` | Raw, selected and generalized moments of an ensemble, with standard errors |
-| `evolution.hpp` | `evolve_ensemble(...)`: moves every sample with a `PhaseSpaceVelocity` (RK23) |
-| `birth.hpp` | `inject_population(...)`: adds a Poisson number of samples for a given integrated birth amount |
+| `moments.hpp` | Raw and selected moments of an ensemble with their standard errors, and generalized moments |
+| `evolution.hpp` | `evolve_ensemble(...)`: moves every sample with a `PhaseSpaceVelocity` (RK23), calling it for one sample at a time, so a velocity that couples nodes acts on each particle alone |
+| `birth.hpp` | `inject_population(...)`: adds a Poisson number of samples for a given integrated birth amount into a non-empty population, and returns the number density to use from then on |
 | `output.hpp` | Moment-history files written with QMOMKit's `MomentWriter` |
 
-Each operation returns a result with `ok()`, `status` and `message`; use its
-payload only after `ok()`. A sample repeats for the same seed, compiler and
-standard library.
+Sampling, moment, evolution and birth results have `ok()`, `status` and
+`message`; an initialization result has `ok()` and its `sampling` and
+`moments` results. Use a payload only after `ok()`. The output helpers throw
+instead. A sample repeats for the same seed, compiler and standard library.
 
 ## Comparing QMOMKit with a sample
 

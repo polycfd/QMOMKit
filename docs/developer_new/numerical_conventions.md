@@ -15,7 +15,7 @@ A moment generated from a distribution scales a normalized shape $p$ by a
 number density $n_0$:
 
 ```math
-n(\xi) = n_0\, p(\xi), \qquad m_k = n_0 \int \xi^k p(\xi)\,\mathrm{d}\xi, \qquad m_0 = n_0 .
+n(x) = n_0\, p(x), \qquad m_k = n_0 \int x^k p(x)\,\mathrm{d}x, \qquad m_0 = n_0 .
 ```
 
 Mixtures and independent products follow from this rule; see
@@ -64,7 +64,8 @@ velocity vectors, the coordinates within each node follow it too.
 `PhaseSpaceHierarchy` holds the node counts in that order, together with
 `conditioning_order`, a permutation in which `conditioning_order[l]` is the
 dimension reconstructed at level `l`. The default is the identity. The
-constructor rejects a sequence that is not a permutation and a zero node count.
+constructor rejects no node counts, a zero node count, a total node count
+beyond `std::size_t`, and an order that is not a permutation.
 
 The conditioning order changes the reconstruction, never a storage order or the
 meaning of a node count. Only two things are ordered by conditioning level:
@@ -159,14 +160,14 @@ Terms the [user guide](../user_new/3_concepts.md#terms) does not define:
 | --- | --- |
 | active node count | Nodes that a branch or a QMOM state uses; at most the configured count. |
 | canonical moments | Moments recomputed from an accepted quadrature; a state stores these, not the moments it was given. |
-| ceiling | The largest node count a branch may return in one reconstruction: its recorded active count when a state's counts are passed in, otherwise its configured count. |
+| ceiling | The largest node count a branch may return in one reconstruction, apart from the growth trial: its recorded active count when a state's counts are passed in, otherwise its configured count. |
 | child case | Internal layout data for the children of a branch with a given node count ([CQMOM](cqmom.md#branch-layouts)). |
 | conditional moments | Moments of later coordinates conditioned on a node of earlier ones, from a conditional Vandermonde solve. |
 | conditioning level | Position `l` in the conditioning order. |
 | conditioning path | `ConditioningPath`: the node index chosen at each level from the root to a node. |
 | configured node count | Node count of a dimension in the hierarchy: the maximum of every branch. |
 | full tensor | `RawMomentTensor`: every moment in a rectangular box; an input or output format that cases and states never hold. |
-| growth | A branch trying one more node than its active count, allowed only in the reconstruction after a source step. |
+| growth | A branch trying one more node than its active count, allowed only in the post-source reconstruction. |
 | local weight | Weight from one branch inversion; terminal weights are products of local weights. |
 | marginal moments | Moments with every order zero except one. |
 | parent path | Conditioning path of the node on which a branch is conditioned; its length is the level of the branch. |

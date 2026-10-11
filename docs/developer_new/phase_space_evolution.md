@@ -39,15 +39,14 @@ builds its result state the same way, from the quadrature it accepted.
 
 ## Step structure
 
-A step composes node advection and the moment source by operator splitting
-[[Strang, 1968](https://www.doi.org/10.1137/0705041)].
+A step composes node advection and the moment source by operator splitting.
 `execute_phase_space_evolution_sequence` in
 [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) runs
 the scheme:
 
 | `PhaseSpaceEvolutionScheme` | Sequence over $[t, t+\Delta t]$ | Order |
 | --- | --- | --- |
-| `strang` (default) | advection $\Delta t/2$ from $t$; source $\Delta t$ from $t$; advection $\Delta t/2$ from $t+\Delta t/2$ | second |
+| `strang` (default) [[Strang, 1968](https://www.doi.org/10.1137/0705041)] | advection $\Delta t/2$ from $t$; source $\Delta t$ from $t$; advection $\Delta t/2$ from $t+\Delta t/2$ | second |
 | `advsrc` | advection $\Delta t$, then source $\Delta t$, both from $t$ | first (Lie) |
 | `srcadv` | source $\Delta t$, then advection $\Delta t$, both from $t$ | first (Lie) |
 
@@ -69,10 +68,18 @@ stage functions, roll back to their own input, and ignore `options.scheme`.
 and `final_moment_reconstruction`. The advection of `advsrc` and of
 `advance_*_advection` reports as first, that of `srcadv` as second.
 
+A new splitting scheme adds a `PhaseSpaceEvolutionScheme` value, its case in
+`validate_phase_space_evolution_scheme` and
+`execute_phase_space_evolution_sequence`, and its `.qmom` value in
+`parse_phase_space_evolution_scheme_value`
+([`src/configuration.cpp`](../../src/configuration.cpp)). A scheme only
+sequences the existing advection and source stages; reconstruction and state
+construction stay in those stages, separately for QMOM and CQMOM.
+
 ## Node advection
 
-Node advection integrates $\mathrm{d}\boldsymbol{\xi}_j/\mathrm{d}t =
-\mathbf{u}(t, \boldsymbol{\xi}_j)$ for every node $j$. Weights, terminal
+Node advection integrates $\mathrm{d}\mathbf{x}_j/\mathrm{d}t =
+\mathbf{u}(t, \mathbf{x}_j)$ for every node $j$. Weights, terminal
 paths, storage layout, and active counts are kept; the stage then sums the
 stored moments from the moved nodes (`QmomStateAccess::from_quadrature`,
 `internal::reconstruct_trusted_cqmom_moments`). Advection never reconstructs a
@@ -96,7 +103,9 @@ node and evaluation.
 | `rk45` | Dormand–Prince 5(4)7M, seven stages [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)] | embedded error estimate |
 | `ssp_rk3` | SSP-RK3 [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)] | none: one step over the interval |
 
-The embedded pairs run through `integrate_embedded_rk`. Node advection
+The embedded pairs run through `integrate_embedded_rk`, which also integrates
+backwards when its end time lies before its start time; phase-space evolution
+always steps forward, since its step must be positive. Node advection
 integrates in the local time $\tau \in [0, \Delta t]$ and evaluates the
 velocity at $t+\tau$. The nodes then move over exactly $\Delta t$, not over
 the rounded $(t+\Delta t)-t$, and the step floor follows the spacing of $\tau$,
@@ -177,9 +186,11 @@ A retried step covers only part of the interval. The driver
 `advance_qmom_moments_with_source` in
 [`src/moment_source.cpp`](../../src/moment_source.cpp) then calls
 `ssp_rk3_step` again from the accepted state for the whole remaining interval,
-with a fresh retry budget, until the interval is covered. A failed substep
-returns the input moments, also after accepted substeps, and
-`diagnostics.retries` sums the retries of all substeps.
+with a fresh retry budget, until the interval is covered. An accepted substep
+that does not shorten the remaining interval in floating point fails the update
+as `source_failed`, so the loop always ends. A failed substep returns the input
+moments, also after accepted substeps, and `diagnostics.retries` sums the
+retries of all substeps.
 
 `advance_qmom_moments_with_source` and `advance_cqmom_moments_with_source`
 ([`include/qmomkit/moment_source.hpp`](../../include/qmomkit/moment_source.hpp))
@@ -208,8 +219,9 @@ growth disabled. A failed stage reconstruction throws inside the callback and
 fails the source step.
 
 Without a state, as in `advance_*_moments_with_source`, there are no
-reconstruction settings: `moment(...)` works for tracked orders only, and the
-other closures throw `std::out_of_range`, which fails the update.
+reconstruction settings: `moment(...)` works for tracked orders only, and
+`moment(...)` for an untracked order, `generalized_moment(...)` and the node
+visitors throw `std::out_of_range`, which fails the update.
 
 ## Node counts
 
@@ -228,11 +240,9 @@ Active node counts follow one policy:
   `internal::select_bounded_quadrature` applies the same rule and accepts the
   extra node only within the bounds.
 - **CQMOM post-source reconstruction**, `internal::compute_cqmom_internal` with
-  growth enabled: every branch follows the QMOM rule with its own active count
-  (`recursive_branch_node_count_limit` and `branch_growth_trial_allowed` in
-  [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp)).
-  Below a branch whose count changed, branches start from their configured
-  maximum, as [CQMOM](cqmom.md#active-branch-counts) explains.
+  growth enabled: every branch follows the QMOM rule with its own active count;
+  the mechanism, including the reset below a branch whose count changed, is in
+  [CQMOM](cqmom.md#active-branch-counts).
 - **Created states**: `initial_state()` and `state_candidate(...)` start from
   the configured maximum; a state rebuilt from moments keeps no earlier
   counts.
@@ -341,7 +351,7 @@ each state in a closure that passes `batch_index`, the position in the input
 vector. An empty input returns an empty result without validation, and an
 exception escaping a scalar call stops the loop.
 
-## Important functions
+## Where the code lives
 
 | Function | File | Role |
 | --- | --- | --- |
@@ -349,7 +359,7 @@ exception escaping a scalar call stops the loop.
 | `execute_phase_space_evolution_sequence` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | splitting schemes |
 | `advance_qmom_advection_stage`, `advance_cqmom_advection_stage` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | advection stage |
 | `advance_qmom_moment_source_stage`, `advance_cqmom_moment_source_stage`, `select_post_source_qmom` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | source stage and post-source reconstruction |
-| `advance_nodes`, `integrate_nodes`, `make_phase_space_velocity` | [`src/node_advection.cpp`](../../src/node_advection.cpp) | node motion |
+| `advance_nodes`, `integrate_nodes`, `make_phase_space_velocity` | [`src/node_advection.cpp`](../../src/node_advection.cpp) | node advection |
 | `integrate_embedded_rk`, `ssp_rk3_step` | [`src/runge_kutta.cpp`](../../src/runge_kutta.cpp) | generic integrators |
 | `take_embedded_rk_step`, `embedded_rk_tableau` | [`src/internal/embedded_runge_kutta.cpp`](../../src/internal/embedded_runge_kutta.cpp) | embedded stage arithmetic |
 | `advance_qmom_moments_with_source`, `advance_cqmom_moments_with_source`, source contexts | [`src/moment_source.cpp`](../../src/moment_source.cpp) | source operator |

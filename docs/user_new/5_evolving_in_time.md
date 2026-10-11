@@ -16,23 +16,24 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
 
 A step combines two operations by operator splitting:
 
-- **node motion** (advection) moves the quadrature nodes with the velocity
-  through phase space and keeps their weights; the moments then follow from the
-  moved nodes;
+- **node advection** moves the quadrature nodes with the velocity through
+  phase space and keeps their weights; the moments then follow from the moved
+  nodes;
 - **the source step** integrates the moments with the source rates, using the
   strong-stability-preserving SSP-RK3 scheme
-  [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)], and
-  reconstructs the quadrature from the new moments.
+  [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)]; the
+  **post-source reconstruction** then reconstructs the quadrature from the new
+  moments.
 
 The splitting scheme sets their order, and a separate scheme integrates the
-node motion:
+node advection:
 
 | Setting | Values |
 | --- | --- |
-| Splitting, `options.scheme` | `strang` (default): half a step of node motion, the source step, half a step of node motion [[Strang, 1968](https://www.doi.org/10.1137/0705041)]. `advsrc` and `srcadv`: node motion then source, or the reverse, first-order Lie splitting. |
-| Node motion, `options.node_options.scheme` | `rk23` (default), adaptive [[Bogacki & Shampine, 1989](https://www.doi.org/10.1016/0893-9659(89)90079-7)]; `rk45`, adaptive [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)]; `ssp_rk3`, three stages per step, no step control. |
+| Splitting, `options.scheme` | `strang` (default): half a step of node advection, the source step, half a step of node advection [[Strang, 1968](https://www.doi.org/10.1137/0705041)]. `advsrc` and `srcadv`: node advection then source, or the reverse, first-order Lie splitting. |
+| Node advection, `options.node_options.scheme` | `rk23` (default), adaptive [[Bogacki & Shampine, 1989](https://www.doi.org/10.1016/0893-9659(89)90079-7)]; `rk45`, adaptive [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)]; `ssp_rk3`, three stages per step, no step control. |
 
-Only node motion with `rk23` or `rk45` adapts its steps to a tolerance. The
+Only node advection with `rk23` or `rk45` adapts its steps to a tolerance. The
 source step is explicit and has no error control: its accuracy and stability
 depend on the time step you choose, so a stiff source needs a small step.
 
@@ -55,9 +56,11 @@ reconstructed, adaptivity and bounds included, belongs to the case, and every
 state carries it forward. The adaptive schemes take tolerances and step limits;
 the [Reference](7_reference.md#evolution-options) lists them with their
 defaults.
+
 A source step that a realizability policy rejects is retried with half the
-previous step size, at most `max_retries` times (none by default) and not below
-`min_time_step`; the source step then continues until its interval is covered.
+previous step size, at most `max_retries` times per attempt (none by default)
+and not below `min_time_step`. After an accepted part, a new attempt covers the
+rest of the interval, so a whole step can retry more often than `max_retries`.
 
 ## Callbacks
 
@@ -180,17 +183,19 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
 - A callback that throws a `std::exception`, returns the wrong size, or
   returns a non-finite value makes the step fail with a message, without an
   exception reaching you. Other exceptions propagate.
-- Debug builds detect an unwritten velocity entry; release builds cannot, so
-  develop callbacks in a debug build.
+- A source context, and the coordinates a node visitor receives, are valid
+  only during the call; do not keep references to them.
+- A Debug build of QMOMKit detects an unwritten velocity entry; a Release build
+  cannot, so develop callbacks against a Debug build of QMOMKit.
 
 ## Adaptive node counts
 
 In adaptive mode a state remembers how many nodes each branch currently has.
-Node motion never changes these counts. During a source step a branch may lose
-nodes; after the accepted source step it may gain one, if the moments support
-it. In CQMOM, a branch that replaces others after its parent lost nodes starts from its
-configured maximum. Node counts therefore shrink readily and grow one at a
-time.
+Node advection never changes these counts. During a source step a branch may
+lose nodes; in the post-source reconstruction it may gain one, if the moments
+support it. In CQMOM, when a branch's node count changes, the branches below it
+condition on other nodes and start from their configured maximum. Node counts
+therefore shrink readily and grow one at a time.
 
 ## Reading a state
 

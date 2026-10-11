@@ -67,13 +67,14 @@ path.
 | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | Operator-split steps, advection and source stages, node-count transitions, batches | `phase_space_evolution.hpp` |
 | [`src/configuration.cpp`](../../src/configuration.cpp) | `.qmom` parser, loaders, `config::with_initial_moments` | `configuration.hpp` |
 | [`src/output.cpp`](../../src/output.cpp) | `MomentWriter`, `QuadratureWriter` | `output.hpp` |
-| [`src/internal/linear_algebra.cpp`](../../src/internal/linear_algebra.cpp) | `DenseMatrix`, dense solve with partial pivoting, symmetric Jacobi eigensolver, condition estimate | `internal/linear_algebra.hpp` |
+| [`src/internal/linear_algebra.cpp`](../../src/internal/linear_algebra.cpp) | Dense solve with partial pivoting, symmetric Jacobi eigensolver, condition estimate | `internal/linear_algebra.hpp` |
 | [`src/internal/vandermonde.cpp`](../../src/internal/vandermonde.cpp) | Conditional Vandermonde systems and solver selection | `internal/vandermonde.hpp` |
 | [`src/internal/bjorck_pereyra.cpp`](../../src/internal/bjorck_pereyra.cpp), [`householder_qr.cpp`](../../src/internal/householder_qr.cpp), [`jacobi_svd.cpp`](../../src/internal/jacobi_svd.cpp) | Björck–Pereyra, pivoted QR, and SVD kernels | their headers |
 | [`src/internal/embedded_runge_kutta.cpp`](../../src/internal/embedded_runge_kutta.cpp) | Embedded tableaus and step attempts | `internal/embedded_runge_kutta.hpp` |
 
-Header-only internals: `cqmom_case.hpp` (case successors, marginal extraction,
-construction access), `cqmom_validation.hpp` (layout and storage checks),
+Header-only internals: `DenseMatrix` in `linear_algebra.hpp`, `cqmom_case.hpp`
+(case successors, marginal extraction, construction access),
+`cqmom_validation.hpp` (layout and storage checks),
 `qmom_state_access.hpp`, `numeric_utils.hpp`, `checked_size.hpp`,
 `ode_rhs_validation.hpp`, `phase_space_velocity_validation.hpp`, and
 `performance.hpp`. The public `realizability_policy.hpp` is header-only.
@@ -88,11 +89,12 @@ in `qmomkit::config`.
 
 Public headers expose requests, options, results, statuses, moment containers,
 quadratures and states. They do not expose solver workspaces, branch layouts or
-parser internals. States, prepared cases and `CqmomQuadrature` have private
-constructors; the implementation builds them through friend access classes,
-such as `internal::QmomStateAccess` and `internal::CqmomConstructionAccess`,
-which public headers only forward-declare. So only the library creates states,
-and a state's moments are always those of its accepted quadrature.
+parser internals. States and `CqmomQuadrature` have private constructors; the
+implementation builds them through friend access classes, such as
+`internal::QmomStateAccess` and `internal::CqmomConstructionAccess`, which
+public headers only forward-declare. So only the library creates states, and a
+state's moments are always those of its accepted quadrature. A prepared case is
+built publicly only from a `CqmomCase`, whose layout its constructor checks.
 `CqmomPreparedCase` and `CqmomState` hold their data behind
 `std::unique_ptr<Data>`, so the prepared branch structure stays internal.
 
@@ -101,10 +103,9 @@ policies, and omit trailing members, so every member of such a struct has a
 default initializer, `{}` for a class type;
 `tests/public_headers/brace_initialization.cpp` is compiled with
 `-Wmissing-field-initializers` and fails the `-Werror` build otherwise. A new
-public header is included by `qmomkit.hpp` and gets an
-`include_<header>.cpp` in `tests/public_headers/`; a change to installed
-headers or exports also runs the package consumer
-([Testing and validation](testing_and_validation.md)).
+public header follows the steps in
+[Testing and validation](testing_and_validation.md#public-headers), and a
+change to installed headers or exports also runs the package consumer.
 [AGENTS.md](../../AGENTS.md#public-and-internal-apis) has the full rules for
 public API changes.
 
@@ -114,33 +115,23 @@ An operation whose failure is a possible outcome of valid use returns a result
 with a status, `ok()`, and a message: reconstruction, moment generation,
 realizability checks, state candidates, every evolution operator, and
 configuration loading. Internal helpers may throw; a function that promises a
-status catches what they throw and maps it to a status. Callback exceptions
-are mapped the same way
-([Phase-space evolution](phase_space_evolution.md#callbacks)).
+status catches what they throw and maps it to a status. The evolution
+operators map callback exceptions the same way
+([Phase-space evolution](phase_space_evolution.md#callbacks)); the generic
+integrators `ssp_rk3_step` and `integrate_embedded_rk` let them propagate.
 
 An exception means that the calling code broke a contract, that I/O failed, or
-that a setup cannot start:
-
-- malformed structure while constructing objects: `PhaseSpaceHierarchy` with
-  an invalid conditioning order or a zero node count, and `CqmomPreparedCase`
-  from a case whose layout is not the required layout of its hierarchy
-  (`std::invalid_argument`);
-- `initial_state()` when the moments of the case cannot be reconstructed
-  (`std::runtime_error`);
-- moment assembly and reconstruction helpers: `extract_cqmom_moments`,
-  `create_cqmom_moment_data`, `reconstruct_raw_moments`,
-  `reconstruct_cqmom_moments`, `evaluate_generalized_moment`, and
-  `std::overflow_error` when a value leaves the range of a double;
-- rectangular accessors such as `CqmomQuadrature::weight(node_index)` on ragged
-  storage (`std::logic_error`);
-- `ssp_rk3_step` when `rhs` breaks its contract or a candidate state is not
-  finite (`std::invalid_argument`); invalid input is a status;
-- output writers.
+that a setup cannot start: malformed structure while constructing objects,
+`initial_state()` when the moments cannot be reconstructed, moment assembly and
+reconstruction helpers given malformed input or a value beyond the range of a
+double, rectangular accessors on ragged storage, output writers, and
+the generic integrators when `rhs` breaks its contract. The [user Reference](../user_new/7_reference.md#statuses) lists every
+public function that throws, with its exception types; a new throwing function
+is added there.
 
 Data returned with a non-success status is diagnostic. A failed Wheeler
 inversion can carry a one-node rule, and a failed step returns its input state;
-neither is a result. The [user reference](../user_new/7_reference.md#statuses)
-lists the statuses and the throwing functions a user meets.
+neither is a result.
 
 ## Thread safety
 

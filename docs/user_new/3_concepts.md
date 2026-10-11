@@ -1,5 +1,7 @@
 # Concepts
 
+This page explains the ideas and terms the other pages use.
+
 ## Raw moments
 
 QMOMKit works with raw moments of the number density $n$ of a population. In
@@ -47,7 +49,7 @@ order.
 
 A *case* is the fixed setup: the initial moments, node counts, and options.
 `QmomCase` is the QMOM case. For CQMOM, `CqmomPreparedCase` prepares the
-conditioning structure once and shares it with everything made from it.
+branch structure once and shares it with everything made from it.
 `compute_qmom(...)` and `compute_cqmom(...)` reconstruct the quadrature of a
 case.
 
@@ -68,7 +70,8 @@ of a CQMOM quadrature can then differ in size, so iterate over `weights()` and
 ## Results and statuses
 
 Numerical operations report failure in their result rather than throwing. Every
-result has `ok()`, a `status`, and a `message`; check `ok()` before using it. A
+result has a `status` and a `message`, and all but a realizability check have
+`ok()`; check it before using the result. A
 failed time step returns the state it started from, and what to do next, such
 as retrying with a smaller step, is your decision. Loading a configuration is
 checked separately: `if (!configured)`, then `configured.error()`. A few
@@ -82,18 +85,23 @@ The [Reference](7_reference.md) lists all statuses.
 | --- | --- |
 | abscissa | The position of a node in phase space. |
 | boundary contribution | A moment rate from exchange across a phase-space boundary, such as nucleation; added to the source. |
+| bounds | An interval the nodes of a coordinate must lie in, `[phase_space] support_lower` and `support_upper`. |
 | branch | In CQMOM, the one-dimensional reconstruction of one coordinate for given values of the coordinates earlier in the conditioning order. |
+| branch structure | The branches a CQMOM hierarchy can have and the moments each reads, prepared once by `CqmomPreparedCase`. |
 | callback | A function you supply with the physics: a velocity, a source, or a boundary contribution. |
 | case | The fixed setup of a reconstruction: moments, node counts, options. |
 | conditioning order | The order in which CQMOM reconstructs the coordinates. |
 | hierarchy | The node counts of a CQMOM case and its conditioning order, `PhaseSpaceHierarchy`. |
 | layout | The moments a CQMOM hierarchy requires, in a fixed order, `CqmomMomentLayout`. |
 | node | A weighted point of a quadrature. |
+| node advection | Moving the nodes with the velocity over a step. |
 | number density | The population per unit of phase space; its zeroth moment is the total. |
 | realizability | Whether moments can come from a non-negative number density on a given support. |
+| post-source reconstruction | The reconstruction of the quadrature from the moments a source step produced. |
 | source | A rate of change of the moments, such as breakage or aggregation. |
+| source step | Integrating the moments with the source over a step. |
 | state | Moments and their matching quadrature, advanced in time. |
-| support | The range a coordinate can take, such as the non-negative numbers. |
+| support | The range a coordinate can take, such as the non-negative numbers, against which a realizability check tests the moments. |
 | terminal node | A node of a CQMOM quadrature, with one weight and one value per coordinate. |
 | velocity | The rate at which nodes move through phase space, such as growth or drag. |
 | weight | The share of the number density carried by a node. |

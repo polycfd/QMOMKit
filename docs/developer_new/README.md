@@ -74,5 +74,6 @@ Every change then follows the same steps:
    configuration key changes.
 4. Run the examples a change affects and check their numbers.
 
-Tolerances, fallbacks, node ordering and status mapping change only with
-explicit approval ([AGENTS.md](../../AGENTS.md#numerical-contracts)).
+Tolerances, acceptance criteria, node reduction, fallback behavior, node
+ordering and status mapping change only with explicit approval
+([AGENTS.md](../../AGENTS.md#testing-and-validation)).

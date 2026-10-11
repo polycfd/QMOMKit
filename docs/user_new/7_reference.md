@@ -1,5 +1,8 @@
 # Reference
 
+This page lists the configuration keys, the C++ entry points and callbacks,
+the statuses and exceptions, troubleshooting messages, and the output formats.
+
 ## Configuration file
 
 A `.qmom` file holds `[sections]` of `key = value` lines.
@@ -9,9 +12,11 @@ A `.qmom` file holds `[sections]` of `key = value` lines.
 - Numbers are plain decimals, such as `2`, `-0.5`, or `1.0e-6`, whatever the
   locale.
 - Indices in section names have no leading zeros: `[initial.dimension.0]`.
-- Unknown keys, and keys that have no effect, such as a parameter of another
-  distribution family, are errors with the file and line.
-- Explicit `[moments]` take precedence over `[initial]`.
+- Unknown keys are errors, and so are keys that contradict the other settings,
+  such as a parameter of another distribution family; both are reported with
+  the file and line.
+- Explicit `[moments]` take precedence over `[initial]`, which is then not
+  read.
 - An optional top-level `format_version = 1` states the format version.
 
 The case loaders check every key in the file; the other loaders read only their
@@ -22,6 +27,10 @@ own sections:
 | `config::load_qmom(path)`, `config::load_cqmom_prepared(path)`, `config::load_cqmom(path)` | the case |
 | `config::load_qmom_phase_space_evolution_options(path)`, `config::load_cqmom_phase_space_evolution_options(path)` | the evolution options |
 | `config::load_output_options(path)` | the output options |
+| `config::parse_qmom_initial_condition(text)`, `config::parse_cqmom_initial_condition(text)` | the `[initial]` distribution, for example to sample it |
+
+Each `load_*(path)` has a `parse_*(text)` counterpart that reads the same from a
+string.
 
 ### `[phase_space]`
 
@@ -95,11 +104,11 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | Key | Default | Meaning | C++ (`QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`) |
 | --- | --- | --- | --- |
 | `[time_integration] scheme` | `strang` | Splitting: `strang`, `advsrc`, or `srcadv`. | `scheme` |
-| `[time_integration.node_advection] scheme` | `rk23` | Node motion: `rk23`, `rk45`, or `ssp_rk3`. | `node_options.scheme` |
+| `[time_integration.node_advection] scheme` | `rk23` | Node advection: `rk23`, `rk45`, or `ssp_rk3`. | `node_options.scheme` |
 | `[time_integration.node_advection.adaptive]` `relative_tolerance`, `absolute_tolerance` | `1e-6`, `1e-9` | Error tolerances of `rk23` and `rk45`. | `node_options.adaptive_options` |
 | `initial_step` | `1e-6` | First step tried. | 〃 |
 | `max_step` | whole interval | Largest step. | 〃 |
-| `min_step` | automatic | Smallest step, at least ten double spacings of the elapsed time. A step at this floor is accepted even above the tolerance. | 〃 |
+| `min_step` | automatic | Smallest step, at least ten double spacings at the current time. A step at this floor is accepted even above the tolerance. | 〃 |
 | `max_steps` | `1000000000` | Most accepted steps per interval. | 〃 |
 | — | `0` | Source step: retries with half the step after a rejection. | `source_options.ssp_rk3_options.max_retries` |
 | — | `0` | Source step: shortest retried step. | `source_options.ssp_rk3_options.min_time_step` |
@@ -111,7 +120,7 @@ For QMOM; a CQMOM file gives one section per checked coordinate,
 
 | Key | Default | Meaning | C++ (`RealizabilityPolicy`) |
 | --- | --- | --- | --- |
-| `check_mode` | `none` | `none`, `final_only` (after the source step), or `every_stage` (also its stages). | `check_mode` |
+| `check_mode` | `none` | `none`, `final_only` (the result of the source step), or `every_stage` (also its stages). | `check_mode` |
 | `support` | — | `real_line`, `nonnegative`, or `bounded_interval`. Required unless `check_mode = none`. | `support` |
 | `lower`, `upper` | — | Required for `bounded_interval`, an error otherwise. | `interval` |
 | `accept_boundary` | `true` | Accept moments on the boundary of the realizable set. | `accept_boundary` |
@@ -134,12 +143,12 @@ function.
 
 | Task | Functions | Header |
 | --- | --- | --- |
-| Load a configuration | `config::load_qmom`, `load_cqmom_prepared`, `load_*_options`, `with_initial_moments` | `configuration.hpp` |
+| Load a configuration | `config::load_qmom`, `load_cqmom_prepared`, `load_cqmom`, `load_*_options`, their `parse_*` forms, `with_initial_moments` | `configuration.hpp` |
 | Generate moments | `compute_raw_moments` | `distributions.hpp` |
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
 | Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `active_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
-| Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` forms | `phase_space_evolution.hpp` |
+| Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` and `_batch_with_index` forms | `phase_space_evolution.hpp` |
 | Check realizability | `check_realizability` | `realizability.hpp` |
 | Derived moments | `evaluate_generalized_moment`, `reconstruct_raw_moments` | `moment_reconstruction.hpp` |
 | Write output | `MomentWriter`, `QuadratureWriter` | `output.hpp` |
@@ -173,11 +182,11 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | | `qmom_failed` | A one-dimensional reconstruction of a branch failed. |
 | | `conditional_moment_failed` | A conditional system could not be solved. |
 | Evolution results | `invalid_input` | Invalid state, time, callbacks, or options; nothing ran. |
-| | `inversion_failed` | The quadrature could not be reconstructed after the source step. |
+| | `inversion_failed` | The post-source reconstruction failed. |
 | | `advection_failed` | The velocity or the node integration failed. |
 | | `moment_reconstruction_failed` | The moments of the moved or reconstructed nodes do not fit in a double. |
 | | `moment_source_failed` | The source, or its integration or check, failed. |
-| `QmomStateCandidate`, `CqmomStateCandidate` | `empty` | $m_0$ is below the cutoff, whatever a policy says: nothing to evolve. |
+| `QmomStateCandidate`, `CqmomStateCandidate` | `empty` | $0 \le m_0 <$ cutoff, whatever a policy says: nothing to evolve. |
 | | `realizability_rejected` | The policy rejected the moments. |
 | | `reconstruction_failed` | No quadrature from these moments. |
 | | `invalid_input` | Non-finite moments, too few, a wrong layout, or an invalid policy. |
@@ -188,7 +197,8 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | | `numerically_indeterminate` | The moments carry too few digits to decide. |
 | | `invalid_input` | Empty or non-finite moments, an invalid tolerance, or an invalid support or interval. |
 
-Every result type also has `success`. An evolution result's
+Every result type in this table other than `RealizabilityResult` also has
+`success` and `ok()`. An evolution result's
 `diagnostics.failed_stage` names the part of the step that failed:
 `first_advection_half_step`, `first_moment_reconstruction`, `moment_source_step`,
 `post_source_inversion`, `second_advection_half_step`, or
@@ -198,13 +208,16 @@ These throw instead of returning a status:
 
 | Function | Throws |
 | --- | --- |
-| `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed |
-| `PhaseSpaceHierarchy`, `CqmomPreparedCase` constructors | `std::invalid_argument` for an invalid conditioning order, a zero node count, or moments that do not fit the hierarchy |
+| `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed; for a `CqmomCase` also `std::invalid_argument` for a layout that is not the required layout of its hierarchy |
+| `PhaseSpaceHierarchy` constructor | `std::invalid_argument` for no node counts, a zero node count, an invalid conditioning order, or too many nodes in total |
+| `CqmomPreparedCase` constructor | `std::invalid_argument` for a layout that is not the required layout of its hierarchy; wrong values show up when the case is used |
 | `extract_cqmom_moments(...)` | `std::invalid_argument` when the tensor's rank or value count is wrong; `std::out_of_range` when it lacks a required moment |
-| `reconstruct_raw_moments(...)`, `evaluate_generalized_moment(...)` | `std::invalid_argument` for malformed input, `std::domain_error` for a fractional order with a negative abscissa, `std::overflow_error` for a value beyond the range of a double |
+| `create_cqmom_moment_data(...)` | `std::invalid_argument` when the result failed, or its indices, count or values do not match the layout |
+| `reconstruct_raw_moments(...)`, `reconstruct_cqmom_moments(...)`, `evaluate_generalized_moment(...)` | `std::invalid_argument` for malformed input, `std::domain_error` for a fractional order with a negative abscissa, `std::overflow_error` for a value beyond the range of a double |
 | `weight(index)`, `abscissa(dimension, index)` of an adaptive `CqmomQuadrature` | `std::logic_error`; iterate over `weights()` and `abscissas()` instead |
-| `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written |
+| `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written; `MomentWriter` also `std::domain_error` for a fractional generalized order with a negative abscissa |
 | `value()` of a failed configuration result | `std::bad_optional_access` |
+| `ssp_rk3_step(...)`, `integrate_embedded_rk(...)` | exceptions from your callbacks, unchanged; `std::invalid_argument` when `rhs` changes the size of its buffer, and from `ssp_rk3_step` also when a candidate state is not finite |
 
 ## Troubleshooting
 
@@ -218,10 +231,10 @@ These throw instead of returning a status:
 | `Wheeler recurrence produced non-finite values.` | The moments are near the range of a double. Use units that keep coordinates near unity. |
 | `Phase-space velocity callback returned a non-finite value …` | The message names the node; a velocity dividing by a coordinate that reached zero is typical. |
 | `… exceeded max_steps.` | The velocity is stiffer than expected, or `max_steps` is too low. Check the velocity first. |
-| `… non-finite state or error estimate at the minimum step.` | The node motion diverged; check the velocity. Relaxing tolerances does not help. |
+| `… non-finite state or error estimate at the minimum step.` | The node advection diverged; check the velocity. Relaxing tolerances does not help. |
 | `inversion_failed` after many good steps | The moments drift out of the realizable set. Use adaptive mode, a realizability policy with retries, a smaller step, or bounds. |
-| `rejected_by_predicate`, `minimum_timestep_reached` | The source drives the moments out of the realizable set, even at the smallest step. Treat it as a physics or step-size problem. |
-| `… rate values must match the source context size.`, `… must be finite.` | Return exactly `context.size()` finite values, in context order. |
+| `Moment-source update was rejected by the acceptability predicate.`, `… reached the minimum timestep before an acceptable state was found.` | The source drives the moments out of the realizable set. Allow retries (`max_retries`), use a smaller step, or treat it as a physics problem. |
+| `… must match the source context size.`, `… must match the moment state size.`, `RHS returned a vector with the wrong size.`, `… must be finite.` | Return exactly `context.size()` finite values, in context order. |
 
 For more detail on a CQMOM failure, set `[cqmom] diagnostic_level = detailed`.
 

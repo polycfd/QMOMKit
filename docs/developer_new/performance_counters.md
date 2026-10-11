@@ -52,10 +52,10 @@ To add one:
 2. Add a `record_*()` helper in both branches of the header, the second one
    empty.
 3. Call it where the event happens in `src/`.
-4. Assert the expected count in
-   [`tests/unit/performance_instrumentation.cpp`](../../tests/unit/performance_instrumentation.cpp)
-   inside `#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)`; the
-   instrumented CI-Debug build runs it.
+4. Assert the expected count in the unit test of the owning subsystem or in
+   [`tests/unit/performance_instrumentation.cpp`](../../tests/unit/performance_instrumentation.cpp),
+   guarded by `#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)` or
+   `performance::enabled()`; the instrumented CI-Debug build runs it.
 
 Counters are internal and change no result, status or output. Diagnostics
 tell a caller what happened numerically; counters tell a maintainer how much

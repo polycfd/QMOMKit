@@ -26,22 +26,22 @@ needs, indexed in conditioning order with $c_l$ first.
 2. **Conditional moments.** For a nonterminal branch whose inversion accepted
    $n$ nodes $x_i$ with weights $w_i$, the slices of its $n$ children solve one
    weighted Vandermonde system with one column per trailing multi-index
-   $\beta$:
+   $q$:
 
    ```math
-   \sum_{i=0}^{n-1} w_i\, x_i^{p}\, c_{i,\beta} = S_{p,\beta},
+   \sum_{i=0}^{n-1} w_i\, x_i^{p}\, C_{i,q} = M_{p,q},
    \qquad p = 0,\ldots,n-1,
    \qquad\text{that is}\qquad
-   V^{\mathsf T}\operatorname{diag}(w)\, C = S,\quad V_{ip} = x_i^{p}.
+   V^{\mathsf T}\operatorname{diag}(w)\, C = M,\quad V_{ip} = x_i^{p}.
    ```
 
-   $S_{p,\beta}$ is the slice moment of order $p$ in $c_l$ and $\beta$ in the
-   later coordinates; row $i$ of $C$ is the slice of child $i$. All columns
+   $M_{p,q}$ is the slice moment of order $p$ in $c_l$ and $q$ in the later
+   coordinates; row $i$ of $C$ is the slice of child $i$. All columns
    are solved together by `solve_conditional_vandermonde_system`;
    [Linear algebra](linear_algebra.md) describes how. Only parent orders
    $p<n$ enter, so a branch with fewer nodes than configured solves a square
-   system of its own size. Column $\beta=0$ reproduces moments that Wheeler
-   matched, so $c_{i,0}=1$ up to rounding: child slices are normalized
+   system of its own size. Column $q=0$ reproduces moments that Wheeler
+   matched, so $C_{i,0}=1$ up to rounding: child slices are normalized
    conditional moments, and weights below the root are conditional
    probabilities.
 3. **Next level.** Wheeler inverts the leading sequence of every child slice.
@@ -49,12 +49,9 @@ needs, indexed in conditioning order with $c_l$ first.
    which is relative to the scale of their coordinate, not to their own
    magnitude. In adaptive mode each inversion therefore receives the scale $s$
    of the coordinate it inverts, which sets the floor of its rounding bound
-   ([QMOM](qmom.md#rounding-bound-on-the-recurrence)).
-   `cqmom_coordinate_scales`
-   ([`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp)) takes
-   $s=\sqrt{M_2/M_0}$ of that coordinate's marginal, else $|M_1|/M_0$, else
-   one. The root inverts given moments and uses $s=0$, as does every level in
-   fixed mode.
+   ([QMOM](qmom.md#rounding-bound-on-the-recurrence)); how $s$ is computed is
+   in [QMOM](qmom.md#coordinate-scales). The root inverts given moments and
+   uses $s=0$, as does every level in fixed mode.
 4. **Terminal nodes.** At the last level, every accepted node becomes a
    terminal node. Its weight is the product of the local weights along its
    path, and its abscissas are collected in phase-space order.
@@ -89,10 +86,12 @@ adaptive mode, where a reduced branch reads only part of it.
 when a required moment lies outside the tensor, or with
 `create_cqmom_moment_data` from a successful `SelectedRawMomentResult` with
 exactly the layout's indices in layout order. A missing moment is never
-treated as zero. Reconstruction requires exactly the required layout of the hierarchy
-and compares against it once, when a case or candidate is created or when a
-`CqmomCase` is reconstructed; the root slice then takes the values in stored
-order without lookups.
+treated as zero. Reconstruction requires exactly the required layout of the
+hierarchy and compares against it once: when a `CqmomPreparedCase` is
+constructed, in `CqmomCase::initial_state()`, `compute_cqmom(cqmom_case)`,
+`state_candidate(...)` and `config::with_initial_moments(...)`. An aggregate
+`CqmomCase` checks nothing when it is built. The root slice then takes the
+values in stored order without lookups.
 
 ### Branch layouts
 
@@ -124,20 +123,22 @@ count.
 
 A later reconstruction can receive these records. `validate_active_branch_counts`
 then checks, in one pass over the sorted records, that each matches the
-hierarchy and that every reachable branch has exactly one record; records in
-another order are sorted into a copy first, and a malformed set is
-`invalid_input`. `recursive_branch_node_count_limit` makes each branch's
-recorded count its ceiling. If growth is allowed, which only the
-reconstruction after a source step does, a branch that returns exactly its
-recorded count, below its configured maximum, also tries one more node. It
+hierarchy, that every reachable branch has exactly one record and that no
+record belongs to an unreachable branch; records in another order are sorted
+into a copy first, and a malformed set is `invalid_input`. A fixed
+reconstruction ignores the records. `recursive_branch_node_count_limit` makes
+each branch's recorded count its ceiling. If growth is allowed, which only the
+post-source reconstruction does, a branch that returns exactly its recorded
+count, below its configured maximum, also tries one more node. It
 keeps that rule only if Wheeler returns all of its nodes.
 
 A branch whose accepted count differs from its record has different children:
 they condition on other nodes, so the records below it do not describe them.
 The traversal therefore drops the records of its whole subtree, and those
-branches are reconstructed up to their configured counts. How phase-space
-evolution uses the records as ceilings in the moment-source stages is in
-[Phase-space evolution](phase_space_evolution.md).
+branches are reconstructed up to their configured counts. Which
+reconstructions of phase-space evolution pass the records, and whether they
+allow growth, is in
+[Phase-space evolution](phase_space_evolution.md#node-counts).
 
 ### Bounds
 
@@ -188,18 +189,21 @@ successors. Both routes give the same quadrature.
 | Level | Records |
 | --- | --- |
 | `none` (default) | Only the failing branch, if a branch failed. |
-| `basic` | One record per reconstructed branch: level, parent path, dimension, ceiling (`requested_node_count`) and accepted count, `adaptive_node_count_reduced`, Wheeler status as `QmomStatus`, conditional-moment status, requested and selected Vandermonde solver, and bounds details. |
-| `detailed` | As `basic`, plus the relative residual and condition estimate of each conditional system and `conditioning_warning` when the estimate exceeds `ConditionalMomentOptions::conditioning_warning_threshold` ($10^{12}$ by default). |
+| `basic` | One record per reconstructed branch: level, parent path, dimension, `requested_node_count` and accepted count, `adaptive_node_count_reduced`, Wheeler status as `QmomStatus`, conditional-moment status, requested and selected Vandermonde solver, and bounds details. |
+| `detailed` | As `basic`, plus the relative residual and condition estimate of each conditional system and `conditioning_warning` when the estimate exceeds `ConditionalMomentOptions::conditioning_warning_threshold`. |
 
 The detailed quantities describe the scaled system the solvers decide on
 ([Linear algebra](linear_algebra.md#diagnostics)), so they do not depend on
 the number density, and a change of unit moves the condition estimate by a
-bounded factor only. They need the explicit matrix and its full inverse, which is why they
-have their own level. The level never changes a quadrature,
-a status or a node count. Records of the last level have no conditional
-solve, so their solver fields keep their defaults. The selected solver is the
-one `automatic` resolves to. A conditional solve fails only when its solver
-reports failure.
+bounded factor only. They need the explicit matrix and its full inverse, which
+is why they have their own level, and they never fail a solve. The level never
+changes a quadrature, a status or a node count.
+
+`requested_node_count` is the branch's ceiling, raised by one when a growth
+trial is accepted; for a bounded coordinate it is the candidate count the
+bounds accepted. The selected solver is the one `automatic` resolves to.
+Records of the last level have no conditional solve, so their solver fields
+keep their defaults, `automatic` and `dense`, which mean nothing there.
 
 ## Statuses
 

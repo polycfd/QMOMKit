@@ -1,15 +1,15 @@
 // Splitting with a velocity and a source that both depend on time.
 //
 // What is verified
-//   That `strang` reaches second order and `advsrc` and `srcadv` first order
+//   That `strang`, `advsrc` and `srcadv` reproduce their exact split solutions
 //   when the velocity and the source depend explicitly on time and do not
-//   commute, and that each scheme reproduces its exact split solution, which
-//   requires every stage to evaluate its callback on the right time interval.
-//   A stage on the wrong interval leaves a Lie scheme first order but moves it
-//   away from its split solution; a source stage started at t + dt/2 instead of
-//   t also reduces Strang splitting to first order. The other noncommuting
-//   cases use callbacks that do not depend on time, so they cannot detect such
-//   an error.
+//   commute, which requires every stage to evaluate its callback on the right
+//   time interval, and that `strang` then reaches second order. A stage on the
+//   wrong interval moves a scheme away from its split solution; a Lie scheme
+//   stays first order, so only this comparison detects it there, while a
+//   source stage started at t + dt/2 instead of t also reduces Strang splitting
+//   to first order. The other noncommuting cases use callbacks that do not
+//   depend on time, so they cannot detect such an error.
 //
 // How the reference is constructed
 //   By hand. Two weighted points (0.4 at 0.5, 0.6 at 2) move under
@@ -27,17 +27,18 @@
 //   Errors are the largest error of m_0 to m_3 at t = 1, relative to
 //   max(|reference|, 1). Each scheme runs with 10, 20, 40 and 80 steps, with
 //   RK45 node advection at tolerances 1e-13 relative and 1e-15 absolute.
-//   - Against the exact solution, the error must fall at every refinement,
-//     and the observed order log2(e_dt / e_dt/2) on the two finest pairs must
-//     be at least 1.75 and 1.85 for `strang` and at least 0.75 and 0.85 for
-//     `advsrc` and `srcadv`, the thresholds of the other noncommuting QMOM
-//     case. The observed orders are 2.07 and 2.03 for `strang` and within
-//     0.03 of 1 for the others.
 //   - Against the exact split solution, the deviation is the error of the
-//     third-order SSP-RK3 source step, so it must converge at an observed order
-//     of at least 2.8 on the two finest pairs and stay at most 1e-6 at 80
-//     steps. The observed orders are 2.99, and the deviation at 80 steps is
-//     1e-7; a stage on the wrong interval adds a deviation of order dt.
+//     third-order SSP-RK3 source step, so it must fall at every refinement,
+//     converge at an observed order log2(e_dt / e_dt/2) of at least 2.8 on the
+//     two finest pairs and stay at most 1e-6 at 80 steps. The observed orders
+//     are 2.97 to 3.01, and the deviation at 80 steps is 1e-7; a stage on the
+//     wrong interval adds a deviation of order dt.
+//   - For `strang`, against the exact solution, the error must fall at every
+//     refinement, and the observed order must be at least 1.75 and 1.85 on the
+//     two finest pairs, the thresholds of the other noncommuting QMOM case.
+//     The observed orders are 2.07 and 2.03. This also checks the Strang split
+//     model against the true solution; the Lie split solutions are first order
+//     by construction.
 //
 // Reproduce
 //   ctest -R verification_phase_space_evolution_time_dependent_splitting_
@@ -120,6 +121,8 @@ double relative_error(const std::vector<double>& moments, const std::vector<doub
     return error;
 }
 
+// Errors of one run against the exact solution and against the exact split
+// solution of its scheme.
 struct RunErrors
 {
     double exact = 0.0;
@@ -169,50 +172,34 @@ RunErrors run(const qmomkit::PhaseSpaceEvolutionScheme scheme, const std::size_t
     return {relative_error(state.moment_values(), exact_moments(final_time)), relative_error(state.moment_values(), moments_of(split_nodes))};
 }
 
-std::array<RunErrors, step_counts.size()> run_all(const qmomkit::PhaseSpaceEvolutionScheme scheme)
+using Errors = std::array<double, step_counts.size()>;
+
+// Runs every step count; returns the errors against the exact solution and
+// against the exact split solution.
+std::array<Errors, 2> run_all(const qmomkit::PhaseSpaceEvolutionScheme scheme)
 {
-    std::array<RunErrors, step_counts.size()> errors{};
+    std::array<Errors, 2> errors{};
     for (std::size_t index = 0; index < step_counts.size(); ++index)
     {
-        errors.at(index) = run(scheme, step_counts.at(index));
-        QMOMKIT_VERIFY_CHECK(std::isfinite(errors.at(index).exact) && std::isfinite(errors.at(index).split));
+        const RunErrors run_errors = run(scheme, step_counts.at(index));
+        QMOMKIT_VERIFY_CHECK(std::isfinite(run_errors.exact) && std::isfinite(run_errors.split));
+        errors.at(0).at(index) = run_errors.exact;
+        errors.at(1).at(index) = run_errors.split;
     }
     return errors;
 }
 
-double exact_error(const RunErrors& errors)
-{
-    return errors.exact;
-}
-
-double split_deviation(const RunErrors& errors)
-{
-    return errors.split;
-}
-
-// Checks that `error` falls at every refinement and reaches the given observed
+// Checks that the errors fall at every refinement and reach the given observed
 // orders on the two finest pairs.
-void verify_order(const std::array<RunErrors, step_counts.size()>& errors, double (*error)(const RunErrors&), const double second_finest,
-                  const double finest)
+void verify_order(const Errors& errors, const double second_finest, const double finest)
 {
     for (std::size_t index = 1; index < errors.size(); ++index)
     {
-        QMOMKIT_VERIFY_CHECK(error(errors.at(index)) < error(errors.at(index - 1)));
+        QMOMKIT_VERIFY_CHECK(errors.at(index) < errors.at(index - 1));
     }
     const std::size_t last = errors.size() - 1;
-    QMOMKIT_VERIFY_CHECK(std::log2(error(errors.at(last - 2)) / error(errors.at(last - 1))) >= second_finest);
-    QMOMKIT_VERIFY_CHECK(std::log2(error(errors.at(last - 1)) / error(errors.at(last))) >= finest);
-}
-
-void verify_strang_is_second_order()
-{
-    verify_order(run_all(qmomkit::PhaseSpaceEvolutionScheme::strang), exact_error, 1.75, 1.85);
-}
-
-void verify_lie_schemes_are_first_order()
-{
-    verify_order(run_all(qmomkit::PhaseSpaceEvolutionScheme::advsrc), exact_error, 0.75, 0.85);
-    verify_order(run_all(qmomkit::PhaseSpaceEvolutionScheme::srcadv), exact_error, 0.75, 0.85);
+    QMOMKIT_VERIFY_CHECK(std::log2(errors.at(last - 2) / errors.at(last - 1)) >= second_finest);
+    QMOMKIT_VERIFY_CHECK(std::log2(errors.at(last - 1) / errors.at(last)) >= finest);
 }
 
 void verify_schemes_match_their_exact_split_solutions()
@@ -220,10 +207,15 @@ void verify_schemes_match_their_exact_split_solutions()
     for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
          {qmomkit::PhaseSpaceEvolutionScheme::strang, qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv})
     {
-        const std::array<RunErrors, step_counts.size()> errors = run_all(scheme);
-        verify_order(errors, split_deviation, 2.8, 2.8);
-        QMOMKIT_VERIFY_CHECK(errors.back().split <= split_deviation_bound);
+        const Errors split_deviations = run_all(scheme).at(1);
+        verify_order(split_deviations, 2.8, 2.8);
+        QMOMKIT_VERIFY_CHECK(split_deviations.back() <= split_deviation_bound);
     }
+}
+
+void verify_strang_is_second_order()
+{
+    verify_order(run_all(qmomkit::PhaseSpaceEvolutionScheme::strang).at(0), 1.75, 1.85);
 }
 
 } // namespace
@@ -232,8 +224,7 @@ int main(const int argc, char** argv)
 {
     return qmomkit::test::dispatch_test_case(argc, argv,
                                              {
-                                                 {"strang_is_second_order", verify_strang_is_second_order},
-                                                 {"lie_schemes_are_first_order", verify_lie_schemes_are_first_order},
                                                  {"schemes_match_their_exact_split_solutions", verify_schemes_match_their_exact_split_solutions},
+                                                 {"strang_is_second_order", verify_strang_is_second_order},
                                              });
 }

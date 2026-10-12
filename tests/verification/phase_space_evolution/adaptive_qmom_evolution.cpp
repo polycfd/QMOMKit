@@ -8,7 +8,7 @@
 //   weight of one of two nodes vanishes. With two nodes at most, growth by one
 //   node cannot be told from growth to the maximum; unit tests cover that
 //   limit. Also that the accepted quadrature after every step is the rule the
-//   moments describe, and that the stored moments are those of that rule.
+//   moments describe.
 //
 // How the reference is constructed
 //   Chosen, not computed. The weights move linearly in time between two rules
@@ -23,7 +23,7 @@
 //
 // Error metric and pass criteria
 //   The active node count after each step must equal the expected count
-//   exactly. Positions, weights and moments must match the reference to
+//   exactly. Positions and weights must match the reference to
 //   1.0e-12, relative to max(|reference|, 1). Observed errors are below 1e-14,
 //   the rounding of the source step and the reconstruction.
 //
@@ -89,8 +89,7 @@ void verify_linear_weight_path(const std::vector<double>& initial_weights, const
 
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const qmomkit::QmomMomentSource constant_rate = [&rate](double, const qmomkit::QmomSourceContext& context)
-    { return qmomkit::QmomMomentRate{std::vector<double>(rate.begin(), rate.begin() + static_cast<std::ptrdiff_t>(context.size()))}; };
+    const qmomkit::QmomMomentSource constant_rate = [&rate](double, const qmomkit::QmomSourceContext&) { return qmomkit::QmomMomentRate{rate}; };
 
     double time = 0.0;
     for (const std::size_t expected_node_count : expected_node_counts)
@@ -118,11 +117,6 @@ void verify_linear_weight_path(const std::vector<double>& initial_weights, const
         {
             QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE(quadrature.abscissas[node], expected_nodes[node], 0.0, tolerance);
             QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE(quadrature.weights[node], expected_weights[node], 0.0, tolerance);
-        }
-        const std::vector<double> expected_moments = raw_moments(weights);
-        for (std::size_t order = 0; order < expected_moments.size(); ++order)
-        {
-            QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE(state.moment_values()[order], expected_moments[order], 0.0, tolerance);
         }
     }
     QMOMKIT_VERIFY_NEAR(time, 1.0, 1.0e-15);

@@ -7,7 +7,7 @@ than from given moments. A single distribution with absolute number density
 $n_0$ (`total_weight`, default one) has $m_k = n_0\,\mathrm{E}[X^k]$, so
 $m_0 = n_0$; nothing is normalized. Reconstruction never learns where its
 moments came from. The families and their parameters are listed in the
-[Reference](../user_new/7_reference.md#distribution-families).
+[Reference](../user/7_reference.md#distribution-families).
 
 ## Families
 
@@ -141,7 +141,7 @@ do not apply hold `invalid_component_index` and `invalid_dimension_index`.
 4. Add the family name to `parse_distribution` and its parameter names to
    `distribution_parameters` in
    [`src/configuration.cpp`](../../src/configuration.cpp), and document them
-   in [`docs/user_new/7_reference.md`](../user_new/7_reference.md).
+   in [`docs/user/7_reference.md`](../user/7_reference.md).
 5. Add a sampler and a parameter check to the Monte Carlo companion in
    [`tools/monte_carlo/src/sampling.cpp`](../../tools/monte_carlo/src/sampling.cpp),
    which visits every family.

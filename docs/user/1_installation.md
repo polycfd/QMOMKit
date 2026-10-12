@@ -53,7 +53,7 @@ endif()
 | Option | Default | Effect |
 | --- | --- | --- |
 | `QMOMKIT_BUILD_TESTS` | `OFF` | Builds the test suite; see [tests/README.md](../../tests/README.md). |
-| `QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION` | `OFF` | Counts numerical work, for development; see the [developer documentation](../developer/performance_instrumentation.md). |
+| `QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION` | `OFF` | Counts numerical work, for development; see the [developer documentation](../developer/performance_counters.md). |
 
 ## Examples and the Monte Carlo companion
 

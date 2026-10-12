@@ -3,8 +3,8 @@
 This page explains how a state advances by one step: the state itself, the
 splitting of a step into node advection and the moment source, the
 reconstruction after the source, how node counts change, and how failures are
-reported. Public usage is in [Evolving in time](../user_new/5_evolving_in_time.md) and
-[Coupling QMOMKit](../user_new/6_coupling_qmomkit.md); the reconstructions
+reported. Public usage is in [Evolving in time](../user/5_evolving_in_time.md) and
+[Coupling QMOMKit](../user/6_coupling_qmomkit.md); the reconstructions
 called here are in [QMOM](qmom.md) and [CQMOM](cqmom.md).
 
 ## States
@@ -53,7 +53,7 @@ the scheme:
 Strang splitting is second order for a smooth solution whose callbacks receive
 time-dependent host data to second order at the stage times; how a host does
 that is in
-[Coupling QMOMKit](../user_new/6_coupling_qmomkit.md#host-data-that-changes-in-time).
+[Coupling QMOMKit](../user/6_coupling_qmomkit.md#host-data-that-changes-in-time).
 
 The source always integrates over the whole interval from $t$, also in Strang
 splitting, and evaluates its rates at the SSP-RK3 stage times $t$,
@@ -211,7 +211,7 @@ which give the source contexts the state's reconstruction settings.
 Each rate evaluation builds a `QmomSourceContext` or `CqmomSourceContext` on
 the stage moments: a non-owning view, valid during the callback, whose
 constructors from temporaries are deleted. Its accessors are listed in
-[Evolving in time](../user_new/5_evolving_in_time.md#source).
+[Evolving in time](../user/5_evolving_in_time.md#source).
 
 A tracked moment comes from the stage values. An untracked moment, a
 generalized moment, or a node visit uses a quadrature reconstructed from the

@@ -57,7 +57,7 @@ Nothing is printed on success. On failure the reason and the full refinement
 table go to standard error.
 
 Build the test suite as described in
-[Testing](../../../docs/developer/testing.md#debug-build-requirement), then run
+[Testing](../../../docs/developer/testing_and_validation.md#building-and-running), then run
 with:
 
 ```bash

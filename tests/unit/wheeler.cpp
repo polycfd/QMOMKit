@@ -70,7 +70,7 @@ qmomkit::MomentSet moments_from_nodes(const std::vector<double>& abscissas, cons
 
 void test_adaptive_two_node_span_separation_uses_larger_abscissa_magnitude()
 {
-    // Per docs/developer/qmom_wheeler.md, the two-node separation ratio is the
+    // Per docs/developer/qmom.md, the two-node separation ratio is the
     // node distance divided by the larger abscissa magnitude: unlike the n>2
     // pairwise min/max-distance ratio, this is not translation invariant. The
     // same absolute distance (0.01) is accepted near the origin, where it is

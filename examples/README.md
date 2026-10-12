@@ -5,7 +5,7 @@ They are small programs and configuration files meant for orientation. Each
 example is built like a separate project that links against an installed
 QMOMKit package.
 
-The [user guide](../docs/user_new/8_going_further.md#examples) lists the
+The [user guide](../docs/user/8_going_further.md#examples) lists the
 examples in order of increasing scope, with what each one shows. The examples
 with a Monte Carlo reference require the QMOMKitMonteCarlo companion; their
 particle executables are stochastic references, not exact solutions or tests.
@@ -29,7 +29,7 @@ target_link_libraries(example_target PRIVATE qmomkit_monte_carlo::qmomkit_monte_
 
 ## Build pattern
 
-Install QMOMKit first, as described in [Installation](../docs/user_new/1_installation.md).
+Install QMOMKit first, as described in [Installation](../docs/user/1_installation.md).
 From an example directory, configure against that install prefix:
 
 ```bash
@@ -61,7 +61,7 @@ Configuration files are kept with the executable workflows that use them. For
 example, see `qmom_mixture_initialization/configuration.qmom`,
 `qmom_1d_breakage_advection/configuration.qmom`, and
 `cqmom_2d_adaptive_node_counts/configuration.qmom`. The
-[Reference](../docs/user_new/7_reference.md#configuration-file) lists every key.
+[Reference](../docs/user/7_reference.md#configuration-file) lists every key.
 
 ## Examples versus tests
 

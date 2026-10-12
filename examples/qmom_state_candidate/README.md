@@ -20,7 +20,7 @@ the quadrature is reconstructed:
 
 The example keeps the previous state when there is no new one. What to do
 instead is the application's decision.
-[Moments changed by the host](../../docs/user/phase_space_evolution.md#moments-changed-by-the-host)
+[Moments changed by your code](../../docs/user/6_coupling_qmomkit.md#moments-changed-by-your-code)
 explains the statuses and how a candidate fits into an evolution step.
 
 Build and run from this example directory:

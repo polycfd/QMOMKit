@@ -56,7 +56,7 @@ int main()
 }
 ```
 
-The [quick start](docs/user/quick_start.md) builds on this to cover configuration, phase-space evolution, and output.
+[Getting started](docs/user/2_getting_started.md) builds on this to cover configuration, phase-space evolution, and output.
 
 ## Installation
 
@@ -79,14 +79,14 @@ find_package(QMOMKit CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE qmomkit::qmomkit)
 ```
 
-Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your application. See the [installation guide](docs/user/installation.md) and [quick start](docs/user/quick_start.md) for details.
+Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your application. See [Installation](docs/user/1_installation.md) and [Getting started](docs/user/2_getting_started.md) for details.
 
 ## Examples and tools
 
-The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples repository index](examples/README.md) and the [user examples guide](docs/user/examples.md).
+The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples index](examples/README.md) and the [list of examples in the user guide](docs/user/8_going_further.md#examples).
 
 In addition, QMOMKit has several companion tools:
-- `tools/monte_carlo/` provides Monte Carlo code that can be used to initialize and evolve population ensembles; see the [Monte Carlo guide](docs/user/monte_carlo.md).
+- `tools/monte_carlo/` provides Monte Carlo code that can be used to initialize and evolve population ensembles; see its [README](tools/monte_carlo/README.md).
 - `tools/plotting/` provides optional plotting helpers for QMOMKit-native histories; see the [plotting README](tools/plotting/README.md).
 
 ## Testing
@@ -106,16 +106,16 @@ cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
 cmake --build build-tests --parallel
 ctest --test-dir build-tests --output-on-failure
 ```
-See the [tests README](tests/README.md) and [testing guide](docs/developer/testing.md)
-for details.
+See the [testing and validation guide](docs/developer/testing_and_validation.md) for
+details.
 
 ## Documentation
 
-- **Getting started:** [installation](docs/user/installation.md), [quick start](docs/user/quick_start.md), and the [user guide](docs/user/README.md).
-- **Using QMOMKit:** [configuration](docs/user/configuration.md), [QMOM](docs/user/qmom.md), [CQMOM](docs/user/cqmom.md), [distributions](docs/user/distributions.md), [realizability](docs/user/realizability.md), and [phase-space evolution](docs/user/phase_space_evolution.md).
-- **Examples:** [repository example index](examples/README.md) and [user example guide](docs/user/examples.md).
-- **Optional Monte Carlo tooling:** [Monte Carlo companion guide](docs/user/monte_carlo.md).
-- **Development:** [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing](docs/developer/testing.md).
+- **Getting started:** the [user guide](docs/user/README.md), [installation](docs/user/1_installation.md), and [getting started](docs/user/2_getting_started.md).
+- **Using QMOMKit:** [concepts](docs/user/3_concepts.md), [moments and quadrature](docs/user/4_moments_and_quadrature.md), [evolving in time](docs/user/5_evolving_in_time.md), [coupling QMOMKit](docs/user/6_coupling_qmomkit.md), and the [reference](docs/user/7_reference.md).
+- **Examples:** the [examples index](examples/README.md) and the [list in the user guide](docs/user/8_going_further.md#examples).
+- **Optional Monte Carlo tooling:** the [Monte Carlo companion](tools/monte_carlo/README.md).
+- **Development:** the [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing and validation](docs/developer/testing_and_validation.md).
 - **Coupling to host codes:** [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings)
 
 ## Repository structure

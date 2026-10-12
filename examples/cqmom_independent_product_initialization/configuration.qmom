@@ -1,5 +1,5 @@
 # Two-dimensional CQMOM case whose initial condition is an independent
-# product of one-dimensional marginals. See docs/user/configuration.md.
+# product of one-dimensional marginals. See docs/user/7_reference.md.
 
 # The number of coordinates decides the method: one uses QMOM, several CQMOM.
 # Coordinate names are labels only; QMOMKit reads no physics from them.

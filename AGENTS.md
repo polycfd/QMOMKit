@@ -216,7 +216,7 @@ application code. If the supported public/configuration path cannot perform the
 requested task, stop and report the precise blocker instead of adding a local
 workaround.
 
-See `docs/developer/configuration_design.md` for configuration mapping and
+See `docs/developer/configuration_and_output.md` for configuration mapping and
 extension rules.
 
 ## Public and Internal APIs
@@ -327,7 +327,7 @@ appropriate.
 Avoid misleading descriptions such as “hybrid phase-space evolution” when referring to the
 standard operator-splitting workflow.
 
-See `docs/developer/phase_space_evolution_design.md` for the current phase-space evolution workflow,
+See `docs/developer/phase_space_evolution.md` for the current phase-space evolution workflow,
 callback contracts, status propagation, and validation requirements.
 
 ## Implementation Principles
@@ -437,8 +437,7 @@ Validation changes must state:
 See:
 
 ```text
-docs/developer/testing.md
-docs/developer/validation.md
+docs/developer/testing_and_validation.md
 ```
 
 ## Build and Installation

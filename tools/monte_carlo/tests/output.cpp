@@ -17,7 +17,7 @@
 #include <vector>
 
 // Coverage for the Monte Carlo output module. The writers produce the artifacts
-// a validation run is judged from, and `docs/developer/output_design.md` fixes
+// a validation run is judged from, and `docs/developer/configuration_and_output.md` fixes
 // their format: whitespace-delimited columns, one commented data header,
 // optional metadata comments ahead of it, bracketed multi-index labels such as
 // `M[0]` and `M[0,0]`, and 17-digit precision so a written value round-trips

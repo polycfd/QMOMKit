@@ -5,7 +5,7 @@ density into an $N$-node Gauss quadrature with the Wheeler algorithm
 [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. The same
 inversion reconstructs every one-dimensional sequence of recursive
 [CQMOM](cqmom.md). Public usage is in
-[Moments and quadrature](../user_new/4_moments_and_quadrature.md#reconstruct);
+[Moments and quadrature](../user/4_moments_and_quadrature.md#reconstruct);
 moment and ordering conventions are in
 [Numerical conventions](numerical_conventions.md).
 
@@ -125,7 +125,7 @@ to one node. `rmin` and `eabs` default to `1e-10` in
 and `WheelerOptions`
 ([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); only
 `adaptive` is a `.qmom` key
-([Reference](../user_new/7_reference.md#reconstruction-options)).
+([Reference](../user/7_reference.md#reconstruction-options)).
 
 ## Coordinate scales
 

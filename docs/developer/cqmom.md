@@ -5,7 +5,7 @@ reconstructs a multidimensional quadrature one coordinate at a time, each
 conditioned on the coordinates before it. QMOMKit applies this recursively
 through all coordinates
 [[Bouguezzoul, 2026](https://publications.polymtl.ca/76505/)]. The user-level
-picture is in [Concepts](../user_new/3_concepts.md#qmom-and-cqmom).
+picture is in [Concepts](../user/3_concepts.md#qmom-and-cqmom).
 
 The hierarchy stores node counts in phase-space order, and the conditioning
 order is a separate permutation that only sets the traversal; see

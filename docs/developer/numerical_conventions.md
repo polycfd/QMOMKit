@@ -1,325 +1,176 @@
 # Numerical conventions
 
-This page is the stable developer reference for QMOMKit numerical conventions.
-It describes the conventions that algorithms, tests, examples, configuration
-parsing, and validation workflows must share.
+This page fixes the conventions every algorithm and test shares: moments,
+indices, orderings, quadrature storage, tolerances, supports, bounds and
+units. Changing one changes a numerical contract
+([AGENTS.md](../../AGENTS.md#numerical-contracts)).
 
-QMOMKit is a numerical C++ library. These conventions do not imply a CFD mesh,
-solver loop, boundary-condition model, particle model, physical unit system, or
-application-specific coordinate meaning.
+## Moments
 
-Algorithm-specific details belong in:
+QMOMKit works with raw moments of the number density, defined in
+[Concepts](../user/3_concepts.md#raw-moments). $m_0$ and $M_{0,\ldots,0}$
+are the total number density, and no algorithm divides by them implicitly.
 
-- [qmom_wheeler.md](qmom_wheeler.md) for Wheeler inversion and adaptive one-dimensional QMOM.
-- [cqmom_recursive.md](cqmom_recursive.md) for recursive CQMOM traversal and branch-local data.
-- [phase_space_evolution_design.md](phase_space_evolution_design.md) for time integration, node advection, moment sources,
-  and phase-space evolution composition.
-- [configuration_design.md](configuration_design.md) for parser behavior and configuration-to-request
-  mapping.
+A moment generated from a distribution scales a normalized shape $p$ by a
+number density $n_0$:
 
-## Contents
-
-- [Moment Conventions](#moment-conventions)
-- [Tensor Moment Conventions](#tensor-moment-conventions)
-- [Phase-Space Conventions](#phase-space-conventions)
-- [Conditioning Order Conventions](#conditioning-order-conventions)
-- [Quadrature Conventions](#quadrature-conventions)
-- [Distribution And Initialization Conventions](#distribution-and-initialization-conventions)
-- [Rules For Maintainers](#rules-for-maintainers)
-
-## Moment conventions
-
-QMOMKit uses raw moments of the number density function (NDF). A
-one-dimensional raw moment is
-$$m_k = \int \xi^k n(\xi) \ \mathrm{d}\xi$$
-where $n(\xi)$ is the number density function and $m_0$ is the total number
-density.
-
-For a discrete quadrature representation, the same moment is
-$$m_k = \sum_i w_i x_i^k$$
-where $x_i$ is an abscissa, $w_i$ is its quadrature weight, and $k$ is the
-moment order. The weights are quadrature contributions to the number density
-distribution.
-
-Some initialization helpers start from a normalized distribution $p(\xi)$ and a
-specified total number density $n_0$. In that case:
-
-$$n(\xi) = n_0 p(\xi)$$
-$$m_k = n_0 E[\xi^k]$$
-$$m_0 = n_0$$
-
-This relation is an initialization convenience. The QMOM moments themselves
-are moments of the NDF, not probability-density moments with an implicit
-density factor.
-
-The value $m_0$ is the total number density. It is not normalized away. A
-moment sequence with $m_0 = 1$ is a unit-number-density sequence only because
-the caller or generator chose that total number density.
-
-QMOMKit algorithms assume unnormalized raw moments unless a specific API says
-otherwise. Do not divide moments by $m_0$ before passing them to QMOMKit unless
-the intended mathematical problem is explicitly a unit-number-density problem.
-
-`qmomkit::MomentSet` stores one-dimensional moments in ascending order:
-
-```text
-moments[k] == m_k
+```math
+n(\xi) = n_0\, p(\xi), \qquad m_k = n_0 \int \xi^k p(\xi)\,\mathrm{d}\xi, \qquad m_0 = n_0 .
 ```
 
-Native QMOM and CQMOM moments are integer-order polynomial moments. Generalized
-moments with real exponents may be evaluated from an existing quadrature rule
-as derived quantities, but they are not `MomentSet`, `RawMomentTensor`, or
-CQMOM inversion inputs.
+Mixtures and independent products follow from this rule; see
+[Distributions](distributions.md).
 
-For an $N$-node one-dimensional QMOM inversion, callers provide at least
-$2N$ moments: $m_0, m_1, ..., m_{2N-1}$.
+Moments have integer orders. Generalized moments with real exponents are
+derived from a quadrature, never an input to reconstruction or evolution.
 
-All numerical storage currently uses `double` values in runtime-sized
-containers. Algorithms report invalid input or numerical failure through their
-documented result/status types; non-empty output data alone is not a success
-criterion.
+## Indices and storage
 
-## Tensor moment conventions
+| Container | Indexed by | Storage |
+| --- | --- | --- |
+| `MomentSet` | order $k$ | `values()[k]` is $m_k$; $N$ nodes need $m_0, \ldots, m_{2N-1}$. |
+| `MultiIndex` | phase-space dimension | `std::vector<std::size_t>`, one order or node index per dimension. |
+| `RawMomentTensor` | multi-index $\alpha$ | `values[flatten_multi_index(alpha, extents)]`. |
+| `CqmomMomentData` | position in its layout | `values[i]` is the moment of `layout.required_indices` row `i`. |
 
-A multidimensional raw moment uses a phase-space-order multi-index:
-$$\alpha = [\alpha_0, \alpha_1, ..., \alpha_{d-1}]$$
+`flatten_multi_index` is row-major in phase-space order, with the last dimension
+varying fastest. For extents $n_0, \ldots, n_{D-1}$:
 
-The corresponding raw tensor moment is
-$$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
-where $r$ is a phase-space dimension, $W_j$ is the global quadrature weight of
-terminal node $j$, and $\xi_{r,j}$ is that node's coordinate in dimension $r$.
-
-`qmomkit::RawMomentTensor` stores multidimensional raw moments as:
-```text
-extents[r] = number of stored moment orders in phase-space dimension r
-values[flatten_multi_index(alpha, extents)] = m_alpha
+```math
+\mathrm{flat}(\alpha) = \bigl(\cdots(\alpha_0 n_1 + \alpha_1) n_2 + \cdots\bigr) n_{D-1} + \alpha_{D-1} .
 ```
 
-Tensor storage is row-major in phase-space dimension order, with the last
-dimension varying fastest. For
+It throws for a rank mismatch, a component outside its extent, or an overflow.
 
-```text
-alpha   = [i0, i1, i2]
-extents = [n0, n1, n2]
-```
+Maximum orders are inclusive: a maximum order $K$ gives an extent $K + 1$.
+`PhaseSpaceHierarchy::moment_extents()` is $2N_d$ in dimension $d$. The
+required layout from `create_cqmom_moment_layout` is a subset of that box.
+Its entries are listed level by level of the conditioning order, and each is a
+multi-index in phase-space order. The layout depends only on the hierarchy, so
+a host creates it once and replaces the values. [CQMOM](cqmom.md) derives
+it.
 
-the flat index is
+`MultiIndexTable` and `ConditioningPathTable` store equal-length rows
+contiguously, row-major, in one allocation. A row is read as a
+`MultiIndexView` or `ConditioningPathView`, which must not outlive its table.
 
-```text
-flat = ((i0 * n1) + i1) * n2 + i2
-```
+## Dimension order and conditioning order
 
-For `extents = [2, 3]`, enumeration order is:
+The phase-space dimension order is the order in which the coordinates are
+declared. It indexes moments, node counts, node multi-indices, abscissa arrays,
+abscissa bounds, and per-coordinate realizability policies. In the packed
+velocity vectors, the coordinates within each node follow it too.
 
-```text
-[0, 0]
-[0, 1]
-[0, 2]
-[1, 0]
-[1, 1]
-[1, 2]
-```
+`PhaseSpaceHierarchy` holds the node counts in that order, together with
+`conditioning_order`, a permutation in which `conditioning_order[l]` is the
+dimension reconstructed at level `l`. The default is the identity. The
+constructor rejects no node counts, a zero node count, a total node count
+beyond `std::size_t`, and an order that is not a permutation.
 
-Tensor indices always refer to moment orders in phase-space dimension order.
-They are not ordered by conditioning level, callback order, file column order,
-or any recursive traversal detail unless a specific internal data structure
-explicitly documents another layout.
+The conditioning order changes the reconstruction, never a storage order or the
+meaning of a node count. Only two things are ordered by conditioning level:
+conditioning paths, whose entry `l` is a node index in dimension
+`conditioning_order[l]`, and the internal per-branch data of the recursion
+([CQMOM](cqmom.md)). Everything public is ordered by dimension.
 
-## Phase-space conventions
+## Quadrature storage
 
-A phase-space dimension is the stable coordinate axis identifier used by
-QMOMKit. Dimension indices are
+**QMOM.** Abscissas are ascending, and the weights follow the same order.
+The same holds for every inversion inside CQMOM: node index $i$ of a branch is
+its $i$-th smallest abscissa. Conditioning paths, the terminal order, the
+active-count records and the output rows all rely on this order.
 
-```text
-0, 1, ..., d - 1
-```
+**CQMOM.** A quadrature consists of terminal nodes. `weights()[j]` is the global weight of
+terminal node `j`, the product of the local weights along its path.
+`abscissas()[d][j]` is its coordinate in dimension `d`, and
+`terminal_paths()` row `j` is its conditioning path. Two layouts exist:
 
-The same phase-space dimension order is used for:
+| | Fixed (`adaptive = false`) | Adaptive (default) |
+| --- | --- | --- |
+| `has_rectangular_storage()` | `true` | `false`, even when no branch reduced |
+| Terminal order | Row-major over `node_counts()` in phase-space order, as `flatten_node_index` | Lexicographic in the conditioning path |
+| `weight(node_index)`, `abscissa(d, node_index)`, `node(...)` | Valid | Throw `std::logic_error` |
+| `CqmomState::active_branch_counts()` | Empty | One record per branch |
 
-- raw moment tensor multi-indices;
-- tensor extents;
-- node counts;
-- quadrature abscissa arrays;
-- phase-space coordinate vectors passed to velocity callbacks;
-- output labels and selected moment labels when those labels refer to tensor
-  order.
+Active branch counts (`CqmomActiveBranchCount`) are sorted by parent path, so
+every branch follows its parent. Code for both layouts iterates over
+`weights()`, `abscissas()` and `terminal_paths()`.
 
-Coordinate names are metadata. A name such as `size`, `velocity`, `mass`, or
-`temperature` can help humans read configuration and output, but it does not
-change numerical ordering.
+## Adaptive and fixed reconstruction
 
-QMOMKit does not assign physical meaning to any coordinate. Velocity
-components are ordinary phase-space dimensions. Scalar or internal coordinates
-such as particle size, composition, mass, or a reaction coordinate are also
-ordinary phase-space dimensions. A workflow that uses both velocity and
-internal coordinates must define one explicit phase-space order and use it
-consistently in moments, quadrature, callbacks, output, and validation.
+Reconstruction is adaptive by default (`QmomOptions::adaptive = true`): node
+counts are maxima, and Wheeler returns fewer nodes where the moments do not
+support more. In CQMOM the one flag governs every marginal and conditional
+inversion and every branch count. A fixed reconstruction returns exactly the
+configured count in every inversion, or fails. Criteria:
+[QMOM](qmom.md); branches: [CQMOM](cqmom.md).
 
-For phase-space evolution callbacks, a node coordinate vector is ordered by
-phase-space dimension:
+## Tolerances
 
-```text
-coordinates[r] corresponds to phase-space dimension r
-```
+Numerical decisions use relative tolerances, so they depend neither on the
+unit of a coordinate nor on $m_0$: the Wheeler rounding bounds, `rmin` and
+`eabs` (relative despite its name), the realizability test on standardized
+moment matrices, the singularity tests of conditional solves, and the margin of
+abscissa bounds.
 
-The returned phase-space velocity vector uses the same order and size. See
-`phase_space_evolution_design.md` for phase-space evolution-specific callback
-behavior.
+A few thresholds are absolute: `QmomOptions::cutoff` on $m_0$, in units of
+number density; the absolute tolerance of adaptive node advection, in units of
+the coordinates; and the step sizes of the integrators (`initial_step`,
+`min_step`, `max_step`, `min_time_step`), in units of the time argument.
 
-## Conditioning order conventions
+Each value is given once, on the page that owns it:
+[QMOM](qmom.md), [Linear algebra](linear_algebra.md),
+[Realizability](realizability.md), and
+[Phase-space evolution](phase_space_evolution.md).
 
-Conditioning order is separate from phase-space dimension order. It defines
-the order in which CQMOM conditions dimensions:
+## Supports and abscissa bounds
 
-```text
-phase_space_dimension = conditioning_order[level]
-```
+The two concepts are distinct and never derived from each other.
 
-The default conditioning order is identity order:
+A **support** (`MomentSupport::real_line`, `nonnegative`, or
+`bounded_interval` with an explicit `BoundedInterval`) is an argument of a
+realizability check or policy and does not constrain reconstruction
+([Realizability](realizability.md)).
 
-```text
-[0, 1, ..., d - 1]
-```
+**Abscissa bounds** (`AbscissaBounds`, or `CqmomAbscissaBounds` per coordinate)
+are acceptance criteria for reconstructed abscissas. A candidate rule with a
+node outside the bounds, beyond a rounding margin, is rejected. An adaptive
+reconstruction then tries fewer nodes, and a fixed one fails. Nodes are never
+clipped or projected. Bounds exist only when the caller gives them. In a
+`.qmom` file, they are the keys `phase_space.support_lower` and
+`phase_space.support_upper`, which set abscissa bounds despite their names.
+They are never inferred from a realizability support, a coordinate name, or the
+moments. The margin is in [QMOM](qmom.md).
 
-A non-identity order is a permutation of phase-space dimensions. For example:
+## Units and scales
 
-```text
-phase-space dimensions = [0, 1, 2]
-conditioning_order    = [2, 0, 1]
-```
+Coordinate names are metadata: they carry no unit, support, or meaning.
+QMOMKit never rescales moments or coordinates for the caller; results are in
+the caller's units. Internal kernels may scale the systems they solve, invisibly
+in the results ([Linear algebra](linear_algebra.md)).
 
-means CQMOM processes dimension `2` first, then dimension `0`, then dimension
-`1`.
+The only internal coordinate scales bound the rounding of CQMOM conditional
+moments in adaptive reduction; see [QMOM](qmom.md#coordinate-scales).
 
-Conditioning order affects the numerical conditioning sequence used by CQMOM.
-It does not change:
+## Terms
 
-- tensor storage order;
-- the meaning of phase-space dimensions;
-- node-count ownership;
-- coordinate vector order;
-- final quadrature abscissa dimension order.
+Terms the [user guide](../user/3_concepts.md#terms) does not define:
 
-Node counts are attached to phase-space dimensions:
-
-```text
-node_counts[r] == requested node count for phase-space dimension r
-```
-
-`PhaseSpaceHierarchy` validates that conditioning order has length `d` and is a
-permutation with no duplicate, missing, or out-of-range dimensions.
-
-Recursive path storage, branch-local moment slices, and traversal details are
-implementation topics for `cqmom_recursive.md`.
-
-## Quadrature conventions
-
-QMOMKit uses the terms node and abscissa as follows:
-
-- A quadrature node is one weighted support point in the reconstructed rule.
-- An abscissa is the coordinate value of a node in one phase-space dimension.
-- A weight is the quadrature contribution associated with a node in the number
-  density distribution.
-
-In one dimension, a quadrature rule represents the supplied moments by
-$$m_k = \sum_i w_i x_i^k$$
-In multiple dimensions, terminal quadrature nodes represent moments by
-$$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
-where $W_j$ is the global terminal-node weight.
-
-One-dimensional Wheeler output is sorted by ascending abscissa, with weights
-permuted consistently:
-
-```text
-weights[i] corresponds to abscissas[i]
-```
-
-The order of source nodes used to generate a moment sequence is irrelevant;
-raw moments are sums over nodes.
-
-For multidimensional CQMOM quadrature, final abscissas are stored by
-phase-space dimension. For terminal node `j`:
-
-```text
-weights[j]                    = global terminal-node weight
-abscissas[dimension][j]       = coordinate in phase-space dimension
-```
-
-Fixed rectangular CQMOM quadratures may also support phase-space-order
-multi-index access. Adaptive or ragged quadrature representations should be
-interpreted by iterating over exposed terminal nodes, weights, abscissas, and
-paths rather than assuming rectangular storage.
-
-Local conditional weights that arise inside CQMOM reconstruction are not the
-same as final global weights. The distinction between local conditional weights
-and accumulated terminal weights belongs in
-[cqmom_recursive.md](cqmom_recursive.md).
-
-## Distribution and initialization conventions
-
-Distribution helpers are initialization tools. They generate raw moments of an
-NDF and raw NDF moment tensors; the rest of the QMOMKit workflow consumes those
-moments. QMOM and CQMOM reconstruction do not retain a probability-density
-object.
-
-One-dimensional analytical distribution helpers interpret the supplied
-analytical distribution as a normalized shape $p(xi)$ and the supplied $n_0$ as
-the total number density:
-$$n(\xi) = n_0 p(\xi)$$
-$$m_k = n_0 E[\xi^k]$$
-$$m_0 = n_0$$
-The value $n_0$ is an absolute total number density. It is not a fraction or a
-probability unless the caller intentionally chooses a unit-number-density
-setup.
-
-One-dimensional mixtures use absolute component number densities:
-$$m_k = \sum_s n_s E_s[\xi^k]$$
-$$m_0 = \sum_s n_s$$
-
-Component number densities are not normalized and are not required to sum to
-one. Zero-density components contribute zero.
-
-Independent multidimensional product initialization uses normalized
-one-dimensional marginals and one global total number density:
-$$n(\xi_0, ..., \xi_{d-1}) = n_0 \prod_r p_r(\xi_r)$$
-$$\int p_r(\xi_r) \ \mathrm{d}\xi_r = 1$$
-$$m_\alpha = n_0 \prod_r E_r[\xi_r^{\alpha_r}]$$
-$$m_{[0, ..., 0]} = n_0$$
-
-Marginals are ordered by phase-space dimension. The global number density is
-applied once. Per-dimension number densities, conditioning-order-dependent
-marginals, and correlated multidimensional distributions are not part of the
-current initialization convention.
-
-Requested maximum orders are inclusive. In one dimension, `maximum_order = 3`
-generates `m_0` through `m_3`. For product tensors,
-`maximum_orders[r] = 3` gives `extents[r] = 4`.
-
-Configuration files preserve the same conventions. Explicit moments are already
-raw moments. Distribution-based initialization is converted to raw moments
-before QMOM case objects or CQMOM case objects are constructed. Parser-specific
-precedence and field mapping belong in
-[configuration_design.md](configuration_design.md).
-
-## Rules for maintainers
-
-Preserve these conventions unless a deliberate convention change is reviewed,
-documented, and covered by tests:
-
-- raw moments are moments of the number density function;
-- `m_0` is total number density;
-- one-dimensional moments are stored in ascending order;
-- tensor multi-indices are ordered by phase-space dimension;
-- tensor flat storage is row-major with the last phase-space dimension fastest;
-- phase-space dimension order is independent of conditioning order;
-- node counts are attached to phase-space dimensions;
-- coordinate vectors use phase-space dimension order, and velocity callbacks
-  receive all nodes packed node-major with that order within each node;
-- one-dimensional quadrature abscissas are sorted ascending with corresponding
-  weights permuted consistently;
-- final multidimensional quadrature weights are global terminal weights;
-- analytical mixtures use absolute component number densities;
-- independent products use normalized marginals and one global total number
-  density;
-- no algorithm should infer physical units, supports, velocity meanings, or
-  particle-specific semantics from dimension names.
+| Term | Meaning |
+| --- | --- |
+| active node count | Nodes that a branch or a QMOM state uses; at most the configured count. |
+| canonical moments | Moments recomputed from an accepted quadrature; a state stores these, not the moments it was given. |
+| ceiling | The largest node count a branch may return in one reconstruction, apart from the growth trial: its recorded active count when a state's counts are passed in, otherwise its configured count. |
+| child case | Internal layout data for the children of a branch with a given node count ([CQMOM](cqmom.md#branch-layouts)). |
+| conditional moments | Moments of later coordinates conditioned on a node of earlier ones, from a conditional Vandermonde solve. |
+| conditioning level | Position `l` in the conditioning order. |
+| conditioning path | `ConditioningPath`: the node index chosen at each level from the root to a node. |
+| configured node count | Node count of a dimension in the hierarchy: the maximum of every branch. |
+| full tensor | `RawMomentTensor`: every moment in a rectangular box; an input or output format that cases and states never hold. |
+| growth | A branch trying one more node than its active count, allowed only in the post-source reconstruction. |
+| local weight | Weight from one branch inversion; terminal weights are products of local weights. |
+| marginal moments | Moments with every order zero except one. |
+| parent path | Conditioning path of the node on which a branch is conditioned; its length is the level of the branch. |
+| prepared metadata | `internal::PreparedCqmomMetadata`: the immutable branch structure that a prepared case shares with its states and derived cases. |
+| required layout | `CqmomMomentLayout`: the moments a hierarchy's reconstruction reads, in a fixed order. |
+| slice | The moments one CQMOM branch reconstructs from, indexed in conditioning order. |

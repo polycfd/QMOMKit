@@ -151,7 +151,7 @@ source magnitudes.
 ## Running
 
 Configure and build the test suite from the repository root, in Debug as
-described in [Testing](../../../docs/developer/testing.md#debug-build-requirement):
+described in [Testing](../../../docs/developer/testing_and_validation.md#building-and-running):
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON

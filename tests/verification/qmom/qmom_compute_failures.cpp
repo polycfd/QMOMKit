@@ -8,9 +8,10 @@
 // How the reference is constructed
 //   Chosen by construction: each case is a moment set that violates a stated
 //   requirement - too few moments for the requested node count (also with
-//   abscissa bounds and adaptive inversion), a negative zeroth moment, a
-//   negative variance, a zero node count. The expected status
-//   and a fragment of the expected message are written next to each case.
+//   abscissa bounds and adaptive inversion), a non-finite moment with abscissa
+//   bounds and adaptive inversion, a negative zeroth moment, a negative
+//   variance, a zero node count. The expected status and a fragment of the
+//   expected message are written next to each case.
 //   There is no numerical reference here because no quadrature should exist.
 //
 // Pass criteria
@@ -30,6 +31,7 @@
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -100,6 +102,10 @@ int main(const int argc, char** argv)
         // one-node rule the three moments support.
         {"insufficient moments bounded adaptive", qmomkit::MomentSet{1.0, 0.0, 1.0}, 2, qmomkit::QmomStatus::invalid_input, "fewer than 2*n",
          qmomkit::AbscissaBounds{-10.0, 10.0}, true},
+        // Nor do they answer it with the one-node rule of m0 and m1, which
+        // never reads the non-finite m3.
+        {"non finite moment bounded adaptive", qmomkit::MomentSet{1.0, 0.5, 0.5, std::numeric_limits<double>::quiet_NaN()}, 2,
+         qmomkit::QmomStatus::invalid_input, "non-finite", qmomkit::AbscissaBounds{0.0, 1.0}, true},
         {"zero node count", qmomkit::MomentSet{1.0, 0.0}, 0, qmomkit::QmomStatus::invalid_input, "positive"},
     };
 

@@ -442,9 +442,10 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         return rejected;
     }
     // No candidate count exceeds the larger of the initial and configured
-    // counts, so one check covers every candidate. Too few moments are rejected
-    // exactly as the unbounded Wheeler path rejects them, not answered with the
-    // rule the available moments happen to support.
+    // counts, so one check covers every candidate. Too few moments, or a
+    // non-finite one among those required, are rejected with the status and
+    // message of the unbounded Wheeler path, not answered with a rule of fewer
+    // nodes that never reads them.
     const std::optional<std::size_t> required_moment_count =
         internal::checked_size_multiply(2, std::max(request.initial_node_count, request.configured_node_count));
     if (!required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
@@ -453,6 +454,14 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         rejected.quadrature.status = QuadratureStatus::invalid_input;
         rejected.quadrature.message = required_moment_count.has_value() ? "Moment sequence has fewer than 2*n entries."
                                                                         : "max_nodes is too large to derive the required moment count.";
+        return rejected;
+    }
+    if (!std::all_of(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(*required_moment_count),
+                     [](const double value) { return std::isfinite(value); }))
+    {
+        BoundedQuadratureSelection rejected;
+        rejected.quadrature.status = QuadratureStatus::invalid_input;
+        rejected.quadrature.message = "Moment sequence contains non-finite values.";
         return rejected;
     }
 

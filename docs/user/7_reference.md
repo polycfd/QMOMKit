@@ -176,7 +176,7 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 
 | Result | Status | Meaning |
 | --- | --- | --- |
-| `QmomResult` | `invalid_input` | Too few moments, no nodes, or invalid options. |
+| `QmomResult` | `invalid_input` | Too few or non-finite moments, no nodes, or invalid options or bounds. |
 | | `not_realizable` | The moments give no quadrature with the requested nodes. |
 | `CqmomResult` | `invalid_input` | The moments do not fit the hierarchy, or invalid options. |
 | | `qmom_failed` | A one-dimensional reconstruction of a branch failed. |
@@ -207,7 +207,7 @@ These throw instead of returning a status:
 
 | Function | Throws |
 | --- | --- |
-| `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed; for a `CqmomCase` also `std::invalid_argument` for a layout that is not the required layout of its hierarchy |
+| `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed or any of them is not finite; for a `CqmomCase` also `std::invalid_argument` for a layout that is not the required layout of its hierarchy |
 | `PhaseSpaceHierarchy` constructor | `std::invalid_argument` for no node counts, a zero node count, an invalid conditioning order, or too many nodes in total |
 | `CqmomPreparedCase` constructor | `std::invalid_argument` for a layout that is not the required layout of its hierarchy; wrong values show up when the case is used |
 | `extract_cqmom_moments(...)` | `std::invalid_argument` when the tensor's rank or value count is wrong; `std::out_of_range` when it lacks a required moment |

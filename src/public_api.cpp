@@ -244,8 +244,9 @@ namespace
     return candidate;
 }
 
-// Moments from outside the case must be finite throughout, including those
-// above order 2n - 1, which the reconstruction does not read.
+// The given moments must be finite throughout, including those above order
+// 2n - 1, which the reconstruction does not read and the state replaces with
+// the moments of its quadrature.
 [[nodiscard]] QmomStateCandidate checked_qmom_state_candidate(const QmomCase& qmom_case, const MomentSet& moments,
                                                               const RealizabilityPolicy* const policy)
 {
@@ -271,7 +272,7 @@ QmomStateCandidate QmomCase::state_candidate(const MomentSet& candidate_moments,
 
 QmomState QmomCase::initial_state() const
 {
-    QmomStateCandidate candidate = qmom_state_candidate(*this, moments, nullptr);
+    QmomStateCandidate candidate = checked_qmom_state_candidate(*this, moments, nullptr);
     if (!candidate.ok())
     {
         throw std::runtime_error("QMOM initial state reconstruction failed: " + candidate.message);

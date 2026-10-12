@@ -157,8 +157,8 @@ scales with the coordinate, so the margin is relative to the bounds and decides
 the same in any unit. A fixed reconstruction
 evaluates $c=N$ only; an adaptive one tries $c=N,\ldots,1$ and keeps the first
 accepted, and if $c=1$ also fails, returns its status and message. Bounds must
-be finite with $\ell<u$, and $2N$ moments are required whatever count is
-accepted.
+be finite with $\ell<u$, and $2N$ finite moments are required whatever count
+is accepted.
 
 ## Cases, results and statuses
 

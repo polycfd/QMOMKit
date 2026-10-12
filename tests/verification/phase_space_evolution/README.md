@@ -5,26 +5,29 @@
 These cases verify the
 [phase-space evolution](../../../docs/developer/phase_space_evolution.md)
 steps of QMOM and CQMOM states. Commuting operators must split without
-splitting error, `strang` must reach second order and `advsrc` and `srcadv`
-first order, source and boundary callbacks must see and return moments in
-the documented order and stage, and failures must report their status and
-failed stage.
+splitting error; `strang` must reach second order and `advsrc` and `srcadv`
+first order; with time-dependent callbacks, each scheme must reproduce its
+exact split solution; source and boundary callbacks must see and return
+moments in the documented order and stage; adaptive QMOM node counts must
+change as documented; realizability policies and retries must govern the
+source step; and failures must report their status and failed stage.
 
 The error is
 $\max_\alpha |M_\alpha - M_\alpha^{\mathrm{ref}}| / \max(1, |M_\alpha^{\mathrm{ref}}|)$
 over the state's moments, the moments reconstructed from its quadrature, or
-both, as each case states. The
-observed order is $\log_2(e_{\Delta t} / e_{\Delta t/2})$.
+both, as each case states. The observed order is
+$\log_2(e_{\Delta t} / e_{\Delta t/2})$.
 
 QMOM references are closed forms of the configured or chosen moments. A CQMOM
-case keeps only the moments its conditioning order needs (the loader reduces
-the fixture's `4 x 4` tensor), so most CQMOM references apply the exact operators to the quadrature `compute_cqmom`
-recovers from it; `commuting_cqmom_2d` and the unit-invariance case start
-from the configured moments or weighted points.
+case keeps only the moments its conditioning order needs (the loader reduces the
+fixture's `4 x 4` tensor), so most CQMOM references apply the exact operators to
+the quadrature `compute_cqmom` recovers from it; `commuting_cqmom_2d` and the
+unit-invariance case start from the configured moments or weighted points.
 
-Unless stated otherwise, node advection is RK23 with tolerances `1e-12`
-(relative) and `1e-14` (absolute) and maximum step `0.01`, and the moment
-source takes one SSP-RK3 step per macro step.
+Unless stated otherwise, the fixture cases advect nodes with RK23 at
+tolerances `1e-12` (relative) and `1e-14` (absolute) and maximum step `0.01`,
+the cases without a fixture with the default node-advection options, and the
+moment source takes one SSP-RK3 step per macro step.
 
 ## Cases
 
@@ -59,6 +62,10 @@ non-adaptive fixtures with conditioning order `{0,1}` hold the moments of the
 product of $\xi_0 \in \{1, 3\}$ (weights $0.4, 0.6$) and
 $\xi_1 \in \{-1, 2\}$ (weights $0.25, 0.75$). The inversion-failure fixtures
 differ from their failure counterparts only in $m_0 = -1$ or $M_{0,0} = -1$.
+
+The cases of `time_dependent_splitting.cpp`, `adaptive_qmom_evolution.cpp`
+and `source_step_retries.cpp` build their states in the test, without a
+fixture, and are listed in their sections below.
 
 ## Commuting operators
 
@@ -108,6 +115,69 @@ source adding `0.1` to every moment, so $m_0(t) = m_0(0) + 0.1\,t$ and
 $m_k(t) = m_k(0)\,e^{kt} + 0.1\,(e^{kt} - 1)/k$. Each scheme runs to
 $T = 0.1$ with $\Delta t = 0.02$ down to `0.0025`, using RK45 node advection
 at step `0.0025`; the error must fall at every refinement.
+
+`time_dependent_splitting_<case>` (`time_dependent_splitting.cpp`) make both
+operators depend on time. The weighted points $\xi = 0.5, 2$ (weights
+$0.4, 0.6$) move under $\dot\xi = \xi/(1+t) + (1+t)\cos t$, so
+$\xi(t) = (1+t)\,(\xi(0) + \sin t)$. The first term is the velocity; the
+second is the drift $dm_k/dt = k\,(1+t)\cos t\; m_{k-1}$. Each scheme runs to
+$T = 1$ with 10, 20, 40 and 80 steps and RK45 node advection at `1e-13`
+relative.
+
+- `schemes_match_their_exact_split_solutions`: each operator alone has a
+  closed-form flow over $[s, s+h]$, $\xi \mapsto \xi\,(1+s+h)/(1+s)$ and
+  $\xi \mapsto \xi + F(s+h) - F(s)$ with $F(t) = (1+t)\sin t + \cos t$.
+  Composed in the order and on the intervals of each scheme, they give its
+  exact split solution, which `strang`, `advsrc` and `srcadv` must reproduce
+  up to the third-order error of the SSP-RK3 source step. A stage on the wrong
+  interval adds a deviation of order $\Delta t$; for Lie splitting it leaves
+  the order at one, so only this comparison detects it.
+- `strang_is_second_order`: against the exact solution, the error must fall
+  at every refinement and reach second order, which also checks the Strang
+  split model; the Lie split solutions are first order by construction.
+
+## Adaptive QMOM node counts
+
+`adaptive_qmom_{grows_from_one_to_two_nodes,drops_a_vanishing_node}`
+(`adaptive_qmom_evolution.cpp`) evolve an adaptive QMOM state with at most two
+nodes, zero velocity and a constant moment rate over four steps of `0.25`.
+The weights move linearly between two rules on the nodes $0.5$ and $1.5$, and
+SSP-RK3 integrates the constant rate exactly, so after each step the reference
+is the rule with weights $(1-t)\,w_a + t\,w_b$:
+
+- growth, from $1$ at $1.5$ to $0.5$ at each node: one node initially, two
+  after every step;
+- reduction, the reverse: two nodes until the weight at $0.5$ vanishes at
+  $t = 1$, then one node at $1.5$ with weight $1$.
+
+The active count after each step must match, and the nodes and weights must
+equal the reference.
+
+## Source-step policies and retries
+
+`source_retries_<case>` (`source_step_retries.cpp`) take one Strang step of
+`1.5` for the moments $(1, 0, m_2, 0)$ of two points at $\pm\sqrt{m_2}$,
+with $m_2 = 1$ and $dm_2/dt = -r\,m_2$ under a real-line policy. An SSP-RK3
+step of size $\Delta t$ multiplies $m_2$ by $P(-r\,\Delta t)$, and its first
+stage gives $m_2\,(1 - r\,\Delta t)$. For $r = 1$ the first stage of the full
+step is $-0.5$ while $P(-1.5) = 0.0625$; for $r = 2$ the full step gives
+$P(-3) = -2$, and each half step has the first stage $-0.5$ and the result
+$P(-1.5)$.
+
+| Case | Policy and options | Required result |
+| --- | --- | --- |
+| `final_only_policy_checks_only_the_step_result` | `FinalOnly`, $r = 2$, `max_retries = 1` | result rejected, two steps of `0.75` whose negative first stages are ignored, $m_2 = P(-1.5)^2$, one retry |
+| `every_stage_policy_halves_a_rejected_step` | `EveryStage`, $r = 1$, `max_retries = 1` | first stage rejected, two steps of `0.75`, $m_2 = P(-0.75)^2$, one retry |
+| `rejected_step_without_retries_fails` | `EveryStage`, $r = 1$ | `moment_source_failed`, `rejected_by_predicate` |
+| `minimum_time_step_stops_halving` | `EveryStage`, $r = 1$, `max_retries = 4`, `min_time_step = 1` | `moment_source_failed`, `minimum_timestep_reached` |
+
+The accepted cases use zero velocity and start at $t = 0$; the failing ones
+use $\dot\xi = 0.1\,\xi$ and start at $t = 1$, so that their first advection
+half-step changes the moments. An accepted step must also give the nodes
+$\pm\sqrt{m_2}$ with weights $0.5$; a failed one must return its input
+moments, not those after the first half-step, and its start time. The cases
+check the first stage and the result of a step; the second stage stays
+positive.
 
 ## Exact single operators
 
@@ -199,6 +269,9 @@ accessor.
 | `noncommuting_qmom` | `8e-4` Strang, `3e-2` Lie; order $\ge 1.75, 1.85$ and $\ge 0.75, 0.85$ on the two finest pairs | `1e-4`, `2e-2` at $\Delta t = 0.3$; orders 1.97, 1.00 | the bounds hold the splitting error at the coarsest step; the order thresholds sit 7 to 25 percent below 2 and 1 |
 | `noncommuting_cqmom` | order $\ge 1.8$, $\ge 0.8$ on the two finest pairs | 2.00; 0.97 to 1.03 | only the order is checked |
 | `phase_space_source` | order $> 1.7$; Lie in $(0.7, 1.3)$ on the last two pairs | 2.0, 1.0 | an order from two finite steps is approximate |
+| exact split solutions | order $\ge 2.8$ on the two finest pairs; deviation `1e-6` at 80 steps | 2.97 to 3.01; `1e-7` | the SSP-RK3 source error is third order; the bound leaves a factor of 10 |
+| time-dependent Strang order | order $\ge 1.75, 1.85$ on the two finest pairs | 2.07, 2.03 | the thresholds of `noncommuting_qmom` |
+| adaptive QMOM, source retries | nodes, weights and moments `1e-12` | below `1e-14`, `1e-16` | exact references; rounding of the step and the reconstruction |
 | `direct_advection` | positions `2e-12`, moments `2e-11` | `1e-13`, `1e-12` | SSP-RK3 node error |
 | RK23 minimum step | `2e-6` QMOM, `3e-6` CQMOM | `1e-7` | RK23 error at the minimum step |
 | `node_source` | moments `1e-13`, points and weights `1e-12` | below `1e-15` | the step is exact; roundoff |

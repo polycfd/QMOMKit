@@ -52,3 +52,11 @@ add_test(
     COMMAND phase_space_evolution_analytical_verification cqmom_state_is_unit_invariant
 )
 set_tests_properties(verification_phase_space_evolution_cqmom_state_is_unit_invariant PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
+
+qmomkit_add_test_executable(test_phase_space_evolution_adaptive_qmom adaptive_qmom_evolution.cpp)
+qmomkit_register_source_logical_cases(test_phase_space_evolution_adaptive_qmom verification "${CMAKE_CURRENT_LIST_DIR}/adaptive_qmom_evolution.cpp")
+qmomkit_add_test_executable(test_phase_space_evolution_source_retries source_step_retries.cpp)
+qmomkit_register_source_logical_cases(test_phase_space_evolution_source_retries verification "${CMAKE_CURRENT_LIST_DIR}/source_step_retries.cpp")
+qmomkit_add_test_executable(test_phase_space_evolution_time_dependent_splitting time_dependent_splitting.cpp)
+qmomkit_register_source_logical_cases(test_phase_space_evolution_time_dependent_splitting verification
+                                      "${CMAKE_CURRENT_LIST_DIR}/time_dependent_splitting.cpp")

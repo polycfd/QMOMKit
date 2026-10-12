@@ -16,7 +16,7 @@ tolerance and reproduction; registration, checks and build commands are in
 | [Runge–Kutta](runge_kutta/README.md) | SSP-RK3, RK23 and RK45: accuracy, order, step control | closed-form ODE solutions |
 | [Node advection](node_advection/README.md) | `advance_nodes(...)` for QMOM and CQMOM | closed-form node trajectories |
 | [Moment source](moment_source/README.md) | moment-source updates for QMOM and CQMOM | closed-form source solutions |
-| [Phase-space evolution](phase_space_evolution/README.md) | operator splitting: exactness, order, boundary contributions, native sources, failures | closed-form and manufactured solutions |
+| [Phase-space evolution](phase_space_evolution/README.md) | operator splitting: exactness, order with time-dependent callbacks, adaptive node counts, source-step policies and retries, boundary contributions, native sources, failures | closed-form and manufactured solutions |
 | [Output](output/README.md) | written files, read back | the values written; an analytical product rule |
 | [Configuration](configuration/README.md) | loader errors for faulty `.qmom` files | one fault per fixture |
 

@@ -6,9 +6,11 @@ These cases verify the
 [phase-space evolution](../../../docs/developer/phase_space_evolution.md)
 steps of QMOM and CQMOM states. Commuting operators must split without
 splitting error, `strang` must reach second order and `advsrc` and `srcadv`
-first order, source and boundary callbacks must see and return moments in
-the documented order and stage, and failures must report their status and
-failed stage.
+first order, also with time-dependent callbacks, source and boundary
+callbacks must see and return moments in the documented order and stage,
+adaptive QMOM node counts must change as documented, realizability policies
+and retries must govern the source step, and failures must report their status
+and failed stage.
 
 The error is
 $\max_\alpha |M_\alpha - M_\alpha^{\mathrm{ref}}| / \max(1, |M_\alpha^{\mathrm{ref}}|)$
@@ -60,6 +62,10 @@ product of $\xi_0 \in \{1, 3\}$ (weights $0.4, 0.6$) and
 $\xi_1 \in \{-1, 2\}$ (weights $0.25, 0.75$). The inversion-failure fixtures
 differ from their failure counterparts only in $m_0 = -1$ or $M_{0,0} = -1$.
 
+The cases of `time_dependent_splitting.cpp`, `adaptive_qmom_evolution.cpp`
+and `source_step_retries.cpp` build their states in the test, without a
+fixture, and are listed in their sections below.
+
 ## Commuting operators
 
 `commuting_qmom` uses $\dot\xi = 0.2\,\xi$ and $dm_k/dt = -0.05\,k\,m_k$.
@@ -108,6 +114,53 @@ source adding `0.1` to every moment, so $m_0(t) = m_0(0) + 0.1\,t$ and
 $m_k(t) = m_k(0)\,e^{kt} + 0.1\,(e^{kt} - 1)/k$. Each scheme runs to
 $T = 0.1$ with $\Delta t = 0.02$ down to `0.0025`, using RK45 node advection
 at step `0.0025`; the error must fall at every refinement.
+
+`time_dependent_splitting_{strang_is_second_order,lie_schemes_are_first_order}`
+(`time_dependent_splitting.cpp`) make both operators depend on time, so that a
+stage evaluating its callback on the wrong interval changes the order: a
+source stage started at $t + \Delta t/2$ instead of $t$, for example, makes
+Strang splitting first order. The weighted points $\xi = 0.5, 2$ (weights
+$0.4, 0.6$) move under $\dot\xi = \xi/(1+t) + (1+t)\cos t$, so
+$\xi(t) = (1+t)\,(\xi(0) + \sin t)$. The first term is the velocity; the
+second is the drift $dm_k/dt = k\,(1+t)\cos t\; m_{k-1}$. Each scheme runs to
+$T = 1$ with 10, 20, 40 and 80 steps and RK45 node advection at `1e-13`
+relative; the error must fall at every refinement.
+
+## Adaptive QMOM node counts
+
+`adaptive_qmom_{grows_by_one_node,drops_a_vanishing_node}`
+(`adaptive_qmom_evolution.cpp`) evolve an adaptive QMOM state with at most two
+nodes, zero velocity and a constant moment rate over four steps of `0.25`.
+The weights move linearly between two rules on the nodes $0.5$ and $1.5$, and
+SSP-RK3 integrates the constant rate exactly, so after each step the reference
+is the rule with weights $(1-t)\,w_a + t\,w_b$:
+
+- growth, from $1$ at $1.5$ to $0.5$ at each node: one node initially, two
+  after every step;
+- reduction, the reverse: two nodes until the weight at $0.5$ vanishes at
+  $t = 1$, then one node at $1.5$ with weight $1$.
+
+The active count after each step must match, and the nodes, weights and stored
+moments must equal the reference.
+
+## Source-step policies and retries
+
+`source_retries_<case>` (`source_step_retries.cpp`) take one Strang step of
+`1.5` with zero velocity for the moments $(1, 0, m_2, 0)$ of two points at
+$\pm\sqrt{m_2}$, with $m_2 = 1$ and $dm_2/dt = -m_2$ under a real-line
+policy. An SSP-RK3 step of size $\Delta t$ multiplies $m_2$ by $P(-\Delta t)$,
+and its first stage gives $m_2\,(1 - \Delta t)$, which is $-0.5$ for
+$\Delta t = 1.5$ while $P(-1.5) = 0.0625$.
+
+| Case | Policy and options | Required result |
+| --- | --- | --- |
+| `final_only_policy_accepts_the_full_step` | `FinalOnly` | $m_2 = P(-1.5)$, no retry |
+| `every_stage_policy_halves_a_rejected_step` | `EveryStage`, `max_retries = 1` | two steps of `0.75`, $m_2 = P(-0.75)^2$, one retry |
+| `rejected_step_without_retries_fails` | `EveryStage` | `moment_source_failed`, `rejected_by_predicate` |
+| `minimum_time_step_stops_halving` | `EveryStage`, `max_retries = 4`, `min_time_step = 1` | `moment_source_failed`, `minimum_timestep_reached` |
+
+An accepted step must also give the nodes $\pm\sqrt{m_2}$ with weights $0.5$;
+a failed one must return its input moments and the final time $0$.
 
 ## Exact single operators
 
@@ -199,6 +252,8 @@ accessor.
 | `noncommuting_qmom` | `8e-4` Strang, `3e-2` Lie; order $\ge 1.75, 1.85$ and $\ge 0.75, 0.85$ on the two finest pairs | `1e-4`, `2e-2` at $\Delta t = 0.3$; orders 1.97, 1.00 | the bounds hold the splitting error at the coarsest step; the order thresholds sit 7 to 25 percent below 2 and 1 |
 | `noncommuting_cqmom` | order $\ge 1.8$, $\ge 0.8$ on the two finest pairs | 2.00; 0.97 to 1.03 | only the order is checked |
 | `phase_space_source` | order $> 1.7$; Lie in $(0.7, 1.3)$ on the last two pairs | 2.0, 1.0 | an order from two finite steps is approximate |
+| time-dependent splitting | order $\ge 1.75, 1.85$ Strang and $\ge 0.75, 0.85$ Lie on the two finest pairs | 2.07, 2.03; within 0.03 of 1 | the thresholds of `noncommuting_qmom` |
+| adaptive QMOM, source retries | nodes, weights and moments `1e-12` | `1e-15`, `1e-16` | exact references; rounding of the step and the reconstruction |
 | `direct_advection` | positions `2e-12`, moments `2e-11` | `1e-13`, `1e-12` | SSP-RK3 node error |
 | RK23 minimum step | `2e-6` QMOM, `3e-6` CQMOM | `1e-7` | RK23 error at the minimum step |
 | `node_source` | moments `1e-13`, points and weights `1e-12` | below `1e-15` | the step is exact; roundoff |

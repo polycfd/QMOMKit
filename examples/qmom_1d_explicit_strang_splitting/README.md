@@ -40,14 +40,14 @@ reconstruction.
 The phase-space advection model is linear relaxation:
 
 $$
-\frac{\mathrm{d}u}{\mathrm{d}t} = -a\left(u - u_{\mathrm{eq}}\right).
+\frac{\mathrm{d}\xi}{\mathrm{d}t} = -a\left(\xi - \xi_{\mathrm{eq}}\right).
 $$
 
-with $a = 500$ and $u_{\mathrm{eq}} = 0.5$. The velocities collapse onto
-$u_{\mathrm{eq}}$, and the variance decays as
+with $a = 500$ and $\xi_{\mathrm{eq}} = 0.5$. The velocities collapse onto
+$\xi_{\mathrm{eq}}$, and the variance decays as
 
 ```math
-\operatorname{Var}[u](t) = \operatorname{Var}[u](0)\exp(-2at).
+\operatorname{Var}[\xi](t) = \operatorname{Var}[\xi](0)\exp(-2at).
 ```
 
 The moment-source is a manufactured symmetric variance-injection source:
@@ -65,7 +65,7 @@ $S(t)$ is positive only over the finite interval $[0.16, 0.25)$. The source
 preserves total mass and the mean while allowing an adaptively reduced one-node
 state to regrow to two nodes.
 
-The nonzero equilibrium matters: relaxation toward $u_{\mathrm{eq}} = 0$ would
+The nonzero equilibrium matters: relaxation toward $\xi_{\mathrm{eq}} = 0$ would
 only shrink the distribution without changing its shape, and adaptive reduction
 does not depend on the unit of the coordinate, so the state would keep both
 nodes.
@@ -81,7 +81,7 @@ const qmomkit::QmomPhaseSpaceEvolutionResult first_advection =
 
 const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
     qmomkit::advance_qmom_moment_source(
-        first_advection.state, time + 0.5 * time_step, time_step, source,
+        first_advection.state, time, time_step, source,
         phase_space_evolution_options);
 
 const qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
@@ -91,8 +91,11 @@ const qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
 ```
 
 For a macro step beginning at `time`, the first advection half-step starts at
-`time`, the moment-source stage starts at `time + 0.5 * time_step`, and
-the second advection half-step also starts at `time + 0.5 * time_step`.
+`time`, the moment-source stage integrates over the whole step from `time`, and
+the second advection half-step starts at `time + 0.5 * time_step`. This is the
+sequence of the `strang` scheme, so the example's results match
+`advance_qmom_phase_space(...)` exactly, also for a source that depends on
+time.
 
 ## Transactional commit
 

@@ -83,14 +83,6 @@ void test_convenience_evolution_uses_default_adaptive_initial_step()
     CHECK(ensemble.ok());
     check_close(ensemble.ensemble[0][0], 1.25 - 0.4 * time_step, 1.0e-15);
     CHECK(ensemble.total_accepted_steps == 2);
-
-    qmomkit::Quadrature1D quadrature;
-    quadrature.abscissas = {1.25};
-    quadrature.weights = {1.0};
-    const qmomkit::QmomNodeAdvectionResult nodes = qmomkit::monte_carlo::evolve_quadrature_nodes(quadrature, velocity, 0.0, time_step);
-    CHECK(nodes.ok());
-    check_close(nodes.quadrature.abscissas[0], 1.25 - 0.4 * time_step, 1.0e-15);
-    CHECK(nodes.diagnostics.step_count == 2);
 }
 
 void test_single_sample_linear_growth()

@@ -1,134 +1,67 @@
 # QMOMKit user guide
 
-QMOMKit is a C++ library for the quadrature method of moments (QMOM) and
-conditional quadrature method of moments (CQMOM). It provides the numerical
-tools needed to represent and evolve a population in phase space using a finite
-set of raw moments.
+Many flows carry a population of dispersed elements, such as particles,
+droplets, or bubbles, whose properties differ from element to element. A number
+density $n$ describes how many elements there are at each position
+$\mathbf{x}$ in physical space with each set of properties
+$\boldsymbol{\xi}$, such as size, velocity, or temperature. These properties
+span the *phase space*. A population balance equation (PBE) governs how $n$
+changes [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]:
 
-QMOMKit can reconstruct one- and multidimensional quadratures from moments,
-evolve their abscissas under phase-space dynamics, and account for population
-changes through moment sources and phase-space boundary contributions. It can
-be used for standalone population models or embedded in a larger simulation
-code, while the application remains responsible for the physical model and,
-where applicable, transport and discretization in physical space.
-
-A typical QMOMKit workflow starts from a set of raw moments, reconstructs the
-corresponding quadrature, and then either uses that quadrature directly to
-evaluate population-dependent quantities or advances the moment state through
-phase-space evolution.
-
-QMOMKit provides the reusable numerical pieces for that workflow:
-
-- one-dimensional quadrature reconstruction from raw moment sets using the quadrature method of moments (QMOM) [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)];
-- multidimensional quadrature reconstruction from raw moment sets using the conditional quadrature method of moments (CQMOM) [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)];
-- analytical moment initialization for supported distributions and mixtures;
-- optional realizability diagnostics for checking whether moments are
-  mathematically consistent with a chosen support;
-- phase-space evolution utilities that combine advection node motion with source-like
-  raw-moment updates;
-- output helpers and optional Monte Carlo companion tooling for sample
-  realizations and validation references.
-
-QMOMKit handles moment indexing, quadrature reconstruction, configured case
-setup, diagnostics, and local phase-space evolution. The application defines
-the physical meaning and units of the phase-space variables and supplies the
-model-specific velocity, source, and boundary callbacks. In coupled
-simulations, the application also remains responsible for physical-space
-transport, spatial discretization, and the surrounding solver infrastructure.
-
-## Recommended reading path
-
-For a first pass through QMOMKit, read:
-
-```text
-installation
-  -> quick_start
-  -> qmom / cqmom
-  -> distributions / configuration
-  -> phase-space evolution / callbacks / realizability
-  -> examples / monte_carlo
-  -> troubleshooting, when something does not work
+```math
+\frac{\partial n}{\partial t}
++ \underbrace{\nabla_{\mathbf{x}} \cdot (\mathbf{u}\, n)}_{\text{physical space}}
++ \underbrace{\nabla_{\boldsymbol{\xi}} \cdot (\dot{\boldsymbol{\xi}}\, n)}_{\text{phase space}}
+= S .
 ```
 
-Start with the installation guide and quick start if you are using QMOMKit
-from another project. The QMOM guide covers one-dimensional populations,
-whereas the CQMOM guide introduces multidimensional phase spaces and
-conditional quadrature reconstruction.
+Elements move through physical space with a velocity $\mathbf{u}$ and through
+phase space with a velocity $\dot{\boldsymbol{\xi}}$, for example as they grow
+or are dragged by the surrounding flow. The source $S$ creates and removes
+elements, for example by breakage or aggregation. Elements that enter or leave
+across a boundary of the phase space, as in nucleation, form a boundary
+condition.
 
-Use the distribution-initialization guide when initial conditions are more
-naturally specified through analytical distributions than explicit moment
-tables, and the configuration guide when you want reproducible cases defined
-through `.qmom` files. The phase-space evolution and realizability guides cover
-time-dependent population states, source and boundary contributions, and
-support-aware realizability checks.
+Solving for $n$ itself is expensive, because the phase space adds dimensions
+to the problem. Moment methods track a few raw moments of $n$ instead, which
+carry its total, mean, and spread. To evaluate the phase-space terms from
+moments, QMOMKit represents $n$ by a quadrature: a small set of weighted nodes
+that reproduces the moments. With one phase-space coordinate this is QMOM; with
+several, CQMOM.
 
-The examples and Monte Carlo documentation provide complete workflows and
-reference calculations for verification and comparison.
+**QMOMKit solves the phase-space part** of the PBE, the terms with
+$\dot{\boldsymbol{\xi}}$ and $S$, including exchange across phase-space
+boundaries, at one location: given the moments there, it reconstructs the
+quadrature, moves its nodes with $\dot{\boldsymbol{\xi}}$, and integrates the
+moments with the source:
 
-If you already have a concrete modelling workflow, these entry points are often
-the most direct:
+```text
+raw moments → quadrature → state → time step → state → …
+```
 
-- known one-dimensional moments: [One-Dimensional QMOM](qmom.md);
-- multidimensional phase space with configured marginals:
-  [Multidimensional CQMOM](cqmom.md);
-- analytical initial distributions:
-  [Distributions](distributions.md);
-- repeatable input files: [Configuration](configuration.md);
-- time evolution through velocity and source models:
-  [Phase-space evolution](phase_space_evolution.md);
-- writing the physics callbacks themselves: [Callbacks](callbacks.md);
-- checking support consistency: [Realizability](realizability.md);
-- a reconstruction or step that failed: [Troubleshooting](troubleshooting.md).
+It also generates moments from distributions, checks whether moments are
+realizable, and writes output.
 
-## Output at a glance
+**Your code does everything else:** the physics, as callbacks that return
+$\dot{\boldsymbol{\xi}}$, the moment rates of $S$, and those of the exchange
+across phase-space boundaries; the meaning and units of the coordinates; the
+time loop and step size; what happens when a step fails; and everything in
+physical space, such as meshes, transport with $\mathbf{u}$, and parallelism.
+[Coupling QMOMKit](6_coupling_qmomkit.md) shows how the two parts fit
+together.
 
-QMOMKit-native output helpers write whitespace-delimited text tables.
-`MomentWriter` records native integer-order raw moments and, for state-aware
-writers configured with `OutputOptions`, can append generalized quadrature-
-derived columns. `QuadratureWriter` records reconstructed node weights and
-abscissas. Generalized moments remain derived quantities evaluated from a valid
-quadrature result; they do not become stored or reconstructed state moments.
+## Read in this order
 
-## User extension points
-
-Most user extensions happen outside the core numerical algorithms:
-
-- use configuration files or direct C++ setup to describe phase space, initial
-  moments or distributions, numerical settings, phase-space evolution scheme, and output
-  cadence;
-- provide physics callbacks for phase-space velocity, raw-moment source terms,
-  and optional boundary contributions, as described in [Callbacks](callbacks.md);
-- evaluate derived quantities from reconstructed quadrature in application code;
-- use the [developer documentation](../developer/README.md) when adding new numerical algorithms or changing
-  QMOMKit internals.
-
-## User documents
-
-- [Glossary](glossary.md): concise explanations of scientific terms used
-  throughout the user guide.
-- [Installation](installation.md): building, installing, and consuming
-  QMOMKit.
-- [Quick Start](quick_start.md): minimal QMOM and CQMOM examples.
-- [One-Dimensional QMOM](qmom.md): one-dimensional QMOM inputs, outputs,
-  options, and statuses.
-- [Multidimensional CQMOM](cqmom.md): multidimensional CQMOM hierarchy,
-  conditioning order, and quadrature output.
-- [Distributions](distributions.md): analytical raw moments, mixtures, and
-  independent products.
-- [Configuration](configuration.md): writing `.qmom` files, from a first
-  working case to the settings that control reconstruction, evolution, and output.
-- [Phase-space evolution](phase_space_evolution.md): node advection, moment-source updates, and
-  supported phase-space evolution schemes, including physics callback requirements.
-- [Callbacks](callbacks.md): signatures, examples, and rules for every public
-  callback an application supplies.
-- [Realizability](realizability.md): optional one-dimensional realizability
-  checks and runtime policies.
-- [Troubleshooting](troubleshooting.md): what the failure statuses mean and what
-  to do about the common ones.
-- [Examples](examples.md): recommended path through example applications.
-- [Monte Carlo Companion Package](monte_carlo.md): sample realizations and
-  stochastic validation-reference workflows.
-
-## Examples
-
-For a more hands-on introduction, see the examples in [`examples/`](../../examples/). They provide complete, runnable QMOM and CQMOM cases of increasing complexity and show how configuration, quadrature reconstruction, phase-space evolution, sources, and boundary contributions fit together in practice.
+1. [Installation](1_installation.md): build, install, and link QMOMKit.
+2. [Getting started](2_getting_started.md): three short programs.
+3. [Concepts](3_concepts.md): the ideas the rest of the guide uses.
+4. [Moments and quadrature](4_moments_and_quadrature.md): set up a case,
+   reconstruct its quadrature, check realizability.
+5. [Evolving in time](5_evolving_in_time.md): the time step, callbacks, and
+   output.
+6. [Coupling QMOMKit](6_coupling_qmomkit.md): use QMOMKit inside a simulation
+   code.
+7. [Reference](7_reference.md): configuration keys, C++ entry points and
+   callbacks, statuses and exceptions, troubleshooting, and output formats.
+8. [Going further](8_going_further.md): examples, the Monte Carlo companion,
+   citing QMOMKit, and the developer documentation.

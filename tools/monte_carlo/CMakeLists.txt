@@ -26,7 +26,6 @@ find_package(QMOMKit CONFIG REQUIRED)
 add_library(
     qmomkit_monte_carlo
     src/birth.cpp
-    src/comparison.cpp
     src/evolution.cpp
     src/moments.cpp
     src/output.cpp
@@ -54,9 +53,6 @@ else()
     target_compile_options(qmomkit_monte_carlo PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_executable(monte_carlo_sample_based_initialization_example examples/sample_based_initialization.cpp)
-target_link_libraries(monte_carlo_sample_based_initialization_example PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-
 if(BUILD_TESTING)
     # Each logical case is registered with CTest on its own, so a failure names
     # the behavior that broke instead of the file it lives in. Selectors are
@@ -82,7 +78,7 @@ if(BUILD_TESTING)
     monte_carlo_add_test_executable(monte_carlo_population_birth_tests tests/population_birth.cpp)
     monte_carlo_add_test_executable(monte_carlo_sampling_moment_validation_tests tests/sampling_moment_validation.cpp)
     monte_carlo_add_test_executable(monte_carlo_ensemble_evolution_tests tests/ensemble_evolution.cpp)
-    monte_carlo_add_test_executable(monte_carlo_quadrature_ensemble_comparison_tests tests/quadrature_ensemble_comparison.cpp)
+    monte_carlo_add_test_executable(monte_carlo_weighted_point_evolution_tests tests/weighted_point_evolution.cpp)
     monte_carlo_add_test_executable(monte_carlo_sampled_initialization_tests tests/sampled_initialization.cpp)
     monte_carlo_add_test_executable(monte_carlo_selective_moments_tests tests/selective_moments.cpp)
     monte_carlo_add_test_executable(monte_carlo_output_tests tests/output.cpp)

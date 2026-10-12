@@ -1,7 +1,5 @@
 #include "monte_carlo/sampling.hpp"
 
-#include "explicit_distribution_detail.hpp"
-
 #include <cmath>
 #include <cstddef>
 #include <optional>
@@ -26,11 +24,6 @@ template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
 [[nodiscard]] SamplingResult invalid_sampling_result(const SamplingOptions& options, std::string message)
 {
     return SamplingResult{{}, 0.0, options.seed, SamplingStatus::invalid_input, std::move(message)};
-}
-
-[[nodiscard]] ExplicitDiscreteSamplingResult invalid_explicit_sampling_result(const SamplingOptions& options, std::string message)
-{
-    return ExplicitDiscreteSamplingResult{{}, 0.0, options.seed, ComparisonStatus::invalid_input, std::move(message)};
 }
 
 [[nodiscard]] bool is_positive_finite(const double value)
@@ -272,34 +265,6 @@ SamplingResult sample_independent_product(const qmomkit::IndependentProductDistr
     }
 
     return check_finished_samples(std::move(ensemble), distribution.number_density, options);
-}
-
-ExplicitDiscreteSamplingResult sample_explicit_discrete_distribution(const ExplicitDiscreteDistribution& distribution, const SamplingOptions& options)
-{
-    if (options.sample_count == 0)
-    {
-        return invalid_explicit_sampling_result(options, "Sample count must be positive.");
-    }
-
-    const detail::ExplicitDistributionValidation validation = detail::validate_explicit_distribution(distribution);
-    if (!validation.ok)
-    {
-        return invalid_explicit_sampling_result(options, validation.message);
-    }
-
-    // Absolute node weights define sampling probabilities after normalization;
-    // their sum remains the number-density scale for moment estimates.
-    std::mt19937_64 engine(options.seed);
-    std::discrete_distribution<std::size_t> node_sampler(distribution.weights.begin(), distribution.weights.end());
-
-    Ensemble ensemble(options.sample_count);
-    for (Sample& sample : ensemble)
-    {
-        const std::size_t node = node_sampler(engine);
-        sample = distribution.nodes[node];
-    }
-
-    return ExplicitDiscreteSamplingResult{std::move(ensemble), validation.number_density, options.seed, ComparisonStatus::success, ""};
 }
 
 } // namespace qmomkit::monte_carlo

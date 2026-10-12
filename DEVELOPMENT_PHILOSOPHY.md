@@ -37,9 +37,10 @@ The evidence itself is what matters, and it is meant to be inspected rather than
 taken on trust:
 
 - the [test suite](tests/README.md) and the principles behind it, in the
-  [testing guide](docs/developer/testing.md);
-- the [validation guide](docs/developer/validation.md), covering analytical,
-  manufactured, and convergence-based verification;
+  [testing and validation guide](docs/developer/testing_and_validation.md);
+- the [validation evidence](docs/developer/testing_and_validation.md#validation-evidence)
+  a numerical change needs: analytical, manufactured, and convergence-based
+  verification;
 - the [examples](examples/README.md), which apply the library to concrete
   physical problems through its public API;
 - the [Monte Carlo companion](tools/monte_carlo/), which provides independent

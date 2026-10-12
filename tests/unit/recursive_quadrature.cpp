@@ -746,7 +746,7 @@ void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
 
 void test_recursive_bounded_support_adaptive_two_node_uses_span_separation()
 {
-    // Per docs/developer/qmom_wheeler.md, the two-node separation ratio is the
+    // Per docs/developer/qmom.md, the two-node separation ratio is the
     // node distance divided by the larger abscissa magnitude: 0.01 / 1.01 ~
     // 0.0099. That is below eabs = 0.1, so this candidate is correctly reduced
     // to one node instead of being kept at two.

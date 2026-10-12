@@ -8,24 +8,28 @@
 //
 // How the reference is constructed
 //   Chosen, not computed, and chosen to be hard. The three parent positions are
-//   clustered at x = 1.0, 1.007, 1.014, which makes the weighted 3x3
-//   conditional system badly conditioned - kappa_2 is about 2.33e5 - while the
-//   per-parent child rules stay positive so the whole problem remains solvable.
-//   The moments handed to the library are the raw moments of that rule.
+//   clustered at x = 1.0, 1.007, 1.014. The system the solvers decide on, the
+//   Vandermonde matrix of x/2, has an infinity-norm condition number of about
+//   5.5e5, while the per-parent child rules stay positive so the whole problem
+//   remains solvable. The moments handed to the library are the raw moments of
+//   that rule.
 //
 // Error metric and pass criteria
-//   Maximum absolute deviation of positions, weights and moments from the
-//   prescribed rule, plus the reported residual and condition estimate.
+//   Maximum absolute deviation of positions and weights from the prescribed
+//   rule, and of every moment with an absolute-plus-relative bound; the root
+//   branch must report a residual and a condition estimate.
 //
 // Tolerances
-//   Looser than elsewhere on purpose, and set by the conditioning rather than
-//   picked: positions 5.0e-4, weights 2.0e-5, moments 1.0e-7 absolute and
-//   1.0e-8 relative. With kappa_2 near 2.3e5, double-precision inputs accurate
-//   to about 1e-16 can only pin the solution to roughly 1e-11 before the CQMOM
-//   levels compound it, so tight bounds here would assert a particular rounding
-//   path rather than a property of the solver. The condition estimate itself is
-//   required to fall between 1.0e5 and 1.0e6, which is what makes the case
-//   ill-conditioned by construction rather than by accident.
+//   Positions 5.0e-4, weights 2.0e-5, moments 1.0e-7 absolute and 1.0e-8
+//   relative. The moments pin the nodes of this clustered rule only weakly:
+//   every solver returns child positions about 5e-5 and weights about 2e-6
+//   from the prescribed rule while reproducing the moments to about 1e-11. The
+//   error is the same for every solver, so it comes from the clustered parent
+//   nodes, not from solver rounding. The position bound is about ten times that
+//   error and below a tenth of the parent spacing; the moment bound is a safety
+//   bound. The condition estimate is required to fall between 1.0e5 and 1.0e6,
+//   which makes the case ill-conditioned by construction rather than by
+//   accident.
 //
 // Reproduce
 //   ctest -R verification_.*clustered
@@ -100,10 +104,10 @@ double integer_power(const double value, const std::size_t exponent)
 
 std::vector<TerminalNode> prescribed_terminal_rule()
 {
-    // The parent nodes are deliberately clustered. The resulting weighted 3x3
-    // conditional Vandermonde system has kappa_2 about 2.33e5, while the
-    // branch-dependent positive child rules keep the full CQMOM problem
-    // realizable and independently prescribed.
+    // The parent nodes are deliberately clustered. The scaled 3x3 conditional
+    // Vandermonde matrix has an infinity-norm condition number of about 5.5e5,
+    // while the branch-dependent positive child rules keep the full CQMOM
+    // problem realizable and independently prescribed.
     const std::vector<double> x{1.0, 1.007, 1.014};
     const std::vector<double> parent_weights{0.2, 0.3, 0.5};
     const std::vector<std::vector<double>> y{{-1.0, 2.0}, {-0.5, 3.0}, {0.25, 4.0}};
@@ -266,8 +270,7 @@ int main(const int argc, char** argv)
             continue;
         }
         matched = true;
-        // verify_policy reports and exits on any breach; its report was only
-        // ever read by the success table that no longer exists.
+        // verify_policy reports and exits on any breach.
         verify_policy(policy, configured.value(), prescribed_rule, prescribed_moments);
     }
     if (!matched)

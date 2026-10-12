@@ -11,7 +11,8 @@
 //   time, independently of any integrator. Requested controller tolerances are
 //   stated per case (relative 1.0e-7 to 1.0e-10, absolute 1.0e-10 to 1.0e-12)
 //   and the comparison tolerance is chosen to sit above the error the
-//   controller was asked to deliver.
+//   controller was asked to deliver. A constant right-hand side is integrated
+//   exactly, so those cases are compared at roundoff.
 //
 // Error metric and pass criteria
 //   Maximum absolute deviation of each state component from the exact solution

@@ -1,7 +1,7 @@
 /*
  * WHAT IS TESTED
- *   That CQMOM reconstruction and phase-space evolution produce exactly the
- *   results recorded here, across a matrix spanning phase-space dimension,
+ *   That CQMOM reconstruction and phase-space evolution produce the results
+ *   recorded here, across a matrix spanning phase-space dimension,
  *   conditioning order, node counts, adaptive branch counts, bounded coordinate
  *   support, every Vandermonde solver policy, and all three splitting schemes.
  *

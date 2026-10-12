@@ -1,66 +1,58 @@
-# Runge-Kutta Analytical Verification
+# Runge–Kutta verification
 
-These checks verify the standalone ODE integration utilities used by
-phase-space evolution-related components:
+## Purpose
 
-- SSP-RK3 on a constant right-hand side, where one fixed step is exact;
-- adaptive RK23 on scalar exponential decay;
-- adaptive RK23 on a constant vector right-hand side;
-- adaptive RK23 and RK45 on a two-component harmonic oscillator over a short
-  interval.
+These cases verify the generic ODE integrators of
+[`runge_kutta.hpp`](../../../include/qmomkit/runge_kutta.hpp): SSP-RK3 and the
+embedded Bogacki–Shampine 3(2) (`rk23`) and Dormand–Prince 5(4) (`rk45`)
+pairs that node advection and the moment source build on
+([Phase-space evolution](../../../docs/developer/phase_space_evolution.md#node-advection)).
+Each method must reach its formal order under step refinement, and the
+controller must deliver the requested accuracy. Every reference is a
+closed-form ODE solution.
 
-Expected values come from closed-form ODE solutions. The comparison tolerances
-sit somewhat above the requested controller tolerances, after accounting for
-the tested final time and solution scale, because an adaptive integrator
-controls its local error estimate rather than the global error.
+## Cases
 
-`runge_kutta_convergence.cpp` contains five independently registered studies
-using the scalar closed-form problem
+`verification_runge_kutta_analytical_<case>` (`runge_kutta_analytical.cpp`)
+compares the final state with the exact solution:
 
-```text
-y' = -y
-y(0) = 1
-y(T) = exp(-T)
-```
+- `ssp_rk3_constant_rhs`, `rk23_constant_rhs`: a constant right-hand side,
+  integrated exactly by one SSP-RK3 step, whose error estimate must be zero,
+  and by RK23;
+- `rk23_exponential_decay`: $y' = -y$ to $t = 2$, also checking the step and
+  evaluation counts;
+- `rk23_vector_coupled_linear_system`, `rk45_vector_coupled_linear_system`:
+  $y_0' = y_1$, $y_1' = -y_0$ to $t = 1$, against $(\cos t, -\sin t)$.
 
-- `verification_ssp_rk3_convergence` verifies fixed-step SSP-RK3 formal
-  convergence;
-- `verification_rk23_adaptive_convergence` studies tolerance-controlled
-  adaptive RK23 behavior;
-- `verification_rk23_fixed_step_convergence` verifies constrained fixed-step
-  RK23 formal convergence;
-- `verification_rk45_fixed_step_convergence` verifies constrained fixed-step
-  RK45 formal convergence;
-- `verification_rk45_adaptive_convergence` studies tolerance-controlled
-  adaptive RK45 behavior.
+`verification_<case>_convergence` (`runge_kutta_convergence.cpp`) measures
+the absolute final error of $y' = -y$, $y(0) = 1$ against $e^{-T}$. Slopes come
+from the finest pair of runs, since order is asymptotic.
 
-For SSP-RK3, the verifier advances from `T=0` to `T=1` with repeated fixed
-steps and halves the timestep over several refinement levels. The error norm is
-the absolute final-state error `|y_num(T) - exp(-T)|`. The observed order from
-the finest pair of refinements must exceed `2.85`.
+- `ssp_rk3`: 5 to 80 fixed steps over $T = 1$; the observed order must exceed
+  2.85.
+- `rk23_fixed_step`, `rk45_fixed_step`: the controller is pinned to one step
+  size (initial, minimum and maximum step equal, tolerances `1e-15`), 8 to 64
+  steps over $T = 1$. The orders of the final error and of the single-step
+  embedded error estimate must lie within 0.15 of 3 or 5; the estimate is set
+  by the lower-order solution, whose local error is $O(h^p)$.
+- `rk23_adaptive`, `rk45_adaptive`: relative tolerances `1e-4` to `1e-7`
+  (absolute `1e-3` times that) over $T = 2$. The controller chooses the steps,
+  so no order is asserted: the error must fall at every tightening, not exceed
+  the relative tolerance from the second run on, and scale with it at a slope
+  in $(0.85, 1.25)$; the accepted step count must not decrease.
 
-For adaptive RK23 and RK45, the verifier integrates the same ODE from `T=0` to
-`T=2` with tolerances tightened tenfold per run. An explicit initial step is
-supplied for each run, while the solver chooses later accepted timesteps. These
-studies deliberately assert no convergence order, because the controller, not
-a refined step size, chooses the steps. They require the achieved error to stay
-within the requested tolerance, to fall at every tightening, the accepted step
-count not to decrease, and the error-versus-tolerance slope from the finest
-pair of runs to lie between `0.85` and `1.25`.
+## Tolerances
 
-The constrained fixed-step studies pin the controller to a single step size and
-halve it exactly. From the finest pair of refinements, both the final-error
-order and the order of the single-step embedded error estimate must lie within
-`0.15` of the nominal order: three for RK23 and five for RK45.
+The constant right-hand sides are compared at `1e-15` and `1e-13`, roundoff.
+The other closed-form cases use `5e-7`, `2e-7` and `2e-10` for relative
+tolerances `1e-7`, `1e-8` and `1e-10`, a small factor above the request,
+since a controller bounds local error estimates, not the global error.
+Observed orders lie within 0.04 of nominal and slopes near 1.
 
-Nothing is printed on success. On failure the reason and the full refinement
-table go to standard error.
-
-Build the test suite as described in
-[Testing](../../../docs/developer/testing_and_validation.md#building-and-running), then run
-with:
+## Reproduce
 
 ```bash
-ctest --test-dir build -R '^verification_runge_kutta_analytical_' --output-on-failure
-ctest --test-dir build -R '^verification_(ssp_rk3|rk23_adaptive|rk23_fixed_step|rk45_adaptive|rk45_fixed_step)_convergence$' --output-on-failure
+ctest --test-dir build-tests -R '^verification_(runge_kutta_analytical_|(ssp_rk3|rk23|rk45)_.*convergence$)' --output-on-failure
 ```
+
+See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).

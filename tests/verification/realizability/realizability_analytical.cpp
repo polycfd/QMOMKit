@@ -42,13 +42,13 @@
 //   Verdict and reported order must match exactly. The reported pivot must
 //   exceed the tolerance actually used for a strictly realizable sequence, and
 //   fall below its negative for a rejected one, which is what distinguishes a
-//   decision from a coin flip near the boundary. Numerical comparisons use
-//   1.0e-8, looser than the inversion studies because these sequences are
-//   deliberately placed near the boundary where the determinants are small
-//   differences of larger numbers. Beyond its resolved shift, a case may only
-//   be boundary or numerically indeterminate instead of its own verdict. An
-//   exact point sequence may never be rejected, nor called strictly realizable
-//   on the boundary.
+//   decision from a coin flip near the boundary. The classification runs at
+//   its default relative tolerance of 1.0e-12, except in the near-boundary
+//   cases, which set 1.0e-8 so that moving m_4 by 1e-10 falls inside the
+//   tolerance band and moving it by 1e-6 falls outside. Beyond its resolved
+//   shift, a case may only be boundary or numerically indeterminate instead of
+//   its own verdict. An exact point sequence may never be rejected, nor called
+//   strictly realizable on the boundary.
 //
 // Reproduce
 //   ctest -R verification_realizability
@@ -234,8 +234,8 @@ void verify_diagnostic_success_cases()
 
 void verify_diagnostic_failure_cases()
 {
-    // Negative mass is support-independent: no nonnegative measure can have
-    // m0 < 0, so the public failure should name m0 directly.
+    // A negative number density is support-independent: no nonnegative
+    // measure can have m0 < 0, so the public failure should name m0 directly.
     const auto negative_mass = qmomkit::check_realizability(MomentSet{-1.0, 0.0, 1.0}, MomentSupport::real_line);
     verify_failure_diagnostics(negative_mass, 2, "m0", 0, "m0 is negative");
     QMOMKIT_VERIFY_NEAR(negative_mass.minimum_pivot, -1.0, 1.0e-15);
@@ -304,7 +304,7 @@ void verify_boundary_diagnostics()
 void verify_hamburger()
 {
     // Hamburger checks cover moments on the full real line: strictly
-    // realizable advection moments, boundary atomic measures, and basic
+    // realizable normal moments, boundary weighted-point measures, and basic
     // positivity/range violations.
     expect_status(standard_normal_moments(5), MomentSupport::real_line, RealizabilityStatus::strictly_realizable, "normal order 5");
     expect_status(discrete_moments({2.0}, {-1.5}, 5), MomentSupport::real_line, RealizabilityStatus::boundary, "single Dirac order 5");
@@ -357,7 +357,7 @@ void verify_hausdorff_on_other_intervals()
 {
     // The [0,1] cases above, on an interval containing zero and on one away
     // from it. The variance cases sit 0.25 above and below the Bhatia-Davis
-    // bound for a mean at the centre.
+    // bound for a mean at the center.
     for (const BoundedInterval interval : {BoundedInterval{-1.0, 2.0}, BoundedInterval{2.0, 5.0}})
     {
         const double a = interval.lower;
@@ -559,7 +559,7 @@ void verify_exact_point_sequences_are_never_rejected()
     // two, and so is the sum of up to four terms. Every such sequence is
     // realizable, so no verdict may reject it. From order 2k on, k points are
     // on the boundary and may not be called strictly realizable either. The
-    // points cluster within 3/4 of a centre anywhere in that range, so many
+    // points cluster within 3/4 of a center anywhere in that range, so many
     // sequences lie tens of spreads from the origin.
     std::uint64_t state = 0x2545F4914F6CDD1DULL;
     const auto next = [&state](const std::uint64_t range)

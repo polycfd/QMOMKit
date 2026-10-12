@@ -5,8 +5,9 @@
 //   conditioning orders and non-uniform node counts: the recursion recovers the
 //   prescribed weights and positions. Dimension sweeps D2 to D6: the recovered
 //   quadrature reproduces the moments it was given. One adaptive 4D case: the
-//   reconstruction returns the prescribed ragged structure, with the right
-//   node count on each branch, terminal paths, and local and global weights.
+//   reconstruction returns the prescribed ragged structure, with the terminal
+//   paths that fix the node count on each branch, and the prescribed global
+//   weights and positions.
 //
 // How the reference is constructed
 //   Chosen, not computed. Each case writes down the intended quadrature

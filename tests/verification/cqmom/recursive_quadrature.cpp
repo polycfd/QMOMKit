@@ -15,15 +15,19 @@
 //   required power. That helper is written in this file and does not call the
 //   library's reconstruction, so the reference does not depend on the code path
 //   under test. Feeding those moments back in must return the quadrature the
-//   case started from.
+//   case started from. Two cases differ: the one-dimensional case compares
+//   with Wheeler on the same moments, and the collapse case uses the
+//   non-realizable sequence {1, 0, -1, 0} for its second coordinate and checks
+//   only the node counts and paths.
 //
 // Error metric and pass criteria
 //   Maximum absolute deviation of the rebuilt moments from the prescribed ones,
-//   with the branch node counts and diagnostic record counts required to match
-//   exactly. Tolerances are per case: 1.0e-10 for the well-separated fixed
-//   cases, loosening to 1.0e-8 and 1.0e-7 where the case deliberately places
-//   positions close together or drives a branch to collapse, since the solve
-//   behind those is correspondingly worse conditioned.
+//   and in the one- and three-dimensional cases of positions and weights; node
+//   counts, where checked, must match exactly. Tolerances are per case, from
+//   1.0e-12 to 1.0e-7. They are safety bounds at least three orders of
+//   magnitude above the observed errors; the loosest belong to the
+//   three-dimensional case, whose larger moments carry absolute errors of
+//   order 1.0e-11.
 //
 // Reproduce
 //   ctest -R verification_recursive_quadrature

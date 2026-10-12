@@ -5,9 +5,9 @@
 // What is verified
 //   Commuting cases. The velocity is u(x) = a*x and the source removes each
 //     moment order at its own rate, so both operators act on moment order k as
-//     a multiple of M_k. They therefore commute, splitting introduces no error
-//     at all, and all three orderings must return the same answer. This is an
-//     exactness check, not a convergence one.
+//     a multiple of M_k. They therefore commute and Strang splitting introduces
+//     no splitting error; what remains is the error of the time integrators,
+//     whose refinement the QMOM case measures.
 //
 //   Non-commuting cases. The node velocity is a constant, which couples M_k to
 //     M_(k-1) rather than to itself, alongside a decay. The operators no longer
@@ -28,30 +28,30 @@
 //   system in the moments, solved here in closed form. Both expressions are
 //   evaluated directly and depend on no part of the evolution machinery. The
 //   starting moments come from chosen weighted points, so the initial state is
-//   exact as well.
+//   exact as well. Most CQMOM references start from the quadrature that
+//   compute_cqmom recovers from the configured moments and apply the exact
+//   operators to it.
 //
 // Error metric and pass criteria
 //   Maximum moment error relative to max(|expected|, 1). Observed splitting
 //   order is the base-2 logarithm of the ratio of errors between successive
 //   halvings of the time step.
 //
-//   Commuting cases are held to 2.0e-6 to 8.0e-6: the splitting is exact
-//   here, so the remaining error is the time integrators', dominated by the
-//   SSP-RK3 moment-source step, and a looser bound would hide a splitting
-//   defect.
+//   Commuting cases are held to 2.0e-6 to 8.0e-6. The observed errors are
+//   orders of magnitude smaller, so these are safety bounds; the commuting
+//   QMOM refinement must also show an observed order of at least 2.4, the
+//   SSP-RK3 moment-source step being third order.
 //
-//   Non-commuting cases are held to 8.0e-4 for Strang and 3.0e-2 for the
+//   Non-commuting QMOM runs are held to 8.0e-4 for Strang and 3.0e-2 for the
 //   first-order orderings, because at a fixed step those schemes really are
 //   that far from the exact answer; the meaningful statement is the rate at
-//   which the gap closes. The observed order must exceed 1.85 for Strang and
-//   0.85 for the first-order orderings on the finest pair, five to eight
-//   percent below the nominal 2 and 1; the CQMOM case requires at least 1.8
-//   and 0.8 on its two finest pairs. A separate convergence summary requires
-//   an order above 2.4 where a higher-order combination is expected.
+//   which the gap closes. The observed order must reach 1.75 and 1.85 for
+//   Strang and 0.75 and 0.85 for the first-order orderings on the two finest
+//   pairs; the CQMOM case requires at least 1.8 and 0.8 on both.
 //
-//   Failure cases require a specific non-success status and leave the state
-//   unchanged, since a partially advanced state that looks plausible is the
-//   dangerous outcome.
+//   Failure cases require a specific non-success status, failed stage and
+//   message, and no later stage reported as completed, since a partially
+//   advanced state that looks plausible is the dangerous outcome.
 //
 // Reproduce
 //   ctest -R verification_phase_space_evolution
@@ -796,7 +796,7 @@ VerificationResult run_commuting_qmom(const std::filesystem::path& configuration
 {
     // Verify QMOM phase-space evolution when phase-space advection and moment-source evolution
     // commute. The reference is exact scalar exponential moment evolution, so
-    // this case protects substage diagnostics, mass preservation, and the
+    // this case protects substage diagnostics, number-density preservation, and the
     // high-accuracy path used when splitting error should be negligible.
     VerificationResult verification;
     const auto configured = qmomkit::config::load_qmom(configuration_path);
@@ -2279,7 +2279,7 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
     }
 
     // This is the normal user workflow: load_cqmom_prepared(...) owns the configured
-    // state, compute_cqmom(...) verifies the initial analytical quadrature, and
+    // state, compute_cqmom(...) gives the initial quadrature for the reference, and
     // CqmomPreparedCase::initial_state() is passed to advance_cqmom_phase_space(...).
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_prepared_case);
     if (!initial.ok())
@@ -3154,9 +3154,9 @@ VerificationResult run_cqmom_native_source_failures(const std::filesystem::path&
 VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::path& configuration_path)
 {
     // Adaptive CQMOM phase-space evolution through CqmomState uses a deterministic affine
-    // branch-reduction case with commuting advection/source operators. It
+    // branch-reduction case with diagonal advection and a zero source. It
     // verifies that ragged adaptive quadrature remains valid for phase-space evolution and
-    // reconstructs the exact analytical moment tensor after splitting.
+    // reconstructs the analytical layout moments after splitting.
     VerificationResult verification;
     const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())

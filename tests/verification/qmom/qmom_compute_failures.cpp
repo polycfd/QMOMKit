@@ -56,8 +56,8 @@ bool contains_text(const std::string& text, const std::string& fragment)
 void verify_failure_case(const FailureCase& failure_case)
 {
     // Direct public compute_qmom failure cases model common caller mistakes or
-    // impossible moment sets: invalid request shape, negative total mass, and
-    // violated positivity. The expected behavior is a clear non-success status
+    // impossible moment sets: invalid request shape, negative number density,
+    // and violated positivity. The expected behavior is a clear non-success status
     // and message, with no successful quadrature implied by diagnostic data.
     // The requests are fixed-count unless a case says otherwise: adaptive
     // inversion would recover a reduced rule from the negative variance

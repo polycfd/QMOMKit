@@ -5,8 +5,8 @@
 //   moments were built from, for one to six and for eight nodes; that
 //   multiplying every weight by a common factor leaves the positions unchanged
 //   and scales the weights by that factor; that the same points multiplied by
-//   any power of ten from 1e-20 to 1e20, or given in metres, are recovered as
-//   accurately as at unit scale; that reconstructing
+//   powers of ten from 1e-20 to 1e20, or given in meters, are recovered as
+//   accurately as at unit scale; that, for one to three nodes, reconstructing
 //   the moments from the result returns the input; and that presenting the
 //   same points in a different input order changes neither the moments nor the
 //   sorted output.
@@ -21,23 +21,25 @@
 // Error metric and pass criteria
 //   Maximum absolute deviation of each position and weight from the chosen
 //   value, and of each rebuilt moment from the input moment. Tolerances are
-//   per case, at 1.0e-14 for the small well-separated cases; the values are
-//   order one, so this is a few units in the last place of a double.
+//   per case: 1.0e-14 for the one-node and input-order cases and 1.0e-12 for
+//   the two- and three-node references, whose values are order one; rebuilt
+//   moments use 1.0e-13 for one node, 1.0e-12 for two and 1.0e-11 for three,
+//   whose highest moment is about 67. Measured deviations are 1e-15 to 1e-13.
 //
 //   From four nodes on, positions are compared relative to the largest
 //   |position| and weights relative to the total weight. The map from 2n
 //   moments to n points is increasingly ill-conditioned as n grows, so the
-//   rounding of the constructed input moments alone limits the attainable
-//   accuracy: measured deviations are about 1e-15 for four nodes, 2e-14 for
-//   six and 1.4e-12 for eight. The tolerances, 1e-12 up to six nodes and
-//   1e-10 for eight, leave a margin of about fifty or more over those
-//   deviations while still rejecting any misplaced point or weight.
+//   rounding of the constructed input moments limits the attainable accuracy:
+//   measured deviations are about 1e-15 for four nodes, 2e-14 for six and
+//   1.6e-12 for eight. The tolerances, 1e-12 up to six nodes and 1e-10 for
+//   eight, leave a margin of about fifty or more over those deviations while
+//   still rejecting any misplaced point or weight.
 //
-//   The scaled points use the same relative metric. Three points at any scale
-//   from 1e-20 to 1e20 are recovered to within 5.2e-14, against a tolerance of
-//   1e-12; four droplet diameters between 20 and 200 micrometres, given in
-//   metres, to within 2.9e-13, against 2e-12, since the spread of a factor ten
-//   makes that rule less well conditioned.
+//   The scaled points use the same relative metric. Three points at every
+//   fourth power of ten from 1e-20 to 1e20 are recovered to within 5.2e-14,
+//   against a tolerance of 1e-12; four droplet diameters between 20 and 200
+//   micrometers, given in meters, to within 2.9e-13, against 2e-12, since the
+//   spread of a factor ten makes that rule less well conditioned.
 //
 // Reproduce
 //   ctest -R verification_wheeler_analytical
@@ -242,7 +244,7 @@ void test_points_at_any_scale_are_recovered()
     }
 }
 
-// Droplet diameters between 20 and 200 micrometres, in metres, as an
+// Droplet diameters between 20 and 200 micrometers, in meters, as an
 // application provides them.
 void test_droplet_diameters_in_metres_are_recovered()
 {

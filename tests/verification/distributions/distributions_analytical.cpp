@@ -2,11 +2,12 @@
 // closed-form expressions.
 //
 // What is verified
-//   That initialising moments from a named distribution - normal, log-normal,
-//   beta, gamma, exponential, Weibull, and mixtures and independent products of
-//   them - produces the raw moments that distribution is known to have, and
-//   that the resulting sequences are realizable and invert to sensible
-//   quadratures.
+//   That initializing moments from a named distribution - normal, log-normal,
+//   beta, gamma, exponential, Weibull, chi, chi-squared, and mixtures and
+//   independent products of them - produces the raw moments that distribution
+//   is known to have, and that the moments of narrow gamma distributions and
+//   of one configured independent product invert to quadratures that
+//   reproduce them.
 //
 // How the reference is constructed
 //   Not invented for this test. Each expected moment is evaluated from the
@@ -23,17 +24,19 @@
 //
 //   Moments are scaled by the configured total number density, since QMOMKit
 //   carries raw moments of the number density function rather than of a
-//   normalised distribution, and m0 is the total number density rather than 1.
+//   normalized distribution, and m0 is the total number density rather than 1.
 //
 // Error metric and pass criteria
-//   Each moment is compared on an absolute-or-relative basis, so a single
-//   bound works across orders whose magnitudes differ by many decades - a
-//   high-order log-normal moment is enormous while a low-order one is near
-//   unity, and an absolute bound alone would be meaningless for one of them.
-//   Tolerances run from 1.0e-14 to 1.0e-10 per case. The looser ones are on the
-//   families whose expressions involve the gamma function, where the reference
-//   itself carries the error of the standard library's tgamma rather than being
-//   exact in floating point.
+//   Each moment is compared relative to max(|expected|, 1), so a single bound
+//   works across orders whose magnitudes differ by many decades - a high-order
+//   log-normal moment is enormous while a low-order one is near unity, and an
+//   absolute bound alone would be meaningless for one of them. Tolerances are
+//   1.0e-14 to 1.0e-13 for single families, 1.0e-13 to 1.0e-12 for mixtures,
+//   configured moments and product tensors, with 1.0e-11 absolute where a
+//   tensor holds log-normal and Weibull factors, 1.0e-10 for the fifth moment
+//   of two normals that cancel, and 5.0e-10 for moments rebuilt from a CQMOM
+//   reconstruction. Measured errors stay at a few rounding errors, so the
+//   looser bounds are safety bounds.
 //
 //   The chi, chi-squared, gamma and beta cases with closed-form products, and
 //   the selected-order cases, compare purely relatively, since their moments
@@ -775,7 +778,7 @@ scale = 1.5
 }
 
 // The subject of these checks is the moment tensor a configuration produces, so
-// they parse the initial condition and initialise the tensor directly rather
+// they parse the initial condition and initialize the tensor directly rather
 // than building a CQMOM case, which holds only the moments it reconstructs from.
 qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor> parse_configured_moment_tensor(const std::string_view text)
 {

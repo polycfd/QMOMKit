@@ -230,5 +230,5 @@ a format needed by only one example or test stays local to it.
 
 [`tests/unit/output.cpp`](../../tests/unit/output.cpp) covers the formats,
 the factory pairing and the failure paths, and
-[`tests/verification/output/`](../../tests/verification/output/) writes and
-reads back complete histories.
+[`tests/verification/output/`](../../tests/verification/output/) writes the
+moment and node files of a QMOM and a CQMOM case and reads them back.

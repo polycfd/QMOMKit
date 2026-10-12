@@ -273,10 +273,9 @@ void verify_reconstructed_moments(const std::string& workflow_name, const qmomki
 void compare_workflows(const std::string& workflow_name, const qmomkit::CqmomQuadrature& actual, const qmomkit::CqmomQuadrature& reference,
                        const qmomkit::CqmomMomentLayout& layout, VerificationResult& verification)
 {
-    // The explicit case and the configured CqmomPreparedCase exist for different user
-    // needs: an explicit moment set the caller owns, and the recommended
-    // configured state ownership. For the same mathematical problem they should
-    // produce indistinguishable public quadrature and reconstructed moments.
+    // The open CqmomCase and the default CqmomPreparedCase differ in reuse, not
+    // in numerics. For the same mathematical problem they should produce
+    // indistinguishable public quadrature and reconstructed moments.
     const std::vector<TerminalNode> actual_nodes = terminal_nodes(actual);
     const std::vector<TerminalNode> reference_nodes = terminal_nodes(reference);
     if (actual_nodes.size() != reference_nodes.size())

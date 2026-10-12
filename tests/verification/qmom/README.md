@@ -1,243 +1,110 @@
-# One-Dimensional QMOM Analytical Verification
+# QMOM verification
 
-This layer verifies one-dimensional QMOM inversion. The analytical cases run
-the public `qmomkit::compute_qmom` API on inputs loaded through the public
-configuration API. The configuration files live in `tests/verification/qmom/`
-and contain only QMOM metadata and raw input moments. Expected quadrature
-weights and abscissas are defined independently in
-`tests/verification/qmom/expected.hpp`. The other executables in this directory
-build their moments in code: the direct compute failures, the moment-space
-boundary cases, and the Wheeler, adaptive and bounded cases described below.
+## Purpose
 
-## Manufactured Discrete Cases
+These cases verify the inversion of raw moments into a one-dimensional
+quadrature, through `load_qmom` and `compute_qmom` and through the low-level
+Wheeler inversion `compute_quadrature`. A rule of $n$ weighted points is
+determined by its first $2n$ moments, so each reference has one correct answer.
+They also check the contracts of [QMOM](../../../docs/developer/qmom.md): $m_0$
+is the number density and is not normalized, a fixed node count is delivered or
+refused, adaptive reduction returns only accepted rules, and abscissa bounds
+reject a rule without clipping it.
 
-| Identifier | Configuration | Exact weights | Exact abscissas |
+## Cases
+
+**Classical and manufactured rules**, `verification_qmom_analytical_<case>`
+(`qmom_analytical.cpp`, `expected.hpp`, `<case>.qmom`). Each fixture holds the
+first $2N$ raw moments of a rule listed independently in `expected.hpp`:
+
+| Cases | Reference rule |
+| --- | --- |
+| `single_dirac`, `two_node_discrete`, `three_node_discrete` | chosen weighted points; `single_dirac` has $m_0 = 2.5$ |
+| `uniform_n2`, `uniform_n3` | Gauss-Legendre mapped to $[0, 1]$ |
+| `exponential_n2`, `exponential_n3` | Gauss-Laguerre, $\alpha = 0$ |
+| `gaussian_n2`, `gaussian_n3` | Gauss-Hermite for the weight $e^{-\xi^2/2}/\sqrt{2\pi}$ |
+
+The sorted nodes and the weights must match the rule; the weights must be
+positive, sum to $m_0$ and rebuild every moment. Uniform nodes must lie in
+$[0, 1]$, exponential nodes must be positive, uniform and Gaussian rules must
+be symmetric, and Gaussian odd moments must vanish.
+
+**Wheeler inversion**, `verification_wheeler_analytical_<case>`
+(`wheeler_analytical.cpp`). Rules of one to six and of eight chosen weighted
+points must be recovered from their moments, including the eight-point rule at
+number density 2500, three points scaled by every fourth power of ten from
+$10^{-20}$ to $10^{20}$, and droplet diameters of 20 to 200 micrometers given in
+meters (`droplet_diameters_in_metres_are_recovered`). Reordering the input
+points must change neither the moments nor the sorted output.
+
+**Moment-space boundary**, `verification_qmom_moment_space_boundary_<case>`
+(`moment_space_boundary.cpp`) and
+`verification_adaptive_qmom_adaptive_public_qmom_reconstruction`
+(`adaptive_qmom.cpp`). Three-point rules approach a two-point rule as two nodes
+coalesce (separation down to $10^{-10}$) or the middle weight vanishes (down to
+$10^{-14}$); the six moments of a two-point rule lie on the boundary for three
+nodes.
+
+- `coalescing_nodes_preserve_supplied_moments`: a fixed three-node request is
+  accepted or `not_realizable`, and returns three nodes at separation
+  $10^{-2}$.
+- `adaptive_reduction_preserves_represented_moments`,
+  `accepted_reduction_respects_weight_ratio`: adaptive inversion accepts both
+  sweeps; in the weight sweep, rules of two or more nodes have
+  $\min w / \max w > r_{\min}$.
+- `boundary_crossing_matches_realizability`: raising $m_4$ gives three nodes and
+  `strictly_realizable`; lowering it gives `not_realizable` from both
+  `compute_qmom` and `check_realizability`.
+- `fixed_count_does_not_reduce_on_the_boundary`: in five units and three number
+  densities, a fixed request reports "supports at most 2 nodes"; adaptive
+  inversion accepts fewer nodes.
+- `adaptive_public_qmom_reconstruction`: adaptive inversion returns the two
+  chosen points.
+
+Every accepted rule of $n$ nodes must have non-negative weights summing to
+$m_0$, sorted abscissas, and rebuild the first $2n$ moments. Where reduction
+starts depends on conditioning, not on a contract, and is not asserted.
+
+**Abscissa bounds**, `verification_qmom_quadrature_bounds_<case>`
+(`quadrature_bounds.cpp`). Nodes inside the bounds give the unbounded result
+(`fixed_bounded_qmom_accepts_nodes_inside_interval`); a node outside gives
+`not_realizable` with that node unclipped
+(`fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping`);
+adaptive inversion keeps the largest admissible count, here one node
+(`adaptive_bounded_qmom_uses_highest_admissible_count`). At scales $10^{-6}$ to
+$10^{6}$, a node half the margin $10^{-12}\max(|\ell|, |u|)$ beyond a bound is
+accepted and one twice the margin beyond is rejected
+(`bounded_qmom_acceptance_does_not_depend_on_the_unit`).
+
+**Failure statuses**, `verification_qmom_compute_failure_<case>`
+(`qmom_compute_failures.cpp`). Fixed-count requests, since adaptive inversion
+answers a negative variance with one node, must return the status and a message
+containing the fragment; `invalid_input` returns no nodes.
+
+| Case | Request | Status | Fragment |
 | --- | --- | --- | --- |
-| `single_dirac` | `single_dirac.qmom` | `2.5` | `-0.7` |
-| `two_node_discrete` | `two_node_discrete.qmom` | `1/3, 2/3` | `1, 3` |
-| `three_node_discrete` | `three_node_discrete.qmom` | `0.2, 0.3, 0.5` | `-1.5, 0.4, 2.2` |
+| `negative_zeroth_moment` | $(-1, 0, 1, 0)$, 2 nodes | `not_realizable` | `m0 < 0` |
+| `negative_variance` | $(1, 0, -1, 0)$, 2 nodes | `not_realizable` | `negative recurrence` |
+| `insufficient_moments` | 3 moments, 2 nodes | `invalid_input` | `fewer than 2*n` |
+| `insufficient_moments_bounded_adaptive` | the same, bounded and adaptive | `invalid_input` | `fewer than 2*n` |
+| `zero_node_count` | 0 nodes | `invalid_input` | `positive` |
 
-These cases verify exact inversion of already-discrete raw moment sequences,
-including preservation of non-unit mass.
+## Tolerances
 
-## Continuous Distribution Cases
+- Classical rules: $10^{-12}$, absolute and relative to
+  $\max(|\text{reference}|, 1)$; observed $10^{-16}$ to $10^{-14}$.
+- Wheeler up to three points: absolute $10^{-14}$ to $10^{-11}$ per case,
+  observed $10^{-15}$ to $10^{-13}$. From four points, relative to the largest
+  $|\xi|$ and the total weight: $10^{-12}$, but $10^{-10}$ for eight points and
+  $2 \times 10^{-12}$ for the droplets, because conditioning worsens with $n$
+  and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight.
+- Boundary, adaptive and bounds: $10^{-12}$, a safety bound over observed
+  errors of $10^{-15}$ or zero.
 
-Uniform distribution on `[0, 1]`:
-
-```text
-f(xi) = 1
-m_k = 1 / (k + 1)
-```
-
-The expected quadrature is Gauss-Legendre on `[-1, 1]` mapped to `[0, 1]` by
-`xi = (x + 1) / 2`; weights are scaled by `1/2`. The verification includes
-`uniform_n2.qmom` and `uniform_n3.qmom`.
-
-Exponential distribution on `[0, infinity)`:
-
-```text
-f(xi) = exp(-xi)
-m_k = k!
-```
-
-The expected quadrature is Gauss-Laguerre with `alpha = 0`. The verification
-includes `exponential_n2.qmom` and `exponential_n3.qmom`.
-
-Standard normal distribution:
-
-```text
-f(xi) = exp(-xi^2 / 2) / sqrt(2*pi)
-m_(2k) = (2k - 1)!!
-m_(2k+1) = 0
-```
-
-The expected quadrature uses the probabilists' Gauss-Hermite convention for the
-standard normal weight. Do not compare these nodes directly to physicists'
-Gauss-Hermite nodes for `exp(-x^2)`: the standard-normal/probabilists nodes are
-larger by a factor of `sqrt(2)` after converting the weight convention. The
-verification includes `gaussian_n2.qmom` and `gaussian_n3.qmom`.
-
-Each continuous-distribution case uses exactly the first `2N` raw moments, `m_0`
-through `m_(2N-1)`. For these three distribution families, `m_0 = 1` because the
-chosen weight functions are normalized probability densities, not because
-QMOMKit normalizes raw moments.
-
-## Checks
-
-The reusable executable `qmom_analytical_verification`:
-
-- loads each input moment sequence from `.qmom` through
-  `qmomkit::config::load_qmom`;
-- calls public `qmomkit::compute_qmom(...)`;
-- sorts recovered nodes by abscissa before direct comparison;
-- compares weights and nodes against independent classical quadrature values;
-- reconstructs every configured raw moment from the recovered quadrature;
-- reports maximum absolute and relative errors on failure;
-- verifies all weights are positive;
-- verifies `sum(weights) = m_0` without assuming unit mass.
-
-`qmom_compute_failures.cpp` verifies direct public `compute_qmom(...)`
-failure contracts without going through configuration parsing. These cases are
-executable documentation for user code that constructs `MomentSet` and
-`node_count` directly:
-
-- `m0 < 0` is a non-realizable moment sequence and must return
-  `QmomStatus::not_realizable` with an explanatory message;
-- a negative-variance moment sequence is mathematically impossible and must
-  return `QmomStatus::not_realizable`;
-- too few raw moments for the requested node count must return
-  `QmomStatus::invalid_input`;
-- requesting zero nodes must return `QmomStatus::invalid_input`.
-
-The failure verifier checks `ok()`, status, and message content. Structurally
-invalid calls must not expose fallback quadrature data. Non-realizable calls
-may carry diagnostic fallback values, but they must never be reported as
-successful quadrature.
-
-Distribution-specific checks:
-
-- uniform nodes lie in `[0, 1]`, with nodes and weights symmetric about `0.5`;
-- exponential nodes are positive;
-- standard-normal nodes are symmetric about zero, paired weights are equal, and
-  odd reconstructed moments vanish within tolerance.
-
-## Moment-Space Boundary Cases
-
-`moment_space_boundary.cpp` covers the regime in which the inversion is most
-sensitive to rounding: moment sequences approaching the boundary of realizable
-moment space. The cases above are either comfortably interior, such as the classical
-quadrature rules, or exactly degenerate; these cover the approach itself.
-
-Every reference is constructed from known nodes and weights, so the expected
-moments are defined independently of the inversion under test. Two families are
-used:
-
-| Family | Construction | Boundary approached by |
-| --- | --- | --- |
-| Node coalescence | three-node rule with the upper two nodes `separation` apart | `separation -> 0` |
-| Weight collapse | three-node rule with a small middle weight | middle weight `-> 0` |
-
-A third construction takes the six raw moments of an exact two-node rule. For a
-three-node request that sequence lies exactly on the boundary: it is realizable,
-but only by two atoms. Perturbing `m_4` alone then moves it strictly inside or
-strictly outside while every other moment stays on the boundary.
-
-The registered cases are:
-
-- `coalescing_nodes_preserve_supplied_moments`: over a separation sweep, every
-  accepted rule reproduces the moments its node count represents, carries
-  non-negative weights summing to `m_0`, and returns sorted abscissas. A
-  rejection reports `not_realizable`, because the input is structurally valid
-  and realizable by construction.
-- `adaptive_reduction_preserves_represented_moments`: the same sweep with
-  adaptive inversion is accepted at every point, including where fixed-count
-  inversion is entitled to reject.
-- `accepted_reduction_respects_weight_ratio`: every accepted multi-node rule
-  satisfies `min(w) / max(w) > rmin`, which is the documented adaptive
-  acceptance criterion.
-- `boundary_crossing_matches_realizability`: inside the boundary,
-  `compute_qmom` succeeds and `check_realizability` reports strict
-  realizability; outside it, both report non-realizability. Two independent
-  implementations of the same mathematical fact must agree on which side a
-  sequence lies.
-- `fixed_count_does_not_reduce_on_the_boundary`: a fixed three-node request on
-  the boundary must report `not_realizable`, naming the two nodes the sequence
-  supports, in every unit and number density, rather than quietly returning the
-  two-node rule or a third node made of roundoff, while the same sequence is
-  accepted once reduction is permitted.
-
-These cases deliberately assert mathematical invariants and documented
-contracts, not the separation or weight at which behavior changes. That
-threshold depends on floating-point conditioning and is not a contract; pinning
-it would make the suite platform-sensitive without testing anything QMOMKit
-promises.
-
-## Wheeler, Adaptive, and Bounded Cases
-
-`wheeler_analytical.cpp` verifies the Wheeler inversion
-`qmomkit::compute_quadrature(...)` directly, on rules of one to six and of
-eight nodes chosen in advance. The recovered positions and weights must equal
-the chosen ones, reconstructing the moments from the result must return the
-input, and presenting the same points in a different input order must change
-neither the moments nor the sorted output. The eight-node rule is also inverted
-at total weight 2500, where the positions must not change and the weights must
-scale with it. Tolerances are set per case, at `1e-14` for the small
-well-separated rules. From four nodes on they are relative, `1e-12` up to six
-nodes and `1e-10` for eight: the map from moments to points becomes
-increasingly ill-conditioned, and the rounding of the constructed moments alone
-limits the attainable accuracy to about `1e-15` at four nodes and `1e-12` at
-eight. The same three points multiplied by any power of ten from `1e-20` to
-`1e20` are recovered to `1e-12` relative to their scale, and four droplet
-diameters between 20 and 200 micrometres, given in metres, to `2e-12`: the
-inversion does not depend on the unit of the coordinate. CTest names:
-`verification_wheeler_analytical_*`.
-
-`adaptive_qmom.cpp` builds six moments from a two-node rule and requests three
-nodes from `compute_qmom` with `QmomOptions::adaptive = true`. The result must
-be exactly the two chosen nodes, with weights summing to `m_0`, and must
-reproduce all six moments, to `1e-12`. CTest name:
-`verification_adaptive_qmom_adaptive_public_qmom_reconstruction`.
-
-`quadrature_bounds.cpp` verifies `compute_qmom` with an `AbscissaBounds`
-interval:
-
-- `fixed_bounded_qmom_accepts_nodes_inside_interval`: a fixed two-node rule
-  whose nodes lie inside the interval gives exactly the unbounded result;
-- `fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping`: a node
-  outside the interval gives `QmomStatus::not_realizable`, and the returned
-  abscissa is the unclipped one;
-- `adaptive_bounded_qmom_uses_highest_admissible_count`: with adaptive
-  inversion, the same moments are accepted with the largest node count whose
-  nodes all lie inside the interval, here one node.
-
-CTest names: `verification_qmom_quadrature_bounds_*`.
-
-## Tolerance Policy
-
-The current tolerance is `1e-12` for direct weights, abscissas, reconstructed
-moments, mass, and distribution-specific symmetry checks. Relative error uses a
-unit denominator floor so exact-zero references, such as Gaussian odd moments
-and the center node of the three-node Hermite rule, are governed by the absolute
-tolerance. Do not loosen this tolerance to mask a failure; first identify
-whether the discrepancy comes from the input moments, reference convention, or
-Wheeler inversion.
-
-## Running
-
-Configure and build the test suite from the repository root, in Debug as
-described in [Testing](../../../docs/developer/testing_and_validation.md#building-and-running):
+## Reproduce
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
-cmake --build build --parallel
+ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds)|wheeler_analytical|adaptive_qmom)_' --output-on-failure
 ```
 
-Run all QMOM analytical cases:
-
-```bash
-ctest --test-dir build -R '^verification_qmom_analytical_' --output-on-failure
-```
-
-Run one registered case or family:
-
-```bash
-ctest --test-dir build -R '^verification_qmom_analytical_uniform_n2$' --output-on-failure
-ctest --test-dir build -R '^verification_qmom_analytical_exponential_n3$' --output-on-failure
-ctest --test-dir build -R '^verification_qmom_analytical_gaussian_n3$' --output-on-failure
-ctest --test-dir build -R '^verification_qmom_compute_failure_' --output-on-failure
-ctest --test-dir build -R '^verification_qmom_moment_space_boundary_' --output-on-failure
-ctest --test-dir build -R '^verification_wheeler_analytical_' --output-on-failure
-ctest --test-dir build -R '^verification_adaptive_qmom_' --output-on-failure
-ctest --test-dir build -R '^verification_qmom_quadrature_bounds_' --output-on-failure
-```
-
-Run the analytical executable directly from the repository root:
-
-```bash
-./build/tests/verification/qmom/qmom_analytical_verification tests/verification/qmom/uniform_n2.qmom uniform_n2
-./build/tests/verification/qmom/qmom_analytical_verification tests/verification/qmom/exponential_n2.qmom exponential_n2
-./build/tests/verification/qmom/qmom_analytical_verification tests/verification/qmom/gaussian_n2.qmom gaussian_n2
-```
-
-CTest passes absolute source paths, so the registered cases do not depend on
-the working directory.
+See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).

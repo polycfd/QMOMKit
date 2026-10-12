@@ -1,24 +1,23 @@
 // The moment and quadrature writers, checked by reading their files back.
 //
 // What is verified
-//   That MomentWriter and QuadratureWriter produce files whose headers name the
-//   right columns and whose rows carry the values that were handed to them, for
-//   both QMOM and CQMOM, and that appending across time steps keeps the history
-//   consistent.
+//   That MomentWriter and QuadratureWriter write a time row whose header names
+//   the right columns in the right order and whose values are the ones handed
+//   to the writer: QMOM moments and quadrature, CQMOM quadrature, a CqmomState
+//   moment row, and requested CQMOM moments in their requested order.
 //
 // How the reference is constructed
-//   Chosen, not computed. The state written out is built from a prescribed rule
-//   of weighted points, so every number that should appear in the file is known
-//   before the writer runs. The file is then parsed back and compared field by
-//   field against that prescription, which is what makes this a round trip
-//   rather than a smoke test.
+//   Each row is parsed back and compared field by field with the values handed
+//   to the writer, a round trip through the written text. The requested CQMOM
+//   moments, which the writer reconstructs from the quadrature, are compared
+//   instead with the moments of the analytical product rule behind
+//   independent_product.qmom, evaluated here.
 //
 // Error metric and pass criteria
-//   Header labels must match exactly. Parsed values must agree with the
-//   prescribed ones to 1.0e-13 absolute - tighter than the inversion studies
-//   because nothing numerical happens here: the only loss is decimal formatting
-//   and parsing, so anything larger would indicate a formatting defect rather
-//   than arithmetic.
+//   Header labels and indices must match exactly, values to 1.0e-13 absolute.
+//   The round trip is observed to be exact, and the reconstructed moments
+//   differ from the analytical ones by about 1e-15, so the bound is a safety
+//   bound.
 //
 // Note on file output
 //   The files written here are the subject under test, not diagnostics, so they

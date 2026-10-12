@@ -72,13 +72,14 @@ Errors are relative to $\max(|\text{reference}|, 1)$ unless stated otherwise.
 - Products of one factor per order and selected orders: purely relative
   $4 \times 10^{-15}$, observed below $10^{-15}$, since library and reference
   each add a few rounding errors.
-- Error-free references: $4(k + 1)\epsilon$ at order $k$, observed about
-  $2\epsilon$.
+- Error-free and high-precision references: purely relative
+  $4(k + 1)\epsilon$ at order $k$, observed about $2\epsilon$.
 - Mixtures, products and configured moments: $10^{-13}$ to $10^{-12}$, with
-  $10^{-11}$ absolute for tensors with lognormal and Weibull factors, and
-  $10^{-14}$, $10^{-12}$ and $10^{-10}$ for the cancelling odd moments of orders
-  1, 3 and 5; observed $10^{-15}$ or below.
-- Narrow gamma inversion: $10^{-13}$, observed $10^{-15}$.
+  $10^{-11}$ absolute for tensors with lognormal and Weibull factors; observed
+  $10^{-15}$ or below. The odd moments of the normals at $\pm 10$ cancel to
+  zero and are checked at $10^{-12}$ ($10^{-14}$ for $m_1$); they are observed
+  exactly zero.
+- Narrow gamma inversion: purely relative $10^{-13}$, observed $10^{-15}$.
 - CQMOM reconstruction: $5 \times 10^{-10}$, a safety bound; observed errors
   are at rounding level.
 

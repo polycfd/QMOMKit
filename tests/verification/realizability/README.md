@@ -18,9 +18,10 @@ densities (normal, gamma, lognormal, beta, uniform) or chosen weighted points;
 non-realizable ones violate a stated condition.
 
 - `diagnostic_success_cases`, `diagnostic_failure_cases`,
-  `boundary_diagnostics`: checked order, limiting matrix, pivot and message for
-  a density on each support and for the failing matrices `m0`, `H_1`, `S_0` and
-  `L_upper_0`; the zero measure is `boundary` with `zero_measure`.
+  `boundary_diagnostics`: checked order, pivot and message for a density on
+  each support, and the limiting matrix for the failing matrices `m0`, `H_1`,
+  `S_0` and `L_upper_0` and for boundary cases; the zero measure is `boundary`
+  with `zero_measure`.
 - `hamburger`, `stieltjes`, `hausdorff`, `hausdorff_on_other_intervals`:
   densities, weighted points and violations on each support, including
   odd-order range conditions, on $[0, 1]$, $[-1, 2]$ and $[2, 5]$. A variance
@@ -49,8 +50,8 @@ non-realizable ones violate a stated condition.
 
 ## Tolerances
 
-Verdicts, and in the diagnostic cases the checked order and limiting matrix,
-must match exactly. There a strict verdict needs a pivot above the tolerance
+Verdicts, and in the diagnostic cases the checked order and, for rejections
+and boundary cases, the limiting matrix, must match exactly. There a strict verdict needs a pivot above the tolerance
 used and a rejection one below its negative, so neither rests on rounding. The
 classifier runs at its default relative tolerance $10^{-12}$; the near-boundary
 cases set $10^{-8}$, so that moving $m_4$ of two points at $\pm 1$ by $10^{-10}$

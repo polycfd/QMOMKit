@@ -23,11 +23,11 @@
 //   Positions 5.0e-4, weights 2.0e-5, moments 1.0e-7 absolute and 1.0e-8
 //   relative. The moments pin the nodes of this clustered rule only weakly:
 //   every solver returns child positions about 5e-5 and weights about 2e-6
-//   from the prescribed rule while reproducing the moments to about 1e-11. The
-//   error is the same for every solver, so it comes from the clustered parent
-//   nodes, not from solver rounding. The position bound is about ten times that
-//   error and below a tenth of the parent spacing; the moment bound is a safety
-//   bound. The condition estimate is required to fall between 1.0e5 and 1.0e6,
+//   from the prescribed rule while reproducing the moments to about 1e-11
+//   relative (4e-10 absolute). The error is the same for every solver, so it
+//   comes from the clustered parent nodes, not from solver rounding. The
+//   position bound is about ten times that error and below a tenth of the
+//   parent spacing; the moment bound is a safety bound. The condition estimate is required to fall between 1.0e5 and 1.0e6,
 //   which makes the case ill-conditioned by construction rather than by
 //   accident.
 //

@@ -77,9 +77,10 @@ accepted and one twice the margin beyond is rejected
 (`bounded_qmom_acceptance_does_not_depend_on_the_unit`).
 
 **Failure statuses**, `verification_qmom_compute_failure_<case>`
-(`qmom_compute_failures.cpp`). Fixed-count requests, since adaptive inversion
-answers a negative variance with one node, must return the status and a message
-containing the fragment; `invalid_input` returns no nodes.
+(`qmom_compute_failures.cpp`). Fixed-count requests, except the bounded
+adaptive one, since adaptive inversion answers a negative variance with one
+node, must return the status and a message containing the fragment;
+`invalid_input` returns no nodes.
 
 | Case | Request | Status | Fragment |
 | --- | --- | --- | --- |

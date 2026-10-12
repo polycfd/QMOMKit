@@ -10,14 +10,14 @@ These cases write each table and read it back as such a reader would.
 ## Cases
 
 `verification_output_writer_qmom` and `verification_output_writer_cqmom` load
-`qmom/two_node_discrete.qmom` and `cqmom/independent_product.qmom`, write one
-time row per table and check that:
+`qmom/two_node_discrete.qmom` and `cqmom/independent_product.qmom`, write each
+table at one time, $t = 0.25$, and check that:
 
 - the header is `# time` followed by the expected labels, and every row has
   one value per label;
 - the QMOM moment and quadrature rows, the CQMOM quadrature rows (node index,
   conditioning path, weight, coordinates) and the `CqmomState` moment row,
-  labelled in `moment_indices()` order, carry the values handed to the writer;
+  labeled in `moment_indices()` order, carry the values handed to the writer;
 - requested CQMOM moments keep their requested, non-monotonic order and equal
   the moments of the analytical product rule of `independent_product.qmom`,
   evaluated in the test.

@@ -12,9 +12,9 @@
 //     source context reproduces the exact solution it describes.
 //
 // How the reference is constructed
-//   The velocity is chosen as u(x) = x, which is the case that can be solved
-//   on paper. Each quadrature position then satisfies dx/dt = x, so it grows
-//   as x(t) = x(0)*exp(t), and advection never changes a weight. The raw
+//   The velocity is chosen as dxi/dt = xi, which is the case that can be
+//   solved on paper. Each abscissa then grows as xi(t) = xi(0)*exp(t), and
+//   advection never changes a weight. The raw
 //   moment of order k is a weighted sum of the k-th powers of the positions,
 //   so it follows
 //

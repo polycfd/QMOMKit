@@ -41,7 +41,8 @@ xi_0 = 1.014:  xi_1 = {0.25, 4},  W = 0.5 * {0.25, 0.75}
 ```
 
 The test sums the $6\times4$ raw moments of these six weighted points and
-requires `clustered_policy_automatic.qmom` to match them to `1e-12`. For each
+requires the moments the case keeps from `clustered_policy_automatic.qmom` to
+match them to `1e-12`. For each
 solver it compares the fixed $3\times2$ quadrature and all reconstructed
 moments with the rule and checks the root diagnostics. The root system, the
 Vandermonde matrix of $\xi_{0,i}/2$, has an infinity-norm condition number of
@@ -61,11 +62,12 @@ threshold $10^{12}$. The estimate must stay 7, the relative residual at most
 ## Tolerances
 
 - Product case: `1e-12` absolute on nodes, weights, moments and the
-  dense/Björck–Pereyra differences; observed errors are `1e-14` or below.
+  dense/Björck–Pereyra differences; observed errors are `4e-14` or below.
 - Clustered case: nodes `5e-4`, weights `2e-5`, moments
-  `1e-7 + 1e-8 max(1, |M|)`. Every solver returns nodes of order `1e-5` and
-  weights of order `1e-6` from the rule while reproducing the moments to
-  about `1e-11`. The error is identical for every solver: it comes from the
+  `1e-7 + 1e-8 max(1, |M|)`. Every solver returns child nodes within about
+  `5e-5`, parent nodes within `1e-7` and weights within `2e-6` of the rule,
+  while reproducing the moments to about `1e-11` relative (`4e-10`
+  absolute). The error is identical for every solver: it comes from the
   clustered parent nodes, which the moments pin only weakly, not from solver
   rounding. The node bound leaves a factor of about ten and stays below a
   tenth of the parent spacing; the moment bound is a safety bound.

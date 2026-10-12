@@ -16,8 +16,9 @@
 //
 // Pass criteria
 //   The load must fail, the reported error must identify the intended cause
-//   and name the file, with the line where the fault sits on one, and the
-//   result must hold no case. Checking failure alone would not distinguish a
+//   and name the file, followed by a line number where the fault sits on one
+//   line (only its presence is checked, not its value), and the result must
+//   hold no case. Checking failure alone would not distinguish a
 //   correct diagnosis from an unrelated one.
 //
 // Reproduce

@@ -8,7 +8,7 @@ tolerance and reproduction; registration, checks and build commands are in
 
 | Area | What is verified | Reference |
 | --- | --- | --- |
-| [QMOM](qmom/README.md) | Wheeler inversion with fixed, adaptive and bounded node counts; the moment-space boundary; failures | exact discrete quadratures, classical Gaussian rules |
+| [QMOM](qmom/README.md) | Wheeler inversion with fixed and adaptive node counts and abscissa bounds; the moment-space boundary; failures | exact discrete quadratures, classical Gaussian rules |
 | [CQMOM](cqmom/README.md) | recursive reconstruction in up to six dimensions: conditioning orders, adaptive branch counts, bounds, unit invariance, moment reconstruction | prescribed product, affine and branch-dependent quadratures |
 | [Distributions](distributions/README.md) | raw moments of distributions, mixtures and products; configured initialization | closed-form and high-precision moments |
 | [Realizability](realizability/README.md) | support-aware classification and diagnostics | Hamburger, Stieltjes and Hausdorff examples |

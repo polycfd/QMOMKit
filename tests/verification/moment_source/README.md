@@ -60,9 +60,9 @@ After each plan the test checks:
 ## Tolerances
 
 - Advanced moments: `2e-6` absolute; the unit-floored relative error checked
-  alongside never exceeds it. The bound covers the SSP-RK3 truncation error
-  at these steps, of order `1e-6` for the QMOM cases and `1e-8` for the CQMOM
-  case. The observed orders are within 0.03 of 3.
+  alongside never exceeds it. The bound covers the SSP-RK3 truncation error at
+  these steps, of order `1e-6` for the QMOM cases and `1e-8` for the CQMOM case.
+  The two finest observed orders, the ones asserted, are within 0.03 of 3.
 - Reconstructed moments and $m_0$: `2e-8`, a safety bound; the observed
   errors are at roundoff or zero.
 

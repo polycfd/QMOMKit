@@ -16,7 +16,7 @@
 //   weights, and the moments handed to the inversion are built from them by
 //   construct_moments, which sums weight times position to the required power.
 //   A set of n points is exactly determined by its first 2n moments, so the
-//   inversion has one correct answer and it is the list we started from.
+//   inversion has one correct answer: the input points.
 //
 // Error metric and pass criteria
 //   Maximum absolute deviation of each position and weight from the chosen

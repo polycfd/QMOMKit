@@ -209,7 +209,7 @@ int run_disparate_units_case()
 {
     // The same prescribed ragged terminal rule as the configured cases is
     // represented in deliberately disparate physical units. The factors
-    // create mixed raw moments from approximately 1e-24 to 1e37 while
+    // give required moments from approximately 1e-24 to 1e28 while
     // the normalized terminal rule and its moments remain O(1). Adaptive
     // reduction does not depend on the units, so the rule must be recovered.
     const std::vector<double> units{1.0e8, 1.0e-8, 1.0e4};

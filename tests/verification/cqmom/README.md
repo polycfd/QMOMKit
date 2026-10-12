@@ -10,10 +10,10 @@ reconstruction, abscissa bounds and branch growth. See
 [CQMOM](../../../docs/developer/cqmom.md) for the recursion and
 [QMOM](../../../docs/developer/qmom.md) for the inversion on each branch.
 
-Every reference is a set of weighted points whose raw moments
-$M_k = \sum_q W_q \prod_d \xi_{q,d}^{k_d}$ are summed by the test or written
-into the `.qmom` fixture, never computed by QMOMKit; the expected result is the
-set of points itself. `recursive_quadrature.cpp` and `recursive_cqmom.cpp` call
+Except for two recursive cases noted below, every reference is a set of
+weighted points whose raw moments $M_k = \sum_q W_q \prod_d \xi_{q,d}^{k_d}$
+are summed by the test or written into the `.qmom` fixture, never computed by
+QMOMKit; the expected result is the set of points itself. `recursive_quadrature.cpp` and `recursive_cqmom.cpp` call
 the internal recursion and inspect its traversal tree; all other cases use the
 public API. Failures of `compute_cqmom(...)` are covered in
 [`cqmom_compute_failures.cpp`](../../component_regression/cqmom_compute_failures.cpp).
@@ -61,8 +61,8 @@ full rebuilt tensor.
 use a ragged adaptive five-point rule in three dimensions with order {2, 0, 1},
 with coordinate $d$ in units scaled by $s_d$: $s = (1, 1, 1)$ and
 $(10^6, 10^{-6}, 10^3)$ from the two `unit_invariance_*_3d.qmom` fixtures, and
-$(10^8, 10^{-8}, 10^4)$ summed in the test, with moments from about $10^{-24}$
-to $10^{37}$. Checked: paths, positions divided by $s$, weights and the required
+$(10^8, 10^{-8}, 10^4)$ summed in the test, with required moments from about
+$10^{-24}$ to $10^{28}$. Checked: paths, positions divided by $s$, weights and the required
 moments, plus branch counts for the fixtures. The adaptive rounding bound scales
 with the coordinate
 ([QMOM](../../../docs/developer/qmom.md#rounding-bound-on-the-recurrence)), so
@@ -79,18 +79,20 @@ hold exactly the ten required moments in their documented order.
 ### Moment reconstruction
 
 `verification_cqmom_moment_reconstruction_*` (`moment_reconstruction.cpp`):
-`qmom_all_orders` for a three-point rule; `cqmom_selected`, where the request
-{2,0}, {0,0}, {1,1}, {0,2}, {2,0}, {3,1} keeps its order and duplicate;
+`qmom_all_orders` for a three-point rule, which also requires an unsuccessful
+1D quadrature to throw; `cqmom_selected`, where the request {2,0}, {0,0},
+{1,1}, {0,2}, {2,0}, {3,1} keeps its order and duplicate;
 `cqmom_required_layout`, aligned with `layout.required_indices`; and
-`failure_paths`, where an unsuccessful 1D quadrature, a wrong-rank request and a
-mismatched hierarchy each throw.
+`failure_paths`, where a wrong-rank request and a mismatched hierarchy each
+throw.
 
 ### Recursive inversion
 
 `verification_recursive_quadrature_manufactured_*` (`recursive_quadrature.cpp`)
 covers one to three dimensions, both 2D orders, node counts 2 and 3, and
 adaptive branches with fewer points than requested, mostly through the rebuilt
-tensor. In one dimension the result must equal Wheeler. The
+tensor. In one dimension the result must equal the Wheeler result of
+`compute_quadrature`. The
 `..._velocity_collapse_...` case uses non-realizable moments {1, 0, -1, 0} for
 $\xi_1$ instead of a rule and checks only its reduction to one node in
 either conditioning order.
@@ -123,7 +125,7 @@ Errors are absolute unless relative, $|a - e| / \max(|e|, 1)$.
 | Cases | Tolerance | Metric | Why |
 | --- | --- | --- | --- |
 | Two dimensions | $10^{-12}$ | positions, weights; relative moments | observed $10^{-15}$; moments reach $10^3$ |
-| Three to six dimensions | $10^{-11}$ | positions, weights; relative moments | error grows from $10^{-15}$ in 3D to $10^{-13}$ in 6D; the bound sits one order above |
+| Three to six dimensions | $10^{-11}$ | positions, weights; relative moments | error grows from $10^{-15}$ in 3D to $5 \times 10^{-13}$ in 6D; the bound sits a factor of 20 above |
 | Coordinate units | $2 \times 10^{-10}$; `disparate_units` $10^{-10}$ | relative positions divided by $s$; weights; relative moments | safety bounds, observed $10^{-16}$; moments below 1 are checked only absolutely |
 | Workflows, reconstruction, bounds | $10^{-12}$ | positions, weights, moments | observed $10^{-15}$; moments below $10^2$ |
 | Recursive inversion | $10^{-12}$ to $10^{-7}$ per case | positions, weights, moments | safety bounds; the loosest cover 3D moments with errors of $10^{-11}$ |

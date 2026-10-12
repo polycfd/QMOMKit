@@ -12,12 +12,13 @@ failed stage.
 
 The error is
 $\max_\alpha |M_\alpha - M_\alpha^{\mathrm{ref}}| / \max(1, |M_\alpha^{\mathrm{ref}}|)$
-over the state's moments and those reconstructed from its quadrature. The
+over the state's moments, the moments reconstructed from its quadrature, or
+both, as each case states. The
 observed order is $\log_2(e_{\Delta t} / e_{\Delta t/2})$.
 
 QMOM references are closed forms of the configured or chosen moments. A CQMOM
-fixture stores only the moments its conditioning order needs, so most CQMOM
-references apply the exact operators to the quadrature `compute_cqmom`
+case keeps only the moments its conditioning order needs (the loader reduces
+the fixture's `4 x 4` tensor), so most CQMOM references apply the exact operators to the quadrature `compute_cqmom`
 recovers from it; `commuting_cqmom_2d` and the unit-invariance case start
 from the configured moments or weighted points.
 
@@ -57,7 +58,7 @@ stands for the case name.
 non-adaptive fixtures with conditioning order `{0,1}` hold the moments of the
 product of $\xi_0 \in \{1, 3\}$ (weights $0.4, 0.6$) and
 $\xi_1 \in \{-1, 2\}$ (weights $0.25, 0.75$). The inversion-failure fixtures
-differ from their failure counterparts only in $m_0 = -1$ or $M_{00} = -1$.
+differ from their failure counterparts only in $m_0 = -1$ or $M_{0,0} = -1$.
 
 ## Commuting operators
 
@@ -75,7 +76,7 @@ $M_{ij}(t) = e^{(0.135\,i - 0.135\,j)\,t} M_{ij}(0)$, with conditioning order
 through `CqmomCase::initial_state()`.
 
 `commuting_cqmom_state_adaptive_2d` applies the same advection with a zero
-source to a default `CqmomPreparedCase` with adaptive node counts, capacity
+source to a `CqmomPreparedCase` with adaptive node counts, capacity
 `2 x 2` and conditioning order `{0,1}`. The initial quadrature must be ragged
 with fewer than four nodes; the fixture needs three. After five steps of
 `0.04` it must still be ragged, with at most four nodes and one terminal path
@@ -91,7 +92,7 @@ $T = 1.2$ with $\Delta t = 0.3, 0.15, 0.075, 0.0375, 0.01875$. The finest run
 must conserve $m_0$ to `1e-12`, and `advsrc` and `srcadv` must differ by more
 than `1e-4` at $\Delta t = 0.3$, showing that the scheme option takes effect.
 
-`noncommuting_cqmom` uses a default `CqmomPreparedCase`,
+`noncommuting_cqmom` uses a `CqmomPreparedCase`,
 $\dot\xi_0 = \xi_0$, $\dot\xi_1 = 0$ and $dM_{ij}/dt = j\,M_{i+1,j-1}$, the
 moment form of $\dot\xi_1 = \xi_0$. The weighted points follow
 $\xi_0(t) = e^t \xi_0(0)$ and $\xi_1(t) = \xi_1(0) + (e^t - 1)\,\xi_0(0)$. The
@@ -160,7 +161,7 @@ $0.01\,(k+1)$. A wrong-sized, NaN or infinite boundary rate must fail in the
 moment-source stage with a "boundary contribution" message, and a rate of
 `-100` on $m_0$ must fail the post-source inversion.
 
-`cqmom_boundary_contribution` uses a default `CqmomPreparedCase` with
+`cqmom_boundary_contribution` uses a `CqmomPreparedCase` with
 conditioning order `{1,0}`, zero velocity and one Strang step of `0.02`. The
 rate is the moments of the weight rates $0.01\,(n+1)$ at the initial nodes, so
 the reference is the initial `4 x 4` tensor plus the step times the rate. The
@@ -168,21 +169,23 @@ callback checks the context size, hierarchy and index order.
 
 ## Failure propagation
 
-Except for the inversion failures, each case takes one Strang step of `0.08`.
+Except for the inversion failures and the `CqmomCase` policy probe, each case
+takes one Strang step of `0.08`.
 
 | Trigger | Required result |
 | --- | --- |
 | Velocity of the wrong length, or non-finite | `advection_failed` at `first_advection_half_step`, `velocity_failed`, message kept, final time `0`, no later stage completed; QMOM and `CqmomCase` states return unchanged moments |
 | RK23 step `0.04`, minimum `0.02`, $\dot\xi = \xi$ (CQMOM: $(\xi_0, -\xi_1)$) | success with rejected steps in the first half step, endpoints `0.04` and `0.08`, moments matching the advection reference |
-| Source rate `-20` on $m_0$ or $M_{00}$ | source step succeeds, `inversion_failed` at `post_source_inversion`, message names $m_0$ or realizability, no final reconstruction |
+| Source rate `-20` on $m_0$ or $M_{0,0}$ | source step succeeds, `inversion_failed` at `post_source_inversion`, message names $m_0$ or realizability, no final reconstruction |
 | Wrong-sized, NaN or infinite CQMOM source rate | `moment_source_failed` at `moment_source_step`, `source_failed`, message kept, no post-source reconstruction |
-| $m_0 = -1$ or $M_{00} = -1$ | `initial_state()` throws; for CQMOM, `state_candidate(...)` reports `reconstruction_failed` and a realizability message |
+| $m_0 = -1$ or $M_{0,0} = -1$ | `initial_state()` throws; for CQMOM, `state_candidate(...)` reports `reconstruction_failed` and a realizability message |
 
 The QMOM and prepared-case failure tests cover the first three rows.
-`cqmom_case_phase_space_evolution_failures` covers them for a `CqmomCase`,
-adds a wrong-sized source rate, and checks that basic diagnostics, the dense
-Vandermonde solver and adaptive node counts set on the case reach the
-post-source reconstructions. `cqmom_native_source_failures` covers the fourth
+`cqmom_case_phase_space_evolution_failures` covers the first and third rows
+for a `CqmomCase`, adds a wrong-sized source rate, and, in a zero-rate step
+of `0.02`, checks that basic diagnostics, the dense Vandermonde solver and
+adaptive node counts set on the case reach the post-source
+reconstructions. `cqmom_native_source_failures` covers the fourth
 row. The CQMOM inversion-failure test reads its moments through an internal
 accessor.
 
@@ -190,15 +193,15 @@ accessor.
 
 | Case | Bound | Observed | Why |
 | --- | --- | --- | --- |
-| `commuting_qmom` | `2e-6`, `8e-6` in the refinement; order $\ge 2.4$ | `1e-9` to `1e-7`; order 3 | safety bounds; the order shows the third-order SSP-RK3 source step dominates |
+| `commuting_qmom` | `2e-6`, `8e-6` in the refinement; order $\ge 2.4$; component checks: weights `1e-13`, abscissas `1e-10`, source alone `2e-9` | `1e-9` to `1e-7`; order 3 | safety bounds; the order shows the third-order SSP-RK3 source step dominates |
 | `commuting_cqmom_2d`, adaptive | `3e-6` | `1e-11`, `1e-13` | safety bounds |
-| `noncommuting_qmom` | `8e-4` Strang, `3e-2` Lie; order $\ge 1.75, 1.85$ and $\ge 0.75, 0.85$ on the two finest pairs | `1e-4`, `2e-2` at $\Delta t = 0.3$; orders 1.97, 1.00 | the bounds hold the splitting error at the coarsest step; the orders sit a few percent below 2 and 1 |
+| `noncommuting_qmom` | `8e-4` Strang, `3e-2` Lie; order $\ge 1.75, 1.85$ and $\ge 0.75, 0.85$ on the two finest pairs | `1e-4`, `2e-2` at $\Delta t = 0.3$; orders 1.97, 1.00 | the bounds hold the splitting error at the coarsest step; the order thresholds sit 7 to 25 percent below 2 and 1 |
 | `noncommuting_cqmom` | order $\ge 1.8$, $\ge 0.8$ on the two finest pairs | 2.00; 0.97 to 1.03 | only the order is checked |
 | `phase_space_source` | order $> 1.7$; Lie in $(0.7, 1.3)$ on the last two pairs | 2.0, 1.0 | an order from two finite steps is approximate |
 | `direct_advection` | positions `2e-12`, moments `2e-11` | `1e-13`, `1e-12` | SSP-RK3 node error |
 | RK23 minimum step | `2e-6` QMOM, `3e-6` CQMOM | `1e-7` | RK23 error at the minimum step |
 | `node_source` | moments `1e-13`, points and weights `1e-12` | below `1e-15` | the step is exact; roundoff |
-| unit invariance | `2e-9` | `1e-15` | exact reference; safety bound |
+| unit invariance | `2e-9` | `1e-15` | exact reference; safety bound. The metric floors at 1, so the $\xi_1$ coordinates near $10^{-6}$ and the small moments of the rescaled run are checked only absolutely |
 | native source, combined | `5e-10`, `5e-9` | below `1e-15`, `1e-13` | safety bounds |
 | QMOM, CQMOM boundary | `5e-11`, `5e-9` | `1e-15`, below `1e-15` | exact reference; safety bounds |
 

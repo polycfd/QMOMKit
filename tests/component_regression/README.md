@@ -31,8 +31,9 @@ All names start with `component_regression_`.
   diagnostics, state and one evolution step.
 - `cqmom_drag_and_degenerate_moments_*` (3): moments of eight prescribed
   three-dimensional nodes, after drag or with two velocity nodes
-  $1.5 \times 10^{-6}$ apart, reconstruct and reproduce every required moment;
-  the drag case also recovers its nodes.
+  $1.5 \times 10^{-6}$ apart, reconstruct and reproduce every required moment,
+  and the drag case also recovers its nodes; one branch's conditional sequence
+  of the drag case also inverts on its own with 1D QMOM.
 - `cqmom_physical_transport`: a fixture of unknown provenance, so it pins
   behavior, not correctness. Adaptive reconstruction collapses each terminal
   branch to one node, and zero-rate evolution keeps those counts.
@@ -55,7 +56,7 @@ print each accepted quadrature at `%.17g`.
 | --- | --- | --- | --- |
 | moment source | $10^{-15}$ | $10^{-16}$ | round-off of one exact step |
 | SSP-RK3 linear velocity | $2 \times 10^{-7}$, $3 \times 10^{-9}$ | $10^{-7}$, $10^{-9}$ | truncation error of one step |
-| RK23 | $2 \times 10^{-8}$, $10^{-7}$ | $10^{-9}$, $10^{-8}$ | relative tolerance $10^{-8}$ |
+| RK23 | $2 \times 10^{-8}$, $10^{-7}$ | $5 \times 10^{-9}$, $4 \times 10^{-8}$ | relative tolerance $10^{-8}$ |
 | recorded values | $10^{-12}$ relative, $10^{-15}$ floor | $10^{-15}$ | see below |
 
 Every other bound, $10^{-14}$ to $5 \times 10^{-9}$, is a safety bound;

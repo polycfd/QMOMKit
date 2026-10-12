@@ -3,7 +3,7 @@
 // which is which.
 //
 // What is verified
-//   Commuting cases. The velocity is u(x) = a*x and the source removes each
+//   Commuting cases. The velocity is dxi/dt = a*xi and the source removes each
 //     moment order at its own rate, so both operators act on moment order k as
 //     a multiple of M_k. They therefore commute and Strang splitting introduces
 //     no splitting error; what remains is the error of the time integrators,

@@ -135,7 +135,7 @@ bool contains_text(const std::string& text, const std::string& fragment)
     return MomentSet(std::move(moments));
 }
 
-// Moments of the uniform distribution on [lower, upper], with unit mass.
+// Moments of the uniform distribution on [lower, upper], with unit number density.
 [[nodiscard]] MomentSet uniform_moments(const double lower, const double upper, const std::size_t maximum_order)
 {
     std::vector<double> moments(maximum_order + 1, 0.0);

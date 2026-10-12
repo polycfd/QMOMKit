@@ -3,9 +3,9 @@
 //
 // What is verified
 //   That advancing the positions reproduces the exact trajectory, and that
-//   advection changes positions only - weights, hierarchy and terminal paths
-//   come through untouched, which is what makes the operation a transport step
-//   rather than a new inversion.
+//   advection changes positions only: the weights and, for CQMOM, the terminal
+//   node count come through unchanged, which is what makes the operation a
+//   transport step rather than a new inversion.
 //
 // How the reference is constructed
 //   The velocity fields are chosen so the trajectory is solvable on paper, and

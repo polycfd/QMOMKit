@@ -33,10 +33,10 @@
 //   absolute bound alone would be meaningless for one of them. Tolerances are
 //   1.0e-14 to 1.0e-13 for single families, 1.0e-13 to 1.0e-12 for mixtures,
 //   configured moments and product tensors, with 1.0e-11 absolute where a
-//   tensor holds log-normal and Weibull factors, 1.0e-10 for the fifth moment
-//   of two normals that cancel, and 5.0e-10 for moments rebuilt from a CQMOM
-//   reconstruction. Measured errors stay at a few rounding errors, so the
-//   looser bounds are safety bounds.
+//   tensor holds log-normal and Weibull factors, 1.0e-12 (1.0e-14 for the
+//   first) for the odd moments of two normals that cancel to zero, and
+//   5.0e-10 for moments rebuilt from a CQMOM reconstruction. Measured errors
+//   stay at a few rounding errors, so the looser bounds are safety bounds.
 //
 //   The chi, chi-squared, gamma and beta cases with closed-form products, and
 //   the selected-order cases, compare purely relatively, since their moments

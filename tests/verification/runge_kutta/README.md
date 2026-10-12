@@ -45,8 +45,9 @@ from the finest pair of runs, since order is asymptotic.
 
 The constant right-hand sides are compared at `1e-15` and `1e-13`, roundoff.
 The other closed-form cases use `5e-7`, `2e-7` and `2e-10` for relative
-tolerances `1e-7`, `1e-8` and `1e-10`, a small factor above the request,
-since a controller bounds local error estimates, not the global error.
+tolerances `1e-7`, `1e-8` and `1e-10`, since a controller bounds local error
+estimates, not the global error; observed errors are `4e-8`, `8e-9` and
+`1e-11`, so these are safety bounds.
 Observed orders lie within 0.04 of nominal and slopes near 1.
 
 ## Reproduce

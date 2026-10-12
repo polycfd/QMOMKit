@@ -74,7 +74,7 @@ Now let the population change. Its nodes drift towards zero at a rate
 proportional to their position, and the population as a whole decays:
 
 ```math
-\frac{\mathrm{d}x}{\mathrm{d}t} = -0.5\,x ,
+\frac{\mathrm{d}\xi}{\mathrm{d}t} = -0.5\,\xi ,
 \qquad
 \frac{\mathrm{d}m_k}{\mathrm{d}t} = -0.1\,m_k .
 ```

@@ -24,15 +24,15 @@ needs, indexed in conditioning order with $c_l$ first.
    [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)] inverts as
    in [QMOM](qmom.md). The root weights add up to $M_{0,\ldots,0}$.
 2. **Conditional moments.** For a nonterminal branch whose inversion accepted
-   $n$ nodes $x_i$ with weights $w_i$, the slices of its $n$ children solve one
+   $n$ nodes $\xi_i$ with weights $w_i$, the slices of its $n$ children solve one
    weighted Vandermonde system with one column per trailing multi-index
    $q$:
 
    ```math
-   \sum_{i=0}^{n-1} w_i\, x_i^{p}\, C_{i,q} = M_{p,q},
+   \sum_{i=0}^{n-1} w_i\, \xi_i^{p}\, C_{i,q} = M_{p,q},
    \qquad p = 0,\ldots,n-1,
    \qquad\text{that is}\qquad
-   V^{\mathsf T}\operatorname{diag}(w)\, C = M,\quad V_{ip} = x_i^{p}.
+   V^{\mathsf T}\operatorname{diag}(w)\, C = M,\quad V_{ip} = \xi_i^{p}.
    ```
 
    $M_{p,q}$ is the slice moment of order $p$ in $c_l$ and $q$ in the later
@@ -221,7 +221,7 @@ was assembled and ragged storage is empty; either is diagnostic only.
 ## Moments from a quadrature
 
 [`src/moment_reconstruction.cpp`](../../src/moment_reconstruction.cpp) evaluates
-$\sum_j W_j\prod_d x_{d,j}^{k_d}$ for both QMOM and CQMOM:
+$\sum_j W_j\prod_d \xi_{d,j}^{k_d}$ for both QMOM and CQMOM:
 
 - `reconstruct_raw_moments` returns the first `moment_count` moments of a
   successful `Quadrature1D`, a full CQMOM tensor of given extents, or the

@@ -111,7 +111,7 @@ quadrature reconstructed from the stage, at most once per stage. Within a
 source step, a branch of the state never gains a node.
 
 A rate is often easiest to write over the nodes. Here particles are removed at a
-rate proportional to their size, $\mathrm{d}m_k/\mathrm{d}t = -\sum_i 0.1\,x_i\,w_i\,x_i^k$:
+rate proportional to their size, $\mathrm{d}m_k/\mathrm{d}t = -\sum_i 0.1\,\xi_i\,w_i\,\xi_i^k$:
 
 ```cpp
 const qmomkit::QmomMomentSource removal = [](double, const qmomkit::QmomSourceContext& context)

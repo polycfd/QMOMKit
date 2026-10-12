@@ -83,8 +83,8 @@ construction stay in those stages, separately for QMOM and CQMOM.
 
 ## Node advection
 
-Node advection integrates $\mathrm{d}\mathbf{x}_j/\mathrm{d}t =
-\mathbf{u}(t, \mathbf{x}_j)$ for every node $j$. Weights, terminal
+Node advection integrates $\mathrm{d}\boldsymbol{\xi}_j/\mathrm{d}t =
+\dot{\boldsymbol{\xi}}(t, \boldsymbol{\xi}_j)$ for every node $j$. Weights, terminal
 paths, storage layout, and active counts are kept; the stage then sums the
 stored moments from the moved nodes (`QmomStateAccess::from_quadrature`,
 `internal::reconstruct_trusted_cqmom_moments`). Advection never reconstructs a

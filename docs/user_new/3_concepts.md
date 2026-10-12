@@ -8,9 +8,9 @@ QMOMKit works with raw moments of the number density $n$ of a population. In
 one coordinate and in several, they are
 
 ```math
-m_k = \int x^k\, n(x)\,\mathrm{d}x ,
+m_k = \int \xi^k\, n(\xi)\,\mathrm{d}\xi ,
 \qquad
-M_{k_0, \ldots, k_{D-1}} = \int x_0^{k_0} \cdots x_{D-1}^{k_{D-1}}\, n(\mathbf{x})\,\mathrm{d}\mathbf{x} .
+M_{k_0, \ldots, k_{D-1}} = \int \xi_0^{k_0} \cdots \xi_{D-1}^{k_{D-1}}\, n(\boldsymbol{\xi})\,\mathrm{d}\boldsymbol{\xi} .
 ```
 
 The zeroth moment, $m_0$ or $M_{0, \ldots, 0}$, is the total number density.
@@ -19,16 +19,16 @@ QMOMKit never normalizes it away.
 ## Quadrature
 
 A quadrature replaces $n$ by $N$ nodes, each with a weight $w_i$ and an
-abscissa $x_i$, chosen so that $m_k = \sum_i w_i x_i^k$. $N$ nodes need the
+abscissa $\xi_i$, chosen so that $m_k = \sum_i w_i \xi_i^k$. $N$ nodes need the
 moments $m_0, \ldots, m_{2N-1}$. The weights add up to $m_0$.
 
 ## Phase space
 
-The phase space is the set of coordinates that describe each member of the
-population, such as size, velocity, or temperature. Coordinate names are labels:
-QMOMKit gives them no meaning and no units. The order in which you declare the
-coordinates is used everywhere, for moment indices, node coordinates, callbacks,
-and output.
+The phase space is the set of coordinates $\boldsymbol{\xi}$ that describe
+each element of the population, such as size, velocity, or temperature.
+Coordinate names are labels: QMOMKit gives them no meaning and no units. The
+order in which you declare the coordinates is used everywhere, for moment
+indices, node coordinates, callbacks, and output.
 
 ## QMOM and CQMOM
 
@@ -103,5 +103,5 @@ The [Reference](7_reference.md) lists all statuses.
 | state | Moments and their matching quadrature, advanced in time. |
 | support | The range a coordinate can take, such as the non-negative numbers, against which a realizability check tests the moments. |
 | terminal node | A node of a CQMOM quadrature, with one weight and one value per coordinate. |
-| velocity | The rate at which nodes move through phase space, such as growth or drag. |
+| velocity | The rate $\dot{\boldsymbol{\xi}}$ at which nodes move through phase space, such as growth or drag. |
 | weight | The share of the number density carried by a node. |

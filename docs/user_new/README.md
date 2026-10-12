@@ -1,21 +1,50 @@
 # QMOMKit user guide
 
-QMOMKit represents a population by a few raw moments of its number density and
-reconstructs from them a quadrature: a small set of weighted nodes. One
-coordinate uses QMOM, several use CQMOM.
+Many flows carry a population of dispersed elements, such as particles,
+droplets, or bubbles, whose properties differ from element to element. A number
+density $n$ describes how many elements there are at each position
+$\mathbf{x}$ in physical space with each set of properties
+$\boldsymbol{\xi}$, such as size, velocity, or temperature. These properties
+span the *phase space*. A population balance equation (PBE) governs how $n$
+changes
+[[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]:
+
+```math
+\frac{\partial n}{\partial t}
++ \underbrace{\nabla_{\mathbf{x}} \cdot (\mathbf{u}\, n)}_{\text{physical space}}
++ \underbrace{\nabla_{\boldsymbol{\xi}} \cdot (\dot{\boldsymbol{\xi}}\, n)}_{\text{phase space}}
+= S .
+```
+
+Elements move through physical space with a velocity $\mathbf{u}$ and through
+phase space with a velocity $\dot{\boldsymbol{\xi}}$, for example as they grow
+or are dragged by the surrounding flow. The source $S$ creates and removes
+elements, for example by breakage, aggregation, or nucleation.
+
+Solving for $n$ itself is expensive, because the phase space adds dimensions
+to the problem. Moment methods track a few raw moments of $n$ instead, which
+carry its total, mean, and spread. To evaluate the phase-space terms from
+moments, QMOMKit represents $n$ by a quadrature: a small set of weighted nodes
+that reproduces the moments. With one phase-space coordinate this is QMOM; with
+several, CQMOM.
+
+**QMOMKit solves the phase-space part** of the PBE at one location: given the
+moments there, it reconstructs the quadrature, moves its nodes with
+$\dot{\boldsymbol{\xi}}$, and integrates the source:
 
 ```text
 raw moments → quadrature → state → time step → state → …
 ```
 
-**QMOMKit does** the numerics: it reconstructs quadratures, generates moments
-from distributions, advances a state by moving its nodes and changing its
-moments, checks realizability, and writes output.
+It also generates moments from distributions, checks whether moments are
+realizable, and writes output.
 
-**You do** everything else: the meaning and units of the coordinates, the
-physics (as callbacks), the time loop and step size, what happens when a step
-fails, and anything in physical space, such as meshes, transport, and
-parallelism.
+**Your code does everything else:** the physics, as callbacks that return
+$\dot{\boldsymbol{\xi}}$ and $S$; the meaning and units of the coordinates; the
+time loop and step size; what happens when a step fails; and everything in
+physical space, such as meshes, transport with $\mathbf{u}$, and parallelism.
+[Coupling QMOMKit](6_coupling_qmomkit.md) shows how the two parts fit
+together.
 
 ## Read in this order
 

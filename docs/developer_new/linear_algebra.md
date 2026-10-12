@@ -60,15 +60,15 @@ $\lVert A\rVert_\infty\lVert A^{-1}\rVert_\infty$, with $A^{-1}$ from
 ### Björck–Pereyra
 
 `solve_bjorck_pereyra` solves the transposed Vandermonde system $V^TY=B$,
-$V_{i,p}=x_i^p$, for every column of $B$ in $O(n^2)$ operations per column
+$V_{i,p}=\xi_i^p$, for every column of $B$ in $O(n^2)$ operations per column
 without forming $V$ [[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)].
 Its singularity test divides the nodes by the power of two $s$ above
-$\max_i|x_i|$, so $\xi_i=x_i/s\in(-1,1)$ and $\lVert V^T\rVert_\infty\le n$,
+$\max_i|\xi_i|$, so $\tilde\xi_i=\xi_i/s\in(-1,1)$ and $\lVert V^T\rVert_\infty\le n$,
 and bounds the inverse by
 [[Gautschi, 1962](https://doi.org/10.1007/BF01386302)]
 
 ```math
-\lVert V^{-T}\rVert_\infty\le\beta=\max_i\prod_{j\ne i}\frac{1+|\xi_j|}{|\xi_i-\xi_j|},
+\lVert V^{-T}\rVert_\infty\le\beta=\max_i\prod_{j\ne i}\frac{1+|\tilde\xi_j|}{|\tilde\xi_i-\tilde\xi_j|},
 ```
 
 with equality when the nodes share a sign. The system is singular when the
@@ -90,14 +90,14 @@ the discarded directions.
 
 ## Conditional Vandermonde systems
 
-At a CQMOM branch with parent nodes $x_i$ and weights $w_i$, $i<n$, the branch
+At a CQMOM branch with parent nodes $\xi_i$ and weights $w_i$, $i<n$, the branch
 moments of parent orders $p<n$ determine the conditional moments $C_{i,q}$ of
 the remaining coordinates at each parent node ([CQMOM](cqmom.md)):
 
 ```math
-M_{p,q}=\sum_{i=0}^{n-1}w_i\,x_i^p\,C_{i,q},
+M_{p,q}=\sum_{i=0}^{n-1}w_i\,\xi_i^p\,C_{i,q},
 \qquad\text{i.e.}\qquad
-AC=M,\quad A=V^T\operatorname{diag}(w),\quad A_{p,i}=w_i\,x_i^p .
+AC=M,\quad A=V^T\operatorname{diag}(w),\quad A_{p,i}=w_i\,\xi_i^p .
 ```
 
 Each column $q$ is one moment of the remaining coordinates; all columns are
@@ -118,8 +118,8 @@ to the largest weight and applies to every solver. The direct solvers
 A=S\,\tilde V^T D,\qquad S=\operatorname{diag}(s^p),\qquad D=\operatorname{diag}(w),
 ```
 
-with $s$ the power of two above $\max_i|x_i|$ and $\tilde V$ the Vandermonde
-matrix of $x_i/s$. They solve $\tilde V^TY=S^{-1}M$ and return
+with $s$ the power of two above $\max_i|\xi_i|$ and $\tilde V$ the Vandermonde
+matrix of $\xi_i/s$. They solve $\tilde V^TY=S^{-1}M$ and return
 $C=D^{-1}Y$. $\tilde V^T$ has a first row of ones and entries in $[-1,1]$, so
 its pivot, rank and truncation decisions depend on neither the number density
 nor the unit. Björck–Pereyra solves $V^TY=M$ on the unscaled nodes, since its

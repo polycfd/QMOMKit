@@ -14,7 +14,7 @@ The check tests standardized moments $\nu_k$ (next section), with the support
 bounds $a$, $b$ mapped to the same coordinate. For a sequence $s$, $H_n(s)$ is
 the $(n+1) \times (n+1)$ Hankel matrix with entries $s_{i+j}$,
 $0 \le i, j \le n$, and $H_n = H_n(\nu)$. Localizing sequences multiply the
-measure by $x - a$, $b - x$ and $(x - a)(b - x)$:
+measure by $\xi - a$, $b - \xi$ and $(\xi - a)(b - \xi)$:
 
 ```math
 \ell^{a}_k = \nu_{k+1} - a\,\nu_k, \qquad

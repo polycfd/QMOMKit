@@ -15,7 +15,7 @@ A moment generated from a distribution scales a normalized shape $p$ by a
 number density $n_0$:
 
 ```math
-n(x) = n_0\, p(x), \qquad m_k = n_0 \int x^k p(x)\,\mathrm{d}x, \qquad m_0 = n_0 .
+n(\xi) = n_0\, p(\xi), \qquad m_k = n_0 \int \xi^k p(\xi)\,\mathrm{d}\xi, \qquad m_0 = n_0 .
 ```
 
 Mixtures and independent products follow from this rule; see

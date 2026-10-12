@@ -214,7 +214,7 @@ or branch structure. An ensemble of $P$ samples with number density $n_0$
 estimates
 
 ```math
-M_\alpha = \frac{n_0}{P} \sum_{p=1}^{P} \prod_{d} x_{p,d}^{\alpha_d},
+M_\alpha = \frac{n_0}{P} \sum_{p=1}^{P} \prod_{d} \xi_{p,d}^{\alpha_d},
 ```
 
 with standard error $n_0 \sqrt{s^2/P}$, where $s^2$ is the unbiased sample

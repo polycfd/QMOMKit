@@ -29,7 +29,7 @@ $a_0,\ldots,a_{N-1}$ and off-diagonal $\sqrt{b_1},\ldots,\sqrt{b_{N-1}}$. With
 normalized eigenvectors $Jv_i=\lambda_i v_i$,
 
 ```math
-x_i=\lambda_i,\qquad w_i=m_0\,v_{0,i}^2 .
+\xi_i=\lambda_i,\qquad w_i=m_0\,v_{0,i}^2 .
 ```
 
 `symmetric_jacobi_eigen` ([Linear algebra](linear_algebra.md)) returns the
@@ -50,7 +50,7 @@ not realizable with $k$ nodes. Both tests below act on $\sigma_{k,k}$.
    `invalid_input` with empty vectors. Higher moments are not read.
 2. $m_0<0$: `not_realizable`.
 3. $m_0<$ `cutoff`: `not_realizable`, message `Moment sequence has m0 < cutoff.`
-4. $N=1$: one node $x=m_1/m_0$, $w=m_0$.
+4. $N=1$: one node $\xi=m_1/m_0$, $w=m_0$.
 
 `cutoff` (default `1e-30`) is an absolute threshold on $m_0$ and the only
 decision of the inversion that depends on the number density. Every other test
@@ -111,8 +111,8 @@ A rule with $n_1$ nodes is accepted when
 \frac{\min_i w_i}{\max_i w_i}>r_{\min},
 \qquad
 \begin{cases}
-\dfrac{\min_{i\ne j}|x_i-x_j|}{\max_{i,j}|x_i-x_j|}>e_{\mathrm{abs}}, & n_1>2,\\
-\dfrac{|x_1-x_0|}{\max(|x_0|,|x_1|)}>e_{\mathrm{abs}}, & n_1=2 .
+\dfrac{\min_{i\ne j}|\xi_i-\xi_j|}{\max_{i,j}|\xi_i-\xi_j|}>e_{\mathrm{abs}}, & n_1>2,\\
+\dfrac{|\xi_1-\xi_0|}{\max(|\xi_0|,|\xi_1|)}>e_{\mathrm{abs}}, & n_1=2 .
 \end{cases}
 ```
 

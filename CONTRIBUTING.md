@@ -34,9 +34,9 @@ Passing the existing test suite is necessary but is not, by itself, evidence
 that a new numerical method or model is correct.
 
 Scientific claims, references, and validation data should be checked against
-primary sources wherever practical. What a validation case must state is listed
-under
-[validation evidence](docs/developer/testing_and_validation.md#validation-evidence).
+primary sources wherever practical.
+[Validation evidence](docs/developer/testing_and_validation.md#validation-evidence)
+lists what a validation case must state.
 
 ## New features
 
@@ -118,9 +118,9 @@ has the commands, also for the installed-package and Monte Carlo checks. For
 changes that affect common numerical infrastructure, broader regression and
 verification testing may be appropriate.
 
-Format changed C++ files with `./tools/indent-all`, which needs clang-format
-22.1; `./tools/download_clang_format` installs it. CI also builds with GCC and
-`-Werror`, so a compiler warning fails the build.
+Run `./tools/indent-all` before committing; CI fails if it would change a file.
+It needs clang-format 22.1, which `./tools/download_clang_format` installs. CI
+also builds with GCC and `-Werror`, so a compiler warning fails the build.
 
 New functionality must include suitable tests as part of the contribution;
 relying solely on pre-existing tests is not sufficient.

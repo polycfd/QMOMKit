@@ -195,10 +195,9 @@ compatible with it.
 
 ## Validation evidence
 
-A numerical change needs evidence beyond agreement with the implementation
-it replaces, and a validation change states its reference, assumptions, error
-metric, tolerance and reproduction. The references used
-here:
+A numerical change needs evidence beyond agreement with the implementation it
+replaces, and a validation change states its reference, assumptions, error
+metric, tolerance and reproduction. The references used here:
 
 - analytical results: exact discrete quadratures, classical Gaussian rules,
   closed-form ODE, source and node trajectories;

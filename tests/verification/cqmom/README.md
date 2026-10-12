@@ -62,9 +62,9 @@ use a ragged adaptive five-point rule in three dimensions with order {2, 0, 1},
 with coordinate $d$ in units scaled by $s_d$: $s = (1, 1, 1)$ and
 $(10^6, 10^{-6}, 10^3)$ from the two `unit_invariance_*_3d.qmom` fixtures, and
 $(10^8, 10^{-8}, 10^4)$ summed in the test, with required moments from about
-$10^{-24}$ to $10^{28}$. Checked: paths, positions divided by $s$, weights and the required
-moments, plus branch counts for the fixtures. The adaptive rounding bound scales
-with the coordinate
+$10^{-24}$ to $10^{28}$. Checked: paths, positions divided by $s$, weights, the
+required moments $M_k$ divided by $\prod_d s_d^{k_d}$, and branch counts for the
+fixtures. The adaptive rounding bound scales with the coordinate
 ([QMOM](../../../docs/developer/qmom.md#rounding-bound-on-the-recurrence)), so
 units must not change the result.
 
@@ -126,7 +126,7 @@ Errors are absolute unless relative, $|a - e| / \max(|e|, 1)$.
 | --- | --- | --- | --- |
 | Two dimensions | $10^{-12}$ | positions, weights; relative moments | observed $10^{-15}$; moments reach $10^3$ |
 | Three to six dimensions | $10^{-11}$ | positions, weights; relative moments | error grows from $10^{-15}$ in 3D to $5 \times 10^{-13}$ in 6D; the bound sits a factor of 20 above |
-| Coordinate units | $2 \times 10^{-10}$; `disparate_units` $10^{-10}$ | relative positions divided by $s$; weights; relative moments | safety bounds, observed $10^{-16}$; moments below 1 are checked only absolutely |
+| Coordinate units | $2 \times 10^{-10}$; `disparate_units` $10^{-10}$ | relative positions divided by $s$; weights; relative moments divided by $\prod_d s_d^{k_d}$ | safety bounds, observed $10^{-16}$ |
 | Workflows, reconstruction, bounds | $10^{-12}$ | positions, weights, moments | observed $10^{-15}$; moments below $10^2$ |
 | Recursive inversion | $10^{-12}$ to $10^{-7}$ per case | positions, weights, moments | safety bounds; the loosest cover 3D moments with errors of $10^{-11}$ |
 | Branch growth | $5 \times 10^{-11}$ | positions, weights, moments | safety bound: SSP-RK3 integrates a constant rate exactly; observed $10^{-16}$ |

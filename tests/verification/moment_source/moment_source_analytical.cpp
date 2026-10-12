@@ -444,7 +444,7 @@ VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std
         return result;
     }
     if (configured.value().moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>{1, 0} ||
-        configured.value().qmom_options.adaptive || configured.value().qmom_options.adaptive)
+        configured.value().qmom_options.adaptive)
     {
         append_failure(result, "CQMOM configuration did not preserve the expected non-identity fixed settings.");
     }

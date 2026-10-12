@@ -25,9 +25,8 @@ deliberate fault:
 Each case checks that loading fails, that no value is returned, and that the
 error contains the file path and a fragment of the expected message; checking
 failure alone would let an unrelated error pass. For the fixtures marked \*,
-whose fault sits on one line, the error must carry a line number,
-`<file>:<line>: ...`; the number itself is not compared with the fault's
-line.
+whose fault sits on one line, the error must read `<file>:<line>: ...` with
+the line of the fault.
 
 ## Tolerances
 

@@ -2524,8 +2524,7 @@ void verify_cqmom_post_source_inversion_failure_result(const qmomkit::CqmomPhase
     {
         append_failure(verification, "post-source inversion failure did not stop at the time of the moment-source stage.");
     }
-    if (result.diagnostics.second_advection_status != qmomkit::NodeAdvectionStatus::success ||
-        result.diagnostics.final_reconstruction_diagnostics.success)
+    if (result.diagnostics.second_advection_diagnostics.step_count > 0 || result.diagnostics.final_reconstruction_diagnostics.success)
     {
         append_failure(verification, "post-source inversion failure reported later-stage completion after the failed inversion.");
     }
@@ -3281,6 +3280,9 @@ VerificationResult run_unit_invariance_cqmom_state_adaptive_2d(const std::filesy
     // dM_alpha/dt = gamma M_alpha has the independent SSP-RK3 polynomial
     // oracle P(gamma dt). The source callback visits public terminal nodes,
     // proving source-stage reconstruction presents physical coordinates.
+    // Positions are compared after dividing by the units, and moment M_ij after
+    // dividing by units[0]^i units[1]^j, so both fixtures are held to the same
+    // relative standard however small their coordinates and moments are.
     VerificationResult verification;
     const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
@@ -3319,10 +3321,10 @@ VerificationResult run_unit_invariance_cqmom_state_adaptive_2d(const std::filesy
                 bool matched = false;
                 for (const std::vector<double>& initial : initial_canonical)
                 {
-                    const double x = (initial[0] + 0.5 * dt * canonical_velocity[0]) * units[0];
-                    const double y = (initial[1] + 0.5 * dt * canonical_velocity[1]) * units[1];
-                    if (std::abs(coordinates[0] - x) <= 2.0e-9 * std::max(1.0, std::abs(x)) &&
-                        std::abs(coordinates[1] - y) <= 2.0e-9 * std::max(1.0, std::abs(y)))
+                    const double x = initial[0] + 0.5 * dt * canonical_velocity[0];
+                    const double y = initial[1] + 0.5 * dt * canonical_velocity[1];
+                    if (std::abs(coordinates[0] / units[0] - x) <= 2.0e-9 * std::max(1.0, std::abs(x)) &&
+                        std::abs(coordinates[1] / units[1] - y) <= 2.0e-9 * std::max(1.0, std::abs(y)))
                     {
                         matched = true;
                     }
@@ -3384,8 +3386,8 @@ VerificationResult run_unit_invariance_cqmom_state_adaptive_2d(const std::filesy
     std::vector<double> expected_weights;
     for (std::size_t node = 0; node < initial_weights.size(); ++node)
     {
-        expected_coordinates.push_back({(initial_canonical[node][0] + dt * canonical_velocity[0]) * units[0],
-                                        (initial_canonical[node][1] + dt * canonical_velocity[1]) * units[1]});
+        expected_coordinates.push_back(
+            {initial_canonical[node][0] + dt * canonical_velocity[0], initial_canonical[node][1] + dt * canonical_velocity[1]});
         expected_weights.push_back(initial_weights[node] * source_factor);
     }
     for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
@@ -3395,7 +3397,8 @@ VerificationResult run_unit_invariance_cqmom_state_adaptive_2d(const std::filesy
         update_errors(summary.errors, {quadrature.weights()[node]}, {expected_weights[expected_node]});
         for (std::size_t dimension = 0; dimension < units.size(); ++dimension)
         {
-            update_errors(summary.errors, {quadrature.abscissas()[dimension][node]}, {expected_coordinates[expected_node][dimension]});
+            update_errors(summary.errors, {quadrature.abscissas()[dimension][node] / units[dimension]},
+                          {expected_coordinates[expected_node][dimension]});
         }
     }
     std::vector<double> analytical(16, 0.0);
@@ -3409,8 +3412,14 @@ VerificationResult run_unit_invariance_cqmom_state_adaptive_2d(const std::filesy
         }
     }
     const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(quadrature, {4, 4});
-    update_reconstruction_errors(summary.errors, reconstructed.values, analytical);
-    summary.error_norm = scaled_infinity_error(reconstructed.values, analytical);
+    std::vector<double> reconstructed_canonical(reconstructed.values.size());
+    for (std::size_t flat = 0; flat < reconstructed_canonical.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, {4, 4});
+        reconstructed_canonical[flat] = reconstructed.values[flat] / (integer_power(units[0], index[0]) * integer_power(units[1], index[1]));
+    }
+    update_reconstruction_errors(summary.errors, reconstructed_canonical, analytical);
+    summary.error_norm = scaled_infinity_error(reconstructed_canonical, analytical);
     if (summary.errors.moment_scaled > 2.0e-9 || summary.errors.reconstruction_scaled > 2.0e-9)
     {
         append_failure(verification, "unit-invariance CQMOM evolution exceeded the manufactured physical tolerance.");

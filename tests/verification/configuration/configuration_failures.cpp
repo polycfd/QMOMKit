@@ -16,10 +16,9 @@
 //
 // Pass criteria
 //   The load must fail, the reported error must identify the intended cause
-//   and name the file, followed by a line number where the fault sits on one
-//   line (only its presence is checked, not its value), and the result must
-//   hold no case. Checking failure alone would not distinguish a
-//   correct diagnosis from an unrelated one.
+//   and name the file, followed by the line of the fault where it sits on one
+//   line, and the result must hold no case. Checking failure alone would not
+//   distinguish a correct diagnosis from an unrelated one.
 //
 // Reproduce
 //   ctest -R verification_configuration
@@ -30,7 +29,6 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/configuration.hpp"
 
-#include <cctype>
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
@@ -52,7 +50,8 @@ struct ExpectedFailure
     std::string filename;
     Loader loader = Loader::qmom;
     std::string message_fragment;
-    bool line_required = true;
+    // The line of the fault, for faults that sit on one line.
+    std::optional<std::size_t> line;
 };
 
 template <class T> bool has_message_fragment(const qmomkit::config::ConfigurationResult<T>& result, const std::string& fragment)
@@ -65,25 +64,11 @@ template <class T> bool has_source_name(const qmomkit::config::ConfigurationResu
     return result.error().find(path.string()) != std::string::npos;
 }
 
-template <class T> bool has_reported_line(const qmomkit::config::ConfigurationResult<T>& result, const std::filesystem::path& path)
+template <class T> bool reports_line(const qmomkit::config::ConfigurationResult<T>& result, const std::filesystem::path& path, const std::size_t line)
 {
-    // A located error reads "<file>:<line>: <message>"; without a line it reads
-    // "<file>: <message>". Require the file name, a colon, at least one digit,
-    // and a second colon, so the line number itself must be present.
-    const std::string message = result.error();
-    const std::string location_prefix = path.string() + ':';
-    const std::size_t prefix_position = message.find(location_prefix);
-    if (prefix_position == std::string::npos)
-    {
-        return false;
-    }
-    const std::size_t digits_begin = prefix_position + location_prefix.size();
-    std::size_t digits_end = digits_begin;
-    while (digits_end < message.size() && std::isdigit(static_cast<unsigned char>(message[digits_end])) != 0)
-    {
-        ++digits_end;
-    }
-    return digits_end > digits_begin && digits_end < message.size() && message[digits_end] == ':';
+    // A located error reads "<file>:<line>: <message>". The colon after the
+    // number keeps line 1 from matching line 15.
+    return result.error().find(path.string() + ':' + std::to_string(line) + ':') != std::string::npos;
 }
 
 template <class T>
@@ -102,9 +87,13 @@ void verify_failed_load(const qmomkit::config::ConfigurationResult<T>& result, c
     }
     QMOMKIT_VERIFY_CHECK(has_message_fragment(result, expected.message_fragment));
     QMOMKIT_VERIFY_CHECK(has_source_name(result, path));
-    if (expected.line_required)
+    if (expected.line.has_value())
     {
-        QMOMKIT_VERIFY_CHECK(has_reported_line(result, path));
+        if (!reports_line(result, path, *expected.line))
+        {
+            std::cerr << "Expected line " << *expected.line << " in: " << result.error() << '\n';
+        }
+        QMOMKIT_VERIFY_CHECK(reports_line(result, path, *expected.line));
     }
 }
 
@@ -138,36 +127,36 @@ int main(const int argc, char** argv)
     const std::vector<ExpectedFailure> failures{
         // A malformed section header is the representative syntax error. Users
         // should see a syntax failure tied to the offending file and line.
-        {"malformed_syntax.qmom", Loader::qmom, "Malformed section header."},
+        {"malformed_syntax.qmom", Loader::qmom, "Malformed section header.", 1},
 
         // Invalid booleans are common copy/edit mistakes. They must be rejected
         // instead of interpreted with truthy/falsy conventions.
-        {"qmom_invalid_adaptive.qmom", Loader::qmom, "qmom.adaptive must be true or false."},
+        {"qmom_invalid_adaptive.qmom", Loader::qmom, "qmom.adaptive must be true or false.", 5},
 
         // A QMOM case needs either explicit moments or an analytical
         // initialization. Without one, no meaningful case can be created.
-        {"qmom_missing_moments.qmom", Loader::qmom, "QMOM configuration requires either '[moments] values'", false},
+        {"qmom_missing_moments.qmom", Loader::qmom, "QMOM configuration requires either '[moments] values'"},
 
         // Syntax is valid here, but the requested two-node inversion does not
         // have the required four raw moments. This should fail at case creation
         // time, before compute_qmom(...) is called.
-        {"qmom_insufficient_moments.qmom", Loader::qmom, "requires at least 2 * node_count moments.", false},
+        {"qmom_insufficient_moments.qmom", Loader::qmom, "requires at least 2 * node_count moments."},
 
         // Vandermonde solver selection is a user-facing CQMOM option. Unknown
         // names should not silently fall back to the default policy.
-        {"cqmom_invalid_vandermonde_solver.qmom", Loader::cqmom, "vandermonde.solver must be"},
+        {"cqmom_invalid_vandermonde_solver.qmom", Loader::cqmom, "vandermonde.solver must be", 9},
 
         // The public CQMOM loader cannot infer a phase-space hierarchy. Missing
         // node counts should be reported as missing required configuration.
-        {"cqmom_missing_phase_space.qmom", Loader::cqmom, "Missing required key 'phase_space.node_counts'.", false},
+        {"cqmom_missing_phase_space.qmom", Loader::cqmom, "Missing required key 'phase_space.node_counts'."},
 
         // A conditioning order must be a permutation of dimensions. Duplicate
         // dimensions describe an invalid mathematical CQMOM hierarchy.
-        {"cqmom_invalid_conditioning_order.qmom", Loader::cqmom, "conditioning_order must be a permutation"},
+        {"cqmom_invalid_conditioning_order.qmom", Loader::cqmom, "conditioning_order must be a permutation", 3},
 
         // The full tensor of raw moments must be complete. Missing tensor
         // entries are rejected before the CQMOM case is exposed to the caller.
-        {"cqmom_incomplete_tensor.qmom", Loader::cqmom, "The full tensor of raw moments is incomplete; it is missing 1 of its 4 entries.", false},
+        {"cqmom_incomplete_tensor.qmom", Loader::cqmom, "The full tensor of raw moments is incomplete; it is missing 1 of its 4 entries."},
     };
 
     bool matched = false;

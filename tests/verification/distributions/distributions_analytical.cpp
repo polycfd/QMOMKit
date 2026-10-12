@@ -1162,10 +1162,10 @@ void verify_normal_odd_moment_cancellation()
         {{qmomkit::NormalDistribution{-10.0, 0.5}, density}, {qmomkit::NormalDistribution{10.0, 0.5}, density}}};
     const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(mixture, 5);
 
+    // The odd moments cancel to zero by symmetry, and so do their reference
+    // sums, so the comparison holds them to 1e-12; m1 is held tighter.
     assert_moments(result, expected, 1.0e-12);
     assert_near_relative(result.moments[1], 0.0, 1.0e-14);
-    assert_near_relative(result.moments[3], 0.0, 1.0e-12);
-    assert_near_relative(result.moments[5], 0.0, 1.0e-10);
 }
 
 void verify_component_order_permutation_invariance()

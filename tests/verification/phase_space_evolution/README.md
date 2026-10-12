@@ -124,15 +124,16 @@ system exactly, so ten source-only steps of `0.01` must translate the points
 by $0.75\,t$ up to roundoff.
 
 `cqmom_state_is_unit_invariant` runs the weighted points $(-1, -1; 0.1)$,
-$(1, -1; 0.3)$ and $(0.5, 2; 0.6)$ in units `(1, 1)` and `(1e6, 1e-6)`, with
-adaptive capacity `2 x 2` and conditioning order `{1,0}`. One Strang step of
-`0.2` applies the velocity $(0.4, -0.25)$ times the units with SSP-RK3 node
-advection, exact for a constant velocity, and $dM_\alpha/dt = 0.1\,M_\alpha$,
-which multiplies the weights by $P(0.02)$, where
+$(1, -1; 0.3)$ and $(0.5, 2; 0.6)$ in units $(s_0, s_1)$ = `(1, 1)` and
+`(1e6, 1e-6)`, with adaptive capacity `2 x 2` and conditioning order `{1,0}`.
+One Strang step of `0.2` applies the velocity $(0.4, -0.25)$ times the units
+with SSP-RK3 node advection, exact for a constant velocity, and
+$dM_\alpha/dt = 0.1\,M_\alpha$, which multiplies the weights by $P(0.02)$, where
 $P(z) = 1 + z + z^2/2 + z^3/6$ is the SSP-RK3 polynomial. Terminal paths,
-weights, coordinates and the `4 x 4` moments are checked, and the source
-callback confirms through `for_each_terminal_node` that it sees coordinates in
-the fixture's units after the first half step.
+weights, coordinates divided by the units and the `4 x 4` moments divided by
+$s_0^i s_1^j$ are checked, and the source callback confirms through
+`for_each_terminal_node` that it sees coordinates in the fixture's units after
+the first half step.
 
 ## CQMOM source callbacks
 
@@ -201,7 +202,7 @@ accessor.
 | `direct_advection` | positions `2e-12`, moments `2e-11` | `1e-13`, `1e-12` | SSP-RK3 node error |
 | RK23 minimum step | `2e-6` QMOM, `3e-6` CQMOM | `1e-7` | RK23 error at the minimum step |
 | `node_source` | moments `1e-13`, points and weights `1e-12` | below `1e-15` | the step is exact; roundoff |
-| unit invariance | `2e-9` | `1e-15` | exact reference; safety bound. The metric floors at 1, so the $\xi_1$ coordinates near $10^{-6}$ and the small moments of the rescaled run are checked only absolutely |
+| unit invariance | `2e-9` | `1e-15` | exact reference; safety bound. Positions and moments are compared after dividing by the units, so both runs meet the same relative bound |
 | native source, combined | `5e-10`, `5e-9` | below `1e-15`, `1e-13` | safety bounds |
 | QMOM, CQMOM boundary | `5e-11`, `5e-9` | `1e-15`, below `1e-15` | exact reference; safety bounds |
 

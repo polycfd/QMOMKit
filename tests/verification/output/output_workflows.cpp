@@ -42,7 +42,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -142,8 +141,7 @@ std::filesystem::path output_path(const qmomkit::OutputOptions& options, const s
 
 void remove_known_outputs(const std::filesystem::path& directory)
 {
-    for (const char* const filename : {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt", "cqmom_state.txt",
-                                       "disabled_moments.txt", "disabled_quadrature.txt"})
+    for (const char* const filename : {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt", "cqmom_state.txt"})
     {
         std::filesystem::remove(directory / filename);
     }
@@ -152,19 +150,12 @@ void remove_known_outputs(const std::filesystem::path& directory)
 void write_qmom_outputs(const qmomkit::OutputOptions& options, const std::string& stem, const qmomkit::QmomState& state,
                         const qmomkit::QmomResult& result)
 {
-    // `OutputOptions` is a driver policy object. This representative workflow
-    // shows how a user enables or suppresses file creation before constructing
-    // the public writers.
-    if (options.write_moments)
-    {
-        auto writer = qmomkit::MomentWriter::for_qmom(output_path(options, stem, "moments"), state, options);
-        writer.write(output_time, state, result);
-    }
-    if (options.write_quadrature)
-    {
-        auto writer = qmomkit::QuadratureWriter::for_qmom(output_path(options, stem, "quadrature"), result.weights.size());
-        writer.write(output_time, result);
-    }
+    // The writers read only the generalized moment orders of `OutputOptions`;
+    // its directory places the files here.
+    auto moment_writer = qmomkit::MomentWriter::for_qmom(output_path(options, stem, "moments"), state, options);
+    moment_writer.write(output_time, state, result);
+    auto quadrature_writer = qmomkit::QuadratureWriter::for_qmom(output_path(options, stem, "quadrature"), result.weights.size());
+    quadrature_writer.write(output_time, result);
 }
 
 void write_cqmom_outputs(const qmomkit::OutputOptions& options, const std::string& stem, const qmomkit::CqmomResult& result)
@@ -173,16 +164,10 @@ void write_cqmom_outputs(const qmomkit::OutputOptions& options, const std::strin
     // moments from terminal quadrature. The non-monotonic request makes the
     // output ordering contract visible in the file header and row.
     const qmomkit::RawMomentRequest requested_moments{{{1, 1}, {0, 0}, {2, 0}, {0, 1}}};
-    if (options.write_moments)
-    {
-        auto writer = qmomkit::MomentWriter::for_cqmom(output_path(options, stem, "moments"), requested_moments);
-        writer.write(output_time, result.quadrature);
-    }
-    if (options.write_quadrature)
-    {
-        auto writer = qmomkit::QuadratureWriter::for_cqmom(output_path(options, stem, "quadrature"), 2);
-        writer.write(output_time, result.quadrature);
-    }
+    auto moment_writer = qmomkit::MomentWriter::for_cqmom(output_path(options, stem, "moments"), requested_moments);
+    moment_writer.write(output_time, result.quadrature);
+    auto quadrature_writer = qmomkit::QuadratureWriter::for_cqmom(output_path(options, stem, "quadrature"), 2);
+    quadrature_writer.write(output_time, result.quadrature);
 }
 
 void write_cqmom_state_output(const std::filesystem::path& path, const qmomkit::CqmomState& state, const qmomkit::CqmomQuadrature& quadrature)
@@ -368,21 +353,17 @@ int main(const int argc, char** argv)
     const qmomkit::CqmomResult cqmom_result = qmomkit::compute_cqmom(configured_cqmom.value());
     QMOMKIT_VERIFY_CHECK(cqmom_result.status == qmomkit::CqmomStatus::success);
 
-    const qmomkit::OutputOptions enabled_options{output_directory, true, true, 0.5};
+    const qmomkit::OutputOptions output_options{output_directory, true, true, 0.5};
     if (selected_case == "qmom")
     {
-        const qmomkit::OutputOptions disabled_options{output_directory, false, false, std::nullopt};
         const qmomkit::QmomState qmom_state = configured_qmom.value().initial_state();
-        write_qmom_outputs(disabled_options, "disabled", qmom_state, qmom_result);
-        QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_moments.txt"));
-        QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_quadrature.txt"));
-        write_qmom_outputs(enabled_options, "qmom", qmom_state, qmom_result);
+        write_qmom_outputs(output_options, "qmom", qmom_state, qmom_result);
         verify_qmom_moment_output(output_directory / "qmom_moments.txt", qmomkit::MomentSet(qmom_state.moment_values()));
         verify_qmom_quadrature_output(output_directory / "qmom_quadrature.txt", qmom_result);
     }
     else
     {
-        write_cqmom_outputs(enabled_options, "cqmom", cqmom_result);
+        write_cqmom_outputs(output_options, "cqmom", cqmom_result);
         verify_cqmom_moment_output(output_directory / "cqmom_moments.txt");
         verify_cqmom_quadrature_output(output_directory / "cqmom_quadrature.txt", cqmom_result.quadrature);
 

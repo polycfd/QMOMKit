@@ -1,18 +1,22 @@
 // Realizability policies and retries in the moment-source step.
 //
 // What is verified
-//   That a QMOM realizability policy checks the SSP-RK3 source step as its
-//   check mode says, that a rejected step is halved and the rest of the
-//   interval completed when retries are allowed, and that it fails with the
+//   That a QMOM realizability policy in `FinalOnly` mode checks only the result
+//   of the SSP-RK3 source step and in `EveryStage` mode also its first stage;
+//   that a rejected step is halved, counted as a retry and the rest of the
+//   interval completed when retries are allowed; that it fails with the
 //   documented status when they are not, or when halving would go below the
-//   minimum time step. A failed step returns the state it started from.
+//   minimum time step; and that a failed step returns the state it started
+//   from, not the state after its first advection half-step.
 //
 // How the reference is constructed
 //   By hand. The moments (1, 0, m2, 0) of two points at -sqrt(m2) and sqrt(m2)
-//   relax under dm2/dt = -m2 with m0, m1 and m3 fixed, and the velocity is zero.
+//   relax under dm2/dt = -m2 with m0, m1 and m3 fixed. The accepted cases use
+//   zero velocity; the failing ones use dxi/dt = 0.1 xi, so that the first
+//   advection half-step changes the moments before the source step fails.
 //   One SSP-RK3 step of size dt multiplies m2 by P(-dt), where
 //   P(z) = 1 + z + z^2/2 + z^3/6, and its first stage gives m2 (1 - dt). With
-//   dt = 1.5 the first stage is -0.5, a negative variance that the real-line
+//   dt = 1.5 the first stage is negative for any m2 > 0, which the real-line
 //   check rejects, while the step result P(-1.5) = 0.0625 is realizable:
 //   - FinalOnly checks only the result and accepts the full step, so
 //     m2 = P(-1.5), with no retry;
@@ -65,10 +69,10 @@ qmomkit::QmomState initial_state()
 }
 
 qmomkit::QmomPhaseSpaceEvolutionResult advance(const qmomkit::QmomState& state, const qmomkit::RealizabilityCheckMode check_mode,
-                                               const std::size_t max_retries, const double min_time_step)
+                                               const std::size_t max_retries, const double min_time_step, const double velocity_rate)
 {
-    const qmomkit::PhaseSpaceVelocity zero_velocity =
-        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity([velocity_rate](double, const std::vector<double>& xi)
+                                                                                    { return std::vector<double>{velocity_rate * xi[0]}; });
     const qmomkit::QmomMomentSource relaxation = [](double, const qmomkit::QmomSourceContext& context)
     {
         qmomkit::QmomMomentRate rate{std::vector<double>(context.size(), 0.0)};
@@ -81,7 +85,7 @@ qmomkit::QmomPhaseSpaceEvolutionResult advance(const qmomkit::QmomState& state, 
     options.realizability_policy.support = qmomkit::MomentSupport::real_line;
     options.source_options.ssp_rk3_options.max_retries = max_retries;
     options.source_options.ssp_rk3_options.min_time_step = min_time_step;
-    return qmomkit::advance_qmom_phase_space(state, 0.0, time_step, zero_velocity, relaxation, options);
+    return qmomkit::advance_qmom_phase_space(state, 0.0, time_step, velocity, relaxation, options);
 }
 
 void verify_accepted_step(const qmomkit::QmomPhaseSpaceEvolutionResult& result, const double expected_m2, const std::size_t expected_retries)
@@ -118,26 +122,26 @@ void verify_failed_step(const qmomkit::QmomState& input, const qmomkit::QmomPhas
 
 void verify_final_only_policy_accepts_the_full_step()
 {
-    verify_accepted_step(advance(initial_state(), qmomkit::RealizabilityCheckMode::FinalOnly, 0, 0.0), ssp_rk3_factor(-time_step), 0);
+    verify_accepted_step(advance(initial_state(), qmomkit::RealizabilityCheckMode::FinalOnly, 0, 0.0, 0.0), ssp_rk3_factor(-time_step), 0);
 }
 
 void verify_every_stage_policy_halves_a_rejected_step()
 {
     const double half_step_factor = ssp_rk3_factor(-0.5 * time_step);
-    verify_accepted_step(advance(initial_state(), qmomkit::RealizabilityCheckMode::EveryStage, 1, 0.0), half_step_factor * half_step_factor, 1);
+    verify_accepted_step(advance(initial_state(), qmomkit::RealizabilityCheckMode::EveryStage, 1, 0.0, 0.0), half_step_factor * half_step_factor, 1);
 }
 
 void verify_rejected_step_without_retries_fails()
 {
     const qmomkit::QmomState state = initial_state();
-    verify_failed_step(state, advance(state, qmomkit::RealizabilityCheckMode::EveryStage, 0, 0.0),
+    verify_failed_step(state, advance(state, qmomkit::RealizabilityCheckMode::EveryStage, 0, 0.0, 0.1),
                        qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
 }
 
 void verify_minimum_time_step_stops_halving()
 {
     const qmomkit::QmomState state = initial_state();
-    verify_failed_step(state, advance(state, qmomkit::RealizabilityCheckMode::EveryStage, 4, 1.0),
+    verify_failed_step(state, advance(state, qmomkit::RealizabilityCheckMode::EveryStage, 4, 1.0, 0.1),
                        qmomkit::MomentSourceUpdateStatus::minimum_timestep_reached);
 }
 

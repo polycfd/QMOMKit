@@ -1,11 +1,14 @@
-// Adaptive QMOM evolution: the node count changes only in the reconstruction
-// after the source step, growing by one node or dropping a vanishing one.
+// Adaptive QMOM evolution: the node count changes in the reconstruction after
+// the source step, growing when the moments support more nodes or dropping a
+// node whose weight vanishes.
 //
 // What is verified
-//   That an adaptive QMOM state grows from one to two nodes as soon as its
-//   moments support two, and drops to one node when the weight of one of two
-//   nodes vanishes; that the accepted quadrature after every step is the rule
-//   the moments describe; and that the stored moments are those of that rule.
+//   That an adaptive QMOM state with at most two nodes grows from one to two
+//   nodes as soon as its moments support two, and drops to one node when the
+//   weight of one of two nodes vanishes. With two nodes at most, growth by one
+//   node cannot be told from growth to the maximum; unit tests cover that
+//   limit. Also that the accepted quadrature after every step is the rule the
+//   moments describe, and that the stored moments are those of that rule.
 //
 // How the reference is constructed
 //   Chosen, not computed. The weights move linearly in time between two rules
@@ -21,8 +24,8 @@
 // Error metric and pass criteria
 //   The active node count after each step must equal the expected count
 //   exactly. Positions, weights and moments must match the reference to
-//   1.0e-12, relative to max(|reference|, 1). Observed errors are of order
-//   1e-15, the rounding of the source step and the reconstruction.
+//   1.0e-12, relative to max(|reference|, 1). Observed errors are below 1e-14,
+//   the rounding of the source step and the reconstruction.
 //
 // Reproduce
 //   ctest -R verification_phase_space_evolution_adaptive_qmom_
@@ -125,7 +128,7 @@ void verify_linear_weight_path(const std::vector<double>& initial_weights, const
     QMOMKIT_VERIFY_NEAR(time, 1.0, 1.0e-15);
 }
 
-void verify_grows_by_one_node()
+void verify_grows_from_one_to_two_nodes()
 {
     // From one point at 1.5 to equal weights at 0.5 and 1.5: the reconstruction
     // tries one more node after the first step and keeps it.
@@ -145,7 +148,7 @@ int main(const int argc, char** argv)
 {
     return qmomkit::test::dispatch_test_case(argc, argv,
                                              {
-                                                 {"grows_by_one_node", verify_grows_by_one_node},
+                                                 {"grows_from_one_to_two_nodes", verify_grows_from_one_to_two_nodes},
                                                  {"drops_a_vanishing_node", verify_drops_a_vanishing_node},
                                              });
 }

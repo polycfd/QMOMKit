@@ -371,10 +371,10 @@ from the exact solutions in
 Commuting cases, whose split solution is exact, isolate the integrators;
 noncommuting cases measure the splitting order under step refinement, about two
 for `strang` and one for `advsrc` and `srcadv`, also with time-dependent
-callbacks, which detect a stage evaluated on the wrong time interval. Further
-cases cover adaptive QMOM node counts and source-step policies with retries. A
-new scheme adds its order there, and a new status or diagnostic a
-component-regression test of the failing path.
+callbacks, whose exact split solutions detect a stage evaluated on the wrong
+time interval. Further cases cover adaptive QMOM node counts and source-step
+policies with retries. A new scheme adds its order there, and a new status or
+diagnostic a component-regression test of the failing path.
 
 ## Where the code lives
 

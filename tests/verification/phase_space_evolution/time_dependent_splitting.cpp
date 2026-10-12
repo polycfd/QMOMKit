@@ -1,31 +1,43 @@
-// Splitting order when both operators depend on time.
+// Splitting with a velocity and a source that both depend on time.
 //
 // What is verified
 //   That `strang` reaches second order and `advsrc` and `srcadv` first order
 //   when the velocity and the source depend explicitly on time and do not
-//   commute. Each stage must then evaluate its callback on the right time
-//   interval: a source stage started at t + dt/2 instead of t, for example,
-//   reduces Strang splitting to first order. The other noncommuting cases use
-//   callbacks that do not depend on time, so they cannot detect such an error.
+//   commute, and that each scheme reproduces its exact split solution, which
+//   requires every stage to evaluate its callback on the right time interval.
+//   A stage on the wrong interval leaves a Lie scheme first order but moves it
+//   away from its split solution; a source stage started at t + dt/2 instead of
+//   t also reduces Strang splitting to first order. The other noncommuting
+//   cases use callbacks that do not depend on time, so they cannot detect such
+//   an error.
 //
 // How the reference is constructed
 //   By hand. Two weighted points (0.4 at 0.5, 0.6 at 2) move under
 //   dxi/dt = xi / (1 + t) + (1 + t) cos t, whose solution is
 //   xi(t) = (1 + t) (xi(0) + sin t). The first term is the node velocity; the
 //   second is a drift written as the moment source dm_k/dt = k c(t) m_{k-1}
-//   with c(t) = (1 + t) cos t. The two operators do not commute, the weights
-//   are constant, and the moments m_0 to m_3 at t = 1 follow from the exact
-//   positions. Node advection uses RK45 at tolerances 1e-13 relative and 1e-15
-//   absolute, so the splitting error dominates.
+//   with c(t) = (1 + t) cos t. The two operators do not commute, and the
+//   weights are constant. Each operator alone also has a closed-form flow over
+//   [s, s + h]: advection maps xi to xi (1 + s + h) / (1 + s), and the drift
+//   adds F(s + h) - F(s) with F(t) = (1 + t) sin t + cos t. Composing these
+//   flows in the order and on the intervals of a scheme gives its exact split
+//   solution. The moments m_0 to m_3 at t = 1 follow from the positions.
 //
 // Error metric and pass criteria
-//   The error of a run is the largest error of m_0 to m_3 at t = 1, relative
-//   to max(|reference|, 1). Each scheme runs with 10, 20, 40 and 80 steps; the
-//   error must fall at every refinement, and the observed order
-//   log2(e_dt / e_dt/2) on the two finest pairs must be at least 1.75 and 1.85
-//   for `strang` and at least 0.75 and 0.85 for `advsrc` and `srcadv`, the
-//   thresholds of the other noncommuting QMOM case. The observed orders are
-//   2.07 and 2.03 for `strang` and within 0.03 of 1 for the others.
+//   Errors are the largest error of m_0 to m_3 at t = 1, relative to
+//   max(|reference|, 1). Each scheme runs with 10, 20, 40 and 80 steps, with
+//   RK45 node advection at tolerances 1e-13 relative and 1e-15 absolute.
+//   - Against the exact solution, the error must fall at every refinement,
+//     and the observed order log2(e_dt / e_dt/2) on the two finest pairs must
+//     be at least 1.75 and 1.85 for `strang` and at least 0.75 and 0.85 for
+//     `advsrc` and `srcadv`, the thresholds of the other noncommuting QMOM
+//     case. The observed orders are 2.07 and 2.03 for `strang` and within
+//     0.03 of 1 for the others.
+//   - Against the exact split solution, the deviation is the error of the
+//     third-order SSP-RK3 source step, so it must converge at an observed order
+//     of at least 2.8 on the two finest pairs and stay at most 1e-6 at 80
+//     steps. The observed orders are 2.99, and the deviation at 80 steps is
+//     1e-7; a stage on the wrong interval adds a deviation of order dt.
 //
 // Reproduce
 //   ctest -R verification_phase_space_evolution_time_dependent_splitting_
@@ -50,21 +62,71 @@ constexpr double final_time = 1.0;
 constexpr std::array<std::size_t, 4> step_counts{10, 20, 40, 80};
 constexpr std::array<double, 2> weights{0.4, 0.6};
 constexpr std::array<double, 2> initial_nodes{0.5, 2.0};
+constexpr double split_deviation_bound = 1.0e-6;
 
-std::vector<double> exact_moments(const double time)
+std::vector<double> moments_of(const std::array<double, 2>& nodes)
 {
     std::vector<double> moments(4, 0.0);
     for (std::size_t order = 0; order < moments.size(); ++order)
     {
         for (std::size_t node = 0; node < weights.size(); ++node)
         {
-            moments[order] += weights[node] * std::pow((1.0 + time) * (initial_nodes[node] + std::sin(time)), static_cast<int>(order));
+            moments[order] += weights[node] * std::pow(nodes[node], static_cast<int>(order));
         }
     }
     return moments;
 }
 
-double run_error(const qmomkit::PhaseSpaceEvolutionScheme scheme, const std::size_t steps)
+std::vector<double> exact_moments(const double time)
+{
+    return moments_of({(1.0 + time) * (initial_nodes[0] + std::sin(time)), (1.0 + time) * (initial_nodes[1] + std::sin(time))});
+}
+
+// Exact flows of the two operators over [start, start + step].
+double advection_flow(const double xi, const double start, const double step)
+{
+    return xi * (1.0 + start + step) / (1.0 + start);
+}
+
+double drift_flow(const double xi, const double start, const double step)
+{
+    const auto antiderivative = [](const double time) { return ((1.0 + time) * std::sin(time)) + std::cos(time); };
+    return xi + antiderivative(start + step) - antiderivative(start);
+}
+
+// One step of the scheme with the exact flows, on the intervals the scheme
+// assigns to its stages.
+double split_step(const qmomkit::PhaseSpaceEvolutionScheme scheme, const double xi, const double start, const double step)
+{
+    switch (scheme)
+    {
+    case qmomkit::PhaseSpaceEvolutionScheme::strang:
+        return advection_flow(drift_flow(advection_flow(xi, start, 0.5 * step), start, step), start + (0.5 * step), 0.5 * step);
+    case qmomkit::PhaseSpaceEvolutionScheme::advsrc:
+        return drift_flow(advection_flow(xi, start, step), start, step);
+    case qmomkit::PhaseSpaceEvolutionScheme::srcadv:
+        return advection_flow(drift_flow(xi, start, step), start, step);
+    }
+    return xi;
+}
+
+double relative_error(const std::vector<double>& moments, const std::vector<double>& reference)
+{
+    double error = 0.0;
+    for (std::size_t order = 0; order < reference.size(); ++order)
+    {
+        error = std::max(error, std::abs(moments[order] - reference[order]) / std::max(1.0, std::abs(reference[order])));
+    }
+    return error;
+}
+
+struct RunErrors
+{
+    double exact = 0.0;
+    double split = 0.0;
+};
+
+RunErrors run(const qmomkit::PhaseSpaceEvolutionScheme scheme, const std::size_t steps)
 {
     qmomkit::QmomCase qmom_case;
     qmom_case.moments = qmomkit::MomentSet(exact_moments(0.0));
@@ -91,50 +153,77 @@ double run_error(const qmomkit::PhaseSpaceEvolutionScheme scheme, const std::siz
     options.node_options.adaptive_options.absolute_tolerance = 1.0e-15;
     options.node_options.adaptive_options.initial_step = 1.0e-4;
 
+    std::array<double, 2> split_nodes = initial_nodes;
     const double time_step = final_time / static_cast<double>(steps);
     for (std::size_t step = 0; step < steps; ++step)
     {
-        const qmomkit::QmomPhaseSpaceEvolutionResult result =
-            qmomkit::advance_qmom_phase_space(state, static_cast<double>(step) * time_step, time_step, velocity, drift, options);
+        const double start = static_cast<double>(step) * time_step;
+        const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(state, start, time_step, velocity, drift, options);
         QMOMKIT_VERIFY_CHECK(result.ok());
         state = result.state;
-    }
-
-    const std::vector<double> reference = exact_moments(final_time);
-    double error = 0.0;
-    for (std::size_t order = 0; order < reference.size(); ++order)
-    {
-        error = std::max(error, std::abs(state.moment_values()[order] - reference[order]) / std::max(1.0, std::abs(reference[order])));
-    }
-    return error;
-}
-
-void verify_scheme_order(const qmomkit::PhaseSpaceEvolutionScheme scheme, const double second_finest_minimum, const double finest_minimum)
-{
-    std::array<double, step_counts.size()> errors{};
-    for (std::size_t run = 0; run < step_counts.size(); ++run)
-    {
-        errors[run] = run_error(scheme, step_counts[run]);
-        QMOMKIT_VERIFY_CHECK(std::isfinite(errors[run]));
-        if (run > 0)
+        for (double& node : split_nodes)
         {
-            QMOMKIT_VERIFY_CHECK(errors[run] < errors[run - 1]);
+            node = split_step(scheme, node, start, time_step);
         }
     }
-    const std::size_t finest = step_counts.size() - 1;
-    QMOMKIT_VERIFY_CHECK(std::log2(errors[finest - 2] / errors[finest - 1]) >= second_finest_minimum);
-    QMOMKIT_VERIFY_CHECK(std::log2(errors[finest - 1] / errors[finest]) >= finest_minimum);
+    return {relative_error(state.moment_values(), exact_moments(final_time)), relative_error(state.moment_values(), moments_of(split_nodes))};
+}
+
+std::array<RunErrors, step_counts.size()> run_all(const qmomkit::PhaseSpaceEvolutionScheme scheme)
+{
+    std::array<RunErrors, step_counts.size()> errors{};
+    for (std::size_t index = 0; index < step_counts.size(); ++index)
+    {
+        errors.at(index) = run(scheme, step_counts.at(index));
+        QMOMKIT_VERIFY_CHECK(std::isfinite(errors.at(index).exact) && std::isfinite(errors.at(index).split));
+    }
+    return errors;
+}
+
+double exact_error(const RunErrors& errors)
+{
+    return errors.exact;
+}
+
+double split_deviation(const RunErrors& errors)
+{
+    return errors.split;
+}
+
+// Checks that `error` falls at every refinement and reaches the given observed
+// orders on the two finest pairs.
+void verify_order(const std::array<RunErrors, step_counts.size()>& errors, double (*error)(const RunErrors&), const double second_finest,
+                  const double finest)
+{
+    for (std::size_t index = 1; index < errors.size(); ++index)
+    {
+        QMOMKIT_VERIFY_CHECK(error(errors.at(index)) < error(errors.at(index - 1)));
+    }
+    const std::size_t last = errors.size() - 1;
+    QMOMKIT_VERIFY_CHECK(std::log2(error(errors.at(last - 2)) / error(errors.at(last - 1))) >= second_finest);
+    QMOMKIT_VERIFY_CHECK(std::log2(error(errors.at(last - 1)) / error(errors.at(last))) >= finest);
 }
 
 void verify_strang_is_second_order()
 {
-    verify_scheme_order(qmomkit::PhaseSpaceEvolutionScheme::strang, 1.75, 1.85);
+    verify_order(run_all(qmomkit::PhaseSpaceEvolutionScheme::strang), exact_error, 1.75, 1.85);
 }
 
 void verify_lie_schemes_are_first_order()
 {
-    verify_scheme_order(qmomkit::PhaseSpaceEvolutionScheme::advsrc, 0.75, 0.85);
-    verify_scheme_order(qmomkit::PhaseSpaceEvolutionScheme::srcadv, 0.75, 0.85);
+    verify_order(run_all(qmomkit::PhaseSpaceEvolutionScheme::advsrc), exact_error, 0.75, 0.85);
+    verify_order(run_all(qmomkit::PhaseSpaceEvolutionScheme::srcadv), exact_error, 0.75, 0.85);
+}
+
+void verify_schemes_match_their_exact_split_solutions()
+{
+    for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
+         {qmomkit::PhaseSpaceEvolutionScheme::strang, qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv})
+    {
+        const std::array<RunErrors, step_counts.size()> errors = run_all(scheme);
+        verify_order(errors, split_deviation, 2.8, 2.8);
+        QMOMKIT_VERIFY_CHECK(errors.back().split <= split_deviation_bound);
+    }
 }
 
 } // namespace
@@ -145,5 +234,6 @@ int main(const int argc, char** argv)
                                              {
                                                  {"strang_is_second_order", verify_strang_is_second_order},
                                                  {"lie_schemes_are_first_order", verify_lie_schemes_are_first_order},
+                                                 {"schemes_match_their_exact_split_solutions", verify_schemes_match_their_exact_split_solutions},
                                              });
 }

@@ -115,20 +115,29 @@ $m_k(t) = m_k(0)\,e^{kt} + 0.1\,(e^{kt} - 1)/k$. Each scheme runs to
 $T = 0.1$ with $\Delta t = 0.02$ down to `0.0025`, using RK45 node advection
 at step `0.0025`; the error must fall at every refinement.
 
-`time_dependent_splitting_{strang_is_second_order,lie_schemes_are_first_order}`
-(`time_dependent_splitting.cpp`) make both operators depend on time, so that a
-stage evaluating its callback on the wrong interval changes the order: a
-source stage started at $t + \Delta t/2$ instead of $t$, for example, makes
-Strang splitting first order. The weighted points $\xi = 0.5, 2$ (weights
+`time_dependent_splitting_<case>` (`time_dependent_splitting.cpp`) make both
+operators depend on time. The weighted points $\xi = 0.5, 2$ (weights
 $0.4, 0.6$) move under $\dot\xi = \xi/(1+t) + (1+t)\cos t$, so
 $\xi(t) = (1+t)\,(\xi(0) + \sin t)$. The first term is the velocity; the
 second is the drift $dm_k/dt = k\,(1+t)\cos t\; m_{k-1}$. Each scheme runs to
 $T = 1$ with 10, 20, 40 and 80 steps and RK45 node advection at `1e-13`
-relative; the error must fall at every refinement.
+relative.
+
+- `strang_is_second_order`, `lie_schemes_are_first_order`: against the exact
+  solution, the error must fall at every refinement and reach the order of
+  the scheme.
+- `schemes_match_their_exact_split_solutions`: each operator alone has a
+  closed-form flow over $[s, s+h]$, $\xi \mapsto \xi\,(1+s+h)/(1+s)$ and
+  $\xi \mapsto \xi + F(s+h) - F(s)$ with $F(t) = (1+t)\sin t + \cos t$.
+  Composed in the order and on the intervals of each scheme, they give its
+  exact split solution, which the library must reproduce up to the third-order
+  error of the SSP-RK3 source step. A stage on the wrong interval adds a
+  deviation of order $\Delta t$; for Lie splitting it leaves the order at
+  one, so only this comparison detects it.
 
 ## Adaptive QMOM node counts
 
-`adaptive_qmom_{grows_by_one_node,drops_a_vanishing_node}`
+`adaptive_qmom_{grows_from_one_to_two_nodes,drops_a_vanishing_node}`
 (`adaptive_qmom_evolution.cpp`) evolve an adaptive QMOM state with at most two
 nodes, zero velocity and a constant moment rate over four steps of `0.25`.
 The weights move linearly between two rules on the nodes $0.5$ and $1.5$, and
@@ -159,8 +168,13 @@ $\Delta t = 1.5$ while $P(-1.5) = 0.0625$.
 | `rejected_step_without_retries_fails` | `EveryStage` | `moment_source_failed`, `rejected_by_predicate` |
 | `minimum_time_step_stops_halving` | `EveryStage`, `max_retries = 4`, `min_time_step = 1` | `moment_source_failed`, `minimum_timestep_reached` |
 
-An accepted step must also give the nodes $\pm\sqrt{m_2}$ with weights $0.5$;
-a failed one must return its input moments and the final time $0$.
+The accepted cases use zero velocity; the failing ones use
+$\dot\xi = 0.1\,\xi$, so that their first advection half-step changes the
+moments. An accepted step must also give the nodes $\pm\sqrt{m_2}$ with
+weights $0.5$; a failed one must return its input moments, not those after the
+first half-step, and the final time $0$. The first stage is negative for any
+$m_2 > 0$, so the cases check the first stage and the result of a step; the
+second stage stays positive.
 
 ## Exact single operators
 
@@ -253,7 +267,8 @@ accessor.
 | `noncommuting_cqmom` | order $\ge 1.8$, $\ge 0.8$ on the two finest pairs | 2.00; 0.97 to 1.03 | only the order is checked |
 | `phase_space_source` | order $> 1.7$; Lie in $(0.7, 1.3)$ on the last two pairs | 2.0, 1.0 | an order from two finite steps is approximate |
 | time-dependent splitting | order $\ge 1.75, 1.85$ Strang and $\ge 0.75, 0.85$ Lie on the two finest pairs | 2.07, 2.03; within 0.03 of 1 | the thresholds of `noncommuting_qmom` |
-| adaptive QMOM, source retries | nodes, weights and moments `1e-12` | `1e-15`, `1e-16` | exact references; rounding of the step and the reconstruction |
+| exact split solutions | order $\ge 2.8$ on the two finest pairs; deviation `1e-6` at 80 steps | 2.99; `1e-7` | the SSP-RK3 source error is third order; the bound leaves a factor of 10 |
+| adaptive QMOM, source retries | nodes, weights and moments `1e-12` | below `1e-14`, `1e-16` | exact references; rounding of the step and the reconstruction |
 | `direct_advection` | positions `2e-12`, moments `2e-11` | `1e-13`, `1e-12` | SSP-RK3 node error |
 | RK23 minimum step | `2e-6` QMOM, `3e-6` CQMOM | `1e-7` | RK23 error at the minimum step |
 | `node_source` | moments `1e-13`, points and weights `1e-12` | below `1e-15` | the step is exact; roundoff |

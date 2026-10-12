@@ -54,7 +54,7 @@
 //   advanced state that looks plausible is the dangerous outcome.
 //
 // Reproduce
-//   ctest -R verification_phase_space_evolution
+//   ctest -R '^verification_phase_space_evolution_(commuting|noncommuting|qmom_|cqmom_)'
 //
 // Build modes
 //   Both. Failures are reported through an exit code, not assert().

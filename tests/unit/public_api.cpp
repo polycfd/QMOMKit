@@ -1332,6 +1332,77 @@ void test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds()
     }
 }
 
+void test_qmom_rejects_non_finite_moments_with_or_without_bounds()
+{
+    // A non-finite value among the first 2n moments is invalid input with or
+    // without bounds, in fixed or adaptive mode, and initial_state() throws on
+    // it. With bounds in adaptive mode a rule of fewer nodes does not read the
+    // value, so it must be rejected before any candidate is tried rather than
+    // answered with that rule.
+    const std::vector<double> rule_moments{1.0, 0.55, 0.3625, 0.259375}; // 0.4 at 0.25, 0.6 at 0.75
+    const qmomkit::AbscissaBounds bounds{0.0, 1.0};
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+    for (const bool adaptive : {false, true})
+    {
+        qmomkit::QmomOptions options;
+        options.adaptive = adaptive;
+        assert(qmomkit::compute_qmom(qmomkit::MomentSet(rule_moments), 2, options, bounds).ok());
+
+        for (std::size_t order = 0; order < rule_moments.size(); ++order)
+        {
+            for (const double non_finite : {nan, inf, -inf})
+            {
+                std::vector<double> values = rule_moments;
+                values[order] = non_finite;
+                const qmomkit::MomentSet moments(values);
+                const qmomkit::QmomResult unbounded = qmomkit::compute_qmom(moments, 2, options);
+                const qmomkit::QmomResult bounded = qmomkit::compute_qmom(moments, 2, options, bounds);
+                for (const qmomkit::QmomResult* const result : {&unbounded, &bounded})
+                {
+                    assert(result->status == qmomkit::QmomStatus::invalid_input);
+                    assert(result->message == "Moment sequence contains non-finite values.");
+                    assert(result->weights.empty() && result->abscissas.empty());
+                }
+
+                bool threw = false;
+                try
+                {
+                    static_cast<void>(qmomkit::QmomCase{moments, 2, options, bounds}.initial_state());
+                }
+                catch (const std::runtime_error& error)
+                {
+                    threw = std::string(error.what()) == "QMOM initial state reconstruction failed: Moment sequence contains non-finite values.";
+                }
+                assert(threw);
+            }
+        }
+    }
+}
+
+void test_qmom_initial_state_rejects_non_finite_moments_above_2n_minus_1()
+{
+    // The reconstruction reads only the first 2n moments, so compute_qmom
+    // accepts a non-finite moment above them. It is still invalid input, so
+    // initial_state() rejects it, as state_candidate() does.
+    std::vector<double> values{1.0, 0.55, 0.3625, 0.259375, 0.19140625};
+    values[4] = std::numeric_limits<double>::quiet_NaN();
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(values), 2};
+    assert(qmomkit::compute_qmom(qmom_case).ok());
+    assert(qmom_case.state_candidate(qmom_case.moments).status == qmomkit::StateCandidateStatus::invalid_input);
+
+    bool threw = false;
+    try
+    {
+        static_cast<void>(qmom_case.initial_state());
+    }
+    catch (const std::runtime_error& error)
+    {
+        threw = std::string(error.what()) == "QMOM initial state reconstruction failed: Moment sequence contains non-finite values.";
+    }
+    assert(threw);
+}
+
 void test_qmom_recovers_bounded_rule_of_large_magnitude()
 {
     const std::vector<double> abscissas{2.0e50, 5.0e50};
@@ -1797,6 +1868,8 @@ int main(const int argc, char** argv)
             {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
             {"qmom_rejects_fewer_than_2n_moments_with_or_without_bounds", test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds},
+            {"qmom_rejects_non_finite_moments_with_or_without_bounds", test_qmom_rejects_non_finite_moments_with_or_without_bounds},
+            {"qmom_initial_state_rejects_non_finite_moments_above_2n_minus_1", test_qmom_initial_state_rejects_non_finite_moments_above_2n_minus_1},
             {"qmom_recovers_bounded_rule_of_large_magnitude", test_qmom_recovers_bounded_rule_of_large_magnitude},
             {"qmom_is_unit_covariant", test_qmom_is_unit_covariant},
             {"one_dimensional_cqmom_agrees_with_qmom", test_one_dimensional_cqmom_agrees_with_qmom},

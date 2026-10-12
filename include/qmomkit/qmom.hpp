@@ -200,7 +200,8 @@ struct QmomCase
     /**
      * Construct the accepted initial phase-space evolution state from the
      * moments of this case, throwing `std::runtime_error` when they cannot be
-     * reconstructed.
+     * reconstructed. As for `state_candidate`, all moments must be finite,
+     * including those above order 2n - 1.
      */
     [[nodiscard]] QmomState initial_state() const;
 };

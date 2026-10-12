@@ -78,7 +78,7 @@ accepted and one twice the margin beyond is rejected
 
 **Failure statuses**, `verification_qmom_compute_failure_<case>`
 (`qmom_compute_failures.cpp`). Fixed-count requests, except the bounded
-adaptive one, since adaptive inversion answers a negative variance with one
+adaptive ones, since adaptive inversion answers a negative variance with one
 node, must return the status and a message containing the fragment;
 `invalid_input` returns no nodes.
 
@@ -88,6 +88,7 @@ node, must return the status and a message containing the fragment;
 | `negative_variance` | $(1, 0, -1, 0)$, 2 nodes | `not_realizable` | `negative recurrence` |
 | `insufficient_moments` | 3 moments, 2 nodes | `invalid_input` | `fewer than 2*n` |
 | `insufficient_moments_bounded_adaptive` | the same, bounded and adaptive | `invalid_input` | `fewer than 2*n` |
+| `non_finite_moment_bounded_adaptive` | $(1, 0.5, 0.5, \mathrm{NaN})$, 2 nodes, bounded and adaptive | `invalid_input` | `non-finite` |
 | `zero_node_count` | 0 nodes | `invalid_input` | `positive` |
 
 ## Tolerances

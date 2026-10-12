@@ -1341,8 +1341,8 @@ void test_qmom_rejects_non_finite_moments_with_or_without_bounds()
     // answered with that rule.
     const std::vector<double> rule_moments{1.0, 0.55, 0.3625, 0.259375}; // 0.4 at 0.25, 0.6 at 0.75
     const qmomkit::AbscissaBounds bounds{0.0, 1.0};
-    const double non_finite_values[] = {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(),
-                                        -std::numeric_limits<double>::infinity()};
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
     for (const bool adaptive : {false, true})
     {
         qmomkit::QmomOptions options;
@@ -1351,7 +1351,7 @@ void test_qmom_rejects_non_finite_moments_with_or_without_bounds()
 
         for (std::size_t order = 0; order < rule_moments.size(); ++order)
         {
-            for (const double non_finite : non_finite_values)
+            for (const double non_finite : {nan, inf, -inf})
             {
                 std::vector<double> values = rule_moments;
                 values[order] = non_finite;

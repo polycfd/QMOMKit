@@ -30,7 +30,7 @@ header is not installed, so only the tests read the counters.
 The active session is a `thread_local` pointer, so a scope records work done on
 its own thread only.
 
-Each counter is incremented once per event; tests assert exact counts.
+Each counter is incremented once per event.
 
 | Member | Counter | Event |
 | --- | --- | --- |
@@ -49,7 +49,7 @@ Each counter is incremented once per event; tests assert exact counts.
 | `cqmom_topology` | `active_count_derivations` | successful adaptive CQMOM reconstruction that returns its active counts |
 | | `active_count_validations` | `validate_active_branch_counts` |
 | | `active_count_transition_builds` | comparison of active counts around a source step, when either list is non-empty |
-| `time_integration` | `source_rk_stages` | SSP-RK3 rate evaluation |
+| `time_integration` | `source_rk_stages` | rate evaluation in `ssp_rk3_step`, from the source operator or a direct call; node advection's `ssp_rk3` counts only `node_rhs_evaluations` |
 | | `source_rk_retries` | halving of a rejected source step |
 | | `node_rhs_evaluations` | node per velocity evaluation in node advection |
 | | `embedded_rk_accepted_steps`, `embedded_rk_rejected_steps` | accepted or rejected embedded Runge–Kutta trial step |

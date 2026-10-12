@@ -19,7 +19,7 @@ A `.qmom` file holds `[sections]` of `key = value` lines.
   read nor checked.
 - An optional top-level `format_version = 1` states the format version.
 
-The case loaders check every key in the file; the other loaders read only their
+The case loaders check every key they read; the other loaders read only their
 own sections:
 
 | Function | Returns |
@@ -108,7 +108,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | `[time_integration.node_advection.adaptive]` `relative_tolerance`, `absolute_tolerance` | `1e-6`, `1e-9` | Error tolerances of `rk23` and `rk45`. | `node_options.adaptive_options` |
 | `initial_step` | `1e-6` | First step tried. | 〃 |
 | `max_step` | whole interval | Largest step. | 〃 |
-| `min_step` | automatic | Smallest step, at least ten double spacings of the time elapsed within the step. A step at this floor is accepted even above the tolerance. | 〃 |
+| `min_step` | automatic | Smallest step, at least ten double spacings of the time elapsed within the node-advection interval. A step at this floor is accepted even above the tolerance. | 〃 |
 | `max_steps` | `1000000000` | Most accepted steps per interval. | 〃 |
 | — | `0` | Source step: retries with half the step after a rejection. | `source_options.ssp_rk3_options.max_retries` |
 | — | `0` | Source step: shortest retried step. | `source_options.ssp_rk3_options.min_time_step` |
@@ -216,7 +216,7 @@ These throw instead of returning a status:
 | `weight(index)`, `abscissa(dimension, index)` of an adaptive `CqmomQuadrature` | `std::logic_error`; iterate over `weights()` and `abscissas()` instead |
 | `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written; `MomentWriter` also `std::domain_error` for a fractional generalized order with a negative abscissa |
 | `value()` of a failed configuration result | `std::bad_optional_access` |
-| `ssp_rk3_step(...)`, `integrate_embedded_rk(...)` | exceptions from your callbacks, unchanged; `std::invalid_argument` when `rhs` changes the size of its buffer or returns a non-finite value, and from `ssp_rk3_step` also when a candidate state is not finite |
+| `ssp_rk3_step(...)`, `integrate_embedded_rk(...)` | exceptions from your callbacks, unchanged; `std::invalid_argument` when `rhs` changes the size of its buffer, returns a non-finite value or, in a Debug build, leaves an entry unwritten, and from `ssp_rk3_step` also when a candidate state is not finite |
 
 ## Troubleshooting
 

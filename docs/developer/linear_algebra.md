@@ -78,15 +78,14 @@ close pair, and is infinite for coincident nodes.
 
 ### Jacobi SVD
 
-`factorize_svd` scales the matrix by a power of two, then sweeps cyclically
-over column pairs. A pair $u$, $v$ counts as orthogonal when
-$|u^Tv|\le\tau_J\lVert u\rVert_2\lVert v\rVert_2$, with the products
-accumulated in `long double`.
-Defaults are $\tau_J=\max(10^{-14},\,10\,\varepsilon\max(m,n))$ and
-$\max(32,8n)$ sweeps. Singular values come back in descending order.
-`solve_svd` refuses a rank-deficient or unconverged factorization;
-`solve_svd_pseudoinverse` accepts a converged rank-deficient one and zeroes
-the discarded directions.
+`factorize_svd` scales the matrix by a power of two, then sweeps cyclically over
+column pairs. Columns $a_p$ and $a_q$ count as orthogonal when
+$|a_p^Ta_q|\le\tau_J\lVert a_p\rVert_2\lVert a_q\rVert_2$, with the products
+accumulated in `long double`. Defaults are
+$\tau_J=\max(10^{-14},\,10\,\varepsilon\max(m,n))$ and $\max(32,8n)$ sweeps.
+Singular values come back in descending order. `solve_svd` refuses a
+rank-deficient or unconverged factorization; `solve_svd_pseudoinverse` accepts a
+converged rank-deficient one and zeroes the discarded directions.
 
 ## Conditional Vandermonde systems
 

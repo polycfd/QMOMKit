@@ -92,11 +92,11 @@ moments of each state, and create the states again from them with
 Keeping the moments realizable during transport is your code's part. A scheme
 whose new cell values are convex combinations of realizable neighbour values,
 such as first-order upwinding with a Courant number of at most one, keeps them
-realizable; higher-order schemes need a realizability-preserving
-reconstruction. Without a policy, an adaptive reconstruction quietly reduces
-non-realizable moments: `{1, 0, -1, 0}`, with a negative variance, becomes a
-single node at 0. A policy rejects them instead. It checks moments, not node
-positions, and for CQMOM only each coordinate's own moments; see
+realizable; higher-order schemes need a realizability-preserving reconstruction.
+Without a policy, an adaptive reconstruction quietly reduces non-realizable
+moments: `{1, 0, -1, 0}`, with a negative variance, becomes a single node at 0.
+A policy rejects them instead. It checks moments, not node abscissas, and for
+CQMOM only each coordinate's own moments; see
 [Moments and quadrature](4_moments_and_quadrature.md#check-realizability).
 
 The [`qmom_state_candidate`](../../examples/qmom_state_candidate/README.md)

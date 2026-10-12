@@ -132,7 +132,7 @@ whether the moments can be reconstructed is left to `compute_cqmom(...)` and
 A setting gets a key when it is numerical configuration a user chooses per
 case, such as a node count, a tolerance or a scheme. Physics, callbacks,
 schedules and implementation machinery get none, and a setting rarely changed
-can stay C++-only, as `QmomOptions::cutoff` does.
+can stay C++-only.
 
 1. Add the qualified key to the lists that accept it:
    - a case key to `qmom_explicit_allowed_keys`, which
@@ -146,17 +146,17 @@ can stay C++-only, as `QmomOptions::cutoff` does.
      `distribution_parameters` ([Distributions](distributions.md#adding-a-family));
    - a `[time_integration]` key to `node_advection_allowed_keys` or
      `realizability_policy_fields`; a top-level one, as `scheme` is, to
-     `append_time_integration_allowed_keys` and to the hard-coded check of
-     `reject_unknown_phase_space_evolution_keys`, which the option parsers
-     apply;
+     `append_time_integration_allowed_keys` and to the hard-coded check
+     of `reject_unknown_phase_space_evolution_keys`, which the option
+     parsers apply;
    - an `[output]` key to `output_allowed_keys`.
 
    `with_runtime_allowed_keys` adds the time-integration and output keys to the
    case parsers, and the option parsers check against the same lists, apart
-   from that hard-coded check. A new
-   section also goes into `reject_unknown_qmom_sections`,
-   `reject_unknown_cqmom_sections` or `time_integration_sections`, and, for a
-   `[time_integration]` section, into the section checks of
+   from those two hard-coded checks. A new section also goes into
+   `reject_unknown_qmom_sections`, `reject_unknown_cqmom_sections` or
+   `time_integration_sections`, and, for a `[time_integration]` section, into
+   the section checks of
    `reject_unknown_phase_space_evolution_sections` and
    `parse_realizability_policy`.
 2. Parse it in the function that builds its object, record an error with the

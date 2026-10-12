@@ -30,10 +30,10 @@ that reproduces the moments. With one phase-space coordinate this is QMOM; with
 several, CQMOM.
 
 **QMOMKit solves the phase-space part** of the PBE, the terms with
-$\dot{\boldsymbol{\xi}}$ and $S$ and the phase-space boundaries, at one
-location: given the moments there, it reconstructs the quadrature, moves its
-nodes with $\dot{\boldsymbol{\xi}}$, and integrates the moments with the
-source:
+$\dot{\boldsymbol{\xi}}$ and $S$, including exchange across phase-space
+boundaries, at one location: given the moments there, it reconstructs the
+quadrature, moves its nodes with $\dot{\boldsymbol{\xi}}$, and integrates the
+moments with the source:
 
 ```text
 raw moments → quadrature → state → time step → state → …

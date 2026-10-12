@@ -84,7 +84,7 @@ and output writers, when a file cannot be written. The
 
 | Term | Meaning |
 | --- | --- |
-| abscissa | The position of a node in phase space. |
+| abscissa | The location of a node in phase space. |
 | boundary contribution | A moment rate from exchange across a phase-space boundary, such as nucleation; added to the source. |
 | bounds | An interval the nodes of a coordinate must lie in, `[phase_space] support_lower` and `support_upper`. |
 | branch | In CQMOM, the one-dimensional reconstruction of one coordinate for given values of the coordinates earlier in the conditioning order. |

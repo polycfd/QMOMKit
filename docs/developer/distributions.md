@@ -21,8 +21,8 @@ moments came from. The families and their parameters are listed in the
 The symbols are the fields of the parameter structs: $\mu$ and $\sigma$ are
 `mean` and `standard_deviation`, or for the log-normal `normal_mean` and
 `normal_standard_deviation`; $c$ and $a$ are the Weibull and gamma `shape`,
-$\lambda$ and $\theta$ their `scale`; $\alpha$ and $\beta$ are the beta fields of
-those names, and $\nu$ is `degrees_of_freedom`.
+$\lambda$ and $\theta$ their `scale`; $\alpha$ and $\beta$ are the beta fields
+of those names, and $\nu$ is `degrees_of_freedom`.
 
 The log forms add $\ln n_0$ and check the range before calling `std::exp`.
 
@@ -41,9 +41,10 @@ The log forms add $\ln n_0$ and check the range before calling `std::exp`.
 exponent, renormalized with `std::frexp` after every factor. No intermediate
 product can overflow or underflow, and the final exponent decides exactly
 whether the moment fits in a double; subnormal results are returned as they
-are. Each factor is a plain double, though: a beta factor whose
-$\alpha + \beta + i$ exceeds the largest double is zero, and the moment is
-reported as `underflow`. Each factor adds a few roundings, so a moment of order
+are. Each factor is a plain double, though: a beta factor whose denominator
+$\alpha + \beta + i$ overflows, or whose ratio falls below the normal range, is
+zero or inexact, so such a moment can be reported as `underflow` although it
+fits in a double. Each factor adds a few roundings, so a moment of order
 $k$ is accurate to a few times $k$ units in the last place, where a difference
 of log-gamma values would lose accuracy in proportion to $|\ln\Gamma|$.
 
@@ -73,14 +74,14 @@ $B_m(\tfrac12)=-(1-2^{1-m})B_m$ [[DLMF, 24.4.27](https://dlmf.nist.gov/24.4.E27)
 
 ## Mixtures
 
-A `DistributionMixture` has $m_k = \sum_r n_r\,\mathrm{E}_r[\xi^k]$ with absolute
-component densities $n_r$, so $m_0 = \sum_r n_r$. It needs at least one
+A `DistributionMixture` has $m_k = \sum_r n_r\,\mathrm{E}_r[\xi^k]$ with
+absolute component densities $n_r$, so $m_0 = \sum_r n_r$. It needs at least one
 component, every density finite and non-negative, and at least one positive.
 Components of zero density are skipped before their parameters are evaluated.
 Each other component is evaluated with $n_r$ as its total weight and added per
-order with compensated summation (`add_compensated`): a running correction
-per order collects the rounding error of each addition, recovered with the
-larger operand first, and is added at the end.
+order with compensated summation (`add_compensated`): a running correction per
+order collects the rounding error of each addition, recovered with the larger
+operand first, and is added at the end.
 
 ## Independent products
 

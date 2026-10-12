@@ -235,8 +235,8 @@ Compared with the one-dimensional program:
 
 - `load_cqmom_prepared(...)` reads the file and reports a problem with it
   through `configured.error()`, with the line number where there is one;
-- the phase-space velocity now returns two values, one per coordinate, in the
-  order the file declares them;
+- the phase-space velocity returns two values, one per coordinate, in the order
+  the file declares them;
 - this population has no source, which is expressed as a source that returns
   zero rates;
 - the result is a set of four nodes, two sizes times two velocities, each with

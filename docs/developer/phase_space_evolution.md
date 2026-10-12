@@ -112,13 +112,12 @@ The embedded pairs run through `integrate_embedded_rk`, which also integrates
 backwards when its end time lies before its start time. Phase-space evolution
 always steps forward, since its step must be positive; the public
 `advance_nodes` checks only that its step is finite, so a negative step moves
-the nodes backwards. Node advection
-integrates in the local time $\tau \in [0, \Delta t]$ and evaluates the
-velocity at $t+\tau$. The nodes then move over exactly $\Delta t$, not over
-the rounded $(t+\Delta t)-t$, and the step floor follows the spacing of $\tau$,
-not of $t$. `ssp_rk3` uses its own three-stage formula,
-`integrate_nodes_ssp_rk3`, without the predicates and retries of the source
-operator.
+the nodes backwards. Node advection integrates in the local time
+$\tau \in [0, \Delta t]$ and evaluates the velocity at $t+\tau$. The nodes then
+move over exactly $\Delta t$, not over the rounded $(t+\Delta t)-t$, and the
+step floor follows the spacing of $\tau$, not of $t$. `ssp_rk3` uses its own
+three-stage formula, `integrate_nodes_ssp_rk3`, without the predicates and
+retries of the source operator.
 
 ### Step-size control
 
@@ -365,8 +364,9 @@ exception escaping a scalar call stops the loop.
 
 ## Verifying a change
 
-A change to a stage, a scheme or an integrator is verified against exact
-solutions, not against the previous implementation, in
+A change to a stage, a scheme or an integrator needs the evidence of
+[Testing and validation](testing_and_validation.md#validation-evidence), here
+from the exact solutions in
 [`tests/verification/phase_space_evolution/`](../../tests/verification/phase_space_evolution/).
 Commuting cases, whose split solution is exact, isolate the integrators;
 noncommuting cases measure the splitting order under step refinement, about two

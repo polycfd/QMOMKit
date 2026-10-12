@@ -196,7 +196,8 @@ Node advection never changes these counts; only the reconstruction after a
 source step does. There a branch may lose nodes, or gain one if the moments
 support it. In CQMOM, when a branch's node count changes, the branches below it
 condition on other nodes and start from their configured maximum. Node counts
-therefore shrink readily and grow by at most one per step.
+therefore shrink readily, and a branch that keeps its parent grows by at most
+one node per step.
 
 ## Reading a state
 
@@ -237,9 +238,11 @@ On failure, `result.state` is the state the step started from and
 [Reference](7_reference.md#statuses) lists both. An invalid option, such as a
 negative tolerance, is reported as `invalid_input` before anything runs, so a
 step failure always concerns the numerics or your callbacks. Retrying with a
-smaller step, or stopping, is your decision. A failed CQMOM step also returns,
-for diagnosis only, a `diagnostic_quadrature`: the quadrature a failed
-reconstruction produced, or the input of a failed advection or source stage.
+smaller step, or stopping, is your decision. A failed CQMOM step may also
+return, for diagnosis only, a `diagnostic_quadrature`: the quadrature the
+failing stage produced or started from, such as a failed reconstruction's
+candidate, nodes whose moments do not fit in a double, or the input of a failed
+advection or source stage.
 
 ## Writing output
 

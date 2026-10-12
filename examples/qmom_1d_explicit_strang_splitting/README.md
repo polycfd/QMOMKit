@@ -40,14 +40,14 @@ reconstruction.
 The phase-space advection model is linear relaxation:
 
 $$
-\frac{\mathrm{d}u}{\mathrm{d}t} = -a\left(u - u_{\mathrm{eq}}\right).
+\frac{\mathrm{d}\xi}{\mathrm{d}t} = -a\left(\xi - \xi_{\mathrm{eq}}\right).
 $$
 
-with $a = 500$ and $u_{\mathrm{eq}} = 0.5$. The velocities collapse onto
-$u_{\mathrm{eq}}$, and the variance decays as
+with $a = 500$ and $\xi_{\mathrm{eq}} = 0.5$. The velocities collapse onto
+$\xi_{\mathrm{eq}}$, and the variance decays as
 
 ```math
-\operatorname{Var}[u](t) = \operatorname{Var}[u](0)\exp(-2at).
+\operatorname{Var}[\xi](t) = \operatorname{Var}[\xi](0)\exp(-2at).
 ```
 
 The moment-source is a manufactured symmetric variance-injection source:
@@ -65,7 +65,7 @@ $S(t)$ is positive only over the finite interval $[0.16, 0.25)$. The source
 preserves total mass and the mean while allowing an adaptively reduced one-node
 state to regrow to two nodes.
 
-The nonzero equilibrium matters: relaxation toward $u_{\mathrm{eq}} = 0$ would
+The nonzero equilibrium matters: relaxation toward $\xi_{\mathrm{eq}} = 0$ would
 only shrink the distribution without changing its shape, and adaptive reduction
 does not depend on the unit of the coordinate, so the state would keep both
 nodes.

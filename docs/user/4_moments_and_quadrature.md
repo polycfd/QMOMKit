@@ -46,13 +46,13 @@ number density. For two nodes, generate $m_0$ to $m_3$, so the maximum order is
 $2N - 1 = 3$:
 
 ```cpp
-const qmomkit::RawMomentResult generated = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{-0.2, 0.4}, 3, 2.5);
-if (!generated.ok())
+const qmomkit::RawMomentResult lognormal_moments = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{-0.2, 0.4}, 3, 2.5);
+if (!lognormal_moments.ok())
 {
-    std::cerr << generated.message << '\n';
+    std::cerr << lognormal_moments.message << '\n';
     return 1;
 }
-qmom_case.moments = generated.moments;
+qmom_case.moments = lognormal_moments.moments;
 ```
 
 A mixture adds the moments of its components. Each component carries its own
@@ -231,8 +231,8 @@ of the log-normal moments generated above and, in two dimensions,
 $M_{1/3,\,2}$ of the CQMOM result:
 
 ```cpp
-const qmomkit::QmomResult lognormal = qmomkit::compute_qmom(generated.moments, 2);
-const double m_third = qmomkit::evaluate_generalized_moment(lognormal, 1.0 / 3.0);
+const qmomkit::QmomResult lognormal_quadrature = qmomkit::compute_qmom(lognormal_moments.moments, 2);
+const double m_third = qmomkit::evaluate_generalized_moment(lognormal_quadrature, 1.0 / 3.0);
 const double cqmom_m = qmomkit::evaluate_generalized_moment(cqmom.quadrature, {1.0 / 3.0, 2.0});
 ```
 

@@ -56,13 +56,13 @@ central moment $\mu_k$ that exceeds twice its uncertainty, otherwise $|c|$, or
 one if $c = 0$, so that a point mass is not stretched. A bound $a$ becomes
 $(a - c)/2^{e_s}$.
 
-Realizability is invariant under an affine change of coordinate, and the
-moment and localizing matrices change by a congruence, which by Sylvester's
-law of inertia [[Sylvester, 1852](https://www.doi.org/10.1080/14786445208647087)]
-keeps the signs of their eigenvalues. The tolerance applies to the standardized
-matrices, so the classification depends neither on the
-location of the distribution, nor on the unit of its coordinate, nor on $m_0$.
-Scaling by powers of two is exact, so only the centring sum rounds.
+Realizability is invariant under an affine change of coordinate, and the moment
+and localizing matrices change by a congruence, which by Sylvester's law of
+inertia [[Sylvester, 1852](https://www.doi.org/10.1080/14786445208647087)] keeps
+the signs of their eigenvalues. The tolerance applies to the standardized
+matrices, so the classification depends neither on the location of the
+distribution, nor on the unit of its coordinate, nor on $m_0$. Scaling by powers
+of two is exact, so only the centring sum rounds.
 
 ## Tolerance
 
@@ -112,19 +112,17 @@ threshold $\tau$:
 | positive | otherwise |
 
 The allowance $1000\,\varepsilon$, `roundoff_allowance`, bounds the rounding of
-the eigensolve.
-An eigenvalue inside that band has no sign, so the zero class is tested first,
-and a tolerance below $1000\varepsilon$ resolves nothing finer.
+the eigensolve. An eigenvalue inside that band has no sign, so the zero class is
+tested first, and a tolerance below $1000\varepsilon$ resolves nothing finer.
 
 A matrix is indeterminate, whatever its eigenvalues, if an entry or eigenvalue
 is not finite, if the eigensolve does not converge, or if $\delta$ reaches the
-information scale of its sequence, so that no digit is reliable. Otherwise a
-matrix with a negative eigenvalue is not positive semidefinite, one with an
-ambiguous eigenvalue indeterminate, one with a zero eigenvalue singular, and
-any other positive definite. That scale is
+information scale of its sequence, so that no digit is reliable. That scale is
 $\nu_0$ for the moments, and $\nu_0$ times the absolute coefficients of the
 localizing polynomial otherwise: $(1 + |a|)\,\nu_0$, $(1 + |b|)\,\nu_0$ or
-$(1 + |a + b| + |ab|)\,\nu_0$.
+$(1 + |a + b| + |ab|)\,\nu_0$. Otherwise a matrix with a negative eigenvalue is
+not positive semidefinite, one with an ambiguous eigenvalue indeterminate, one
+with a zero eigenvalue singular, and any other positive definite.
 
 The first matrix that is not positive semidefinite makes the sequence
 `not_realizable`, the first indeterminate one `numerically_indeterminate`. A
@@ -206,8 +204,9 @@ other statuses; the check mode only decides when a check runs.
 `internal::realizability_policy_error`, declared in
 [`src/internal/realizability.hpp`](../../src/internal/realizability.hpp),
 validates a policy with the rules `check_realizability` applies to its options
-and interval; a `None` policy is always valid. In CQMOM, any policy indexed
-beyond the dimensions is invalid, whatever its mode.
+and interval; a `None` policy is always valid. In CQMOM, a policy set at an
+index beyond the dimensions is invalid, whatever its mode; `std::nullopt`
+entries there are ignored.
 
 | Where | Policy | Checked moments |
 | --- | --- | --- |

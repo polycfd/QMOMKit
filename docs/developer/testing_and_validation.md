@@ -86,9 +86,10 @@ before any standard header, so a missing include fails to compile; where
 clang-format (`IncludeBlocks: Regroup`) would sort a standard header ahead of
 it, a comment line separates the two. It may check type properties with
 `static_assert`s and pin entry points in namespace `public_header_pins`:
-function-pointer variables of the exact signature, with external linkage, so a
-changed signature fails to compile and a missing definition fails to link. An
-input aggregate also enters `brace_initialization.cpp`
+function or member-function pointer variables of the exact signature, with
+external linkage, so a changed signature fails to compile and a missing
+definition fails to link. An input aggregate also enters
+`brace_initialization.cpp`
 ([Architecture](architecture.md#public-and-internal-boundary)).
 
 ## Listing and selecting tests
@@ -152,8 +153,8 @@ The consumer uses only `find_package(QMOMKit CONFIG REQUIRED)` and
 `qmomkit::qmomkit`, includes `<qmomkit/qmomkit.hpp>`, and runs a short QMOM and
 CQMOM workflow; it returns non-zero if any step fails. Run it when changing
 installation, exports, package metadata or installed headers.
-`tools/monte_carlo/tests/package_consumer/` checks an installed companion
-package in the same way.
+`tools/monte_carlo/tests/package_consumer/` checks the companion package the
+same way once it is installed into the same prefix.
 
 ## CI gates
 
@@ -210,11 +211,12 @@ here:
 - Monte Carlo references, below.
 
 Expected values come from the mathematical case, never from another call into
-the code under test. A relative error against a reference at or near zero,
-such as an odd moment of a symmetric distribution, needs an absolute floor, as
-`QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE` provides. Evidence that the suite enforces lives in
-`tests/verification/`. [`paper/verification/`](../../paper/verification)
-holds paper-specific studies outside CTest.
+the code under test. A relative error against a reference at or near zero, such
+as an odd moment of a symmetric distribution, needs an absolute floor, as
+`QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE` provides. Evidence that the suite enforces
+lives in `tests/verification/`.
+[`paper/verification/`](../../paper/verification) holds paper-specific studies
+outside CTest.
 
 ## Monte Carlo references
 
@@ -253,11 +255,11 @@ Conventions that matter when adding a case:
   `tools/monte_carlo/tests/`, not in the package.
 - A test source is added in
   [`tools/monte_carlo/CMakeLists.txt`](../../tools/monte_carlo/CMakeLists.txt)
-  with `monte_carlo_add_test_executable(monte_carlo_<subsystem>_tests …)`,
-  which registers every zero-argument `void test_<case>()` as
-  `monte_carlo_<subsystem>_<case>`, with label `monte_carlo` and no timeout.
-  Cases dispatch through `tests/test_case_dispatch.hpp` of the companion and
-  check with
+  with `monte_carlo_add_test_executable(monte_carlo_<subsystem>_tests …)`, which
+  registers every zero-argument `void test_<case>()` as
+  `monte_carlo_<subsystem>_<case>`, with label `monte_carlo` and CTest's default
+  timeout. Cases dispatch through `tests/test_case_dispatch.hpp` of the
+  companion and check with
   [`tests/test_checks.hpp`](../../tools/monte_carlo/tests/test_checks.hpp), not
   `assert()`.
 

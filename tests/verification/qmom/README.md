@@ -103,10 +103,9 @@ Distribution-specific checks:
 
 ## Moment-Space Boundary Cases
 
-`moment_space_boundary.cpp` covers the regime
-[QMOM](../../../docs/developer/qmom.md) identifies as most
-sensitive: moment sequences approaching the boundary of realizable moment
-space. The cases above are either comfortably interior, such as the classical
+`moment_space_boundary.cpp` covers the regime in which the inversion is most
+sensitive to rounding: moment sequences approaching the boundary of realizable
+moment space. The cases above are either comfortably interior, such as the classical
 quadrature rules, or exactly degenerate; these cover the approach itself.
 
 Every reference is constructed from known nodes and weights, so the expected

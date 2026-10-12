@@ -17,11 +17,10 @@
 #include <vector>
 
 // Coverage for the Monte Carlo output module. The writers produce the artifacts
-// a validation run is judged from, and `docs/developer/configuration_and_output.md` fixes
-// their format: whitespace-delimited columns, one commented data header,
-// optional metadata comments ahead of it, bracketed multi-index labels such as
-// `M[0]` and `M[0,0]`, and 17-digit precision so a written value round-trips
-// exactly.
+// a validation run is judged from, and `docs/developer/configuration_and_output.md`
+// fixes their format: whitespace-delimited columns, one commented data header,
+// bracketed multi-index labels such as `M[0]` and `M[0,0]`, and 17-digit
+// precision so a written value round-trips exactly.
 //
 // The moment-history factories and row writers are overload sets whose data
 // argument must match the schema chosen at construction. These cases exercise
@@ -76,7 +75,7 @@ bool is_comment(const std::string& line)
     return false;
 }
 
-// The data header is the last comment line; anything before it is metadata.
+// The writers emit one comment line, the data header.
 std::size_t data_header_index(const std::vector<std::string>& lines)
 {
     std::size_t header = 0;

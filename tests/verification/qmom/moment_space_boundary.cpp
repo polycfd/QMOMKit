@@ -8,7 +8,7 @@
 //   it was given, whatever node count the adaptive path settles on. The
 //   neighbouring files cover only sequences that are comfortably interior
 //   (classical rules) or exactly degenerate; these cover the approach itself,
-//   which qmom_wheeler.md names as the most sensitive regime.
+//   where the inversion is most sensitive to rounding.
 //
 // How the reference is constructed
 //   Chosen, not computed. Each case starts from positions and weights, with

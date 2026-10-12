@@ -81,7 +81,7 @@ const qmomkit::QmomPhaseSpaceEvolutionResult first_advection =
 
 const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
     qmomkit::advance_qmom_moment_source(
-        first_advection.state, time + 0.5 * time_step, time_step, source,
+        first_advection.state, time, time_step, source,
         phase_space_evolution_options);
 
 const qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
@@ -91,8 +91,11 @@ const qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
 ```
 
 For a macro step beginning at `time`, the first advection half-step starts at
-`time`, the moment-source stage starts at `time + 0.5 * time_step`, and
-the second advection half-step also starts at `time + 0.5 * time_step`.
+`time`, the moment-source stage integrates over the whole step from `time`, and
+the second advection half-step starts at `time + 0.5 * time_step`. This is the
+sequence of the `strang` scheme, so the example's results match
+`advance_qmom_phase_space(...)` exactly, also for a source that depends on
+time.
 
 ## Transactional commit
 

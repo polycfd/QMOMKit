@@ -109,7 +109,7 @@ int main()
         // Full moment-source stage.
         const std::size_t before_moment_source_nodes = trial_state.active_node_count();
         const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
-            qmomkit::advance_qmom_moment_source(trial_state, time + half_step, step, source, phase_space_evolution_options);
+            qmomkit::advance_qmom_moment_source(trial_state, time, step, source, phase_space_evolution_options);
         if (!moment_source.ok())
         {
             std::cerr << "QMOM moment-source stage failed: " << moment_source.message << '\n';

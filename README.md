@@ -7,23 +7,22 @@
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml/badge.svg" alt="CI-Consumers"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 
-**QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces.**
+**QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in phase spaces.**
 
-QMOMKit reconstructs quadrature nodes and weights from raw moments and provides utilities for the evolution of moments and the corresponding quadratures in phase space. It is independent of any physical application or host code coupling and, hence, leaves transport of moments in the physical space, the representation and discretization of the physical space and overall simulation workflow to the host application. Examples of how to couple QMOMKit to host application codes are maintained separately in [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings). The QMOMKit library has **no third-party dependencies**.
+QMOMKit reconstructs quadratures, sets of weighted nodes, from the raw moments of a number density and evolves them in phase space: it solves the phase-space part of a population balance equation at one location. Transport in physical space, the mesh, the time loop and the coupling to a host code belong to the host application. Examples of how to couple QMOMKit to host application codes are maintained separately in [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings). The library has **no third-party dependencies**.
 
 ## Capabilities
 
 QMOMKit provides tools to:
 
-- use the quadrature method of moments (QMOM) [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] to reconstruct quadratures for one-dimensional phase space;
-- use the conditional quadrature method of moments (CQMOM) [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] to reconstruct quadratures for multidimensional phase space;
-- configure phase-space conditioning order, bounded support, and adaptive branch-specific CQMOM node counts;
-- initialize moments from explicit moment definitions, analytical distributions, or Monte Carlo sampling;
-- evolve states through phase-space advection and moment-source or boundary contributions;
-- use library-managed operator splitting and source/advection stage workflows;
-- perform realizability checks and report phase-space evolution diagnostics;
-- write native results output;
-- use the optional Monte Carlo companion code for initialization of population ensembles and to produce reference solutions.
+- reconstruct a quadrature from raw moments, with the quadrature method of moments (QMOM) [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] for one phase-space coordinate and the conditional quadrature method of moments (CQMOM) [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] for several;
+- choose the CQMOM conditioning order, bound the abscissas to an interval, and let node counts adapt to the moments, per branch in CQMOM;
+- set up a case in C++ or from a `.qmom` configuration file, with moments given explicitly or generated from analytical distributions, mixtures and independent products;
+- check whether moments are realizable on a given support;
+- advance a state in phase space by operator splitting (Strang or Lie) of node advection and moment sources, including exchange across phase-space boundaries;
+- rebuild states from moments that the host has transported in physical space;
+- write moment and quadrature histories;
+- compare with finite-sample Monte Carlo references from the optional companion package.
 
 ## A first example
 
@@ -85,21 +84,20 @@ Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your ap
 
 The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples index](examples/README.md) and the [list of examples in the user guide](docs/user/8_going_further.md#examples).
 
-In addition, QMOMKit has several companion tools:
-- `tools/monte_carlo/` provides Monte Carlo code that can be used to initialize and evolve population ensembles; see its [README](tools/monte_carlo/README.md).
+Two companion tools live under `tools/`:
+- `tools/monte_carlo/` samples populations, evolves the samples and estimates their moments, as a reference for QMOMKit; see its [README](tools/monte_carlo/README.md).
 - `tools/plotting/` provides optional plotting helpers for QMOMKit-native histories; see the [plotting README](tools/plotting/README.md).
 
 ## Testing
 
-The repository has a comprehensive test suite that covers all parts of the codebase:
+The test suite consists of:
 
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
 - verification tests against analytical, manufactured, convergence, or reconstruction references;
 - public-header checks and installed-package consumer checks.
 
-To enable the core test suite, use a _Debug build_ because the unit tests use
-`assert()`:
+Build and run it in a _Debug build_, because the unit tests use `assert()`:
 
 ```bash
 cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
@@ -156,12 +154,12 @@ QMOMKit therefore relies on a deliberately rigorous approach to testing, numeric
 
 If QMOMKit contributes to your academic work, please cite the QMOMKit paper:
 
-Fabian Denner, Bruna Campos, and Bruno Blais, *QMOMKit: A C++ library for the quadrature method of moments in arbitrary-dimensional phase space*, arXiv:2610.?????, 2026. doi: [10.48550/arXiv.2610.?????](https://www.doi.org/10.48550/arXiv.2610.?????)
+Fabian Denner, Bruna Campos, and Bruno Blais, *QMOMKit: A C++ library for quadrature methods of moments*, arXiv:2610.?????, 2026. doi: [10.48550/arXiv.2610.?????](https://www.doi.org/10.48550/arXiv.2610.?????)
 
 ```bibtex
 @misc{qmomkit,
   author  = {Denner, Fabian and Campos, Bruna and Blais, Bruno},
-  title   = {QMOMKit: A C++ library for the quadrature method of moments in arbitrary-dimensional phase space},
+  title   = {QMOMKit: A C++ library for quadrature methods of moments},
   eprint={2610.?????},
   archivePrefix={arXiv},
   year    = {2026},

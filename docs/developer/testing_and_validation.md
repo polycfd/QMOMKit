@@ -197,8 +197,7 @@ compatible with it.
 
 A numerical change needs evidence beyond agreement with the implementation
 it replaces, and a validation change states its reference, assumptions, error
-metric, tolerance and reproduction
-([AGENTS.md](../../AGENTS.md#testing-and-validation)). The references used
+metric, tolerance and reproduction. The references used
 here:
 
 - analytical results: exact discrete quadratures, classical Gaussian rules,

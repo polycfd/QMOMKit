@@ -9,11 +9,12 @@
 //   RK23 and RK45 are each checked this way, along with the embedded error
 //   estimate of the two pairs.
 //
-//   Controller behaviour, with the step size free. The requested tolerance is
+//   Controller behavior, with the step size free. The requested tolerance is
 //   tightened tenfold per run and the controller chooses its own steps. What is
 //   checked here is that the achieved error stays within the tolerance asked
-//   for, that it falls at every tightening, that the work does not decrease,
-//   and that the error scales roughly in proportion to the tolerance.
+//   for from the second run on, that it falls at every tightening, that the
+//   work does not decrease, and that the error scales roughly in proportion to
+//   the tolerance.
 //
 // How the reference is constructed
 //   The test problem is y' = -y from t = 0, whose exact solution exp(-t) is
@@ -37,8 +38,9 @@
 //     RK23             solution and embedded order both 3.0 +/- 0.15
 //     RK45             solution and embedded order both 5.0 +/- 0.15
 //   Free step, tolerance tightened tenfold:
-//     RK23 and RK45    achieved error within the requested tolerance, and the
-//                      error-versus-tolerance slope between 0.85 and 1.25
+//     RK23 and RK45    achieved error within the requested tolerance from the
+//                      second run on, and the error-versus-tolerance slope
+//                      between 0.85 and 1.25
 //
 //   RK23 and RK45 are each checked on two numbers that come out equal - 3 for
 //   RK23, 5 for RK45 - but that measure different things:
@@ -242,8 +244,8 @@ std::vector<AdaptiveRun> verify_rk23_convergence()
 {
     // The adaptive study uses the same independent exact solution, but asks
     // RK23 to choose its own step sizes under successively tighter tolerances.
-    // The average accepted step is not prescribed; it is used only to measure
-    // the observed global order of the public adaptive integration result.
+    // The average accepted step is not prescribed and enters only the failure
+    // table; no order is measured here.
     constexpr double final_time = 2.0;
     const double exact = std::exp(-final_time);
     const std::vector<double> tolerances{1.0e-4, 1.0e-5, 1.0e-6, 1.0e-7};

@@ -10,13 +10,16 @@
 //   containing one deliberate fault - a malformed section header, an invalid
 //   boolean, missing moments, a hierarchy the loader cannot infer, an unknown
 //   Vandermonde solver, a moment set that cannot support the requested node
-//   count. The expected error is written beside each case. There is no
+//   count, a repeated dimension in the conditioning order, an incomplete
+//   moment tensor. The expected error is written beside each case. There is no
 //   numerical reference because no case should be produced.
 //
 // Pass criteria
-//   The load must fail, the reported error must identify the intended cause,
-//   and the result must hold no case. Checking failure alone would not
-//   distinguish a correct diagnosis from an unrelated one.
+//   The load must fail, the reported error must identify the intended cause
+//   and name the file, followed by a line number where the fault sits on one
+//   line (only its presence is checked, not its value), and the result must
+//   hold no case. Checking failure alone would not distinguish a
+//   correct diagnosis from an unrelated one.
 //
 // Reproduce
 //   ctest -R verification_configuration

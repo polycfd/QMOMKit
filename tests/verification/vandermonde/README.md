@@ -1,153 +1,84 @@
-# Vandermonde Solver Selection Verification
+# Vandermonde solver verification
 
-These cases verify the user-facing `[vandermonde] solver` configuration used by
-recursive CQMOM conditional moment reconstruction.
+## Purpose
 
-They cover both the ordinary well-conditioned product system below and a
-separate clustered, realizable conditional system. The latter is a public CQMOM
-verification against a prescribed terminal quadrature, not a comparison between
-solver outputs.
+A CQMOM branch recovers the conditional moments at its parent nodes from a
+weighted Vandermonde system, solved by the `[vandermonde] solver` the case
+requests; `automatic` selects `bjorck_pereyra`
+([Linear algebra](../../../docs/developer/linear_algebra.md#conditional-vandermonde-systems)).
+These cases verify that the requested solver is used and reported, that every
+solver recovers a prescribed quadrature, well-conditioned or clustered, and
+that the detailed diagnostics describe the scaled system the solvers decide on
+([Diagnostics](../../../docs/developer/linear_algebra.md#diagnostics)).
 
-The selected analytical system is a fixed, well-conditioned 2D independent
-product CQMOM case:
+## Cases
 
-```text
-x = {1, 3},     w_x = {0.4, 0.6}
-y = {-1, 2},    w_y = {0.25, 0.75}
-W_terminal = w_x * w_y
-```
-
-The parent nodes are separated and all weights are positive, so the
-branch-local weighted Vandermonde solves are representative without being a
-stress test. The expected terminal quadrature and raw moments are known from
-the product formula, independently of the solver implementation.
-
-## Solver Policies
-
-`VandermondeSolver` is the policy loaded from configuration: `automatic`,
-`dense`, `pivoted_qr`, `svd`, `moore_penrose` or `bjorck_pereyra`. Every
-explicit policy runs that solver; `automatic` resolves to `bjorck_pereyra`.
-`moore_penrose` is explicit only, and its fixture sets `rcond = 1.0e-14`.
-
-The public CQMOM result reports, per branch, the requested solver and the
-solver selected after resolution. This verifier loads public `.qmom` files and
-checks public CQMOM results only.
-
-## Checks
-
-The verifier:
-
-- loads one public `.qmom` file for each supported solver policy;
-- confirms configuration loading preserved the requested solver policy;
-- computes public CQMOM results successfully;
-- compares terminal nodes and weights against the independent analytical
-  quadrature;
-- reconstructs the configured required CQMOM moments from the computed
-  quadrature;
-- checks that diagnostics report the requested and the selected solver;
-- compares dense and Björck-Pereyra results as an additional consistency check.
-  This is its own case, selected by `dense_matches_bjorck_pereyra` and
-  registered as `verification_vandermonde_solver_dense_matches_bjorck_pereyra`;
-  it loads only those two policies, and the per-policy checks above stay with
-  the per-policy cases.
-
-Dense/Björck-Pereyra comparison is not the only reference. Every solver policy
-is also checked against the independent analytical quadrature and reconstructed
-moments.
-
-## Clustered Conditional-System Verification
-
-`clustered_solver_policy.cpp` prescribes a fixed 2D `3 x 2` terminal rule with
-conditioning order `{0,1}`. Its parent rule is
+**Product case**, `verification_vandermonde_solver_<solver>`
+(`solver_selection.cpp`), for `automatic`, `dense`, `pivoted_qr`, `svd`,
+`moore_penrose` and `bjorck_pereyra`. The fixtures `<solver>.qmom` differ only
+in the solver (`moore_penrose.qmom` adds `rcond = 1e-14`) and hold the moments
+of
 
 ```text
-x = {1, 1.007, 1.014},     w_x = {0.2, 0.3, 0.5}
+xi_0 = {1, 3},    w_0 = {0.4, 0.6}
+xi_1 = {-1, 2},   w_1 = {0.25, 0.75},   W = w_0 w_1
 ```
 
-and the branch-dependent conditional rules are
+Each case checks the loaded solver, the terminal nodes and weights against the
+rule, the reconstructed against the configured moments, and the requested and
+selected solver in the diagnostics.
+`verification_vandermonde_solver_dense_matches_bjorck_pereyra` instead compares
+the `dense` and `bjorck_pereyra` results with each other.
+
+**Clustered case**, `verification_vandermonde_clustered_<solver>`
+(`clustered_solver_policy.cpp`). The prescribed rule, conditioned on $\xi_0$,
+has clustered parent nodes and a different child rule at each:
 
 ```text
-x = 1.000 -> y = {-1,   2}, w_y = {0.4,  0.6}
-x = 1.007 -> y = {-0.5, 3}, w_y = {0.7,  0.3}
-x = 1.014 -> y = {0.25, 4}, w_y = {0.25, 0.75}
+xi_0 = 1.000:  xi_1 = {-1,   2},  W = 0.2 * {0.4,  0.6}
+xi_0 = 1.007:  xi_1 = {-0.5, 3},  W = 0.3 * {0.7,  0.3}
+xi_0 = 1.014:  xi_1 = {0.25, 4},  W = 0.5 * {0.25, 0.75}
 ```
 
-The test independently sums all `6 x 4` mixed moments from these six terminal
-points. The configured `automatic` case in
-`clustered_policy_automatic.qmom` is checked against that sum, then the same
-public case is reconstructed with every public policy.
+The test sums the $6\times4$ raw moments of these six weighted points and
+requires the moments the case keeps from `clustered_policy_automatic.qmom` to
+match them to `1e-12`. For each
+solver it compares the fixed $3\times2$ quadrature and all reconstructed
+moments with the rule and checks the root diagnostics. The root system, the
+Vandermonde matrix of $\xi_{0,i}/2$, has an infinity-norm condition number of
+about $5.5\times10^5$; the reported estimate must lie in $[10^5, 10^6]$.
 
-At the root conditional solve, the weighted system is
+**Diagnostics invariance**, `verification_vandermonde_diagnostics_<case>`
+(`diagnostics_invariance.cpp`). Divided by the power of two above the largest
+node, the product case's parent nodes are $\{0.25, 0.75\}$ in every
+power-of-two unit, so the scaled matrix has condition number 7.
+`number_density_does_not_change_diagnostics` scales the number density by
+$2^{\pm60}$ and $3.7\times10^{-9}$;
+`power_of_two_unit_does_not_change_diagnostics` scales $\xi_0$ by $2^{\pm40}$,
+where at $2^{40}$ the unscaled weighted matrix exceeds the default warning
+threshold $10^{12}$. The estimate must stay 7, the relative residual at most
+`1e-14`, and the warning off.
 
-```text
-A(p,i) = w_x[i] * x[i]^p,  p,i = 0,1,2.
-```
+## Tolerances
 
-An out-of-tree SVD calculation gives `kappa_2(A) = 2.33e5`; the detailed CQMOM
-diagnostic reports `kappa_inf(A)` about `2.79e5`. Thus the parent geometry is
-clustered enough to make the conditional solve meaningful without approaching
-the effectively unstable `delta = 0.001` geometry.
+- Product case: `1e-12` absolute on nodes, weights, moments and the
+  dense/Björck–Pereyra differences; observed errors are `4e-14` or below.
+- Clustered case: nodes `5e-4`, weights `2e-5`, moments
+  `1e-7 + 1e-8 max(1, |M|)`. Every solver returns child nodes within about
+  `5e-5`, parent nodes within `1e-7` and weights within `2e-6` of the rule,
+  while reproducing the moments to about `1e-11` relative (`4e-10`
+  absolute). The error is identical for every solver: it comes from the
+  clustered parent nodes, which the moments pin only weakly, not from solver
+  rounding. The node bound leaves a factor of about ten and stays below a
+  tenth of the parent spacing; the moment bound is a safety bound.
+- Diagnostics: the estimate matches 7 to a relative `1e-13`, the rounding of
+  the reconstructed nodes, exactly under power-of-two scaling, and to `1e-12`
+  at number density $3.7\times10^{-9}$.
 
-Every policy must recover the independently prescribed fixed topology, nodes,
-weights, and all mixed moments. `automatic` resolves to `bjorck_pereyra`. The
-public diagnostics verify requested and selected policy; the internal backend
-is intentionally not treated as a public contract.
-
-The case also requires the condition estimate reported by the conditional
-solve to lie between `1e5` and `1e6`, which is what makes the system clustered
-enough to be a meaningful test.
-
-The node tolerance is `5e-4`, about ten times the observed maximum error
-on the selected system and below one tenth of the parent spacing. The weight
-tolerance is `2e-5`, and every moment uses an absolute-plus-relative tolerance
-of `1e-7 + 1e-8 max(1, |M|)`. These leave cross-platform margin while still
-rejecting a materially wrong terminal rule. The independent quadrature, rather
-than residual alone, is the primary oracle.
-
-## Detailed Diagnostics Verification
-
-`diagnostics_invariance.cpp` checks that the condition estimate and relative
-residual reported at `CqmomDiagnosticLevel::detailed` describe the system the
-solvers decide on: for the 2D product case above, the scaled Vandermonde
-matrix of the parent nodes has the analytical condition number 7, which does
-not change with the number density or with a power-of-two change of the unit
-of the parent coordinate. In units 2^40 times larger, the unscaled weighted
-matrix would exceed the default warning threshold; the warning stays off. The
-source header states the reference, the tolerances and why.
-
-## Tolerance Policy
-
-The pass tolerance is `1e-12` absolute for terminal nodes, terminal weights,
-reconstructed raw moments, and dense/Björck-Pereyra consistency. The system is
-small and well-conditioned, so errors should remain near roundoff. Do not
-relax this tolerance without first checking whether the configuration,
-analytical reference, solver selection, or reconstruction path changed.
-
-## Running
-
-Configure and build the test suite from the repository root, in Debug as
-described in [Testing](../../../docs/developer/testing_and_validation.md#building-and-running):
+## Reproduce
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
-cmake --build build --parallel
+ctest --test-dir build-tests -R '^verification_vandermonde_' --output-on-failure
 ```
 
-Run the Vandermonde solver-selection verification, one test per policy plus
-the dense/Björck-Pereyra comparison:
-
-```bash
-ctest --test-dir build -R '^verification_vandermonde_solver_' --output-on-failure
-```
-
-Run the clustered solver-policy verification:
-
-```bash
-ctest --test-dir build -R '^verification_vandermonde_clustered_' --output-on-failure
-```
-
-Run the detailed-diagnostics verification:
-
-```bash
-ctest --test-dir build -R '^verification_vandermonde_diagnostics_' --output-on-failure
-```
+See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).

@@ -16,14 +16,15 @@
 //   must be.
 //
 // Error metric and pass criteria
-//   Status must match the expected outcome exactly. Where a quadrature is
-//   expected, positions and weights must agree with the chosen values to
-//   1.0e-12 absolute. The rejection case additionally checks that the returned
-//   position is unchanged, which is what distinguishes rejection from
-//   clipping. The unit case repeats the same rules at coordinate scales 1e-6,
-//   1 and 1e6 and requires the same decision at every scale: a single position
-//   half the acceptance margin beyond a bound is accepted and one twice the
-//   margin beyond is rejected, where the margin is 1e-12 times the larger bound
+//   Status must match the expected outcome exactly. Nodes inside the bounds
+//   must give exactly the unbounded result; other expected quadratures must
+//   agree with the chosen positions and weights to 1.0e-12 absolute. The
+//   rejection case additionally checks that the returned position is
+//   unchanged, which is what distinguishes rejection from clipping. The unit
+//   case repeats the same rules at coordinate scales 1e-6, 1 and 1e6 and
+//   requires the same decision at every scale: a single position half the
+//   acceptance margin beyond a bound is accepted and one twice the margin
+//   beyond is rejected, where the margin is 1e-12 times the larger bound
 //   magnitude; rules with a position exactly on a bound are accepted.
 //
 // Reproduce

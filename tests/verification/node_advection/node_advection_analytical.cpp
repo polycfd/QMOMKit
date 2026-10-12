@@ -3,9 +3,9 @@
 //
 // What is verified
 //   That advancing the positions reproduces the exact trajectory, and that
-//   advection changes positions only - weights, hierarchy and terminal paths
-//   come through untouched, which is what makes the operation a transport step
-//   rather than a new inversion.
+//   advection changes positions only: the weights and, for CQMOM, the terminal
+//   node count come through unchanged, which is what makes the operation a
+//   transport step rather than a new inversion.
 //
 // How the reference is constructed
 //   The velocity fields are chosen so the trajectory is solvable on paper, and
@@ -15,6 +15,8 @@
 //     linear_growth      dx/dt = 0.55*x       x(t) = x0*exp(0.55*t)
 //     affine_evolution   dx/dt = -0.4*x + 0.7 x(t) = (x0 + b/a)*exp(a*t) - b/a
 //                                             with a = -0.4 and b = 0.7
+//     linear_system_2d   dx/dt = -0.3*x, dy/dt = 0.8*x + 0.2*y, solved in
+//                        exponentials of -0.3*t and 0.2*t
 //
 //   Nothing in the reference comes from an integrator.
 //
@@ -24,8 +26,9 @@
 //   produced by a time integrator asked for a relative accuracy of 1.0e-10, and
 //   its error accumulates over the interval; the bound sits above what the
 //   controller was asked to deliver rather than at machine precision. Weights
-//   and topology are compared exactly, since advection has no licence to change
-//   them at all.
+//   are held to the same 5.0e-8 and the terminal node count must not change.
+//   Moments rebuilt from the advanced positions are compared with those of the
+//   exact positions, unit-floored relative at 5.0e-8 and absolute at 1.0e-5.
 //
 // Reproduce
 //   ctest -R verification_node_advection

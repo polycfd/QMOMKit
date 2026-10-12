@@ -1,173 +1,67 @@
-# Node-Advection Analytical Verification
+# Node-advection verification
 
-These verification cases exercise the public phase-space advection operator:
-configuration loading, QMOM/CQMOM inversion, `qmomkit::advance_nodes(...)`,
-and raw-moment reconstruction. Initial moment states and reconstruction
-settings are loaded from `.qmom` files. The node-advection scheme (RK23), its
-adaptive controls, the ODE coefficients, the velocity callbacks, and the
-timestep plan are set in the verifier, so each case controls them explicitly.
-The configuration format can carry the node-advection scheme and adaptive
-controls in `[time_integration.node_advection]`, but these cases do not use
-it.
+## Purpose
 
-The advection operator advances abscissas only. Quadrature weights represent
-the amount of mass carried by each node, so they are invariant under these
-deterministic phase-space trajectories.
+Node advection moves every quadrature node along the phase-space velocity,
+$\mathrm{d}\boldsymbol{\xi}_j/\mathrm{d}t = \dot{\boldsymbol{\xi}}(t, \boldsymbol{\xi}_j)$,
+and keeps the weights, which carry the number density of each node, and the
+quadrature structure
+([Phase-space evolution](../../../docs/developer/phase_space_evolution.md#node-advection)).
+These cases verify that `advance_nodes` reproduces closed-form node
+trajectories in QMOM and CQMOM, leaves the weights and node count unchanged,
+and that the moments of the advanced quadrature are those of the exact
+trajectories.
 
-`node_advection_analytical.cpp` is the canonical verification driver for this
-area. It uses named `.qmom` configurations, closed-form node trajectories, and
-error metrics reported on failure.
+## Cases
 
-Direct overload and diagnostic regression checks live under
-`tests/component_regression/node_advection.cpp`.
+`verification_node_advection_<case>` (`node_advection_analytical.cpp`), with
+fixture `<case>.qmom` (`affine` uses `affine_evolution.qmom`). Each fixture
+holds the moments of the weighted points below, and the test first checks that
+the fixture moments and the initial inversion match them. Velocities, step
+plans and RK23 settings are set in the code. Each case runs one step and a
+multi-step plan.
 
-## Constant Velocity
+| Case | Initial weighted points | Velocity | $t_0$ | Steps |
+| --- | --- | --- | --- | --- |
+| `constant_velocity` | $\xi = \{-0.8, 0.4, 1.7\}$, $w = \{0.2, 0.35, 0.45\}$ | $\dot\xi = 0.6$ | 0.2 | 1 × 0.15; 7 × 0.12 |
+| `linear_growth` | $\xi = \{-1.2, 0.3, 1.4\}$, $w = \{0.15, 0.55, 0.30\}$ | $\dot\xi = 0.55\,\xi$ | −0.1 | 1 × 0.2; 8 × 0.1 |
+| `affine` | $\xi = \{0.2, 1.6, 2.8\}$, $w = \{0.25, 0.45, 0.30\}$ | $\dot\xi = -0.4\,\xi + 0.7$ | 0.4 | 1 × 0.2; 6 × 0.15 |
+| `linear_system_2d` | $(\xi_0, \xi_1) = (-0.7, -0.4), (0.2, 1.1), (1.4, 1.1)$, $W = \{0.45, 0.33, 0.22\}$ | $\dot\xi_0 = -0.3\,\xi_0$, $\dot\xi_1 = 0.8\,\xi_0 + 0.2\,\xi_1$ | 0.3 | 1 × 0.1; 8 × 0.08 |
 
-Configuration: `constant_velocity.qmom`
+After a time $\tau$, the exact positions are $\xi(0) + 0.6\tau$,
+$\xi(0)\,e^{0.55\tau}$ and $(\xi(0) - 1.75)\,e^{-0.4\tau} + 1.75$, with the
+equilibrium inside the initial nodes, and, for the 2-D case,
 
-Initial 1D QMOM quadrature:
-
-```text
-nodes   = {-0.8, 0.4, 1.7}
-weights = {0.2, 0.35, 0.45}
+```math
+\xi_0(\tau) = \xi_0(0)\,e^{-0.3\tau},\qquad
+\xi_1(\tau) = \xi_1(0)\,e^{0.2\tau} + 0.8\,\xi_0(0)\,\frac{e^{-0.3\tau} - e^{0.2\tau}}{-0.5}.
 ```
 
-The ODE is:
+`linear_system_2d` uses conditioning order $\{1, 0\}$ and adaptive node
+counts, so its initial inversion must give a ragged three-node quadrature.
 
-```text
-dxi/dt = 0.6
-xi(t0 + tau) = xi(t0) + 0.6 tau
-m_k(t0 + tau) = sum_a w_a xi_a(t0 + tau)^k
-```
+After each plan the test checks node positions, in phase-space dimension order
+for CQMOM, against the exact trajectories; that weights are unchanged and
+positive and, in CQMOM, the terminal node count kept; that the integrator
+reached $t + \Delta t$; and that all moments of the advanced quadrature,
+including $m_0$ and the cross moments, match those of the exact nodes.
+`linear_growth` also repeats a single step of 0.9 from $t = 0$ with loose
+(`1e-3`, `1e-6`) and standard tolerances and requires the standard run to be
+more accurate.
 
-The verifier runs one step from `t=0.2` with `dt=0.15`, and seven outer
-steps from `t=0.2` with `dt=0.12`.
+## Tolerances
 
-## Linear Growth
+RK23 runs with relative tolerance `1e-10`, absolute `1e-12`, initial step
+`0.01` and maximum step `0.05`. Node positions, the final-time gap, weight
+changes and unit-floored relative moment errors must stay within `5e-8`, and
+absolute moment errors within `1e-5`. Observed node errors are of order
+`1e-10` or below, so these are safety bounds above the accuracy requested
+from the controller.
 
-Configuration: `linear_growth.qmom`
-
-Initial 1D QMOM quadrature:
-
-```text
-nodes   = {-1.2, 0.3, 1.4}
-weights = {0.15, 0.55, 0.30}
-```
-
-The ODE is:
-
-```text
-dxi/dt = 0.55 xi
-xi(t0 + tau) = xi(t0) exp(0.55 tau)
-m_k(t0 + tau) = exp(0.55 k tau) m_k(t0)
-```
-
-The verifier runs one step from `t=-0.1` with `dt=0.2`, and eight outer
-steps from `t=-0.1` with `dt=0.1`. It also repeats a single `dt=0.9` run
-with loose and tight RK23 tolerances and requires the tighter setting to reduce
-the final node error.
-
-## Affine Evolution
-
-Configuration: `affine_evolution.qmom`
-
-Initial 1D QMOM quadrature:
-
-```text
-nodes   = {0.2, 1.6, 2.8}
-weights = {0.25, 0.45, 0.30}
-```
-
-The ODE is:
-
-```text
-dxi/dt = -0.4 xi + 0.7
-xi_eq = 1.75
-xi(t0 + tau) = (xi(t0) + 0.7 / -0.4) exp(-0.4 tau) - 0.7 / -0.4
-```
-
-The equilibrium lies inside the initial node range. The verifier runs one step
-from `t=0.4` with `dt=0.2`, and six outer steps from `t=0.4` with `dt=0.15`.
-Moments reconstructed from the advanced quadrature are compared with moments
-computed from the exact evolved nodes.
-
-## Two-Dimensional Linear System
-
-Configuration: `linear_system_2d.qmom`
-
-The initial state is a 2D CQMOM moment tensor with
-`conditioning_order = {1,0}` and `qmom.adaptive = true`. The exact initial
-terminal quadrature is
-ragged:
-
-```text
-(x, y) = (-0.7, -0.4), W = 0.45
-(x, y) = ( 0.2,  1.1), W = 0.33
-(x, y) = ( 1.4,  1.1), W = 0.22
-```
-
-The ODE is:
-
-```text
-dx/dt = -0.3 x
-dy/dt = 0.8 x + 0.2 y
-```
-
-The exact solution is:
-
-```text
-x(t) = x0 exp(-0.3 t)
-y(t) = y0 exp(0.2 t)
-     + 0.8 x0 (exp(-0.3 t) - exp(0.2 t)) / (-0.3 - 0.2)
-```
-
-The verifier runs one step from `t=0.3` with `dt=0.1`, and eight outer steps
-from `t=0.3` with `dt=0.08`. It checks terminal coordinates in phase-space
-dimension order, unchanged terminal weights, the adaptive/ragged structure,
-and all configured raw moments including cross moments.
-
-## Numerical Settings
-
-The standard RK23 tolerance and step-size settings are set in the verifier,
-together with the velocity callback and timestep plan. The settings are:
-
-```text
-relative_tolerance = 1e-10
-absolute_tolerance = 1e-12
-max_step = 0.05
-```
-
-The linear-growth convergence sanity check uses a loose run with
-`relative_tolerance = 1e-3`, `absolute_tolerance = 1e-6`, and a tight run with
-the standard tolerances.
-
-The pass tolerance is `5e-8` for node positions, weight changes, and
-unit-floored relative moment errors, and the absolute moment error must not
-exceed `1e-5`. Near-zero moments are governed by absolute error through the unit
-denominator floor in the relative metric. The node error also includes the gap
-between the integrator's final time and `t + dt`.
-
-## Running
-
-Configure and build the test suite from the repository root, in Debug as
-described in [Testing](../../../docs/developer/testing_and_validation.md#building-and-running):
+## Reproduce
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
-cmake --build build --parallel
+ctest --test-dir build-tests -R '^verification_node_advection_' --output-on-failure
 ```
 
-Run all node-advection analytical cases:
-
-```bash
-ctest --test-dir build -R '^verification_node_advection_' --output-on-failure
-```
-
-Run individual cases:
-
-```bash
-ctest --test-dir build -R '^verification_node_advection_constant_velocity$' --output-on-failure
-ctest --test-dir build -R '^verification_node_advection_linear_growth$' --output-on-failure
-ctest --test-dir build -R '^verification_node_advection_affine$' --output-on-failure
-ctest --test-dir build -R '^verification_node_advection_linear_system_2d$' --output-on-failure
-```
+See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).

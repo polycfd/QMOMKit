@@ -63,10 +63,9 @@ M[3,3] = 95.45
 
 std::string bounded_abscissa_violation_configuration()
 {
-    // This contains no realizability policy. Before the separation cleanup,
-    // the bounded candidate was rejected by a Hausdorff check before Wheeler
-    // could return its nodes. The current path must reach Wheeler and reject
-    // only the returned node above the configured quadrature interval.
+    // This contains no realizability policy, so no Hausdorff check may reject
+    // the bounded candidate: reconstruction must reach Wheeler and reject only
+    // the returned node above the configured quadrature interval.
     return R"([phase_space]
 names = x, y
 node_counts = 2, 1

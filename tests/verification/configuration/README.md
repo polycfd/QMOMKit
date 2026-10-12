@@ -1,20 +1,42 @@
-# Configuration Failure Verification
+# Configuration failure verification
 
-Configuration files are user input. Invalid `.qmom` files should fail early
-through the public loading APIs before a partial `QmomCase` or `CqmomPreparedCase`
-can be used by numerical algorithms.
+## Purpose
 
-`configuration_failures.cpp` verifies representative public failure paths for:
+A faulty `.qmom` file must be refused by `load_qmom(...)` or
+`load_cqmom_prepared(...)` with an error that names the file and the cause, and
+no case may be returned that a caller could go on to use
+([Configuration and output](../../../docs/developer/configuration_and_output.md#parser-structure)).
 
-- malformed syntax;
-- invalid user option values;
-- missing required sections or entries;
-- mathematically inconsistent case setup.
+## Cases
 
-Each fixture is a small real `.qmom` file. The verification executable loads the
-files with `load_qmom(...)` or `load_cqmom_prepared(...)`, checks that loading
-fails, checks that no case value is returned, and verifies that the error
-message names the configuration file and contains the expected message fragment.
-For the five fixtures whose fault sits on a specific line, the message must also
-carry a line number, in the form `<file>:<line>:`. The goal is the user-facing
-configuration contract, not the parser's private implementation details.
+`verification_configuration_<fixture>` loads one fixture holding one
+deliberate fault:
+
+- `malformed_syntax`\*: the section header `[phase_space` is not closed;
+- `qmom_invalid_adaptive`\*: `adaptive = yes`;
+- `qmom_missing_moments`: neither `[moments]` nor an `[initial]` distribution
+  or mixture;
+- `qmom_insufficient_moments`: three moments for two nodes;
+- `cqmom_invalid_vandermonde_solver`\*: `solver = structured`;
+- `cqmom_missing_phase_space`: no `[phase_space]` section;
+- `cqmom_invalid_conditioning_order`\*: `conditioning_order = 0, 0`;
+- `cqmom_incomplete_tensor`: $M_{1,1}$ is missing.
+
+Each case checks that loading fails, that no value is returned, and that the
+error contains the file path and a fragment of the expected message; checking
+failure alone would let an unrelated error pass. For the fixtures marked \*,
+whose fault sits on one line, the error must carry a line number,
+`<file>:<line>: ...`; the number itself is not compared with the fault's
+line.
+
+## Tolerances
+
+None: every check is exact.
+
+## Reproduce
+
+```bash
+ctest --test-dir build-tests -R '^verification_configuration_' --output-on-failure
+```
+
+See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).

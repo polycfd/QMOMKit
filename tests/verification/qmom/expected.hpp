@@ -72,8 +72,8 @@ inline const QmomAnalyticalCase* find_qmom_analytical_case(const std::string& id
     // manufactured discrete rules plus classical Gaussian quadrature rules for
     // uniform, exponential, and standard-normal moment families. The configured
     // .qmom files supply raw moments from these references; compute_qmom is
-    // expected to recover the same weights, nodes, mass, and reconstructed
-    // moments without normalizing m0 away.
+    // expected to recover the same weights, nodes, number density, and
+    // reconstructed moments without normalizing m0 away.
     static const std::vector<QmomAnalyticalCase> cases = {
         {"single_dirac", {2.5}, {-0.7}},
         {"two_node_discrete", {1.0 / 3.0, 2.0 / 3.0}, {1.0, 3.0}},

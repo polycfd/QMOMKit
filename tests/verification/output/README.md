@@ -1,30 +1,38 @@
-# Output Verification
+# Output verification
 
-This directory verifies the public QMOMKit text output workflow. The output
-layer is intentionally application-controlled: numerical algorithms compute
-QMOM or CQMOM results, `OutputOptions` records whether a driver should write
-moments or quadrature and where files should be placed, and `MomentWriter` or
-`QuadratureWriter` write exactly the caller-provided paths.
+## Purpose
 
-`output_workflows.cpp` is the canonical output verification case. It uses a
-two-node analytical QMOM configuration and the independent 2D analytical CQMOM
-configuration, writes moment and quadrature files, and reads those files back
-as whitespace-delimited text.
+`MomentWriter` and `QuadratureWriter` write text tables whose column order and
+labels are a contract that readers of the files rely on
+([Configuration and output](../../../docs/developer/configuration_and_output.md#output-writers)).
+These cases write each table and read it back as such a reader would.
 
-The case documents and verifies:
+## Cases
 
-- enabled output creates the expected driver-chosen files;
-- disabled `OutputOptions` do not create files in the representative driver
-  workflow;
-- headers are commented and describe the public column ordering;
-- data rows have the same number of columns as the headers;
-- moment values and quadrature values match the computed public result or an
-  independent analytical product quadrature;
-- CQMOM requested moment output preserves requested multi-index order;
-- CQMOM state moment output, written from a `CqmomState`, labels its columns in
-  `CqmomState::moment_indices()` order and writes the state's moment values;
-- CQMOM quadrature output writes one row per active terminal node, including the
-  local terminal index, recursive path, weight, and phase-space coordinates.
+`verification_output_writer_qmom` and `verification_output_writer_cqmom` load
+`qmom/two_node_discrete.qmom` and `cqmom/independent_product.qmom`, write each
+table at one time, $t = 0.25$, and check that:
 
-The writer API does not own filenames, output cadence, restart formats, or
-visualization formats. Those remain application responsibilities.
+- the header is `# time` followed by the expected labels, and every row has
+  one value per label;
+- the QMOM moment and quadrature rows, the CQMOM quadrature rows (node index,
+  conditioning path, weight, coordinates) and the `CqmomState` moment row,
+  labeled in `moment_indices()` order, carry the values handed to the writer;
+- requested CQMOM moments keep their requested, non-monotonic order and equal
+  the moments of the analytical product rule of `independent_product.qmom`,
+  evaluated in the test.
+
+## Tolerances
+
+Values must agree to $10^{-13}$ absolute, indices exactly. The round trip
+through the written text is observed to be exact, and the requested CQMOM
+moments differ from the analytical ones by about $10^{-15}$, the round-off of
+reconstruction; the bound is a safety bound.
+
+## Reproduce
+
+```bash
+ctest --test-dir build-tests -R '^verification_output_' --output-on-failure
+```
+
+See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).

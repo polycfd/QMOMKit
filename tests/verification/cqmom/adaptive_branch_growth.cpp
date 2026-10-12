@@ -18,10 +18,9 @@
 // Error metric and pass criteria
 //   Terminal paths and per-branch node counts must match exactly, and the
 //   diagnostics must record a growth transition. Numerical comparisons use
-//   5.0e-11 absolute. That is looser than the 1.0e-12 used by the studies that
-//   set moments directly, because here the target is reached by integrating a
-//   source over a unit interval, so time-integration error sits on top of the
-//   inversion error.
+//   5.0e-11 absolute, a safety bound: SSP-RK3 integrates a constant rate
+//   exactly, so only rounding separates the final moments from the target,
+//   and the observed errors are of order 1.0e-16.
 //
 // Reproduce
 //   ctest -R "^verification_cqmom_adaptive_branch_growth_"

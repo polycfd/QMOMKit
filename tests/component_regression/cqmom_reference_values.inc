@@ -8,7 +8,7 @@
 // quadrature nodes it was built from, so a wrong static value would be caught.
 //
 // Changing a value is a deliberate act and needs the same justification as any
-// other change to numerical behaviour. See README.md for how to regenerate
+// other change to numerical behavior. See README.md for how to regenerate
 // them.
 
 [[nodiscard]] const std::vector<ReferenceQuadrature>& reference_quadratures()

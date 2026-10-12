@@ -1,23 +1,22 @@
 // CQMOM on a problem whose coordinates span very different magnitudes.
 //
 // What is verified
-//   That the unit of a coordinate does not change the answer: the quadrature
-//   recovered from a rescaled problem, once mapped back, must match the one
-//   recovered from the canonical problem, and both must reproduce the moments
-//   they were given.
+//   That the unit of a coordinate does not change the answer: in every set of
+//   units, the recovered quadrature, divided by the unit factors, must match
+//   the same prescribed rule and reproduce the moments it was given.
 //
 // How the reference is constructed
 //   Chosen, not computed. A canonical rule of weighted points is written down
-//   and a second copy is produced by rescaling each coordinate by a fixed
-//   factor. The raw moments of both are evaluated from their own point sets, so
-//   the two cases have independent references that are related by a known
+//   and copies are produced by rescaling each coordinate by a fixed factor.
+//   The raw moments of each copy are evaluated from its own point set, so the
+//   cases have independent references that are related by a known
 //   transformation.
 //
 // Error metric and pass criteria
-//   Maximum absolute deviation of positions, weights and moments from the
-//   prescribed rules, at 2.0e-10, and 1.0e-10 for the disparate-units case.
-//   Both leave cross-platform margin for nested adaptive inversions; the
-//   observed errors are below 1.0e-15.
+//   Maximum relative error of positions divided by the unit factors and of
+//   moments, both relative to max(|expected|, 1), and maximum absolute error
+//   of weights, at 2.0e-10, and 1.0e-10 for the disparate-units case. Both
+//   are safety bounds; the observed errors are below 1.0e-15.
 //
 // Reproduce
 //   ctest -R 'verification_cqmom_(unit_invariance|disparate_units)'
@@ -208,9 +207,9 @@ void check_result(const std::string& route, const qmomkit::CqmomResult& result, 
 
 int run_disparate_units_case()
 {
-    // The same prescribed ragged terminal rule as the covariance interaction
-    // case is represented in deliberately disparate physical units. The
-    // factors create mixed raw moments from approximately 1e-24 to 1e36 while
+    // The same prescribed ragged terminal rule as the configured cases is
+    // represented in deliberately disparate physical units. The factors
+    // give required moments from approximately 1e-24 to 1e28 while
     // the normalized terminal rule and its moments remain O(1). Adaptive
     // reduction does not depend on the units, so the rule must be recovered.
     const std::vector<double> units{1.0e8, 1.0e-8, 1.0e4};

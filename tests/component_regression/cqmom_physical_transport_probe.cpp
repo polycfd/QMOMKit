@@ -17,8 +17,8 @@
 namespace
 {
 
-// Historical component-regression snapshot. Its original fixture-generation procedure is not recoverable from repository history, so it is
-// not independent numerical verification. The semantic contract is successful adaptive ragged reinversion and preservation of resulting active
+// Component-regression snapshot of unknown provenance. The procedure that generated its fixture is not recorded, so it is not independent
+// numerical verification. The semantic contract is successful adaptive ragged reinversion and preservation of resulting active
 // branch counts through zero-rate state evolution; the physical half-step below is diagnostic context only. Update this fixture only for an
 // intentional, independently justified change to that contract or reconstruction policy, never by regenerating current output to make it pass.
 struct Recurrence2Diagnostic

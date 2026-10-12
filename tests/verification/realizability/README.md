@@ -1,56 +1,67 @@
-# Realizability Analytical Verification
+# Realizability verification
 
-These checks verify one-dimensional truncated-moment realizability
-classification for the public support choices:
+## Purpose
 
-- Hamburger moments on the real line;
-- Stieltjes moments on the nonnegative half-line;
-- Hausdorff moments on a bounded interval.
+These cases verify `check_realizability`, which classifies a truncated
+raw-moment sequence on the real line (Hamburger), on $\xi \ge 0$ (Stieltjes)
+or on an interval $[a, b]$ (Hausdorff). They check the verdict and the
+diagnostics that explain it, its invariance under shift, scale and number
+density, and that rounding of the input may weaken a verdict to `boundary` or
+`numerically_indeterminate` but never reverse it
+([Realizability](../../../docs/developer/realizability.md)).
 
-The expected statuses come from standard analytical examples: distributions
-whose raw moments are strictly realizable on the requested support, simple
-moment sequences that violate positivity on that support, and near-boundary
-second-order moment sets that exercise the configured tolerance.
+## Cases
 
-The verifier also checks the public diagnostic contract. For successful
-Hamburger, Stieltjes, and Hausdorff cases it verifies the checked order,
-limiting matrix diagnostic, minimum pivot, tolerance used, and support-aware
-message. For non-realizable cases it verifies that diagnostics identify the
-public mathematical condition that failed, such as negative `m0`, a Hankel
-matrix failure, a Stieltjes shifted-matrix failure, or a Hausdorff localizing
-matrix failure.
+All are `verification_realizability_analytical_<case>`
+(`realizability_analytical.cpp`). Realizable references are analytical
+densities (normal, gamma, lognormal, beta, uniform) or chosen weighted points;
+non-realizable ones violate a stated condition.
 
-Further cases follow from two standard facts: `n` points inside the support
-are strictly realizable up to order `2n - 1` and on the boundary from order
-`2n` on, and a point at an end of the support puts the sequence on the
-boundary once the localizing matrix for that end is larger than the number of
-the other points. They are checked on every support and on the intervals
-`[-1, 2]` and `[2, 5]` as well as `[0, 1]`. On an interval, a variance above
-the Bhatia-Davis bound `(b - mean)(mean - a)` must be rejected and one below it
-accepted.
+- `diagnostic_success_cases`, `diagnostic_failure_cases`,
+  `boundary_diagnostics`: checked order, pivot and message for a density on
+  each support, and the limiting matrix for the failing matrices `m0`, `H_1`,
+  `S_0` and `L_upper_0` and for boundary cases; the zero measure is `boundary`
+  with `zero_measure`.
+- `hamburger`, `stieltjes`, `hausdorff`, `hausdorff_on_other_intervals`:
+  densities, weighted points and violations on each support, including
+  odd-order range conditions, on $[0, 1]$, $[-1, 2]$ and $[2, 5]$. A variance
+  0.25 above the Bhatia-Davis bound $(b - \mu)(\mu - a)$
+  [[Bhatia & Davis, 2000](https://www.doi.org/10.1080/00029890.2000.12005203)]
+  is rejected, one 0.25 below it accepted.
+- `even_order_boundaries`: $n$ interior points are strictly realizable to order
+  $2n - 1$ and on the boundary from $2n$; a point at an end of the support puts
+  the sequence on the boundary once that end's localizing matrix is larger than
+  the number of other points.
+- `shift_and_scale_preserve_classification`,
+  `resolution_limit_never_reverses_classification`: 21 sequences built from a
+  location $c$ and a spread $s$ keep their verdict for $s$ from $10^{-9}$ to
+  $10^{9}$ and $c/s$ up to a per-case shift of 2 to $10^3$, below the first at
+  which double-precision input changes it; beyond, up to $c/s = 10^8$, it may
+  only become `boundary` or `numerically_indeterminate`.
+- `exact_point_sequences_are_never_rejected`: 50,000 seeded sequences of up to
+  four points on a lattice of $1/4$ below 16 in magnitude, with weights in
+  multiples of $1/8$, whose moments up to order 8 are exact in double precision.
+  None may be rejected on the real line, and none of order $2n$ or more for $n$
+  points, over 20,000 of them, may be called strictly realizable.
+- `near_boundary_and_scaling`: the tolerance band below; strict classification
+  for number densities from $10^{-200}$ to $10^{50}$, boundary and
+  non-realizable classification at $10^{-50}$, and rejection at 0.6 times the
+  largest double, where a matrix row sum overflows.
 
-Realizability is invariant under an affine change of coordinate, so strictly
-realizable, boundary and non-realizable sequences built from a location `c`
-and a spread `s` must keep their classification for every `s` from `1e-9` to
-`1e9` and every `c` up to the number of spreads that double-precision input
-resolves for that order. Beyond that, up to `1e8` spreads, the classification
-may only give way to `boundary` or `numerically_indeterminate`, never to the
-opposite verdict.
+## Tolerances
 
-Sequences of up to four weighted points, with points on a lattice of `1/4` below
-`16` in magnitude and weights that are multiples of `1/8`, have raw moments up
-to order `8` that are exact in double precision. 50,000 seeded samples, many of
-them tens of spreads from the origin, must never be rejected, and those on the
-boundary must never be called strictly realizable.
+Verdicts, and in the diagnostic cases the checked order and, for rejections
+and boundary cases, the limiting matrix, must match exactly. There a strict verdict needs a pivot above the tolerance
+used and a rejection one below its negative, so neither rests on rounding. The
+classifier runs at its default relative tolerance $10^{-12}$; the near-boundary
+cases set $10^{-8}$, so that moving $m_4$ of two points at $\pm 1$ by $10^{-10}$
+is `numerically_indeterminate` and by $10^{-6}$ is decided, as are variances of
+$\pm 10^{-10}$.
 
-Boundary and near-boundary cases verify tolerance behavior. The zero measure
-is reported as boundary-realizable with a `zero_measure` diagnostic. Under a
-loose relative tolerance, perturbing the fourth moment of two points at `-1`
-and `1` by `1e-10` is indeterminate and by `1e-6` decided in either direction,
-while a variance of `1e-10` is decided at its own scale.
-
-Run with:
+## Reproduce
 
 ```bash
-ctest --test-dir build -R verification_realizability_analytical --output-on-failure
+ctest --test-dir build-tests -R '^verification_realizability_analytical_' --output-on-failure
 ```
+
+See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).

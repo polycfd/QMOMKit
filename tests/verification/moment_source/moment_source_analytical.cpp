@@ -19,10 +19,14 @@
 //
 // Error metric and pass criteria
 //   Maximum deviation of the advanced moments from the closed-form solution, at
-//   2.0e-6, and of moments rebuilt from the resulting quadrature at 2.0e-8.
-//   Both sit above machine precision because the moments are produced by a time
-//   integrator over a finite interval: the bound reflects the accuracy the
-//   integrator was asked for, not the accuracy of the arithmetic.
+//   2.0e-6, of moments rebuilt from the resulting quadrature at 2.0e-8, and of
+//   the zeroth moment from its initial value at 2.0e-8. The first bound covers
+//   the truncation error of fixed-step SSP-RK3 over the interval, which reaches
+//   about 1e-6; the other two are safety bounds far above the observed
+//   roundoff.
+//
+//   The CQMOM case advances the CQMOM moment vector through the vector overload
+//   of advance_qmom_moments_with_source.
 //
 // Reproduce
 //   ctest -R verification_.*moment_source

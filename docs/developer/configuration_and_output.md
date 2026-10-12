@@ -194,7 +194,7 @@ names the factory the row needs (`layout_mismatch_message`).
 
 The format contract, which readers of the files rely on:
 
-- The header is one line: `# time` and one label per column, each centred in
+- The header is one line: `# time` and one label per column, each centered in
   its column.
 - Values are written in scientific notation with `precision` digits after the
   point, a trailing argument of every factory with default `17`. Node and path
@@ -210,7 +210,7 @@ The format contract, which readers of the files rely on:
 Ordinary moment columns come in a fixed order: ascending for QMOM, row-major
 for a tensor, the layout's `required_indices`, the state's `moment_indices()`,
 or the order given for selected or requested moments. Generalized moment
-columns, labelled `G[...]`, follow them, one per exponent vector in
+columns, labeled `G[...]`, follow them, one per exponent vector in
 `OutputOptions::generalized_moment_orders` or the `orders` argument, each
 vector with one finite non-negative exponent per coordinate. The state writers
 evaluate them with `evaluate_generalized_moment(...)` from the quadrature
@@ -230,5 +230,5 @@ a format needed by only one example or test stays local to it.
 
 [`tests/unit/output.cpp`](../../tests/unit/output.cpp) covers the formats,
 the factory pairing and the failure paths, and
-[`tests/verification/output/`](../../tests/verification/output/) writes and
-reads back complete histories.
+[`tests/verification/output/`](../../tests/verification/output/) writes the
+moment and quadrature files of a QMOM and a CQMOM case and reads them back.

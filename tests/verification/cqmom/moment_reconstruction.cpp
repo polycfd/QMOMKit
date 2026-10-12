@@ -16,9 +16,10 @@
 //
 // Error metric and pass criteria
 //   Maximum absolute deviation of each rebuilt moment from the prescribed
-//   value, at 1.0e-12. The failure cases additionally require a non-success
-//   status rather than a best-effort answer, because a partially filled tensor
-//   that looks plausible is the dangerous outcome here.
+//   value, at 1.0e-12. The failure cases additionally require an exception
+//   whose message names the problem rather than a best-effort answer, because
+//   a partially filled tensor that looks plausible is the dangerous outcome
+//   here.
 //
 // Reproduce
 //   ctest -R "^verification_cqmom_moment_reconstruction_"

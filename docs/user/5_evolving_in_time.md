@@ -69,9 +69,9 @@ has; the [Reference](7_reference.md#callbacks) lists their signatures.
 
 ### Velocity
 
-The phase-space velocity defines how fast the nodes move through phase space, for
-example by growth or drag. One call receives every node, packed node by node, and
-fills a buffer of the same layout:
+The phase-space velocity defines how fast the nodes move through phase space,
+for example by growth or drag. One call receives every node, packed node by
+node, and fills a buffer of the same layout:
 
 ```cpp
 const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinates, std::vector<double>& velocities,
@@ -87,8 +87,8 @@ const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double
 };
 ```
 
-Write every entry, and do not resize the buffer. `make_phase_space_velocity(...)`
-adapts a function of one node instead, as in
+Write every entry, and do not resize the buffer.
+`make_phase_space_velocity(...)` adapts a function of one node instead, as in
 [Getting started](2_getting_started.md); it is simpler, but costs one call per
 node.
 
@@ -118,13 +118,13 @@ const qmomkit::QmomMomentSource removal = [](double, const qmomkit::QmomSourceCo
 {
     qmomkit::QmomMomentRate rate{std::vector<double>(context.size(), 0.0)};
     context.for_each_node(
-        [&rate](double weight, double x)
+        [&rate](double weight, double xi)
         {
-            double power = 1.0; // x^k
+            double power = 1.0; // xi^k
             for (double& value : rate.values)
             {
-                value -= 0.1 * x * weight * power;
-                power *= x;
+                value -= 0.1 * xi * weight * power;
+                power *= xi;
             }
         });
     return rate;
@@ -149,9 +149,10 @@ const qmomkit::CqmomMomentSource cqmom_removal = [](double, const qmomkit::Cqmom
 };
 ```
 
-A model without a source passes one that returns zero rates. A model without
-a velocity passes one that writes zeros, or calls `advance_qmom_moment_source(...)`
-alone, as in [Coupling QMOMKit](6_coupling_qmomkit.md#driving-the-stages-yourself).
+A model without a source passes one that returns zero rates. A model without a
+velocity passes one that writes zeros, or calls
+`advance_qmom_moment_source(...)` alone, as in
+[Coupling QMOMKit](6_coupling_qmomkit.md#driving-the-stages-yourself).
 
 ### Boundary contribution
 
@@ -191,11 +192,11 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
 ## Adaptive node counts
 
 In adaptive mode a state remembers how many nodes each branch currently has.
-Node advection never changes these counts. During a source step a branch may
-lose nodes; in the post-source reconstruction it may gain one, if the moments
+Node advection never changes these counts; only the reconstruction after a
+source step does. There a branch may lose nodes, or gain one if the moments
 support it. In CQMOM, when a branch's node count changes, the branches below it
 condition on other nodes and start from their configured maximum. Node counts
-therefore shrink readily and grow one at a time.
+therefore shrink readily and grow by at most one per step.
 
 ## Reading a state
 
@@ -237,8 +238,8 @@ On failure, `result.state` is the state the step started from and
 negative tolerance, is reported as `invalid_input` before anything runs, so a
 step failure always concerns the numerics or your callbacks. Retrying with a
 smaller step, or stopping, is your decision. A failed CQMOM step also returns,
-in `diagnostic_quadrature`, the quadrature the failing stage produced, for
-diagnosis only.
+for diagnosis only, a `diagnostic_quadrature`: the quadrature a failed
+reconstruction produced, or the input of a failed advection or source stage.
 
 ## Writing output
 

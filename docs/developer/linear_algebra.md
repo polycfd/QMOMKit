@@ -62,9 +62,9 @@ $\lVert A\rVert_\infty\lVert A^{-1}\rVert_\infty$, with $A^{-1}$ from
 `solve_bjorck_pereyra` solves the transposed Vandermonde system $V^TY=B$,
 $V_{i,p}=\xi_i^p$, for every column of $B$ in $O(n^2)$ operations per column
 without forming $V$ [[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)].
-Its singularity test divides the nodes by the power of two $s$ above
-$\max_i|\xi_i|$, so $\tilde\xi_i=\xi_i/s\in(-1,1)$ and $\lVert V^T\rVert_\infty\le n$,
-and bounds the inverse by
+Its singularity test divides the nodes by the power of two $2^e$ above
+$\max_i|\xi_i|$, so $\tilde\xi_i=\xi_i/2^e\in(-1,1)$ and
+$\lVert V^T\rVert_\infty\le n$, and bounds the inverse by
 [[Gautschi, 1962](https://doi.org/10.1007/BF01386302)]
 
 ```math
@@ -72,16 +72,16 @@ and bounds the inverse by
 ```
 
 with equality when the nodes share a sign. The system is singular when the
-estimated condition number $n\beta$ reaches $1/\tau$. The estimate is independent of the unit,
-covers clusters of close nodes as well as a single close pair, and is infinite
-for coincident nodes.
+estimated condition number $n\beta$ reaches $1/\tau$. The estimate is
+independent of the unit, covers clusters of close nodes as well as a single
+close pair, and is infinite for coincident nodes.
 
 ### Jacobi SVD
 
 `factorize_svd` scales the matrix by a power of two, then sweeps cyclically
-over column pairs. A pair counts as orthogonal when
-$|\gamma|\le\tau_J\sqrt{\alpha\beta}$, with $\alpha$, $\beta$ the squared
-column norms and $\gamma$ their dot product, accumulated in `long double`.
+over column pairs. A pair $u$, $v$ counts as orthogonal when
+$|u^Tv|\le\tau_J\lVert u\rVert_2\lVert v\rVert_2$, with the products
+accumulated in `long double`.
 Defaults are $\tau_J=\max(10^{-14},\,10\,\varepsilon\max(m,n))$ and
 $\max(32,8n)$ sweeps. Singular values come back in descending order.
 `solve_svd` refuses a rank-deficient or unconverged factorization;
@@ -115,17 +115,16 @@ to the largest weight and applies to every solver. The direct solvers
 (`dense`, `pivoted_qr`, `svd`, `moore_penrose`) use the factorization
 
 ```math
-A=S\,\tilde V^T D,\qquad S=\operatorname{diag}(s^p),\qquad D=\operatorname{diag}(w),
+A=S\,\tilde V^T D,\qquad S=\operatorname{diag}(2^{ep}),\qquad D=\operatorname{diag}(w),
 ```
 
-with $s$ the power of two above $\max_i|\xi_i|$ and $\tilde V$ the Vandermonde
-matrix of $\xi_i/s$. They solve $\tilde V^TY=S^{-1}M$ and return
-$C=D^{-1}Y$. $\tilde V^T$ has a first row of ones and entries in $[-1,1]$, so
-its pivot, rank and truncation decisions depend on neither the number density
-nor the unit. Björck–Pereyra solves $V^TY=M$ on the unscaled nodes, since its
-singularity test scales them itself, and also returns $C=D^{-1}Y$. A
-non-finite $C$ is a failure. The Moore–Penrose solution is minimum-norm in $Y$,
-not in $C$.
+with $2^e$ the power of two above $\max_i|\xi_i|$ and $\tilde V$ the Vandermonde
+matrix of $\xi_i/2^e$. They solve $\tilde V^TY=S^{-1}M$ and return $C=D^{-1}Y$.
+$\tilde V^T$ has a first row of ones and entries in $[-1,1]$, so its pivot, rank
+and truncation decisions depend on neither the number density nor the unit.
+Björck–Pereyra solves $V^TY=M$ on the unscaled nodes, since its singularity test
+scales them itself, and also returns $C=D^{-1}Y$. A non-finite $C$ is a failure.
+The Moore–Penrose solution is minimum-norm in $Y$, not in $C$.
 
 ### Solver selection
 
@@ -161,9 +160,10 @@ and positive, `rcond` in $[0,1)$; otherwise the case is invalid input.
 
 ### Diagnostics
 
-At `CqmomDiagnosticLevel::detailed`, `conditional_vandermonde_diagnostics`
-describes a successful solve on the system the solvers decide on,
-$\tilde V^TY=S^{-1}M$ with $Y=DC$, whatever solver ran:
+At `CqmomDiagnosticLevel::detailed`,
+`CqmomDiagnostics::conditional_moment_diagnostics` describes a successful solve
+on the system the solvers decide on, $\tilde V^TY=S^{-1}M$ with $Y=DC$, whatever
+solver ran:
 
 - `condition_estimate` is the condition estimate of $\tilde V^T$;
 - `residual_norm` is the relative residual

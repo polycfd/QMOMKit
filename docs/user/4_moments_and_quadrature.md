@@ -227,16 +227,18 @@ default solver suits most cases; `[vandermonde] solver` selects another, and
 ### Derived quantities
 
 Moments of any real order can be evaluated from a quadrature, here $m_{1/3}$
-of a QMOM result and, in two dimensions, $M_{1/3,\,2}$:
+of the log-normal moments generated above and, in two dimensions,
+$M_{1/3,\,2}$ of the CQMOM result:
 
 ```cpp
-const double m_third = qmomkit::evaluate_generalized_moment(result, 1.0 / 3.0);
+const qmomkit::QmomResult lognormal = qmomkit::compute_qmom(generated.moments, 2);
+const double m_third = qmomkit::evaluate_generalized_moment(lognormal, 1.0 / 3.0);
 const double cqmom_m = qmomkit::evaluate_generalized_moment(cqmom.quadrature, {1.0 / 3.0, 2.0});
 ```
 
-Fractional orders need non-negative abscissas, as for the log-normal moments
-above, and throw `std::domain_error` otherwise. These values are computed from
-the quadrature only; they are not added to the moments a case or state holds.
+Fractional orders need non-negative abscissas, as here, and throw
+`std::domain_error` otherwise. These values are computed from the quadrature
+only; they are not added to the moments a case or state holds.
 
 ## Check realizability
 
@@ -261,8 +263,8 @@ These moments have a node at $-1$, so they are realizable on the real line but
 not on the non-negative numbers. The supports are `MomentSupport::real_line`,
 `MomentSupport::nonnegative`, and an interval, `BoundedInterval{lower, upper}`.
 `realizable()` is true for moments strictly inside the realizable set and on
-its boundary, which `on_boundary()` reports. The message names the moment order
-that fails.
+its boundary, which `on_boundary()` reports. The message names the failing
+moment matrix.
 
 A successful reconstruction is no realizability check: QMOM works on the real
 line, and an adaptive reconstruction drops nodes the moments do not support.
@@ -271,9 +273,7 @@ To keep nodes inside an interval, use bounds as above.
 For a distribution far from the origin compared with its width, at high
 orders, the moments carry too few digits to decide, and the check reports
 `boundary` or `numerically_indeterminate`. Measuring the coordinate from a
-nearby reference point avoids this. A policy (below) rejects indeterminate
-moments unless `accept_indeterminate` is set; accepted, they may lie just
-outside the realizable set, and an adaptive reconstruction then drops nodes.
+nearby reference point avoids this.
 
 ### During evolution
 
@@ -294,8 +294,10 @@ cqmom_options.source_options.coordinate_realizability_policies = {policy, std::n
 
 `FinalOnly` checks the result of the source step, `EveryStage` also its
 intermediate stages. Boundary moments are accepted unless `accept_boundary` is
-false, indeterminate ones only if `accept_indeterminate` is set. A rejected source step fails, or is retried with a smaller step if you
-allow retries, as described in [Evolving in time](5_evolving_in_time.md). For
-CQMOM, each coordinate's policy checks only the moments of that coordinate,
+false, indeterminate ones only if `accept_indeterminate` is set; accepted, they
+may lie just outside the realizable set, and an adaptive reconstruction then
+drops nodes. A rejected source step fails, or is retried with a smaller step if
+you allow retries, as described in [Evolving in time](5_evolving_in_time.md).
+For CQMOM, each coordinate's policy checks only the moments of that coordinate,
 $M_{0,\ldots,k,\ldots,0}$. In a file, these settings form the
 `[time_integration.realizability]` section.

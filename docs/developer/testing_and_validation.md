@@ -38,10 +38,12 @@ that the unit tests passed.
 Every executable registered by the scanning helpers below ends in a call to
 `qmomkit::test::dispatch_test_case` from
 [`tests/test_case_dispatch.hpp`](../../tests/test_case_dispatch.hpp), which
-maps selectors to functions; the other executables parse their own arguments,
-a `.qmom` path and a case name, or a case name. Without an argument the executable runs
-every case; with one selector it runs that case; an unknown selector prints the
-available ones and returns 2, which CTest reports as a failure.
+maps selectors to functions. Without an argument the executable runs every
+case; with one selector it runs that case; an unknown selector prints the
+available ones and returns 2, which CTest reports as a failure. The other
+executables parse their own arguments, which range from a single path to a
+directory and a case name or more; the directory's `CMakeLists.txt` shows how
+each is called.
 
 [`tests/CMakeLists.txt`](../../tests/CMakeLists.txt) registers cases in three
 ways:
@@ -58,8 +60,10 @@ leading `test_` or `component_regression_` (for a unit test, the file stem).
 The selector is `<case>`. So:
 
 - In a scanned file, adding a case takes a `void test_<case>()` function and a
-  `{"<case>", test_<case>}` entry in the dispatch table; CMake needs no change.
-  A scanned function missing from the table fails with exit code 2.
+  `{"<case>", test_<case>}` entry in the dispatch table; no CMake file changes,
+  but the source is scanned when CMake configures, so re-run the configure step
+  before `ctest`. A scanned function missing from the table fails with exit
+  code 2.
 - Do not name helper functions `test_*` in a scanned file, nor zero-argument
   helpers `verify_*` in a file scanned for logical cases; they would be
   registered.
@@ -80,9 +84,11 @@ and given an `include_<header>.cpp` in `tests/public_headers/`, listed in that
 directory's `CMakeLists.txt`. That file includes the header under test first,
 before any standard header, so a missing include fails to compile; where
 clang-format (`IncludeBlocks: Regroup`) would sort a standard header ahead of
-it, a comment line separates the two. It may pin declarations with
-`static_assert`s in namespace `public_header_pins`. An input aggregate also
-enters `brace_initialization.cpp`
+it, a comment line separates the two. It may check type properties with
+`static_assert`s and pin entry points in namespace `public_header_pins`:
+function-pointer variables of the exact signature, with external linkage, so a
+changed signature fails to compile and a missing definition fails to link. An
+input aggregate also enters `brace_initialization.cpp`
 ([Architecture](architecture.md#public-and-internal-boundary)).
 
 ## Listing and selecting tests
@@ -146,6 +152,8 @@ The consumer uses only `find_package(QMOMKit CONFIG REQUIRED)` and
 `qmomkit::qmomkit`, includes `<qmomkit/qmomkit.hpp>`, and runs a short QMOM and
 CQMOM workflow; it returns non-zero if any step fails. Run it when changing
 installation, exports, package metadata or installed headers.
+`tools/monte_carlo/tests/package_consumer/` checks an installed companion
+package in the same way.
 
 ## CI gates
 
@@ -155,7 +163,7 @@ requests.
 | Workflow | File | Runs | Reproduce locally |
 | --- | --- | --- | --- |
 | CI-Debug | [`debug.yml`](../../.github/workflows/debug.yml) | the suite in Debug, then again with instrumentation | the first two blocks of [Building and running](#building-and-running) |
-| CI-Release | [`release.yml`](../../.github/workflows/release.yml) | the suite in Release | as CI-Debug with `-DCMAKE_BUILD_TYPE=Release` |
+| CI-Release | [`release.yml`](../../.github/workflows/release.yml) | the suite in Release, without instrumentation | the first block of [Building and running](#building-and-running) with `-DCMAKE_BUILD_TYPE=Release` |
 | CI-Warnings-GCC | [`warnings_gcc.yml`](../../.github/workflows/warnings_gcc.yml) | a Debug build of library and tests with the runner's `g++` and `-Werror`; nothing is run | `cmake -S . -B build-warnings-gcc -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON -DCMAKE_CXX_COMPILER=g++ -DCMAKE_CXX_FLAGS="-Werror"`, then build |
 | CI-Indentation | [`clang-format.yml`](../../.github/workflows/clang-format.yml) | [`tools/check_indentation.sh`](../../tools/check_indentation.sh) with clang-format 22.1 | see below |
 | CI-Consumers | [`consumers.yml`](../../.github/workflows/consumers.yml) | install, package consumer, Monte Carlo tests, all Debug | the last block of [Building and running](#building-and-running) |
@@ -202,7 +210,9 @@ here:
 - Monte Carlo references, below.
 
 Expected values come from the mathematical case, never from another call into
-the code under test. Evidence that the suite enforces lives in
+the code under test. A relative error against a reference at or near zero,
+such as an odd moment of a symmetric distribution, needs an absolute floor, as
+`QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE` provides. Evidence that the suite enforces lives in
 `tests/verification/`. [`paper/verification/`](../../paper/verification)
 holds paper-specific studies outside CTest.
 
@@ -232,18 +242,23 @@ moments of the points moved along their analytical trajectories.
 Conventions that matter when adding a case:
 
 - Each sampling call seeds its `std::mt19937_64` engines deterministically from
-  the explicit `seed`. Samples repeat for the same distribution, sample count, seed, compiler and
-  standard library, but standard-library distributions differ between
-  implementations; tests compare with tolerances or standard errors, never with
-  exact sampled values.
+  the explicit `seed`. Samples repeat for the same distribution, sample count,
+  seed, compiler and standard library, but standard-library distributions differ
+  between implementations; tests compare with tolerances or standard errors,
+  never with exact sampled values.
 - Moment histories are written with QMOMKit's `MomentWriter`
   (`make_moment_history_writer(...)`), so they have the format of QMOMKit's own
   output.
 - Code that only tests use, such as a reference construction, lives under
   `tools/monte_carlo/tests/`, not in the package.
-- Tests register as `monte_carlo_<subsystem>_<case>` (label `monte_carlo`) from
-  `void test_<case>()` definitions, as in the core suite, and check with
-  [`tools/monte_carlo/tests/test_checks.hpp`](../../tools/monte_carlo/tests/test_checks.hpp), not
+- A test source is added in
+  [`tools/monte_carlo/CMakeLists.txt`](../../tools/monte_carlo/CMakeLists.txt)
+  with `monte_carlo_add_test_executable(monte_carlo_<subsystem>_tests …)`,
+  which registers every zero-argument `void test_<case>()` as
+  `monte_carlo_<subsystem>_<case>`, with label `monte_carlo` and no timeout.
+  Cases dispatch through `tests/test_case_dispatch.hpp` of the companion and
+  check with
+  [`tests/test_checks.hpp`](../../tools/monte_carlo/tests/test_checks.hpp), not
   `assert()`.
 
 Build and usage are in [`tools/monte_carlo/README.md`](../../tools/monte_carlo/README.md).

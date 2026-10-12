@@ -25,8 +25,8 @@ Change the file name for the other programs, and configure with
 
 ## 1. Reconstruct a quadrature
 
-Consider a population of two groups: 0.4 at position $-1$ and 0.6 at
-position $2$. Its first four raw moments are
+Consider a population of two groups: 0.4 at $\xi = -1$ and 0.6 at $\xi = 2$.
+Its first four raw moments are
 
 ```math
 m_0 = 1, \qquad m_1 = 0.8, \qquad m_2 = 2.8, \qquad m_3 = 4.4 .
@@ -64,14 +64,14 @@ weight 0.6 at 2
 
 `compute_qmom(...)` takes the moments and the number of nodes. $N$ nodes need
 the $2N$ moments $m_0, \ldots, m_{2N-1}$, so four moments allow two nodes. The
-result holds the weights and the abscissas, the node positions, in ascending
-order. If the reconstruction fails, `ok()` is false and `message` says why, so
-always check it before using a result.
+result holds the weights and the abscissas, the node locations in phase space,
+in ascending order. If the reconstruction fails, `ok()` is false and `message`
+says why, so always check it before using a result.
 
 ## 2. Evolve it in time
 
 Now let the population change. Its nodes drift towards zero at a rate
-proportional to their position, and the population as a whole decays:
+proportional to their abscissa, and the population as a whole decays:
 
 ```math
 \frac{\mathrm{d}\xi}{\mathrm{d}t} = -0.5\,\xi ,
@@ -94,9 +94,9 @@ int main()
     qmom_case.node_count = 2;
     qmomkit::QmomState state = qmom_case.initial_state();
 
-    // Nodes drift towards zero: dx/dt = -0.5 x.
+    // Nodes drift towards zero: dxi/dt = -0.5 xi.
     const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
-        [](double, const std::vector<double>& x) { return std::vector<double>{-0.5 * x[0]}; });
+        [](double, const std::vector<double>& xi) { return std::vector<double>{-0.5 * xi[0]}; });
 
     // The population decays: dm_k/dt = -0.1 m_k.
     const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& context)
@@ -141,7 +141,7 @@ The program has three parts:
   state by one step and returns the new state and the time it has reached.
 
 The results match the exact solution: the decay leaves $m_0 = e^{-0.1}$ after
-one time unit, and the drift scales every position, and so the mean, by
+one time unit, and the drift scales every abscissa, and so the mean, by
 $e^{-0.5}$, giving $0.8\,e^{-0.5}$.
 
 The loop and the step size are yours.
@@ -197,7 +197,7 @@ int main()
 
     // Sizes shrink and velocities relax: d(size)/dt = -0.1 size, d(velocity)/dt = -velocity.
     const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
-        [](double, const std::vector<double>& x) { return std::vector<double>{-0.1 * x[0], -x[1]}; });
+        [](double, const std::vector<double>& xi) { return std::vector<double>{-0.1 * xi[0], -xi[1]}; });
     // No source in this example.
     const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
@@ -235,8 +235,8 @@ Compared with the one-dimensional program:
 
 - `load_cqmom_prepared(...)` reads the file and reports a problem with it
   through `configured.error()`, with the line number where there is one;
-- the velocity now returns two values, one per coordinate, in the order the
-  file declares them;
+- the phase-space velocity now returns two values, one per coordinate, in the
+  order the file declares them;
 - this population has no source, which is expressed as a source that returns
   zero rates;
 - the result is a set of four nodes, two sizes times two velocities, each with

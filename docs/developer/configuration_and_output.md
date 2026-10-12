@@ -40,11 +40,13 @@ parser also fixes these, which are equally part of the file format:
   be reopened. A malformed header closes the open section, so the keys after it
   are not attributed to the section above it.
 - A line is `key = value`; neither may be empty, and a key appears once.
+  Surrounding whitespace is trimmed; quotes are kept as part of the value.
 - Numbers must match the plain decimal grammar of `is_decimal_number` and are
   then read in the classic locale, whatever the host's locale. Non-finite,
   overflowing and subnormal values are rejected.
 - Integers are unsigned and booleans `true` or `false`. Lists are
-  comma-separated, with no empty entry and no trailing comma.
+  comma-separated, with no empty entry and no trailing comma;
+  `[output] generalized_moments` separates its exponent vectors with `|`.
 - Indexed sections are looked up by their canonical index, so `00` never
   matches `0`.
 
@@ -127,6 +129,11 @@ whether the moments can be reconstructed is left to `compute_cqmom(...)` and
 
 ## Adding a key
 
+A setting gets a key when it is numerical configuration a user chooses per
+case, such as a node count, a tolerance or a scheme. Physics, callbacks,
+schedules and implementation machinery get none, and a setting rarely changed
+can stay C++-only, as `QmomOptions::cutoff` does.
+
 1. Add the qualified key to the lists that accept it:
    - a case key to `qmom_explicit_allowed_keys`, which
      `qmom_initial_allowed_keys` extends, for QMOM, and to
@@ -134,13 +141,19 @@ whether the moments can be reconstructed is left to `compute_cqmom(...)` and
      extends, for CQMOM; a key both accept goes into both, and a `[qmom]` key
      also into the hard-coded check of `reject_unknown_qmom_option_keys`,
      which the QMOM evolution-option parser applies;
+   - an `[initial]` key to `qmom_initial_allowed_keys` or
+     `cqmom_initial_allowed_keys`, and a distribution parameter to
+     `distribution_parameters` ([Distributions](distributions.md#adding-a-family));
    - a `[time_integration]` key to `node_advection_allowed_keys` or
      `realizability_policy_fields`; a top-level one, as `scheme` is, to
-     `append_time_integration_allowed_keys`;
+     `append_time_integration_allowed_keys` and to the hard-coded check of
+     `reject_unknown_phase_space_evolution_keys`, which the option parsers
+     apply;
    - an `[output]` key to `output_allowed_keys`.
 
    `with_runtime_allowed_keys` adds the time-integration and output keys to the
-   case parsers, and the option parsers check against the same lists. A new
+   case parsers, and the option parsers check against the same lists, apart
+   from that hard-coded check. A new
    section also goes into `reject_unknown_qmom_sections`,
    `reject_unknown_cqmom_sections` or `time_integration_sections`, and, for a
    `[time_integration]` section, into the section checks of
@@ -208,6 +221,12 @@ without them.
 The writers read only `generalized_moment_orders` from `OutputOptions`.
 `directory`, `write_moments`, `write_quadrature` and `interval` are carried to
 the host, which decides where, what and when to write.
+
+Existing columns keep their order and labels, since readers of the files rely
+on them; a new quantity becomes a new column after them or a new factory. A new
+writer documents its format here and in the
+[Reference](../user/7_reference.md#output-files) before it becomes public API;
+a format needed by only one example or test stays local to it.
 
 [`tests/unit/output.cpp`](../../tests/unit/output.cpp) covers the formats,
 the factory pairing and the failure paths, and

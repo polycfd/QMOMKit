@@ -15,8 +15,8 @@ A `.qmom` file holds `[sections]` of `key = value` lines.
 - Unknown keys are errors, and so are keys that contradict the other settings,
   such as a parameter of another distribution family; both are reported with
   the file and line.
-- Explicit `[moments]` take precedence over `[initial]`, which is then not
-  read.
+- Explicit `[moments]` take precedence over `[initial]`, which is then neither
+  read nor checked.
 - An optional top-level `format_version = 1` states the format version.
 
 The case loaders check every key in the file; the other loaders read only their
@@ -97,7 +97,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | --- | --- | --- | --- |
 | `[cqmom] diagnostic_level` | `none` | `basic` records branch structure, `detailed` adds the relative residual and condition estimate of each conditional system. Results are unchanged. | `CqmomCase::diagnostic_level` |
 | `[vandermonde] solver` | `automatic` | Solver of the conditional systems: `automatic` (Björck–Pereyra), `bjorck_pereyra`, `dense`, `pivoted_qr`, `svd`, `moore_penrose`. | `CqmomCase::vandermonde_solver` |
-| `[vandermonde] rcond` | `1e-14` | `moore_penrose` only: singular values at or below `rcond` times the largest are discarded. `0 <= rcond < 1`. | `ConditionalMomentOptions::moore_penrose_rcond` |
+| `[vandermonde] rcond` | `1e-14` | Singular values at or below `rcond` times the largest are discarded by `moore_penrose`; the other solvers ignore it. `0 <= rcond < 1`. | `ConditionalMomentOptions::moore_penrose_rcond` |
 
 ### Evolution options
 
@@ -108,7 +108,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | `[time_integration.node_advection.adaptive]` `relative_tolerance`, `absolute_tolerance` | `1e-6`, `1e-9` | Error tolerances of `rk23` and `rk45`. | `node_options.adaptive_options` |
 | `initial_step` | `1e-6` | First step tried. | 〃 |
 | `max_step` | whole interval | Largest step. | 〃 |
-| `min_step` | automatic | Smallest step, at least ten double spacings at the current time. A step at this floor is accepted even above the tolerance. | 〃 |
+| `min_step` | automatic | Smallest step, at least ten double spacings of the time elapsed within the step. A step at this floor is accepted even above the tolerance. | 〃 |
 | `max_steps` | `1000000000` | Most accepted steps per interval. | 〃 |
 | — | `0` | Source step: retries with half the step after a rejection. | `source_options.ssp_rk3_options.max_retries` |
 | — | `0` | Source step: shortest retried step. | `source_options.ssp_rk3_options.min_time_step` |
@@ -197,12 +197,11 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | | `numerically_indeterminate` | The moments carry too few digits to decide. |
 | | `invalid_input` | Empty or non-finite moments, an invalid tolerance, or an invalid support or interval. |
 
-Every result type in this table other than `RealizabilityResult` also has
-`success` and `ok()`. An evolution result's
-`diagnostics.failed_stage` names the part of the step that failed:
-`first_advection_half_step`, `first_moment_reconstruction`, `moment_source_step`,
-`post_source_inversion`, `second_advection_half_step`, or
-`final_moment_reconstruction`.
+Every result type in this table other than `RealizabilityResult` also has a
+`success` status and `ok()`. An evolution result's `diagnostics.failed_stage`
+names the part of the step that failed: `first_advection_half_step`,
+`first_moment_reconstruction`, `moment_source_step`, `post_source_inversion`,
+`second_advection_half_step`, or `final_moment_reconstruction`.
 
 These throw instead of returning a status:
 
@@ -217,14 +216,14 @@ These throw instead of returning a status:
 | `weight(index)`, `abscissa(dimension, index)` of an adaptive `CqmomQuadrature` | `std::logic_error`; iterate over `weights()` and `abscissas()` instead |
 | `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written; `MomentWriter` also `std::domain_error` for a fractional generalized order with a negative abscissa |
 | `value()` of a failed configuration result | `std::bad_optional_access` |
-| `ssp_rk3_step(...)`, `integrate_embedded_rk(...)` | exceptions from your callbacks, unchanged; `std::invalid_argument` when `rhs` changes the size of its buffer, and from `ssp_rk3_step` also when a candidate state is not finite |
+| `ssp_rk3_step(...)`, `integrate_embedded_rk(...)` | exceptions from your callbacks, unchanged; `std::invalid_argument` when `rhs` changes the size of its buffer or returns a non-finite value, and from `ssp_rk3_step` also when a candidate state is not finite |
 
 ## Troubleshooting
 
 | Message | Cause and remedy |
 | --- | --- |
 | `Moment sequence has fewer than 2*n entries.` | $N$ nodes need $2N$ moments. Supply more, request fewer nodes, or raise `maximum_order`. |
-| `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing order. |
+| `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |
 | `Moment sequence has m0 < cutoff.` | There is no population left; stop evolving it. |
 | `… returned nodes outside the configured interval.` | The moments imply nodes outside the bounds: the bounds or the moments are wrong. |
@@ -232,7 +231,7 @@ These throw instead of returning a status:
 | `Phase-space velocity callback returned a non-finite value …` | The message names the node; a velocity dividing by a coordinate that reached zero is typical. |
 | `… exceeded max_steps.` | The velocity is stiffer than expected, or `max_steps` is too low. Check the velocity first. |
 | `… non-finite state or error estimate at the minimum step.` | The node advection diverged; check the velocity. Relaxing tolerances does not help. |
-| `inversion_failed` after many good steps | The moments drift out of the realizable set. Use adaptive mode, a realizability policy with retries, a smaller step, or bounds. |
+| `inversion_failed` after many good steps | The moments drift out of the realizable set. Use adaptive mode, a realizability policy with retries, or a smaller step. |
 | `Moment-source update was rejected by the acceptability predicate.`, `… reached the minimum timestep before an acceptable state was found.` | The source drives the moments out of the realizable set. Allow retries (`max_retries`), use a smaller step, or treat it as a physics problem. |
 | `… must match the source context size.`, `… must match the moment state size.`, `RHS returned a vector with the wrong size.`, `… must be finite.` | Return exactly `context.size()` finite values, in context order. |
 
@@ -245,7 +244,7 @@ then columns separated by whitespace, in full double precision.
 
 | Writer | Columns |
 | --- | --- |
-| `MomentWriter` | `time`, then one column per moment: `M[0] M[1] …` for QMOM, `M[0,0] M[1,0] …` for CQMOM, then generalized moments, such as `G[0.5]`. |
+| `MomentWriter` | `time`, then one column per moment: `M[0] M[1] …` for QMOM, `M[0,0] M[1,0] …` for CQMOM, in the order of `moment_indices()`, then generalized moments, such as `G[0.5]`. |
 | `QuadratureWriter`, QMOM | `time node_index weight x0`, one row per node. |
 | `QuadratureWriter`, CQMOM | `time node_index path_0 … weight x0 …`, one row per terminal node; `path_0 …` are the node's index at each conditioning level. |
 

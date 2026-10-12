@@ -13,12 +13,13 @@ m_k = \int \xi^k\, n(\xi)\,\mathrm{d}\xi ,
 M_{k_0, \ldots, k_{D-1}} = \int \xi_0^{k_0} \cdots \xi_{D-1}^{k_{D-1}}\, n(\boldsymbol{\xi})\,\mathrm{d}\boldsymbol{\xi} .
 ```
 
-The zeroth moment, $m_0$ or $M_{0, \ldots, 0}$, is the total number density.
-QMOMKit never normalizes it away.
+where $\xi_d$ is coordinate $d$ of $D$. The zeroth moment, $m_0$ or
+$M_{0, \ldots, 0}$, is the total number density. QMOMKit never normalizes it
+away.
 
 ## Quadrature
 
-A quadrature replaces $n$ by $N$ nodes, each with a weight $w_i$ and an
+A quadrature replaces $n$ by $N$ nodes; node $i$ has a weight $w_i$ and an
 abscissa $\xi_i$, chosen so that $m_k = \sum_i w_i \xi_i^k$. $N$ nodes need the
 moments $m_0, \ldots, m_{2N-1}$. The weights add up to $m_0$.
 
@@ -71,13 +72,13 @@ of a CQMOM quadrature can then differ in size, so iterate over `weights()` and
 
 Numerical operations report failure in their result rather than throwing. Every
 result has a `status` and a `message`, and all but a realizability check have
-`ok()`; check it before using the result. A
-failed time step returns the state it started from, and what to do next, such
-as retrying with a smaller step, is your decision. Loading a configuration is
-checked separately: `if (!configured)`, then `configured.error()`. A few
-functions throw instead, notably `initial_state()`, when the moments of a case
-cannot be reconstructed, and output writers, when a file cannot be written.
-The [Reference](7_reference.md) lists all statuses.
+`ok()`; check it before using the result. A failed time step returns the state
+it started from, and what to do next, such as retrying with a smaller step, is
+your decision. Loading a configuration is checked separately:
+`if (!configured)`, then `configured.error()`. A few functions throw instead,
+notably `initial_state()`, when the moments of a case cannot be reconstructed,
+and output writers, when a file cannot be written. The
+[Reference](7_reference.md) lists all statuses.
 
 ## Terms
 
@@ -95,7 +96,7 @@ The [Reference](7_reference.md) lists all statuses.
 | layout | The moments a CQMOM hierarchy requires, in a fixed order, `CqmomMomentLayout`. |
 | node | A weighted point of a quadrature. |
 | node advection | Moving the nodes with the velocity over a step. |
-| number density | The population per unit of phase space; its zeroth moment is the total. |
+| number density | Elements per unit volume of physical space and of phase space; its zeroth moment is the total number density. |
 | realizability | Whether moments can come from a non-negative number density on a given support. |
 | post-source reconstruction | The reconstruction of the quadrature from the moments a source step produced. |
 | source | A rate of change of the moments, such as breakage or aggregation. |

@@ -85,9 +85,9 @@ A new state stores the moments of its quadrature. They equal the given moments
 up to order $2N - 1$, or for CQMOM the required moments, unless an adaptive
 reconstruction dropped nodes the moments do not support; every other moment is
 that of the quadrature. Storing `moment_values()` back keeps each cell
-consistent with what was evolved.
-The same pattern restarts a run: store the moments of each state, and create
-the states again from them with `state_candidate(...)`.
+consistent with what was evolved. The same pattern restarts a run: store the
+moments of each state, and create the states again from them with
+`state_candidate(...)`.
 
 Keeping the moments realizable during transport is your code's part. A scheme
 whose new cell values are convex combinations of realizable neighbour values,
@@ -104,8 +104,8 @@ example shows the outcomes.
 
 ## Many states at once
 
-The batch functions advance a vector of states with one time, time step, and set of
-options, and return one result per state, in order:
+The batch functions advance a vector of states with one time, time step, and set
+of options, and return one result per state, in order:
 
 ```cpp
 std::vector<qmomkit::QmomState> states(3, qmom_case.initial_state());

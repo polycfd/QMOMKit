@@ -6,8 +6,7 @@ density $n$ describes how many elements there are at each position
 $\mathbf{x}$ in physical space with each set of properties
 $\boldsymbol{\xi}$, such as size, velocity, or temperature. These properties
 span the *phase space*. A population balance equation (PBE) governs how $n$
-changes
-[[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]:
+changes [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]:
 
 ```math
 \frac{\partial n}{\partial t}
@@ -19,7 +18,9 @@ changes
 Elements move through physical space with a velocity $\mathbf{u}$ and through
 phase space with a velocity $\dot{\boldsymbol{\xi}}$, for example as they grow
 or are dragged by the surrounding flow. The source $S$ creates and removes
-elements, for example by breakage, aggregation, or nucleation.
+elements, for example by breakage or aggregation. Elements that enter or leave
+across a boundary of the phase space, as in nucleation, form a boundary
+condition.
 
 Solving for $n$ itself is expensive, because the phase space adds dimensions
 to the problem. Moment methods track a few raw moments of $n$ instead, which
@@ -28,9 +29,11 @@ moments, QMOMKit represents $n$ by a quadrature: a small set of weighted nodes
 that reproduces the moments. With one phase-space coordinate this is QMOM; with
 several, CQMOM.
 
-**QMOMKit solves the phase-space part** of the PBE at one location: given the
-moments there, it reconstructs the quadrature, moves its nodes with
-$\dot{\boldsymbol{\xi}}$, and integrates the source:
+**QMOMKit solves the phase-space part** of the PBE, the terms with
+$\dot{\boldsymbol{\xi}}$ and $S$ and the phase-space boundaries, at one
+location: given the moments there, it reconstructs the quadrature, moves its
+nodes with $\dot{\boldsymbol{\xi}}$, and integrates the moments with the
+source:
 
 ```text
 raw moments → quadrature → state → time step → state → …
@@ -40,7 +43,8 @@ It also generates moments from distributions, checks whether moments are
 realizable, and writes output.
 
 **Your code does everything else:** the physics, as callbacks that return
-$\dot{\boldsymbol{\xi}}$ and $S$; the meaning and units of the coordinates; the
+$\dot{\boldsymbol{\xi}}$, the moment rates of $S$, and those of the exchange
+across phase-space boundaries; the meaning and units of the coordinates; the
 time loop and step size; what happens when a step fails; and everything in
 physical space, such as meshes, transport with $\mathbf{u}$, and parallelism.
 [Coupling QMOMKit](6_coupling_qmomkit.md) shows how the two parts fit

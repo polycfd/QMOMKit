@@ -24,9 +24,8 @@ needs, indexed in conditioning order with $c_l$ first.
    [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)] inverts as
    in [QMOM](qmom.md). The root weights add up to $M_{0,\ldots,0}$.
 2. **Conditional moments.** For a nonterminal branch whose inversion accepted
-   $n$ nodes $\xi_i$ with weights $w_i$, the slices of its $n$ children solve one
-   weighted Vandermonde system with one column per trailing multi-index
-   $q$:
+   $n$ nodes $\xi_i$ with weights $w_i$, the slices of its $n$ children solve
+   one weighted Vandermonde system with one column per trailing multi-index $q$:
 
    ```math
    \sum_{i=0}^{n-1} w_i\, \xi_i^{p}\, C_{i,q} = M_{p,q},
@@ -96,13 +95,13 @@ values in stored order without lookups.
 ### Branch layouts
 
 `create_branch_moment_layout` turns a slice's indices into lookup metadata: the
-offsets of the Wheeler sequence, a table from each multi-index to its position, and,
-for each parent node count, a *child case*: the slice offsets that form each
-right-hand-side column and the child slice's own layout, built recursively.
-Child cases depend only on the parent node count, so every branch with the
-same accepted count uses the same one. A fixed layout has a child case only
-for the configured count; an adaptive layout has one for every count from one
-to the configured maximum.
+offsets of the Wheeler sequence, a table from each multi-index to its position,
+and, for each parent node count, a *child case*: the slice offsets that form
+each right-hand-side column and the child slice's own layout, built recursively.
+Child cases depend only on the parent node count, so every branch with the same
+accepted count uses the same one. A fixed layout has a child case only for the
+configured count; an adaptive layout has one for every count from one to the
+configured maximum.
 
 ## Fixed and adaptive reconstruction
 
@@ -121,16 +120,17 @@ A reconstruction that creates an adaptive `CqmomState` records one
 parent path, the phase-space dimension, the configured count and the accepted
 count.
 
-A later reconstruction can receive these records. `validate_active_branch_counts`
-then checks, in one pass over the sorted records, that each matches the
-hierarchy, that every reachable branch has exactly one record and that no
-record belongs to an unreachable branch; records in another order are sorted
-into a copy first, and a malformed set is `invalid_input`. A fixed
-reconstruction ignores the records. `recursive_branch_node_count_limit` makes
-each branch's recorded count its ceiling. If growth is allowed, which only the
-post-source reconstruction does, a branch that returns exactly its recorded
-count, below its configured maximum, also tries one more node. It
-keeps that rule only if Wheeler returns all of its nodes.
+A later reconstruction can receive these records.
+`validate_active_branch_counts` then checks, in one pass over the sorted
+records, that each matches the hierarchy, that every reachable branch has
+exactly one record and that no record belongs to an unreachable branch; records
+in another order are sorted into a copy first, and a malformed set is
+`invalid_input`. A fixed reconstruction ignores the records.
+`recursive_branch_node_count_limit` makes each branch's recorded count its
+ceiling. If growth is allowed, which only the post-source reconstruction does, a
+branch that returns exactly its recorded count, below its configured maximum,
+also tries one more node. It keeps that rule only if Wheeler returns all of its
+nodes.
 
 A branch whose accepted count differs from its record has different children:
 they condition on other nodes, so the records below it do not describe them.
@@ -159,8 +159,8 @@ structure holds a child case for every count Wheeler can return, so it too is
 built once and never depends on the moments.
 
 `CqmomPreparedCase` builds it once in its constructor, which throws
-`std::invalid_argument` for a layout other than the required one, and shares it through a
-`std::shared_ptr<const PreparedCqmomMetadata>` with:
+`std::invalid_argument` for a layout other than the required one, and shares it
+through a `std::shared_ptr<const PreparedCqmomMetadata>` with:
 
 - every `compute_cqmom(prepared_case)`;
 - every state from `initial_state()` or `state_candidate(...)`, their copies
@@ -200,10 +200,11 @@ is why they have their own level, and they never fail a solve. The level never
 changes a quadrature, a status or a node count.
 
 `requested_node_count` is the branch's ceiling, raised by one when a growth
-trial is accepted; for a bounded coordinate it is the candidate count the
-bounds accepted. The selected solver is the one `automatic` resolves to.
-Records of the last level have no conditional solve, so their solver fields
-keep their defaults, `automatic` and `dense`, which mean nothing there.
+trial is accepted; for a bounded coordinate it is the candidate count the bounds
+accepted, or the ceiling when they accepted none. The selected solver is the one
+`automatic` resolves to. Records of the last level have no conditional solve, so
+their solver fields keep their defaults, `automatic` and `dense`, which mean
+nothing there.
 
 ## Statuses
 
@@ -233,10 +234,10 @@ $\sum_j W_j\prod_d \xi_{d,j}^{k_d}$ for both QMOM and CQMOM:
   needs non-negative abscissas.
 
 These functions throw on malformed input or overflow
-([Architecture](architecture.md#errors-and-statuses)). States store the moments of their
-accepted quadrature: QMOM states through `reconstruct_raw_moments`, CQMOM
-states through `internal::reconstruct_trusted_cqmom_moments`, which skips the
-layout checks. Source contexts and output writers use the public functions.
+([Architecture](architecture.md#errors-and-statuses)). States store the moments
+of their accepted quadrature: QMOM states through `reconstruct_raw_moments`,
+CQMOM states through `internal::reconstruct_trusted_cqmom_moments`, which skips
+the layout checks. Source contexts and output writers use the public functions.
 
 ## Where the code lives
 

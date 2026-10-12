@@ -99,8 +99,8 @@ built publicly only from a `CqmomCase`, whose layout its constructor checks.
 `std::unique_ptr<Data>`, so the prepared branch structure stays internal.
 
 Callers brace-initialize the input aggregates, such as cases, options and
-policies, and omit trailing members, so every member of such a struct has a
-default initializer, `{}` for a class type;
+policies, and omit trailing members, so every member after the first has a
+default initializer, `{}` for a class type. In a Debug build,
 `tests/public_headers/brace_initialization.cpp` is compiled with
 `-Wmissing-field-initializers` and fails the `-Werror` build otherwise. A new
 public header follows the steps in
@@ -115,8 +115,8 @@ An operation whose failure is a possible outcome of valid use returns a result
 with a status, `ok()`, and a message: reconstruction, moment generation,
 realizability checks, state candidates, every evolution operator, and
 configuration loading. Internal helpers may throw; a function that promises a
-status catches what they throw and maps it to a status. The evolution
-operators map callback exceptions the same way
+status catches what they throw and maps it to a status. The evolution operators
+map callback exceptions the same way
 ([Phase-space evolution](phase_space_evolution.md#callbacks)); the generic
 integrators `ssp_rk3_step` and `integrate_embedded_rk` let them propagate.
 
@@ -124,10 +124,11 @@ An exception means that the calling code broke a contract, that I/O failed, or
 that a setup cannot start: malformed structure while constructing objects,
 `initial_state()` when the moments cannot be reconstructed, moment assembly and
 reconstruction helpers given malformed input or a value beyond the range of a
-double, rectangular accessors on ragged storage, output writers, and
-the generic integrators when `rhs` breaks its contract. The [user Reference](../user/7_reference.md#statuses) lists every
-public function that throws, with its exception types; a new throwing function
-is added there.
+double, rectangular accessors on ragged storage, output writers, and the generic
+integrators when `rhs` breaks its contract. The
+[user Reference](../user/7_reference.md#statuses) lists the workflow functions
+that throw, with their exception types, and a new one is added there; accessors
+given an index out of range also throw and are not listed.
 
 Data returned with a non-success status is diagnostic. A failed Wheeler
 inversion can carry a one-node rule, and a failed step returns its input state;

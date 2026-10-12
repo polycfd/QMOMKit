@@ -63,9 +63,9 @@ namespace mc = qmomkit::monte_carlo;
 const mc::OneDimensionalSampledInitialization initial =
     mc::sample_initialization(qmomkit::LogNormalDistribution{-0.2, 0.4}, 2.5, 3, mc::SamplingOptions{100000, 1201});
 
-// The same velocity moves the QMOM nodes and the particles: dx/dt = -0.5 x.
+// The same velocity moves the QMOM nodes and the particles: dxi/dt = -0.5 xi.
 const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
-    [](double, const std::vector<double>& x) { return std::vector<double>{-0.5 * x[0]}; });
+    [](double, const std::vector<double>& xi) { return std::vector<double>{-0.5 * xi[0]}; });
 const qmomkit::QmomMomentSource no_source = [](double, const qmomkit::QmomSourceContext& context)
 { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 

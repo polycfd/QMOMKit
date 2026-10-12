@@ -56,7 +56,7 @@ not realizable with $k$ nodes. Both tests below act on $\sigma_{k,k}$.
 decision of the inversion that depends on the number density. Every other test
 gives the same result after scaling all moments by a constant or changing the
 unit of the coordinate. State candidates report $0\le m_0<$ `cutoff` as `empty`
-instead of a failure ([Phase-space evolution](phase_space_evolution.md)).
+instead of a failure ([Realizability](realizability.md#policies)).
 
 ## Rounding bound on the recurrence
 
@@ -172,12 +172,12 @@ maps `QuadratureStatus` one to one onto `QmomStatus`:
 | `invalid_input` | Invalid options or bounds, no nodes, too few or non-finite moments. |
 | `not_realizable` | $m_0<0$, $m_0<$ `cutoff`, a fixed count the moments do not support, negative $b_k$, non-finite recurrence or eigenpairs, an unconverged eigensolve, or nodes outside the bounds. |
 
-`ok()` is true only for `success`; the accepted node count is
-`weights.size()`. Data returned with a failure is diagnostic: the one-node
-rule $(m_1/m_0,\ m_0)$ where finite, $(m_1/m_0,\ |m_0|)$ for negative $m_0$,
-the placeholder node 0 with weight 1 below the cutoff, the rejected rule for a
-bounds failure (the full rule in fixed mode, the one-node candidate in adaptive
-mode), and nothing for invalid input. Callers test the status, never whether the vectors are empty.
+`ok()` is true only for `success`; the accepted node count is `weights.size()`.
+Data returned with a failure is diagnostic: the one-node rule $(m_1/m_0,\ m_0)$
+where finite, $(m_1/m_0,\ |m_0|)$ for negative $m_0$, the placeholder node 0
+with weight 1 below the cutoff, the rejected rule for a bounds failure (the full
+rule in fixed mode, the one-node candidate in adaptive mode), and nothing for
+invalid input. Callers test the status, never whether the vectors are empty.
 
 ## Where the code lives
 

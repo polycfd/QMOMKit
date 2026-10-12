@@ -3,8 +3,8 @@
 This page explains how a state advances by one step: the state itself, the
 splitting of a step into node advection and the moment source, the
 reconstruction after the source, how node counts change, and how failures are
-reported. Public usage is in [Evolving in time](../user/5_evolving_in_time.md) and
-[Coupling QMOMKit](../user/6_coupling_qmomkit.md); the reconstructions
+reported. Public usage is in [Evolving in time](../user/5_evolving_in_time.md)
+and [Coupling QMOMKit](../user/6_coupling_qmomkit.md); the reconstructions
 called here are in [QMOM](qmom.md) and [CQMOM](cqmom.md).
 
 ## States
@@ -57,8 +57,8 @@ that is in
 
 The source always integrates over the whole interval from $t$, also in Strang
 splitting, and evaluates its rates at the SSP-RK3 stage times $t$,
-$t+\Delta t$ and $t+\Delta t/2$. A boundary contribution is added to the source rate inside the
-source operator; it is not a third split operator.
+$t+\Delta t$ and $t+\Delta t/2$. A boundary contribution is added to the source
+rate inside the source operator; it is not a third split operator.
 
 A step is all-or-nothing. Each stage works on the state returned by the
 previous one; if a stage fails, the result holds the input state and
@@ -109,14 +109,16 @@ node and evaluation.
 | `ssp_rk3` | SSP-RK3 [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)] | none: one step over the interval |
 
 The embedded pairs run through `integrate_embedded_rk`, which also integrates
-backwards when its end time lies before its start time; phase-space evolution
-always steps forward, since its step must be positive. Node advection
+backwards when its end time lies before its start time. Phase-space evolution
+always steps forward, since its step must be positive; the public
+`advance_nodes` checks only that its step is finite, so a negative step moves
+the nodes backwards. Node advection
 integrates in the local time $\tau \in [0, \Delta t]$ and evaluates the
 velocity at $t+\tau$. The nodes then move over exactly $\Delta t$, not over
 the rounded $(t+\Delta t)-t$, and the step floor follows the spacing of $\tau$,
-not of $t$. `ssp_rk3` uses its own three-stage
-formula, `integrate_nodes_ssp_rk3`, without the predicates and retries of the
-source operator.
+not of $t$. `ssp_rk3` uses its own three-stage formula,
+`integrate_nodes_ssp_rk3`, without the predicates and retries of the source
+operator.
 
 ### Step-size control
 
@@ -129,11 +131,11 @@ E = \left[\frac{1}{n}\sum_{i=1}^{n}\left(\frac{y_i - \hat{y}_i}{a + r\max(|y^0_i
 
 $a$ and $r$ the absolute and relative tolerances. A step with $E < 1$ is
 accepted and keeps $y$. The next step size is the last one times
-$0.9\,E^{-1/(\hat{p}+1)}$, at most 10 after an accepted step (at most 1 if
-it followed a rejection) and at least 0.2 after a rejected one; $\hat{p}$ is the embedded order, so the exponent
-is $-1/3$ for `rk23` and $-1/5$ for `rk45`. Both pairs are
-first-same-as-last: the last stage derivative of an accepted step is the first
-of the next, and a rejected trial reuses the first derivative.
+$0.9\,E^{-1/(\hat{p}+1)}$, at most 10 after an accepted step (at most 1 if it
+followed a rejection) and at least 0.2 after a rejected one; $\hat{p}$ is the
+embedded order, so the exponent is $-1/3$ for `rk23` and $-1/5$ for `rk45`. Both
+pairs are first-same-as-last: the last stage derivative of an accepted step is
+the first of the next, and a rejected trial reuses the first derivative.
 
 `AdaptiveRkOptions` in
 [`include/qmomkit/runge_kutta.hpp`](../../include/qmomkit/runge_kutta.hpp)
@@ -176,15 +178,16 @@ It is explicit and has no error control; `SspRk3Options::estimate_error` is a
 diagnostic only.
 
 Acceptance predicates can reject a step
-[[Nguyen et al., 2016](https://www.doi.org/10.1016/j.jcp.2016.08.017)]: a realizability policy and the
-caller's `accept` and `stage_accept` in
+[[Nguyen et al., 2016](https://www.doi.org/10.1016/j.jcp.2016.08.017)]: a
+realizability policy and the caller's `accept` and `stage_accept` in
 `MomentSourceUpdateOptions::ssp_rk3_options`, combined by logical and.
 `stage_accept` sees $y^{(1)}$, $y^{(2)}$, and $y^{n+1}$, and a rejected stage
-ends the attempt before the next rate evaluation. After a rejection the step
-is halved and restarted from $y^n$, at most `max_retries` times (default 0, so
-the first rejection fails as `rejected_by_predicate`) and never below
-`min_time_step` (default 0, no floor; a halving below it fails as
-`minimum_timestep_reached`). A requested step already shorter than
+ends the attempt before the next rate evaluation. After a rejection the step is
+halved and restarted from $y^n$, at most `max_retries` times (default 0, so the
+first rejection fails as `rejected_by_predicate`) and never below
+`min_time_step` (default 0, no floor). A halving below `min_time_step`, or one
+that underflows or no longer shrinks the step, fails as
+`minimum_timestep_reached`. A requested step already shorter than
 `min_time_step` is attempted, not refused.
 
 A retried step covers only part of the interval. The driver
@@ -270,9 +273,10 @@ rule above. Where policies are set and which moments they check is in
 
 Every evolution entry point, `advance_*_phase_space`, `advance_*_advection`,
 `advance_*_moment_source`, and their batches, checks the options of the stages
-it runs before running any stage or calling any callback, and reports a violation as `invalid_input` with
-`failed_stage == none`. A step failure therefore always concerns the numerics
-or a callback. The checks are those the stages apply themselves:
+it runs before running any stage or calling any callback, and reports a
+violation as `invalid_input` with `failed_stage == none`. A step failure
+therefore always concerns the numerics or a callback. The checks are those the
+stages apply themselves:
 
 | Options | Validator | Checked |
 | --- | --- | --- |
@@ -306,25 +310,26 @@ Size and finiteness are checked after every call
 and the rate checks in [`src/moment_source.cpp`](../../src/moment_source.cpp))
 and a violation throws `std::invalid_argument`. Node advection catches a
 `std::exception` from the velocity or its checks as `velocity_failed`, the
-source operator one from a source, boundary, or stage reconstruction as
-`source_failed`, and the step maps them to `advection_failed` and
-`moment_source_failed`, keeping the message. A non-finite or unwritten
+source operator one from a source, boundary, acceptance predicate, or stage
+reconstruction as `source_failed`, and the step maps them to `advection_failed`
+and `moment_source_failed`, keeping the message. A non-finite or unwritten
 velocity is reported with the time, dimension, and coordinates of its node.
 Exceptions not derived from `std::exception` propagate. The generic
 `ssp_rk3_step` and `integrate_embedded_rk` let callback exceptions propagate.
-`ssp_rk3_step` reports invalid input, such as an empty or non-finite state or
-a step that is not positive, as `SspRk3Status::invalid_input` with a message
-before calling `rhs`, and throws `std::invalid_argument` when `rhs` breaks its
-contract or a candidate state is not finite.
+Both report invalid input, such as an empty or non-finite state, as
+`SspRk3Status::invalid_input` or `AdaptiveRkStatus::invalid_input` with a
+message before calling `rhs`, and throw `std::invalid_argument` when `rhs`
+breaks its contract; `ssp_rk3_step` also rejects a step that is not positive and
+throws when a candidate state is not finite.
 
 Unwritten entries are detected in debug builds only. Without `NDEBUG`,
 `internal::poison_output_buffer`
-([`src/internal/numeric_utils.hpp`](../../src/internal/numeric_utils.hpp))
-fills the buffer with a NaN of a reserved bit pattern before the call, and an
-entry holding that pattern afterwards is reported as unwritten, before
-the finiteness check. Release builds cannot detect an unwritten entry; both
-node-advection paths zero the buffer before each call, so such an entry
-contributes a zero derivative.
+([`src/internal/numeric_utils.hpp`](../../src/internal/numeric_utils.hpp)) fills
+the buffer with a NaN of a reserved bit pattern before the call, and an entry
+holding that pattern afterwards is reported as unwritten, before the finiteness
+check. Release builds cannot detect an unwritten entry; both node-advection
+paths and `internal::rhs_checked` zero the buffer before each call, so such an
+entry contributes a zero derivative.
 
 ## Statuses
 
@@ -337,8 +342,10 @@ contributes a zero derivative.
 | `inversion_failed` | post-source reconstruction | `post_source_qmom_status`, `post_source_cqmom_status`, `post_source_cqmom_diagnostics` |
 
 `first_reconstruction_diagnostics` and `final_reconstruction_diagnostics`
-describe the moment sums of the first and second advection stage, and only of
-an advection stage that ran; the moments summed after the post-source
+describe the moment sums of the first and second advection stage, and are
+written only after that stage's node integration succeeded; otherwise they keep
+their defaults, `success == false` and `moment_count == 0`, also for a scheme or
+helper without that stage. The moments summed after the post-source
 reconstruction have no record of their own.
 
 On failure, `CqmomPhaseSpaceEvolutionResult::diagnostic_quadrature` holds the
@@ -355,6 +362,17 @@ the loop continues. The `_batch_with_index` variants wrap each callback for
 each state in a closure that passes `batch_index`, the position in the input
 vector. An empty input returns an empty result without validation, and an
 exception escaping a scalar call stops the loop.
+
+## Verifying a change
+
+A change to a stage, a scheme or an integrator is verified against exact
+solutions, not against the previous implementation, in
+[`tests/verification/phase_space_evolution/`](../../tests/verification/phase_space_evolution/).
+Commuting cases, whose split solution is exact, isolate the integrators;
+noncommuting cases measure the splitting order under step refinement, about two
+for `strang` and one for `advsrc` and `srcadv`. A new scheme adds its order
+there, a change to stage times a case with time-dependent callbacks, and a new
+status or diagnostic a component-regression test of the failing path.
 
 ## Where the code lives
 

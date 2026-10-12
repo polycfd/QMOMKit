@@ -27,7 +27,7 @@ $K = 2n$ or $K = 2n + 1$, the check tests, in this order:
 
 | Support | $K = 2n$ | $K = 2n + 1$ |
 | --- | --- | --- |
-| `real_line` | $H_n$; if singular, flat extension over $H_{n-1}$ | $H_n$; if singular, range test |
+| `real_line` | $H_n$; if singular, $H_{n-1}$, then the flat-extension test | $H_n$; if singular, range test |
 | `nonnegative`, $a$ the image of 0 | $H_n$, $S_{n-1} = H_{n-1}(\ell^a)$; if $S_{n-1}$ is singular, range test | $H_n$, $S_n = H_n(\ell^a)$; if $H_n$ is singular, range test |
 | `bounded_interval` | $H_n$, $H_{n-1}(\ell^{ab})$ | $H_n(\ell^a)$, $H_n(\ell^b)$ |
 
@@ -35,10 +35,10 @@ For $K = 0$ only $H_0$ is tested. `RealizabilityResult::failed_matrix` names
 them `H_n`, `S_n`, `L_interval_n`, `L_lower_n` and `L_upper_n`; a range test
 adds `_next_column` and a flat extension `_flat_extension` to the name of its
 matrix, and the checks before any matrix report `m0`, `zero_measure` or
-`bounded_interval`. On a bounded
-interval positive semidefiniteness is also sufficient. On the real line and the
-half-line a singular matrix needs a further test: its rank must not grow with
-the next moments
+`bounded_interval`, or nothing for an invalid sequence or tolerance. On a
+bounded interval positive semidefiniteness is also sufficient. On the real line
+and the half-line a singular matrix needs a further test: its rank must not grow
+with the next moments
 [[Curto & Fialkow, 1991](https://www.math.uh.edu/~hjm/v017n4/0603CURTO.pdf)].
 
 ## Standardization
@@ -58,8 +58,9 @@ $(a - c)/2^{e_s}$.
 
 Realizability is invariant under an affine change of coordinate, and the
 moment and localizing matrices change by a congruence, which by Sylvester's
-law of inertia [[Sylvester, 1852](https://www.doi.org/10.1080/14786445208647087)] keeps the signs of their eigenvalues. The tolerance applies to
-the standardized matrices, so the classification depends neither on the
+law of inertia [[Sylvester, 1852](https://www.doi.org/10.1080/14786445208647087)]
+keeps the signs of their eigenvalues. The tolerance applies to the standardized
+matrices, so the classification depends neither on the
 location of the distribution, nor on the unit of its coordinate, nor on $m_0$.
 Scaling by powers of two is exact, so only the centring sum rounds.
 
@@ -110,15 +111,17 @@ threshold $\tau$:
 | ambiguous | $\lambda < \tau$ |
 | positive | otherwise |
 
-The factor 1000, `roundoff_allowance`, bounds the rounding of the eigensolve.
+The allowance $1000\,\varepsilon$, `roundoff_allowance`, bounds the rounding of
+the eigensolve.
 An eigenvalue inside that band has no sign, so the zero class is tested first,
 and a tolerance below $1000\varepsilon$ resolves nothing finer.
 
-A matrix with a negative eigenvalue is not positive semidefinite; otherwise,
-one with an ambiguous eigenvalue is indeterminate, one with a zero eigenvalue
-singular, and any other positive definite. A matrix is also
-indeterminate if the eigen solve does not converge, or if $\delta$ reaches the
-information scale of its sequence, so that no digit is reliable. That scale is
+A matrix is indeterminate, whatever its eigenvalues, if an entry or eigenvalue
+is not finite, if the eigensolve does not converge, or if $\delta$ reaches the
+information scale of its sequence, so that no digit is reliable. Otherwise a
+matrix with a negative eigenvalue is not positive semidefinite, one with an
+ambiguous eigenvalue indeterminate, one with a zero eigenvalue singular, and
+any other positive definite. That scale is
 $\nu_0$ for the moments, and $\nu_0$ times the absolute coefficients of the
 localizing polynomial otherwise: $(1 + |a|)\,\nu_0$, $(1 + |b|)\,\nu_0$ or
 $(1 + |a + b| + |ab|)\,\nu_0$.
@@ -141,8 +144,9 @@ $\theta$ the sequence is `not_realizable`, above $\theta/10$
 (`kernel_projection_tolerance`) is the largest of $\tau$, $t$ times the
 largest column entry, and ten times the uncertainty of the projection: that
 of the column plus its norm times the rotation of the kernel vectors. By the
-Davis–Kahan theorem [[Davis & Kahan, 1970](https://www.doi.org/10.1137/0707001)] that rotation is at most $\delta$ over the gap between the
-zero and the positive eigenvalues, which the smallest positive eigenvalue
+Davis–Kahan theorem [[Davis & Kahan, 1970](https://www.doi.org/10.1137/0707001)]
+that rotation is at most $\delta$ over the gap between the zero and the
+positive eigenvalues, which the smallest positive eigenvalue
 minus $\zeta$ bounds from below.
 
 The **flat-extension test** decides a singular $H_n$ on the real line: it is
@@ -158,12 +162,15 @@ the sequence realizable whatever $H_n$, and the result is
 
 ## Statuses and result
 
-Before any matrix is built, `invalid_input` is returned for an empty sequence,
-a non-finite moment, a tolerance that is not finite and positive,
-`MomentSupport::bounded_interval` without a `BoundedInterval`, or an interval
-whose bounds are not finite with `lower < upper`. A negative $m_0$, or a zero
-$m_0$ with a nonzero higher moment, is `not_realizable`; the all-zero
-sequence, the zero measure, is `boundary`. `realizable()` is true for `strictly_realizable` and
+Before any matrix is built, the checks run in this order. The `BoundedInterval`
+overload first returns `invalid_input` for an interval whose bounds are not
+finite with `lower < upper`. Then an empty sequence, a non-finite moment, or a
+tolerance that is not finite and positive is `invalid_input`. A negative $m_0$,
+or a zero $m_0$ with a nonzero higher moment, is `not_realizable`; the all-zero
+sequence, the zero measure, is `boundary`; these two results hold the raw $m_0$
+and $t$ in `minimum_pivot` and `tolerance_used`. Only then does the
+`MomentSupport` overload reject `bounded_interval` as `invalid_input`, since it
+has no interval. `realizable()` is true for `strictly_realizable` and
 `boundary`, `on_boundary()` only for `boundary`.
 
 `checked_order` is $K$. `failed_matrix` and `failed_matrix_order` name the
@@ -199,7 +206,8 @@ other statuses; the check mode only decides when a check runs.
 `internal::realizability_policy_error`, declared in
 [`src/internal/realizability.hpp`](../../src/internal/realizability.hpp),
 validates a policy with the rules `check_realizability` applies to its options
-and interval; a `None` policy is always valid.
+and interval; a `None` policy is always valid. In CQMOM, any policy indexed
+beyond the dimensions is invalid, whatever its mode.
 
 | Where | Policy | Checked moments |
 | --- | --- | --- |
@@ -208,20 +216,20 @@ and interval; a `None` policy is always valid.
 | QMOM moment-source step | `QmomPhaseSpaceEvolutionOptions::realizability_policy` | the source-step candidates |
 | CQMOM moment-source step, `advance_cqmom_moments_with_source` | `MomentSourceUpdateOptions::coordinate_realizability_policies` | each coordinate's marginal moments of the candidates |
 
-`state_candidate` validates every policy first: an invalid one, or in CQMOM
-one indexed beyond the dimensions, is `invalid_input` before any moment is
-checked, and carries no verdict. It then checks once, before the
-reconstruction, for any mode other than `None`. A rejection returns
-`realizability_rejected`, with `rejected_coordinate` for CQMOM. Moments with
-$0 \le m_0 <$ `QmomOptions::cutoff` are accepted whatever the verdict, so that
-they are reported `empty`, as without a check. A QMOM sequence too short for
+`state_candidate` validates the moments first and then every policy: invalid
+moments or an invalid policy are `invalid_input`, with no verdict. It then
+checks once, before the reconstruction, for any mode other than `None`. A
+rejection returns `realizability_rejected`, with `rejected_coordinate` for
+CQMOM. Only here are moments with $0 \le m_0 <$ `QmomOptions::cutoff` accepted
+whatever the verdict, so that they are reported `empty`, as without a check;
+the moment-source predicate has no such exemption. A QMOM sequence too short for
 the node count is left to the reconstruction.
 
-In the moment-source step a policy is an acceptance predicate; how it
-interacts with the step is in
-[Phase-space evolution](phase_space_evolution.md#moment-source). The
-stateless `advance_qmom_moments_with_source` rejects coordinate policies; a
-caller who wants a check installs `make_realizability_acceptance_predicate(...)` or
+In the moment-source step a policy is an acceptance predicate; how it interacts
+with the step is in
+[Phase-space evolution](phase_space_evolution.md#moment-source). The stateless
+`advance_qmom_moments_with_source` rejects coordinate policies; a caller who
+wants a check installs `make_realizability_acceptance_predicate(...)` or
 `make_realizability_stage_acceptance_predicate(...)`.
 
 In CQMOM a policy checks only the marginal moments $M_{0,\ldots,k,\ldots,0}$

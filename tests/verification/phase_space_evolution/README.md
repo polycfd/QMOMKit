@@ -8,9 +8,12 @@ steps of QMOM and CQMOM states. Commuting operators must split without
 splitting error; `strang` must reach second order and `advsrc` and `srcadv`
 first order; with time-dependent callbacks, each scheme must reproduce its
 exact split solution; source and boundary callbacks must see and return
-moments in the documented order and stage; adaptive QMOM node counts must
-change as documented; realizability policies and retries must govern the
-source step; and failures must report their status and failed stage.
+moments in the documented order and stage, and source callbacks the moments
+they request beyond the tracked ones from the quadrature of the current stage;
+adaptive QMOM node counts must change as documented; realizability policies
+and retries must govern the source step; states created from moments the host
+changed must hold the quadrature of those moments, after any realizability
+check; and failures must report their status and failed stage.
 
 The error is
 $\max_\alpha |M_\alpha - M_\alpha^{\mathrm{ref}}| / \max(1, |M_\alpha^{\mathrm{ref}}|)$
@@ -63,8 +66,9 @@ product of $\xi_0 \in \{1, 3\}$ (weights $0.4, 0.6$) and
 $\xi_1 \in \{-1, 2\}$ (weights $0.25, 0.75$). The inversion-failure fixtures
 differ from their failure counterparts only in $m_0 = -1$ or $M_{0,0} = -1$.
 
-The cases of `time_dependent_splitting.cpp`, `adaptive_qmom_evolution.cpp`
-and `source_step_retries.cpp` build their states in the test, without a
+The cases of `time_dependent_splitting.cpp`, `adaptive_qmom_evolution.cpp`,
+`source_step_retries.cpp`, `state_candidate.cpp` and
+`source_context_moments.cpp` build their states in the test, without a
 fixture, and are listed in their sections below.
 
 ## Commuting operators
@@ -179,6 +183,26 @@ moments, not those after the first half-step, and its start time. The cases
 check the first stage and the result of a step; the second stage stays
 positive.
 
+## States from changed moments
+
+`state_candidate_<case>` (`state_candidate.cpp`) create states with
+`QmomCase::state_candidate(...)` and `CqmomPreparedCase::state_candidate(...)`
+from the moments of chosen weighted points, as a conservative host update
+produces when it mixes populations. The cases are set up with other moments,
+which a candidate does not use; the QMOM cases are adaptive with at most two
+nodes, the CQMOM cases have two nodes per coordinate.
+
+| Case | Moments | Required result |
+| --- | --- | --- |
+| `qmom_state_holds_the_quadrature_of_the_moments` | $0.4$ at $0.5$, $0.6$ at $1.5$, with $m_4$ and $m_5$ changed by $+10$ and $-10$ percent | that rule; the stored $m_4$ and $m_5$ are its moments |
+| `qmom_policy_support_decides_the_verdict` | the same, $m_0$ to $m_3$ | accepted on the real line and on $[0, 2]$; rejected on $[0, 1]$, where $m_1 \le m_0$ is necessary |
+| `qmom_state_keeps_the_maximum_node_count` | one point at $0.5$ | one node, then two after a step of `0.25` with zero velocity and the constant rate towards $0.5$ at each of $0.5$ and $1.5$: $0.875$ and $0.125$ |
+| `cqmom_state_holds_the_quadrature_of_the_moments` | $0.15$ at $(0.5, 1)$, $0.2$ at $(0.5, 3)$, $0.3$ at $(1.5, 0.5)$, $0.35$ at $(1.5, 2)$ | those four points |
+| `cqmom_policy_names_the_rejected_coordinate` | the same | checks on $[0, 2]$ for both coordinates: rejected at coordinate 1, where $2m_1 - m_2 = -0.225$; a check on $\xi_0$ only: accepted |
+
+A rejection must leave `reconstruction_status` unset, since the check runs
+before the reconstruction.
+
 ## Exact single operators
 
 `direct_advection` advects the same weighted points under $\dot\xi = \xi$
@@ -221,6 +245,35 @@ $dM_\alpha/dt = -0.09\,M_\alpha$ for one Strang step of `0.08`, with reference
 $e^{(0.16\,i - 0.11\,j)\,\Delta t} P(-0.09\,\Delta t)\, M_{ij}(0)$. The
 callback's first context must hold the moments after the first advection half
 step.
+
+## Untracked moments in source callbacks
+
+`source_context_moments_<case>` (`source_context_moments.cpp`) write a node
+motion as a moment source that needs moments the state does not track. The
+velocity is zero, so the weights stay constant and the nodes follow closed
+forms. The context must evaluate those moments from the quadrature of the
+current SSP-RK3 stage; the quadrature at the start of the step makes the step
+first order.
+
+- `qmom_untracked_moment`: $0.4$ at $0.5$ and $0.6$ at $1$ to $T = 0.5$ under
+  $\dot\xi = \xi^2$, written as $dm_k/dt = k\,m_{k+1}$ with `moment(k + 1)`,
+  so $\xi(t) = \xi(0)/(1 - \xi(0)\,t)$; the rate of $m_3$ needs $m_4$.
+- `qmom_generalized_moment`: $0.4$ at $0.5$ and $0.6$ at $2$ to $T = 1$ under
+  $\dot\xi = \sqrt{\xi}$, written as $dm_k/dt = k\,m_{k-1/2}$ with
+  `generalized_moment`, so $\xi(t) = (\sqrt{\xi(0)} + t/2)^2$.
+- `cqmom_untracked_moment`, `cqmom_generalized_moment`: the four points of the
+  CQMOM state-candidate cases to $T = 0.5$, with $\xi_0$ constant and
+  $\dot\xi_1 = \xi_0^2$ or $\sqrt{\xi_0}$, written as
+  $dM_{ij}/dt = j\,M_{i+2,j-1}$ or $j\,M_{i+1/2,j-1}$. The layout holds
+  $M_{i0}$ for $i \le 3$ and $M_{ij}$ for $i \le 1$, $j \le 3$, so $M_{21}$,
+  $M_{22}$, $M_{31}$ and $M_{32}$ are untracked.
+
+The QMOM cases run 20, 40, 80 and 160 steps with a fixed count of two nodes,
+and the error must fall at the third order of the SSP-RK3 source step. The
+CQMOM cases are exact: the $\xi_0$ nodes do not move, each stage quadrature
+reproduces the conditional moments of orders 0 to 3, and the rates need orders
+up to 2, so the moment equations are linear and nilpotent and SSP-RK3 equals
+the exact flow. Four steps of `0.125` must match the reference up to roundoff.
 
 ## Boundary contributions
 
@@ -272,6 +325,9 @@ accessor.
 | exact split solutions | order $\ge 2.8$ on the two finest pairs; deviation `1e-6` at 80 steps | 2.97 to 3.01; `1e-7` | the SSP-RK3 source error is third order; the bound leaves a factor of 10 |
 | time-dependent Strang order | order $\ge 1.75, 1.85$ on the two finest pairs | 2.07, 2.03 | the thresholds of `noncommuting_qmom` |
 | adaptive QMOM, source retries | nodes, weights and moments `1e-12` | below `1e-14`, `1e-16` | exact references; rounding of the step and the reconstruction |
+| state candidates | weights, positions and moments `1e-12` | below `1e-14` | exact references; rounding of the reconstruction |
+| untracked source moments, QMOM | order $\ge 2.8$ on the two finest pairs; error `1e-5` at 160 steps | 2.94 to 3.00 on those pairs; `2e-6`, `2e-8` | the SSP-RK3 source error is third order; the bound leaves a factor of 6 and lies far below the `7e-3` and `6e-2` of the step-start quadrature, which gives order 1 |
+| untracked source moments, CQMOM | moments `1e-12` | below `1e-14` | exact reference; roundoff |
 | `direct_advection` | positions `2e-12`, moments `2e-11` | `1e-13`, `1e-12` | SSP-RK3 node error |
 | RK23 minimum step | `2e-6` QMOM, `3e-6` CQMOM | `1e-7` | RK23 error at the minimum step |
 | `node_source` | moments `1e-13`, points and weights `1e-12` | below `1e-15` | the step is exact; roundoff |

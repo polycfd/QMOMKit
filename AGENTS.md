@@ -407,9 +407,13 @@ tests/public_headers/
 
 tests/package_consumer/
     Installed-package discovery, exported targets, includes, and linkage.
+
+tools/monte_carlo/tests/
+    Monte Carlo companion tests. They check without assert(), so any build
+    type runs them in full.
 ```
 
-Numerical algorithm changes must be supported by evidence beyond agreement with the 
+Numerical algorithm changes must be supported by evidence beyond agreement with the
 previous implementation. Validate them against analytical results, manufactured cases,
 convergence behavior, independent implementations, or independently generated
 reference data as appropriate.

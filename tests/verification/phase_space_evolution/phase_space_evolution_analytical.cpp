@@ -1228,7 +1228,7 @@ void verify_qmom_post_source_inversion_failure_result(const qmomkit::QmomPhaseSp
     {
         append_failure(verification, "QMOM post-source inversion failure did not stop at the time of the moment-source stage.");
     }
-    if (result.diagnostics.second_advection_diagnostics.step_count > 0 || result.diagnostics.final_reconstruction_diagnostics.success)
+    if (result.diagnostics.second_advection_diagnostics.rhs_evaluations > 0 || result.diagnostics.final_reconstruction_diagnostics.success)
     {
         append_failure(verification, "QMOM post-source inversion failure reported later-stage completion after the failed inversion.");
     }
@@ -2524,7 +2524,7 @@ void verify_cqmom_post_source_inversion_failure_result(const qmomkit::CqmomPhase
     {
         append_failure(verification, "post-source inversion failure did not stop at the time of the moment-source stage.");
     }
-    if (result.diagnostics.second_advection_diagnostics.step_count > 0 || result.diagnostics.final_reconstruction_diagnostics.success)
+    if (result.diagnostics.second_advection_diagnostics.rhs_evaluations > 0 || result.diagnostics.final_reconstruction_diagnostics.success)
     {
         append_failure(verification, "post-source inversion failure reported later-stage completion after the failed inversion.");
     }
@@ -2688,7 +2688,7 @@ void verify_cqmom_case_post_source_inversion_failure_result(const qmomkit::TestC
     {
         append_failure(verification, "post-source inversion failure did not stop at the time of the moment-source stage.");
     }
-    if (result.diagnostics.final_reconstruction_diagnostics.success || result.diagnostics.second_advection_diagnostics.step_count > 0)
+    if (result.diagnostics.final_reconstruction_diagnostics.success || result.diagnostics.second_advection_diagnostics.rhs_evaluations > 0)
     {
         append_failure(verification, "post-source inversion failure reported later-stage completion.");
     }
@@ -3055,7 +3055,7 @@ void verify_cqmom_native_source_failure_result(const std::string& case_name, con
     {
         append_failure(verification, case_name + " unexpectedly reached post-source CQMOM reconstruction.");
     }
-    if (result.diagnostics.final_reconstruction_diagnostics.success || result.diagnostics.second_advection_diagnostics.step_count > 0 ||
+    if (result.diagnostics.final_reconstruction_diagnostics.success || result.diagnostics.second_advection_diagnostics.rhs_evaluations > 0 ||
         std::abs(result.final_time) > 1.0e-14)
     {
         append_failure(verification, case_name + " advanced final_time past the source callback failure.");

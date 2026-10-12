@@ -130,8 +130,8 @@ One Strang step of `0.2` applies the velocity $(0.4, -0.25)$ times the units
 with SSP-RK3 node advection, exact for a constant velocity, and
 $dM_\alpha/dt = 0.1\,M_\alpha$, which multiplies the weights by $P(0.02)$, where
 $P(z) = 1 + z + z^2/2 + z^3/6$ is the SSP-RK3 polynomial. Terminal paths,
-weights, coordinates divided by the units and the `4 x 4` moments divided by
-$s_0^i s_1^j$ are checked, and the source callback confirms through
+weights, coordinates divided by the units and the `4 x 4` moments $M_{ij}$
+divided by $s_0^i s_1^j$ are checked, and the source callback confirms through
 `for_each_terminal_node` that it sees coordinates in the fixture's units after
 the first half step.
 

@@ -314,8 +314,8 @@ void verify_cqmom_quadrature_output(const std::filesystem::path& path, const qmo
 int main(const int argc, char** argv)
 {
     // Output verification is intentionally workflow-level: compute public QMOM
-    // and CQMOM quadratures, write moments/quadrature with OutputOptions, and
-    // parse the files back as a downstream text consumer would.
+    // and CQMOM quadratures, write moments and quadratures with the public
+    // writers, and parse the files back as a downstream text consumer would.
     if (argc != 5)
     {
         std::cerr << "Usage: output_workflows_verification <qmom.qmom> <cqmom.qmom> <output-directory> <qmom|cqmom>\n";
@@ -353,7 +353,7 @@ int main(const int argc, char** argv)
     const qmomkit::CqmomResult cqmom_result = qmomkit::compute_cqmom(configured_cqmom.value());
     QMOMKIT_VERIFY_CHECK(cqmom_result.status == qmomkit::CqmomStatus::success);
 
-    const qmomkit::OutputOptions output_options{output_directory, true, true, 0.5};
+    const qmomkit::OutputOptions output_options{output_directory};
     if (selected_case == "qmom")
     {
         const qmomkit::QmomState qmom_state = configured_qmom.value().initial_state();

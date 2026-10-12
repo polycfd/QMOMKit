@@ -13,9 +13,9 @@
 //   transformation.
 //
 // Error metric and pass criteria
-//   Maximum relative error of positions divided by the unit factors and of
-//   moments, both relative to max(|expected|, 1), and maximum absolute error
-//   of weights, at 2.0e-10, and 1.0e-10 for the disparate-units case. Both
+//   Maximum relative error of positions and moments, both divided by their
+//   unit factors and relative to max(|expected|, 1), and maximum absolute
+//   error of weights, at 2.0e-10, and 1.0e-10 for the disparate-units case. Both
 //   are safety bounds; the observed errors are below 1.0e-15.
 //
 // Reproduce
@@ -198,10 +198,19 @@ void check_result(const std::string& route, const qmomkit::CqmomResult& result, 
         passed = false;
     }
 
+    // Each moment is divided by its unit factor prod_d units[d]^alpha_d, so
+    // every moment meets the same relative bound however small it is in these
+    // units.
     const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(result.quadrature, configured.layout);
     for (std::size_t index = 0; index < configured.values.size(); ++index)
     {
-        errors.moment = std::max(errors.moment, relative_error(reconstructed.values[index], configured.values[index]));
+        const qmomkit::MultiIndexView order = configured.layout.required_indices[index];
+        double unit_factor = 1.0;
+        for (std::size_t dimension = 0; dimension < units.size(); ++dimension)
+        {
+            unit_factor *= std::pow(units[dimension], static_cast<int>(order[dimension]));
+        }
+        errors.moment = std::max(errors.moment, relative_error(reconstructed.values[index] / unit_factor, configured.values[index] / unit_factor));
     }
 }
 

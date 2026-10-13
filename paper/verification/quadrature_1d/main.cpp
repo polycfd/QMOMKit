@@ -18,10 +18,7 @@ namespace
 {
 
 constexpr long double reference_tolerance = 2.0e-12L;
-constexpr double node_weight_tolerance = 2.0e-8;
-// Raw odd Hermite moments near order 19 are cancellation-sensitive in double
-// precision even when the reconstructed nodes and weights remain accurate.
-constexpr double moment_tolerance = 2.0e-5;
+constexpr double tolerance = 2.0e-8;
 
 enum class Family
 {
@@ -261,6 +258,21 @@ std::vector<long double> moments_from_reference(const ReferenceQuadrature& refer
     return moments;
 }
 
+// The sum of the absolute terms w_i |x_i|^k of the reference rule. It is the
+// magnitude a moment of order k is formed from, and its natural error scale: a
+// relative perturbation of the nodes and weights changes the moment by a
+// multiple of this sum, even where cancellation makes the moment itself small,
+// as for the odd moments of a symmetric rule, which are zero.
+long double absolute_moment_sum(const ReferenceQuadrature& reference, const std::size_t order)
+{
+    long double sum = 0.0L;
+    for (std::size_t node = 0; node < reference.nodes.size(); ++node)
+    {
+        sum += std::abs(reference.weights[node] * integer_power(reference.nodes[node], order));
+    }
+    return sum;
+}
+
 void verify_reference(const Family family, const ReferenceQuadrature& reference, const std::vector<long double>& actual)
 {
     // Exact family moments validate the independently constructed rule before
@@ -269,12 +281,7 @@ void verify_reference(const Family family, const ReferenceQuadrature& reference,
     const std::vector<long double> expected = analytical_moments(family, moment_count);
     for (std::size_t order = 0; order < moment_count; ++order)
     {
-        long double absolute_sum = 0.0L;
-        for (std::size_t node = 0; node < reference.nodes.size(); ++node)
-        {
-            absolute_sum += std::abs(reference.weights[node] * integer_power(reference.nodes[node], order));
-        }
-        const long double scale = std::max({1.0L, std::abs(expected[order]), absolute_sum});
+        const long double scale = std::max({1.0L, std::abs(expected[order]), absolute_moment_sum(reference, order)});
         const long double scaled_error = std::abs(actual[order] - expected[order]) / scale;
         if (!std::isfinite(static_cast<double>(actual[order])) || scaled_error > reference_tolerance)
         {
@@ -286,10 +293,9 @@ void verify_reference(const Family family, const ReferenceQuadrature& reference,
     }
 }
 
-void update_scaled_error(double& maximum_scaled, const double actual, const double expected)
+void update_scaled_error(double& maximum_scaled, const double actual, const double expected, const double scale)
 {
-    const double absolute = std::abs(actual - expected);
-    maximum_scaled = std::max(maximum_scaled, absolute / std::max(1.0, std::abs(expected)));
+    maximum_scaled = std::max(maximum_scaled, std::abs(actual - expected) / scale);
 }
 
 RunResult run_case(const Family family, const std::size_t node_count)
@@ -331,19 +337,24 @@ RunResult run_case(const Family family, const std::size_t node_count)
 
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        update_scaled_error(result.errors.scaled_node, recovered_rule[node].first, static_cast<double>(reference.nodes[node]));
-        update_scaled_error(result.errors.scaled_weight, recovered_rule[node].second, static_cast<double>(reference.weights[node]));
+        const double reference_node = static_cast<double>(reference.nodes[node]);
+        const double reference_weight = static_cast<double>(reference.weights[node]);
+        update_scaled_error(result.errors.scaled_node, recovered_rule[node].first, reference_node, std::max(1.0, std::abs(reference_node)));
+        update_scaled_error(result.errors.scaled_weight, recovered_rule[node].second, reference_weight, std::max(1.0, std::abs(reference_weight)));
     }
 
     const qmomkit::Quadrature1D quadrature{reconstructed.abscissas, reconstructed.weights, qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_count);
     for (std::size_t order = 0; order < moment_count; ++order)
     {
-        update_scaled_error(result.errors.scaled_moment, reconstructed_moments[order], static_cast<double>(reference_moments[order]));
+        // Moment errors are scaled by max(1, |m_k|, sum_i w_i |x_i|^k) of the
+        // reference rule, the same scale as the analytical check of the reference.
+        const long double scale = std::max({1.0L, std::abs(reference_moments[order]), absolute_moment_sum(reference, order)});
+        update_scaled_error(result.errors.scaled_moment, reconstructed_moments[order], static_cast<double>(reference_moments[order]),
+                            static_cast<double>(scale));
     }
 
-    result.passed = result.errors.scaled_node <= node_weight_tolerance && result.errors.scaled_weight <= node_weight_tolerance &&
-                    result.errors.scaled_moment <= moment_tolerance;
+    result.passed = result.errors.scaled_node <= tolerance && result.errors.scaled_weight <= tolerance && result.errors.scaled_moment <= tolerance;
     return result;
 }
 

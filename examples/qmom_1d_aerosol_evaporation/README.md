@@ -62,9 +62,9 @@ cd build
 ./qmom_1d_aerosol_evaporation_example
 ```
 
-The executable prints the configured node count, initial and final total number
-density and mean diameter, plus the initial and final six-node quadratures. It
-also writes QMOMKit-native moment and quadrature histories:
+The executable prints the initial and final total number density and mean
+diameter, and the final six-node quadrature. It also writes QMOMKit-native
+moment and quadrature histories:
 
 - `output/moments.txt`
 - `output/quadrature.txt`

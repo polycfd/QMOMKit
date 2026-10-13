@@ -1,7 +1,6 @@
 #include "physics.hpp"
 
 #include <algorithm>
-#include <stdexcept>
 #include <vector>
 
 namespace qmom_1d_aerosol_evaporation
@@ -26,11 +25,6 @@ qmomkit::PhaseSpaceVelocity evaporation_velocity()
     return qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>& coordinates)
         {
-            if (coordinates.size() != 1)
-            {
-                throw std::invalid_argument("Aerosol evaporation requires one diameter coordinate.");
-            }
-
             // The phase-space coordinate is droplet diameter d in micrometres. The
             // d-squared law, d(d^2)/dt = -evaporation_coefficient, gives dd/dt =
             // -evaporation_coefficient/(2d), so evaporation moves nodes to smaller diameters.

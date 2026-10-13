@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <cstddef>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -21,17 +20,12 @@ constexpr double rate_exponent = 1.5;
 
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
-    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    // Diameters relax towards d = 1: smaller particles grow, larger ones shrink.
+    return [](double, const std::vector<double>& diameters, std::vector<double>& velocities, std::size_t)
     {
-        if (dimensions != 1)
+        for (std::size_t node = 0; node < diameters.size(); ++node)
         {
-            throw std::invalid_argument("The 1D QMOM example expects one phase-space coordinate.");
-        }
-
-        for (std::size_t node = 0; node < coordinates.size(); ++node)
-        {
-            const double diameter = coordinates[node];
-            velocities[node] = 1.0 - diameter;
+            velocities[node] = 1.0 - diameters[node];
         }
     };
 }

@@ -2,11 +2,9 @@
 #include "qmomkit/qmomkit.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <exception>
 #include <filesystem>
-#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <utility>
@@ -19,179 +17,128 @@ int main()
     const double final_time = 20.0;
     const double time_step = 0.2;
 
-    auto configured = qmomkit::config::load_qmom(configuration_file);
-    if (!configured)
+    // The case, the node-advection options and the output options come from the
+    // same file. A faulty file is reported as a message naming the key and line.
+    auto configured_case = qmomkit::config::load_qmom(configuration_file);
+    if (!configured_case)
     {
-        std::cerr << configured.error() << '\n';
+        std::cerr << configured_case.error() << '\n';
         return 1;
     }
-
-    auto node_advection_configured = qmomkit::config::load_node_advection_options(configuration_file);
-    if (!node_advection_configured)
+    auto configured_options = qmomkit::config::load_node_advection_options(configuration_file);
+    if (!configured_options)
     {
-        std::cerr << node_advection_configured.error() << '\n';
+        std::cerr << configured_options.error() << '\n';
         return 1;
     }
-
-    auto output_configured = qmomkit::config::load_output_options(configuration_file);
-    if (!output_configured)
+    auto configured_output = qmomkit::config::load_output_options(configuration_file);
+    if (!configured_output)
     {
-        std::cerr << output_configured.error() << '\n';
+        std::cerr << configured_output.error() << '\n';
         return 1;
     }
-
-    const qmomkit::QmomCase qmom_case = std::move(configured).value();
-    const qmomkit::NodeAdvectionOptions node_advection_options = std::move(node_advection_configured).value();
-    const qmomkit::OutputOptions output_options = std::move(output_configured).value();
+    const qmomkit::QmomCase qmom_case = std::move(configured_case).value();
+    const qmomkit::NodeAdvectionOptions options = std::move(configured_options).value();
+    const qmomkit::OutputOptions output = std::move(configured_output).value();
 
     // This example deliberately works one level below `QmomState`. Evaporation is
     // pure node motion, so it inverts the moments once and then advances the
     // quadrature directly, reconstructing moments from it whenever output is due.
-    const qmomkit::QmomResult initial_reconstruction = qmomkit::compute_qmom(qmom_case);
-    if (!initial_reconstruction.ok())
+    const qmomkit::QmomResult reconstruction = qmomkit::compute_qmom(qmom_case);
+    if (!reconstruction.ok())
     {
-        std::cerr << "Initial QMOM reconstruction failed: " << initial_reconstruction.message << '\n';
+        std::cerr << "Initial QMOM reconstruction failed: " << reconstruction.message << '\n';
         return 1;
     }
-    if (initial_reconstruction.weights.size() != qmom_case.node_count)
-    {
-        std::cerr << "Initial QMOM reconstruction did not retain the configured fixed node count.\n";
-        return 1;
-    }
-
-    const qmomkit::Quadrature1D initial_quadrature{initial_reconstruction.abscissas, initial_reconstruction.weights};
-    qmomkit::Quadrature1D quadrature = initial_quadrature;
-    std::vector<double> moments = qmomkit::reconstruct_raw_moments(quadrature, qmom_case.moments.values().size());
-    const std::vector<double> initial_moments = moments;
-    if (!std::all_of(moments.begin(), moments.end(), [](const double value) { return std::isfinite(value); }))
-    {
-        std::cerr << "Initial QMOM moments are non-finite.\n";
-        return 1;
-    }
+    qmomkit::Quadrature1D quadrature;
+    quadrature.abscissas = reconstruction.abscissas;
+    quadrature.weights = reconstruction.weights;
+    const std::size_t moment_count = qmom_case.moments.values().size();
+    const std::vector<double> initial_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_count);
 
     // The only physics is a shrink rate for the droplet diameter.
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_aerosol_evaporation::evaporation_velocity();
 
-    std::optional<qmomkit::MomentWriter> moment_writer;
-    std::optional<qmomkit::QuadratureWriter> quadrature_writer;
     try
     {
-        if (output_options.write_moments || output_options.write_quadrature)
+        // The writers throw when a file cannot be written.
+        std::optional<qmomkit::MomentWriter> moment_writer;
+        std::optional<qmomkit::QuadratureWriter> quadrature_writer;
+        if (output.write_moments || output.write_quadrature)
         {
-            std::filesystem::create_directories(output_options.directory);
+            std::filesystem::create_directories(output.directory);
         }
-        if (output_options.write_moments)
+        if (output.write_moments)
         {
-            moment_writer.emplace(qmomkit::MomentWriter::for_qmom(output_options.directory / "moments.txt", moments.size(), output_options));
-            moment_writer->write(initial_time, qmomkit::MomentSet(moments), quadrature);
+            moment_writer.emplace(qmomkit::MomentWriter::for_qmom(output.directory / "moments.txt", moment_count, output));
         }
-        if (output_options.write_quadrature)
+        if (output.write_quadrature)
         {
-            quadrature_writer.emplace(qmomkit::QuadratureWriter::for_qmom(output_options.directory / "quadrature.txt", qmom_case.node_count));
-            quadrature_writer->write(initial_time, quadrature);
+            quadrature_writer.emplace(qmomkit::QuadratureWriter::for_qmom(output.directory / "quadrature.txt", qmom_case.node_count));
+        }
+        const auto write_output = [&](const double time)
+        {
+            if (moment_writer)
+            {
+                moment_writer->write(time, qmomkit::MomentSet(qmomkit::reconstruct_raw_moments(quadrature, moment_count)), quadrature);
+            }
+            if (quadrature_writer)
+            {
+                quadrature_writer->write(time, quadrature);
+            }
+        };
+        write_output(initial_time);
+
+        const double output_interval = output.interval.value_or(final_time - initial_time);
+        double next_output_time = initial_time + output_interval;
+        double time = initial_time;
+        while (time < final_time - 1.0e-12)
+        {
+            const double step = std::min(time_step, final_time - time);
+            // advance_nodes(...) moves the abscissas and leaves the weights
+            // untouched, which is what makes this the right operation for
+            // evaporation: droplets shrink, but none are created or destroyed.
+            const qmomkit::QmomNodeAdvectionResult advection = qmomkit::advance_nodes(quadrature, time, step, velocity, options);
+            if (!advection.ok())
+            {
+                std::cerr << "QMOM node advection failed: " << advection.message << '\n';
+                return 1;
+            }
+            quadrature = advection.quadrature;
+            // Application-side physics, not a QMOMKit step: hold shrinking droplets
+            // at a residual diameter so abscissas cannot cross zero.
+            qmom_1d_aerosol_evaporation::enforce_residual_diameter(quadrature);
+            time += step;
+            if (time >= final_time - 1.0e-12)
+            {
+                time = final_time;
+            }
+
+            if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
+            {
+                write_output(time);
+                next_output_time += output_interval;
+            }
+        }
+
+        const std::vector<double> final_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_count);
+        std::cout << "Number density M0:         " << initial_moments[0] << " -> " << final_moments[0] << '\n';
+        std::cout << "Mean diameter M1/M0 (um):  " << initial_moments[1] / initial_moments[0] << " -> " << final_moments[1] / final_moments[0]
+                  << '\n';
+        std::cout << "Final quadrature at t = " << time << " s:\n";
+        for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
+        {
+            std::cout << "  weight " << quadrature.weights[node] << " at d = " << quadrature.abscissas[node] << " um\n";
+        }
+        if (moment_writer || quadrature_writer)
+        {
+            std::cout << "Output written to " << output.directory.string() << "/\n";
         }
     }
     catch (const std::exception& error)
     {
         std::cerr << error.what() << '\n';
         return 1;
-    }
-
-    double time = initial_time;
-    const double output_interval = output_options.interval.value_or(final_time - initial_time);
-    double next_output_time = initial_time + output_interval;
-    while (time < final_time - 1.0e-12)
-    {
-        const double step = std::min(time_step, final_time - time);
-        // advance_nodes(...) moves the abscissas and leaves the weights untouched,
-        // which is what makes this the right operation for evaporation: droplets
-        // shrink, but none are created or destroyed.
-        const qmomkit::QmomNodeAdvectionResult advection = qmomkit::advance_nodes(quadrature, time, step, velocity, node_advection_options);
-        if (!advection.ok())
-        {
-            std::cerr << "QMOM node advection failed: " << advection.message << '\n';
-            return 1;
-        }
-
-        quadrature = advection.quadrature;
-        // Application-side physics, not a QMOMKit step: hold shrinking droplets at
-        // a residual diameter so abscissas cannot cross zero.
-        qmom_1d_aerosol_evaporation::enforce_residual_diameter(quadrature);
-        if (quadrature.weights.size() != qmom_case.node_count)
-        {
-            std::cerr << "Fixed QMOM node count changed during evaporation.\n";
-            return 1;
-        }
-
-        // Moments are derived from the moved nodes rather than transported, so they
-        // are recomputed here rather than carried between steps.
-        moments = qmomkit::reconstruct_raw_moments(quadrature, qmom_case.moments.values().size());
-        if (!std::all_of(moments.begin(), moments.end(), [](const double value) { return std::isfinite(value); }))
-        {
-            std::cerr << "Evaporated QMOM moments are non-finite.\n";
-            return 1;
-        }
-        time += step;
-        if (time >= final_time - 1.0e-12)
-        {
-            time = final_time;
-        }
-
-        if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
-        {
-            try
-            {
-                if (moment_writer.has_value())
-                {
-                    moment_writer->write(time, qmomkit::MomentSet(moments), quadrature);
-                }
-                if (quadrature_writer.has_value())
-                {
-                    quadrature_writer->write(time, quadrature);
-                }
-            }
-            catch (const std::exception& error)
-            {
-                std::cerr << error.what() << '\n';
-                return 1;
-            }
-            while (next_output_time <= time + 1.0e-12)
-            {
-                next_output_time += output_interval;
-            }
-        }
-    }
-
-    std::cout << std::setprecision(12);
-    std::cout << "1D QMOM aerosol evaporation\n";
-    std::cout << "configured QMOM nodes: " << qmom_case.node_count << '\n';
-    std::cout << "initial: time=" << initial_time << " M0=" << initial_moments[0] << " mean_diameter=" << initial_moments[1] / initial_moments[0]
-              << " um\n";
-    std::cout << "final:   time=" << time << " M0=" << moments[0] << " mean_diameter=" << moments[1] / moments[0] << " um\n";
-
-    std::cout << "\nInitial quadrature:\nnode  weight        diameter (um)\n";
-    for (std::size_t node = 0; node < initial_quadrature.weights.size(); ++node)
-    {
-        std::cout << node << "     " << initial_quadrature.weights[node] << "   " << initial_quadrature.abscissas[node] << '\n';
-    }
-
-    std::cout << "\nFinal quadrature:\nnode  weight        diameter (um)\n";
-    for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
-    {
-        std::cout << node << "     " << quadrature.weights[node] << "   " << quadrature.abscissas[node] << '\n';
-    }
-
-    if (output_options.write_moments || output_options.write_quadrature)
-    {
-        std::cout << "\nOutputs written to:\n";
-        if (output_options.write_moments)
-        {
-            std::cout << (output_options.directory / "moments.txt").string() << '\n';
-        }
-        if (output_options.write_quadrature)
-        {
-            std::cout << (output_options.directory / "quadrature.txt").string() << '\n';
-        }
     }
 
     return 0;

@@ -141,8 +141,8 @@ Running the executable writes:
 - `output/moments.txt`
 - `output/quadrature.txt`
 
-It also prints a concise console summary with the initial and final raw
-moments, plus initial and final quadrature nodes and weights.
+It also prints the number density $M_0$ and the mean diameter $M_1/M_0$ at the
+start and the end, and the final quadrature.
 
 The output directory, enabled files, and write cadence are configured through
 the standard QMOMKit output section in
@@ -170,8 +170,9 @@ initially fragments about five times as fast as the small mode near $d = 1$.
 Fragmentation and advection both shrink the large particles, so the growth of
 $M_0$ slows over time: it gains about 0.14 in the first 0.1 time units and
 about 0.09 in the last. By $t = 1$, $M_0$ has grown from 1 to about 2.04,
-compared with about 1.65 at the constant rate $a_\mathrm{ref}$, while $M_5$
-has fallen from about 127 to about 2.8, and the third node carries the least
-weight. The final quadrature shows the combined effect of population
-multiplication and diameter relaxation rather than either mechanism in
-isolation.
+compared with about 1.65 at the constant rate $a_\mathrm{ref}$, and the mean
+diameter has fallen from 2 to about 0.87. In `moments.txt`, $M_5$ falls from
+about 127 to about 2.8, and the third node of the final quadrature, near
+$d = 1.7$, carries the least weight. The final quadrature shows the combined
+effect of population multiplication and diameter relaxation rather than either
+mechanism in isolation.

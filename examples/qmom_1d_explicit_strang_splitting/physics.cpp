@@ -1,7 +1,6 @@
 #include "physics.hpp"
 
 #include <cstddef>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -10,14 +9,10 @@ namespace qmom_1d_explicit_strang_splitting
 
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
-    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
         constexpr double relaxation_rate = 500.0;
         constexpr double equilibrium_velocity = 0.5;
-        if (dimensions != 1)
-        {
-            throw std::invalid_argument("The explicit Strang example expects one phase-space coordinate.");
-        }
         for (std::size_t node = 0; node < coordinates.size(); ++node)
         {
             velocities[node] = -relaxation_rate * (coordinates[node] - equilibrium_velocity);
@@ -34,7 +29,7 @@ qmomkit::QmomMomentSource variance_injection_source()
         constexpr double variance_injection_rate = 12.0;
 
         std::vector<double> derivative(context.size(), 0.0);
-        if (time >= source_start && time < source_end && derivative.size() > 2)
+        if (time >= source_start && time < source_end)
         {
             derivative[2] = variance_injection_rate;
         }

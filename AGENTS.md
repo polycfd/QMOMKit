@@ -136,8 +136,9 @@ Tests and examples are strictly separate and must never be conflated.
 - Run changed examples and check their numerical behavior; compilation alone is
   not sufficient. Document relevant physical assumptions and units, and preserve
   Monte Carlo or reference companions when they are part of the example design.
-  Examples are user-facing documentation only; they are never evidence that
-  QMOMKit is correct.
+  Examples are user-facing documentation. A comparison with an external
+  reference, such as the Monte Carlo companion, can add evidence, but QMOMKit's
+  correctness never relies on it; that is what the tests are for.
 
 ## Paper and Manuscript Boundary
 

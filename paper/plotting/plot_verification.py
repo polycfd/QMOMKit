@@ -35,9 +35,9 @@ FAMILY_STYLE = {
     "hermite_probabilists_normalized_standard_normal": ("Gauss-Hermite", "#009E73", "^"),
 }
 SPLIT_STYLE = {
-    "advsrc": (r"$\Phi_{\mathrm{src}}^{\Delta t} \circ \Phi_{\mathrm{adv}}^{\Delta t}$", "#0072B2", "o", 1),
-    "srcadv": (r"$\Phi_{\mathrm{adv}}^{\Delta t} \circ \Phi_{\mathrm{src}}^{\Delta t}$", "#D55E00", "s", 1),
-    "strang": (r"$\Phi_{\mathrm{adv}}^{\Delta t/2} \circ \Phi_{\mathrm{src}}^{\Delta t} \circ \Phi_{\mathrm{adv}}^{\Delta t/2}$", "#009E73", "^", 2),
+    "advsrc": (r"$\Phi_{\mathrm{src}}^{\Delta t} \circ \Phi_{\mathrm{adv}}^{\Delta t}$", "#0072B2", "o"),
+    "srcadv": (r"$\Phi_{\mathrm{adv}}^{\Delta t} \circ \Phi_{\mathrm{src}}^{\Delta t}$", "#D55E00", "s"),
+    "strang": (r"$\Phi_{\mathrm{adv}}^{\Delta t/2} \circ \Phi_{\mathrm{src}}^{\Delta t} \circ \Phi_{\mathrm{adv}}^{\Delta t/2}$", "#009E73", "^"),
 }
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent
@@ -113,34 +113,31 @@ def plot_quadrature(rows: list[dict[str, str]], output: Path) -> None:
 def plot_adaptive(rows: list[dict[str, str]], output: Path) -> None:
     rows = sorted(rows, key=lambda row: float(row["time"]))
     times = numeric(rows, "time")
-    mass = numeric(rows, "total_mass")
+    number_density = numeric(rows, "number_density")
     mean = numeric(rows, "mean_velocity")
-    branch_0 = [int(row["active_nodes"]) for row in rows]
-    # branch_1 = [int(row["branch_1_active_nodes"]) for row in rows]
-    mass_error = [abs(value - mass[0]) for value in mass]
+    active_nodes = [int(row["active_velocity_nodes"]) for row in rows]
+    number_density_error = [abs(value - number_density[0]) for value in number_density]
     # Relaxation toward the equilibrium velocity 0.5 at rate 5, as in the study.
     exact_mean = [0.5 + (mean[0] - 0.5) * math.exp(-5.0 * time) for time in times]
     mean_error = [abs(value - reference) for value, reference in zip(mean, exact_mean)]
 
     figure, axes = plt.subplots(1, 2, figsize=(6, 2), sharex=True)
-    # axes[0].step(times, branch_1, where="post", color="#D55E00", label="size branch [1]")
-    axes[0].step(times, branch_0, where="post", color="#0072B2")
+    axes[0].step(times, active_nodes, where="post", color="#0072B2")
     axes[0].set_ylim(0.7, 5.3)
     axes[0].set_yticks((1, 2, 3, 4, 5))
     axes[0].set_ylabel("Active velocity nodes")
     axes[0].set_xlabel("Time [s]")
 
-    axes[1].plot(times, [positive_or_nan(value) for value in mass_error], color="#0072B2", label="$M_{0,0}$")
+    axes[1].plot(times, [positive_or_nan(value) for value in number_density_error], color="#0072B2", label="$M_{0,0}$")
     axes[1].plot(times, [positive_or_nan(value) for value in mean_error], color="#D55E00", label="$M_{0,1}/M_{0,0}$")
     axes[1].set_yscale("log")
     axes[1].set_ylabel("Absolute error")
     axes[1].set_xlabel("Time [s]")
     axes[1].legend(loc="lower left", frameon=False, fontsize=8)
-    
+
     for axis in axes:
-        axis.axvspan(4.0, 4.05, color="0.55", alpha=0.5, label="moment-source interval")
+        axis.axvspan(4.0, 4.05, color="0.55", alpha=0.5)
         axis.grid(True, which="both", alpha=0.25)
-    # axes[0].annotate("moment-source interval", xy=(4.025, 3.03), ha="center", va="top", fontsize=7.5)
     figure.subplots_adjust(wspace=0.38)
     save(figure, output)
 
@@ -150,7 +147,7 @@ def grouped_rows(rows: list[dict[str, str]], key: str) -> dict[str, list[dict[st
     for row in rows:
         groups[row[key]].append(row)
     for group in groups.values():
-        group.sort(key=lambda row: float(row["step_size"] if "step_size" in row else row["outer_step_size"]), reverse=True)
+        group.sort(key=lambda row: float(row["outer_step_size"]), reverse=True)
     return groups
 
 
@@ -160,14 +157,12 @@ def plot_splitting_convergence(rows: list[dict[str, str]], output: Path) -> None
     split_groups = grouped_rows(rows, "split_mode")
     for mode in ("advsrc", "srcadv", "strang"):
         rows = split_groups[mode]
-        label, color, marker, order = SPLIT_STYLE[mode]
+        label, color, marker = SPLIT_STYLE[mode]
         steps = numeric(rows, "outer_step_size")
         errors = numeric(rows, "max_scaled_moment_error")
-        # finest_order = float(rows[-1]["observed_order"])
-        axis.loglog(steps, errors, color=color, marker=marker, label=f"{label}")
-        # reference_line(axis, steps, errors, order, f"order {order}")
+        axis.loglog(steps, errors, color=color, marker=marker, label=label)
 
-    # Reference slopes for the expected convergence orders
+    # Reference slopes for the expected convergence orders.
     x0, x1 = 2.0e-2, 4.0e-2
     x_mid = (x0 * x1)**0.5
     # First-order reference line
@@ -182,8 +177,7 @@ def plot_splitting_convergence(rows: list[dict[str, str]], output: Path) -> None
     axis.loglog([x0, x1], [y0, y1], color="black", linewidth=0.8)
     y_mid = (y0 * y1)**0.5
     axis.annotate("2", xy=(x_mid, y_mid), xytext=(0, 4), textcoords="offset points", ha="center", va="bottom", fontsize=8)
-    
-    # axis.set_title("Operator splitting")
+
     axis.set_xlabel("$\\Delta t$ [s]")
     axis.set_ylabel("$E_{\\Delta t}$")
     axis.grid(True, which="both", alpha=0.25)

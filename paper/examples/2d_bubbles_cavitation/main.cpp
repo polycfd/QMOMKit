@@ -1,21 +1,16 @@
 #include "monte_carlo/evolution.hpp"
-#include "monte_carlo/moments.hpp"
+#include "monte_carlo/output.hpp"
 #include "particles_mc.hpp"
 #include "physics.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "sampling.hpp"
-#include "utilities.hpp"
 
 #include <algorithm>
-#include <array>
-#include <cmath>
+#include <cstddef>
 #include <exception>
 #include <filesystem>
 #include <iostream>
-#include <limits>
 #include <optional>
-#include <stdexcept>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -23,176 +18,127 @@ int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
     const double initial_time = 0.0;
-    constexpr double final_time = 13.9;
-    constexpr double time_step = 0.139;
+    const double final_time = 13.9;
+    const double time_step = 0.139;
+
+    // The case, the evolution options and the output options come from the same
+    // file. A faulty file is reported as a message naming the key and line.
+    auto configured_case = qmomkit::config::load_cqmom_prepared(configuration_file);
+    if (!configured_case)
+    {
+        std::cerr << configured_case.error() << '\n';
+        return 1;
+    }
+    auto configured_options = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+    if (!configured_options)
+    {
+        std::cerr << configured_options.error() << '\n';
+        return 1;
+    }
+    auto configured_output = qmomkit::config::load_output_options(configuration_file);
+    if (!configured_output)
+    {
+        std::cerr << configured_output.error() << '\n';
+        return 1;
+    }
+    const qmomkit::CqmomPhaseSpaceEvolutionOptions options = std::move(configured_options).value();
+    const qmomkit::OutputOptions output = std::move(configured_output).value();
+
+    // The CQMOM run starts from the moments of a finite sample of the configured
+    // distribution, and the Monte Carlo reference advances that same sample.
+    const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
+        paper_2d_bubbles_cavitation::sample_initial_distribution(configuration_file, configured_case.value().hierarchy());
+    if (!sampled)
+    {
+        return 1;
+    }
+    auto sampled_case = qmomkit::config::with_initial_moments(configured_case.value(), sampled->moments.moments);
+    if (!sampled_case)
+    {
+        std::cerr << sampled_case.error() << '\n';
+        return 1;
+    }
+    const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
+    qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
+    const double particle_weight = sampled->sampling.number_density / static_cast<double>(ensemble.size());
+    const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
+
+    // The bubbles only move in phase space, so each step is the advection stage
+    // alone, for the quadrature nodes and for the sampled bubbles alike.
+    const qmomkit::PhaseSpaceVelocity velocity = paper_2d_bubbles_cavitation::advection_velocity();
+    const qmomkit::AdaptiveRkOptions& mc_advection_options = options.node_options.adaptive_options;
 
     try
     {
-        auto output_configured = qmomkit::config::load_output_options(configuration_file);
-        if (!output_configured)
-        {
-            paper_2d_bubbles_cavitation::print_configuration_errors(output_configured.error());
-            return 1;
-        }
-        auto phase_space_evolution_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
-        if (!phase_space_evolution_configured)
-        {
-            paper_2d_bubbles_cavitation::print_configuration_errors(phase_space_evolution_configured.error());
-            return 1;
-        }
-        const qmomkit::OutputOptions output_options = std::move(output_configured).value();
-        const std::optional<std::string> configuration_text = paper_2d_bubbles_cavitation::read_configuration_text(configuration_file);
-        if (!configuration_text.has_value())
-        {
-            return 1;
-        }
+        // initial_state() throws when the sampled moments admit no quadrature, and
+        // the writers throw when a file cannot be written.
+        qmomkit::CqmomState state = cqmom_case.initial_state();
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
-        if (!configured_cqmom)
+        std::optional<qmomkit::MomentWriter> moment_writer;
+        std::optional<qmomkit::MomentWriter> mc_moment_writer;
+        std::optional<qmomkit::QuadratureWriter> quadrature_writer;
+        if (output.write_moments || output.write_quadrature)
         {
-            paper_2d_bubbles_cavitation::print_configuration_errors(configured_cqmom.error());
-            return 1;
+            std::filesystem::create_directories(output.directory);
         }
-
-        auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
-        if (!initial_condition)
+        if (output.write_moments)
         {
-            paper_2d_bubbles_cavitation::print_configuration_errors(initial_condition.error());
-            return 1;
+            // Both histories hold the moments the state tracks, followed by any
+            // generalized moments configured in [output].
+            moment_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.directory / "moment_history.txt", state, output));
+            mc_moment_writer.emplace(qmomkit::monte_carlo::make_moment_history_writer(output.directory / "moment_history_mc.txt", moment_extents,
+                                                                                      state.moment_indices(), output));
         }
-
-        std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            paper_2d_bubbles_cavitation::sample_initial_distribution(std::move(initial_condition).value(), configured_cqmom.value().hierarchy());
-        if (!sampled.has_value())
+        if (output.write_quadrature)
         {
-            return 1;
+            quadrature_writer.emplace(
+                qmomkit::QuadratureWriter::for_cqmom(output.directory / "quadrature_history.txt", state.hierarchy().number_of_dimensions()));
         }
-        if (!sampled->ok())
+        const auto write_output = [&](const double time)
         {
-            std::cerr << sampled->sampling.message << sampled->moments.message << '\n';
-            return 1;
-        }
-
-        // The paper output compares the CQMOM state with the same finite MC
-        // realization that supplied its initial raw moments.
-        qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
-        const double particle_weight = sampled->sampling.number_density / static_cast<double>(ensemble.size());
-        const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
-        auto sampled_case_result = qmomkit::config::with_initial_moments(configured_cqmom.value(), std::move(sampled->moments.moments));
-        if (!sampled_case_result)
-        {
-            paper_2d_bubbles_cavitation::print_configuration_errors(sampled_case_result.error());
-            return 1;
-        }
-        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case_result).value();
-
-        const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_prepared_case);
-        if (!cqmom.ok())
-        {
-            std::cerr << "CQMOM inversion failed: " << cqmom.message << '\n';
-            return 1;
-        }
-
-        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
-        qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
-        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
-        const qmomkit::PhaseSpaceVelocity velocity = paper_2d_bubbles_cavitation::advection_velocity();
-        qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
-        if (phase_space_evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)
-        {
-            std::cerr << "The paper Monte Carlo reference requires RK23 node advection.\n";
-            return 1;
-        }
-        const qmomkit::AdaptiveRkOptions mc_advection_options = phase_space_evolution_options.node_options.adaptive_options;
-        std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
-
-        paper_2d_bubbles_cavitation::ensure_output_directory(output_options.directory);
-
-        std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
-        qmomkit::RawMomentTensor mc_final_moments = paper_2d_bubbles_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
-        const qmomkit::RawMomentTensor mc_initial_moments = mc_final_moments;
-        std::optional<qmomkit::MomentWriter> mc_moment_history_writer;
-        if (output_options.write_moments)
-        {
-            mc_moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history_mc.txt", moment_extents));
-            mc_moment_history_writer->write(initial_time, mc_final_moments);
-        }
+            if (moment_writer)
+            {
+                moment_writer->write(time, state, state.quadrature());
+                qmomkit::monte_carlo::write_moment_history_row(
+                    *mc_moment_writer, time, paper_2d_bubbles_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents),
+                    ensemble, particle_weight * static_cast<double>(ensemble.size()), output);
+            }
+            if (quadrature_writer)
+            {
+                quadrature_writer->write(time, state.quadrature());
+            }
+        };
+        write_output(initial_time);
 
         double time = initial_time;
-        while (time < final_time)
+        while (time < final_time - 1.0e-12)
         {
-            const double current_step = std::min(time_step, final_time - time);
-            const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
-                qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
-            if (!phase_space_evolved.ok())
+            const double step = std::min(time_step, final_time - time);
+            qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_advection(state, time, step, velocity, options);
+            if (!result.ok())
             {
-                std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
+                std::cerr << "CQMOM advection failed: " << result.message << '\n';
                 return 1;
             }
-            state = phase_space_evolved.state;
-            quadrature = phase_space_evolved.state.quadrature();
-            if (std::abs(phase_space_evolved.final_time - (time + current_step)) > 1.0e-12 * std::max(1.0, std::abs(time + current_step)))
-            {
-                std::cerr << "CQMOM phase-space evolution did not reach the prescribed step endpoint.\n";
-                return 1;
-            }
+            state = std::move(result.state);
 
             qmomkit::monte_carlo::EnsembleEvolutionResult mc_advection =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + current_step, mc_advection_options);
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + step, mc_advection_options);
             if (!mc_advection.ok())
             {
-                std::cerr << "Advection particle step failed: " << mc_advection.message << '\n';
+                std::cerr << "Bubble advection failed: " << mc_advection.message << '\n';
                 return 1;
             }
             ensemble = std::move(mc_advection.ensemble);
 
-            time += current_step;
-            quadrature_history.emplace_back(time, quadrature);
-            mc_final_moments = paper_2d_bubbles_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
-            if (mc_moment_history_writer.has_value())
-            {
-                mc_moment_history_writer->write(time, mc_final_moments);
-            }
+            time += step;
+            write_output(time);
         }
 
-        if (output_options.write_moments)
+        if (moment_writer || quadrature_writer)
         {
-            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", moment_output_request)
-                .write(initial_time, cqmom.quadrature);
-            qmomkit::MomentWriter moment_history_writer =
-                qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", moment_output_request);
-            for (const auto& [history_time, history_quadrature] : quadrature_history)
-            {
-                moment_history_writer.write(history_time, history_quadrature);
-            }
+            std::cout << "Output written to " << output.directory.string() << "/\n";
         }
-        if (output_options.write_quadrature)
-        {
-            qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "initial_quadrature.txt", cqmom.quadrature.number_of_dimensions())
-                .write(initial_time, cqmom.quadrature);
-            qmomkit::QuadratureWriter quadrature_history_writer = qmomkit::QuadratureWriter::for_cqmom(
-                output_options.directory / "quadrature_history.txt", quadrature_history.front().second.number_of_dimensions());
-            for (const auto& [history_time, history_quadrature] : quadrature_history)
-            {
-                quadrature_history_writer.write(history_time, history_quadrature);
-            }
-        }
-
-        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(cqmom.quadrature, moment_output_request);
-        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_output_request);
-        if (!initial_moments.ok() || !final_moments.ok())
-        {
-            std::cerr << "CQMOM moment reconstruction failed while producing the summary.\n";
-            return 1;
-        }
-        paper_2d_bubbles_cavitation::print_result_summary(
-            initial_moments, final_moments, quadrature, output_options.directory, paper_2d_bubbles_cavitation::initialization_sample_count,
-            paper_2d_bubbles_cavitation::initialization_seed, time_step, final_time, output_options.write_moments, output_options.write_quadrature);
-        paper_2d_bubbles_cavitation::print_monte_carlo_result_summary(
-            mc_initial_moments, mc_final_moments, moment_output_layout.required_indices.to_multi_indices(), output_options.directory, ensemble.size(),
-            paper_2d_bubbles_cavitation::initialization_sample_count, paper_2d_bubbles_cavitation::initialization_seed, time_step, final_time,
-            output_options.write_moments);
     }
     catch (const std::exception& error)
     {

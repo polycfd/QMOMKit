@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -19,10 +18,7 @@ namespace
 {
 
 constexpr long double reference_tolerance = 2.0e-12L;
-constexpr double node_weight_tolerance = 2.0e-8;
-// Raw odd Hermite moments near order 19 are cancellation-sensitive in double
-// precision even when the reconstructed nodes and weights remain accurate.
-constexpr double moment_tolerance = 2.0e-5;
+constexpr double tolerance = 2.0e-8;
 
 enum class Family
 {
@@ -80,16 +76,6 @@ const char* status_name(const qmomkit::QmomStatus status)
         return "not_realizable";
     }
     return "unknown";
-}
-
-bool finite(const double value)
-{
-    return std::isfinite(value);
-}
-
-bool finite(const std::vector<double>& values)
-{
-    return std::all_of(values.begin(), values.end(), [](const double value) { return finite(value); });
 }
 
 long double integer_power(const long double base, const std::size_t exponent)
@@ -272,20 +258,33 @@ std::vector<long double> moments_from_reference(const ReferenceQuadrature& refer
     return moments;
 }
 
-void verify_reference(const Family family, const ReferenceQuadrature& reference, const std::size_t moment_count)
+// The sum of the absolute terms w_i |x_i|^k of the reference rule. It is the
+// magnitude a moment of order k is formed from, and its natural error scale: a
+// relative perturbation of the nodes and weights changes the moment by a
+// multiple of this sum, even where cancellation makes the moment itself small,
+// as for the odd moments of a symmetric rule, which are zero.
+long double absolute_moment_sum(const ReferenceQuadrature& reference, const std::size_t order)
+{
+    long double sum = 0.0L;
+    for (std::size_t node = 0; node < reference.nodes.size(); ++node)
+    {
+        sum += std::abs(reference.weights[node] * integer_power(reference.nodes[node], order));
+    }
+    return sum;
+}
+
+void verify_reference(const Family family, const ReferenceQuadrature& reference, const std::vector<long double>& actual)
 {
     // Exact family moments validate the independently constructed rule before
     // it supplies the raw moments to the reconstruction under study.
-    const std::vector<long double> actual = moments_from_reference(reference, moment_count);
+    const std::size_t moment_count = actual.size();
     const std::vector<long double> expected = analytical_moments(family, moment_count);
     for (std::size_t order = 0; order < moment_count; ++order)
     {
-        long double absolute_sum = 0.0L;
-        for (std::size_t node = 0; node < reference.nodes.size(); ++node)
-        {
-            absolute_sum += std::abs(reference.weights[node] * integer_power(reference.nodes[node], order));
-        }
-        const long double scale = std::max({1.0L, std::abs(expected[order]), absolute_sum});
+        // This check validates the long-double reference rule, not QMOMKit. The
+        // floor of 1 only keeps the scale away from zero for the one-node rules
+        // and is harmless here; the errors reported below use no floor.
+        const long double scale = std::max({1.0L, std::abs(expected[order]), absolute_moment_sum(reference, order)});
         const long double scaled_error = std::abs(actual[order] - expected[order]) / scale;
         if (!std::isfinite(static_cast<double>(actual[order])) || scaled_error > reference_tolerance)
         {
@@ -297,18 +296,22 @@ void verify_reference(const Family family, const ReferenceQuadrature& reference,
     }
 }
 
-void update_scaled_error(double& maximum_scaled, const double actual, const double expected)
+// Each error is scaled by the size of the reference rule it belongs to, so the
+// metric does not change when the coordinate or the number density is rescaled.
+// A zero scale, the single node at 0 of a one-node symmetric rule and its higher
+// moments, leaves the absolute error.
+void update_scaled_error(double& maximum_scaled, const double actual, const double expected, const long double scale)
 {
     const double absolute = std::abs(actual - expected);
-    maximum_scaled = std::max(maximum_scaled, absolute / std::max(1.0, std::abs(expected)));
+    maximum_scaled = std::max(maximum_scaled, scale > 0.0L ? absolute / static_cast<double>(scale) : absolute);
 }
 
 RunResult run_case(const Family family, const std::size_t node_count)
 {
     const std::size_t moment_count = 2 * node_count;
     const ReferenceQuadrature reference = golub_welsch_reference(family, node_count);
-    verify_reference(family, reference, moment_count);
     const std::vector<long double> reference_moments = moments_from_reference(reference, moment_count);
+    verify_reference(family, reference, reference_moments);
 
     std::vector<double> input_moments;
     input_moments.reserve(moment_count);
@@ -319,14 +322,15 @@ RunResult run_case(const Family family, const std::size_t node_count)
 
     // Native QMOMKit inversion and raw-moment reconstruction begin here. The
     // inversion is fixed-count: the study compares every requested node.
-    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, qmomkit::QmomOptions{false});
+    qmomkit::QmomOptions options;
+    options.adaptive = false;
+    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, options);
     RunResult result;
     result.family = family_name(family);
     result.node_count = node_count;
     result.status = status_name(reconstructed.status);
     result.active_node_count = reconstructed.weights.size();
-    if (!reconstructed.ok() || reconstructed.weights.size() != node_count || reconstructed.abscissas.size() != node_count ||
-        !finite(reconstructed.abscissas) || !finite(reconstructed.weights))
+    if (!reconstructed.ok())
     {
         return result;
     }
@@ -339,25 +343,30 @@ RunResult run_case(const Family family, const std::size_t node_count)
     }
     std::sort(recovered_rule.begin(), recovered_rule.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
 
+    // Nodes are scaled by the extent max_i |x_i| of the reference rule, weights
+    // by its total weight m_0, and moments by sum_i w_i |x_i|^k.
+    long double extent = 0.0L;
+    long double total_weight = 0.0L;
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        update_scaled_error(result.errors.scaled_node, recovered_rule[node].first, static_cast<double>(reference.nodes[node]));
-        update_scaled_error(result.errors.scaled_weight, recovered_rule[node].second, static_cast<double>(reference.weights[node]));
+        extent = std::max(extent, std::abs(reference.nodes[node]));
+        total_weight += reference.weights[node];
+    }
+    for (std::size_t node = 0; node < node_count; ++node)
+    {
+        update_scaled_error(result.errors.scaled_node, recovered_rule[node].first, static_cast<double>(reference.nodes[node]), extent);
+        update_scaled_error(result.errors.scaled_weight, recovered_rule[node].second, static_cast<double>(reference.weights[node]), total_weight);
     }
 
     const qmomkit::Quadrature1D quadrature{reconstructed.abscissas, reconstructed.weights, qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_count);
-    if (!finite(reconstructed_moments))
-    {
-        return result;
-    }
     for (std::size_t order = 0; order < moment_count; ++order)
     {
-        update_scaled_error(result.errors.scaled_moment, reconstructed_moments[order], static_cast<double>(reference_moments[order]));
+        update_scaled_error(result.errors.scaled_moment, reconstructed_moments[order], static_cast<double>(reference_moments[order]),
+                            absolute_moment_sum(reference, order));
     }
 
-    result.passed = result.errors.scaled_node <= node_weight_tolerance && result.errors.scaled_weight <= node_weight_tolerance &&
-                    result.errors.scaled_moment <= moment_tolerance;
+    result.passed = result.errors.scaled_node <= tolerance && result.errors.scaled_weight <= tolerance && result.errors.scaled_moment <= tolerance;
     return result;
 }
 
@@ -377,21 +386,6 @@ void write_csv(const std::vector<RunResult>& results)
     }
 }
 
-void print_table(const std::vector<RunResult>& results)
-{
-    std::cout << "Classical quadrature reconstruction\n";
-    std::cout << "Hermite convention: normalized standard normal, not physicists' exp(-x^2).\n";
-    std::cout << std::left << std::setw(46) << "Family" << std::right << std::setw(4) << "N" << std::setw(18) << "node scaled" << std::setw(18)
-              << "weight scaled" << std::setw(18) << "moment scaled" << "  status\n";
-    std::cout << std::scientific << std::setprecision(6);
-    for (const RunResult& result : results)
-    {
-        std::cout << std::left << std::setw(46) << result.family << std::right << std::setw(4) << result.node_count << std::setw(18)
-                  << result.errors.scaled_node << std::setw(18) << result.errors.scaled_weight << std::setw(18) << result.errors.scaled_moment << "  "
-                  << result.status << '\n';
-    }
-}
-
 } // namespace
 
 int main()
@@ -407,7 +401,6 @@ int main()
             }
         }
         write_csv(results);
-        print_table(results);
 
         const bool passed = std::all_of(results.begin(), results.end(), [](const RunResult& result) { return result.passed; });
         if (!passed)

@@ -8,8 +8,8 @@ namespace qmom_1d_aerosol_evaporation
 namespace
 {
 
-constexpr double residual_diameter = 0.8;         // micrometres
-constexpr double evaporation_coefficient = 500.0; // micrometres squared per second
+constexpr double residual_diameter = 0.8;         // micrometers
+constexpr double evaporation_coefficient = 500.0; // micrometers squared per second
 
 } // namespace
 
@@ -25,7 +25,7 @@ qmomkit::PhaseSpaceVelocity evaporation_velocity()
     return qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>& coordinates)
         {
-            // The phase-space coordinate is droplet diameter d in micrometres. The
+            // The phase-space coordinate is droplet diameter d in micrometers. The
             // d-squared law, d(d^2)/dt = -evaporation_coefficient, gives dd/dt =
             // -evaporation_coefficient/(2d), so evaporation moves nodes to smaller diameters.
             const double diameter = coordinates[0];
@@ -40,7 +40,7 @@ qmomkit::PhaseSpaceVelocity evaporation_velocity()
 
 void enforce_residual_diameter(qmomkit::Quadrature1D& quadrature)
 {
-    // Retain the 0.8-micrometre residual diameter after the native node-advection step.
+    // Retain the 0.8-micrometer residual diameter after the native node-advection step.
     for (double& diameter : quadrature.abscissas)
     {
         diameter = std::max(diameter, residual_diameter);

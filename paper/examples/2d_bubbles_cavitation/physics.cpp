@@ -5,6 +5,11 @@
 
 namespace paper_2d_bubbles_cavitation
 {
+// Dimensionless Rayleigh-Plesset dynamics of a gas bubble, after Bryngelson et
+// al. (2023), https://doi.org/10.1016/j.jcp.2023.111917: dR/dt = U and
+// dU/dt = [(R_o/R)^(3 gamma) - 1/C_p - 2/(We R_o) (R_o/R - (R_o/R)^(3 gamma))
+//          - 3/2 U^2 - 4/Re U/R] / R,
+// with the radius R, the radial velocity U and the time all dimensionless.
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
     return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)

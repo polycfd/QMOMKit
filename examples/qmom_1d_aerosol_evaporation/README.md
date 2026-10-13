@@ -4,7 +4,7 @@ This example, inspired by [Feng et al.
 (2023)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2023.104500), evolves a
 one-dimensional aerosol diameter distribution through evaporation with a fixed
 six-node QMOM quadrature. The phase-space coordinate is the particle diameter,
-$d$, in micrometres.
+$d$, in micrometers.
 
 ## Model
 
@@ -24,7 +24,7 @@ $$
 \frac{\mathrm{d}d}{\mathrm{d}t} = -\frac{500}{2d}.
 $$
 
-The particle diameter is defined in micrometres and time is defined in seconds. The negative sign moves
+The particle diameter is defined in micrometers and time is defined in seconds. The negative sign moves
 the QMOM abscissas toward smaller diameters. A residual diameter of
 $`0.8\,\mathrm{\mu m}`$ is retained after each node-advection step.
 

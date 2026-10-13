@@ -53,3 +53,4 @@ directory = output
 write_moments = true
 write_quadrature = true
 interval = 0.0025
+generalized_moments = 1.3333333333333333, 0, 0, 0, 0 | 1.3333333333333333, 1, 0, 0, 0

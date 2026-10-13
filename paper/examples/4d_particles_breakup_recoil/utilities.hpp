@@ -1,25 +1,21 @@
 #pragma once
 
 #include "monte_carlo/ensemble.hpp"
-#include "qmomkit/cqmom.hpp"
 #include "qmomkit/distributions.hpp"
 
-#include <filesystem>
-#include <string>
+#include <cstddef>
 #include <vector>
 
 namespace paper_4d_particles_breakup_recoil
 {
 
 [[nodiscard]] std::vector<std::size_t> maximum_orders(const std::vector<std::size_t>& extents);
+
+/**
+ * The raw moments of the ensemble within the given extents, with each sample
+ * carrying `particle_weight`. Throws when the estimate fails.
+ */
 [[nodiscard]] qmomkit::RawMomentTensor ensemble_moments(const qmomkit::monte_carlo::Ensemble& ensemble, double particle_weight,
                                                         const std::vector<std::size_t>& extents);
-[[nodiscard]] double maximum_tensor_difference(const qmomkit::RawMomentTensor& left, const qmomkit::RawMomentTensor& right);
-[[nodiscard]] qmomkit::SelectedRawMomentResult select_moments(const qmomkit::RawMomentTensor& moments, const qmomkit::RawMomentRequest& request);
-void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments);
-[[nodiscard]] std::vector<double> paper_moments(const qmomkit::CqmomQuadrature& quadrature);
-[[nodiscard]] std::vector<double> paper_moments(const qmomkit::monte_carlo::Ensemble& ensemble, double particle_weight);
-[[nodiscard]] const std::vector<std::string>& paper_moment_labels();
-void ensure_output_directory(const std::filesystem::path& path);
 
 } // namespace paper_4d_particles_breakup_recoil

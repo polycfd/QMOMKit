@@ -1,4 +1,4 @@
-# One-dimensional QMOM case for an evaporating aerosol, initialised from a
+# One-dimensional QMOM case for an evaporating aerosol, initialized from a
 # three-mode lognormal size distribution.
 
 # The number of coordinates decides the method: one uses QMOM, several CQMOM.

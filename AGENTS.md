@@ -118,9 +118,20 @@ Tests and examples are strictly separate and must never be conflated.
 - Example CMake projects must not call `enable_testing()` or `add_test()`.
 - Important invariants demonstrated by an example must have focused coverage
   under `tests/`.
-- Examples may perform concise runtime checks and return failure when their
-  demonstrated workflow is invalid, but those checks do not make the example a
-  test.
+- An example is written for its reader. `main.cpp` reads top to bottom: load
+  the configuration, build the callbacks, create the initial state, run the
+  time loop, write the output, print a short summary. The physics lives in its
+  own file, with its units.
+- An example checks only the statuses and errors QMOMKit reports, and stops
+  with their message. It does not check its own results, guard its callbacks
+  against misuse, or validate its physical constants.
+- An example does not repeat its configuration on the console. It prints a few
+  physically meaningful quantities and where its output was written; the
+  QMOMKit writers record the rest, as `write_moments` and `write_quadrature`
+  in `[output]` select.
+- An example compared with Monte Carlo prints a meaningful selection of initial
+  and final moments of both the QMOMKit and the Monte Carlo run, so that a
+  user can run both and compare them.
 - Tests must not invoke example executables or depend on example output.
 - Run changed examples and check their numerical behavior; compilation alone is
   not sufficient. Document relevant physical assumptions and units, and preserve

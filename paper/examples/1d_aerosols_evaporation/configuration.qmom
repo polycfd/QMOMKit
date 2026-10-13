@@ -1,5 +1,7 @@
 [phase_space]
 names = d
+# The study runs separate fixed-count reconstructions with 2, 4, 6, 8 and 10
+# nodes; the configured count is the largest of them.
 node_counts = 10
 
 [qmom]

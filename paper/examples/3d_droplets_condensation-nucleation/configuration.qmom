@@ -3,6 +3,9 @@ names = r, w, T
 node_counts = 3, 3, 3
 conditioning_order = 0, 2, 1
 
+[time_integration]
+scheme = strang
+
 [time_integration.node_advection]
 scheme = rk23
 

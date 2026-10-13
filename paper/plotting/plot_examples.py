@@ -207,12 +207,12 @@ def plot_condensing_droplets(data: dict[str, Comparison], output: Path) -> None:
         axis.axvspan(0.20, 0.40, color="#E69F00", alpha=0.12, zorder=0)
     plot_panels(
         (
-            (axes[0, 0], data["M_000"], "Total number density", r"$M_{0,0,0}$ [-]"),
+            (axes[0, 0], data["M_000"], "Total number density", r"$M_{0,0,0}$ [m$^{-3}$]"),
             (axes[0, 1], data["M_300/M_200"], "Characteristic radius", r"$M_{3,0,0}/M_{2,0,0}$ [$\mu$m]"),
             (axes[0, 2], data["M_010/M_000"], "Mean vertical velocity", r"$M_{0,1,0}/M_{0,0,0}$ [m/s]"),
             (axes[1, 0], data["M_001/M_000"], "Mean temperature", r"$M_{0,0,1}/M_{0,0,0}$ [K]"),
             (axes[1, 2], data["sigma_r^2"], "Radius variance", r"$\sigma_r^2$ [$\mu$m$^2$]"),
-            (axes[1, 1], data["M_101/M_000"], "Radius-weighted mean temperature", r"$M_{1,0,1}/M_{0,0,0}$ [$\mu$m K]"),
+            (axes[1, 1], data["M_101/M_000"], "Radius-temperature moment", r"$M_{1,0,1}/M_{0,0,0}$ [$\mu$m K]"),
         ),
     )
     for axis in axes[1, :]:

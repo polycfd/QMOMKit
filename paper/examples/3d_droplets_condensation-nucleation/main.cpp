@@ -64,6 +64,11 @@ int main()
 
     const qmomkit::PhaseSpaceVelocity velocity = paper_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
     const qmomkit::AdaptiveRkOptions& mc_advection_options = options.node_options.adaptive_options;
+    // The nucleation flux is scaled by the initial number density of the sample.
+    const paper_3d_droplets_condensation_nucleation::NucleationModel nucleation_model =
+        paper_3d_droplets_condensation_nucleation::make_nucleation_model(number_density);
+    const qmomkit::CqmomMomentBoundaryContribution nucleation =
+        paper_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
     // Nucleation creates droplets at the edge of phase space, so it is a boundary
     // contribution rather than a volumetric source. The composed step still
     // requires a source callback, hence this zero-rate one.
@@ -90,20 +95,6 @@ int main()
         // initial_state() throws when the sampled moments admit no quadrature, and
         // the writers and the Monte Carlo estimates throw when they fail.
         qmomkit::CqmomState state = cqmom_case.initial_state();
-
-        // The nucleation flux is scaled by the initial number density M[0,0,0] of
-        // the quadrature.
-        const qmomkit::SelectedRawMomentResult initial_number_density =
-            qmomkit::reconstruct_raw_moments(state.quadrature(), qmomkit::RawMomentRequest{std::vector<qmomkit::MultiIndex>{{0, 0, 0}}});
-        if (!initial_number_density.ok())
-        {
-            std::cerr << "Initial number density reconstruction failed: " << initial_number_density.message << '\n';
-            return 1;
-        }
-        const paper_3d_droplets_condensation_nucleation::NucleationModel nucleation_model =
-            paper_3d_droplets_condensation_nucleation::make_nucleation_model(initial_number_density.values.front());
-        const qmomkit::CqmomMomentBoundaryContribution nucleation =
-            paper_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
 
         std::optional<qmomkit::MomentWriter> moment_writer;
         std::optional<qmomkit::MomentWriter> mc_moment_writer;
@@ -139,7 +130,7 @@ int main()
         // Each birth event samples its droplets with its own seed.
         std::size_t birth_event_index = 0;
         double time = initial_time;
-        while (time < final_time)
+        while (time < final_time - 1.0e-12)
         {
             // Steps end at the start and the end of nucleation. While nucleation is
             // active, Strang splitting places the births between two advection

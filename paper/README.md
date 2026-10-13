@@ -23,7 +23,7 @@ repository root**. Results go to `install/` and the various `build/`
 directories, which git ignores, and the figures go to `paper/plotting/`, where
 they will show up as untracked files.
 
-The whole pipeline takes a few minutes, about two of which are one verification
+The whole pipeline takes a few minutes, two and a half of which are one verification
 study (`qmomkit_paper_cqmom_affine_chain`); everything else runs in seconds.
 
 ## Reproduce everything
@@ -61,7 +61,7 @@ cmake --build paper/verification/build --parallel
 
 (cd paper/verification/build && ./qmomkit_paper_quadrature_1d)
 (cd paper/verification/build && ./qmomkit_paper_adaptive_branch_quadrature)
-(cd paper/verification/build && ./qmomkit_paper_time_convergence)
+(cd paper/verification/build && ./qmomkit_paper_splitting_convergence)
 (cd paper/verification/build && ./qmomkit_paper_cqmom_affine_chain)
 
 # 4. Write the figures into paper/plotting/.
@@ -130,8 +130,8 @@ These write CSV files into `paper/verification/build/`.
 | --- | --- | --- | --- |
 | `qmomkit_paper_quadrature_1d` | `quadrature_1d.csv` | `quadrature_reconstruction.pdf` | seconds |
 | `qmomkit_paper_adaptive_branch_quadrature` | `adaptive_branch_quadrature.csv` | `adaptive_branch_quadrature.pdf` | seconds |
-| `qmomkit_paper_time_convergence` | `splitting_convergence.csv` | `splitting_convergence.pdf` | seconds |
-| `qmomkit_paper_cqmom_affine_chain` | `cqmom_affine_chain.csv` | none | ~2 minutes |
+| `qmomkit_paper_splitting_convergence` | `splitting_convergence.csv` | `splitting_convergence.pdf` | seconds |
+| `qmomkit_paper_cqmom_affine_chain` | `cqmom_affine_chain.csv` | none | ~2.5 minutes |
 
 `qmomkit_paper_cqmom_affine_chain` is by far the slowest and feeds numbers
 quoted in the paper text rather than any figure, so you can skip it if you only

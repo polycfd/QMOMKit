@@ -24,8 +24,11 @@ constexpr double pulse_start = 4.0;
 constexpr double pulse_end = 4.05;
 constexpr double source_rate = 20.0;
 constexpr double velocity_displacement = 0.10;
-constexpr double number_density_tolerance = 1.0e-8;
-constexpr double mean_tolerance = 5.0e-5;
+// The source preserves number density and mean velocity exactly, so their
+// errors are the round-off of the reconstruction and of the node advection,
+// whose relative tolerance is 1e-12.
+constexpr double number_density_tolerance = 1.0e-11;
+constexpr double mean_tolerance = 1.0e-11;
 
 struct Sample
 {
@@ -36,9 +39,12 @@ struct Sample
     std::vector<std::size_t> branch_counts;
 };
 
+// The source sees the pulse only strictly inside (pulse_start, pulse_end), so the
+// step that ends at pulse_start, whose last stage is evaluated there, injects
+// nothing.
 bool source_pulse_active(const double time)
 {
-    return time + 1.0e-12 >= pulse_start && time < pulse_end - 1.0e-12;
+    return time > pulse_start + 1.0e-12 && time < pulse_end - 1.0e-12;
 }
 
 double binomial_coefficient(const std::size_t n, const std::size_t k)
@@ -62,9 +68,9 @@ qmomkit::PhaseSpaceVelocity velocity()
 }
 
 // During the pulse, each velocity distribution is replaced at rate source_rate
-// by two copies of itself shifted by -velocity_displacement and
+// by the average of two copies of itself shifted by -velocity_displacement and
 // +velocity_displacement. This injects velocity variance without changing the
-// mean, so a collapsed velocity branch can regrow.
+// number density or the mean, so a collapsed velocity branch can regrow.
 qmomkit::CqmomMomentSource variance_injection_source()
 {
     return [](const double time, const qmomkit::CqmomSourceContext& context)
@@ -129,7 +135,7 @@ void write_csv(const std::vector<Sample>& samples)
     {
         throw std::runtime_error("Could not open adaptive_branch_quadrature.csv for writing.");
     }
-    output << "time,total_mass,mean_velocity,velocity_variance,branch_index,active_nodes\n";
+    output << "time,number_density,mean_velocity,velocity_variance,branch_index,active_nodes\n";
     output << std::scientific << std::setprecision(17);
     for (const Sample& sample : samples)
     {

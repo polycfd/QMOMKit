@@ -109,16 +109,23 @@ const char* split_mode_name(const qmomkit::PhaseSpaceEvolutionScheme scheme)
 
 SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const std::size_t level, const double step_size)
 {
-    const std::vector<double> initial{1.0, 0.5, 1.2399999999999998, 1.4119999999999997};
+    // The initial distribution is the two-node rule with weights 0.45 and 0.55
+    // at -0.6 and 1.4; its moments m_0 to m_3 start the run.
+    std::vector<double> initial(4, 0.0);
+    double left_power = 1.0;
+    double right_power = 1.0;
+    for (double& moment : initial)
+    {
+        moment = 0.45 * left_power + 0.55 * right_power;
+        left_power *= -0.6;
+        right_power *= 1.4;
+    }
     const std::size_t step_count = static_cast<std::size_t>(std::lround(splitting_final_time / step_size));
     const qmomkit::QmomCase qmom_case{qmomkit::MomentSet{initial}, 2, {}};
     qmomkit::QmomState state = qmom_case.initial_state();
+    // The advection velocity b is constant, so the default node advection moves
+    // the nodes exactly.
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk45;
-    options.node_options.adaptive_options.relative_tolerance = 1.0e-13;
-    options.node_options.adaptive_options.absolute_tolerance = 1.0e-15;
-    options.node_options.adaptive_options.initial_step = 0.0025;
-    options.node_options.adaptive_options.max_step = 0.0025;
     options.scheme = scheme;
 
     double time = 0.0;
@@ -162,8 +169,10 @@ std::vector<SplitRun> run_splitting_convergence()
             }
         }
         // The observed orders on the two finest refinements, levels 3 and 4.
-        const double threshold = scheme == qmomkit::PhaseSpaceEvolutionScheme::strang ? 1.85 : 0.85;
-        if (runs[first + 3].observed_order <= threshold - 0.1 || runs[first + 4].observed_order <= threshold)
+        // Each must lie within 0.1 of the order p of the scheme, 1 for Lie and 2
+        // for Strang splitting.
+        const double threshold = scheme == qmomkit::PhaseSpaceEvolutionScheme::strang ? 1.9 : 0.9;
+        if (runs[first + 3].observed_order <= threshold || runs[first + 4].observed_order <= threshold)
         {
             throw std::runtime_error(std::string("Split mode ") + split_mode_name(scheme) + " did not show its expected asymptotic order.");
         }

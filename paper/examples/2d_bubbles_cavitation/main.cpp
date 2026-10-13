@@ -107,7 +107,7 @@ int main()
         write_output(initial_time);
 
         double time = initial_time;
-        while (time < final_time)
+        while (time < final_time - 1.0e-12)
         {
             const double step = std::min(time_step, final_time - time);
             qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_advection(state, time, step, velocity, options);

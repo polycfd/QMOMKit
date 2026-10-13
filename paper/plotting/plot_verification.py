@@ -113,7 +113,7 @@ def plot_quadrature(rows: list[dict[str, str]], output: Path) -> None:
 def plot_adaptive(rows: list[dict[str, str]], output: Path) -> None:
     rows = sorted(rows, key=lambda row: float(row["time"]))
     times = numeric(rows, "time")
-    number_density = numeric(rows, "total_mass")
+    number_density = numeric(rows, "number_density")
     mean = numeric(rows, "mean_velocity")
     active_nodes = [int(row["active_nodes"]) for row in rows]
     number_density_error = [abs(value - number_density[0]) for value in number_density]

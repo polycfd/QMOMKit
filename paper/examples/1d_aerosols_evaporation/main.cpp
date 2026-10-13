@@ -172,7 +172,7 @@ int main()
         }
 
         double time = initial_time;
-        while (time < final_time)
+        while (time < final_time - 1.0e-12)
         {
             const double step = std::min(time_step, final_time - time);
 

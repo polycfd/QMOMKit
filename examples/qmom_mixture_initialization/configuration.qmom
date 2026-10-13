@@ -1,4 +1,4 @@
-# One-dimensional QMOM case initialised from a two-component mixture.
+# One-dimensional QMOM case initialized from a two-component mixture.
 # Every key below is documented in docs/user/7_reference.md.
 
 # The number of coordinates decides the method: one uses QMOM, several CQMOM.

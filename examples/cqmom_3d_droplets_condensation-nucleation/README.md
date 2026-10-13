@@ -4,7 +4,7 @@
 
 This standalone example evolves a spatially uniform polydisperse population of
 isolated water droplets in the three-dimensional phase space
-$\boldsymbol{\xi}=(r,w,T)$, where $r$ is droplet radius in metres, $w$ is
+$\boldsymbol{\xi}=(r,w,T)$, where $r$ is droplet radius in meters, $w$ is
 vertical droplet velocity in m/s, and $T$ is droplet temperature in K. Positive
 $w$ is upward, so falling droplets have negative vertical velocity.
 
@@ -53,7 +53,7 @@ The same positional order is used by [configuration.qmom](configuration.qmom),
 samples, the phase-space velocity callback, CQMOM moment exponents, quadrature
 abscissas, and output files.
 
-The radius coordinate and its moments use SI metres. Reconstruction does not
+The radius coordinate and its moments use SI meters. Reconstruction does not
 depend on the units of the coordinates, so no example-local phase-space
 rescaling is needed and the physical callback receives the SI radius directly.
 
@@ -421,7 +421,7 @@ $$
 
 The configured marginals are:
 
-- $r$ is gamma-distributed in metres with `shape = 16.0` and `scale = 18.75e-6`.
+- $r$ is gamma-distributed in meters with `shape = 16.0` and `scale = 18.75e-6`.
 - $w$ is normal with `mean = -2.0` and `standard_deviation = 1.0`.
 - $T$ is normal with `mean = 293.15` and `standard_deviation = 3.0`.
 
@@ -597,7 +597,7 @@ moment labels such as `M[0,0,0]`.
 
 `quadrature_history.txt` contains terminal CQMOM nodes over time. It is a
 `QuadratureWriter` table with time, public node index, conditioning path
-entries, terminal weight, and abscissas ordered as $r$ in metres, $w$ in
+entries, terminal weight, and abscissas ordered as $r$ in meters, $w$ in
 m/s, and $T$ in K.
 
 The direct Monte Carlo executable writes:

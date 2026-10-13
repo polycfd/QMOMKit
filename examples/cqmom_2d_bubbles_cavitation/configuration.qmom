@@ -17,12 +17,12 @@ conditioning_order = 0, 1
 adaptive = false
 
 [initial]
-# Marginals are normalised individually, then combined and scaled once by the
+# Marginals are normalized individually, then combined and scaled once by the
 # number_density below.
 type = independent_product
 number_density = 1.0
 # Retain raw moments up to these per-dimension orders, which the sampled
-# initialisation needs; it does not change the reconstruction order.
+# initialization needs; it does not change the reconstruction order.
 maximum_orders = 3, 3
 
 [initial.dimension.0]

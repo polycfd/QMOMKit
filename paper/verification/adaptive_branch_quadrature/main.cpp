@@ -35,8 +35,7 @@ struct Sample
     double time = 0.0;
     double number_density = 0.0;
     double mean_velocity = 0.0;
-    double velocity_variance = 0.0;
-    std::vector<std::size_t> branch_counts;
+    std::size_t velocity_node_count = 0;
 };
 
 // The source sees the pulse only strictly inside (pulse_start, pulse_end), so the
@@ -98,34 +97,19 @@ qmomkit::CqmomMomentSource variance_injection_source()
     };
 }
 
-// Active node count of the velocity branch conditioned on each size node.
-std::vector<std::size_t> velocity_branch_counts(const std::vector<qmomkit::CqmomActiveBranchCount>& active_branches,
-                                                const std::size_t configured_size_node_count)
+// The number density and mean velocity reported in the paper figure and used
+// for the analytical checks below, from the quadrature of the state. The size
+// coordinate has a single node, so the terminal nodes are the active nodes of
+// the one velocity branch.
+Sample make_sample(const double time, const qmomkit::CqmomState& state)
 {
-    std::vector<std::size_t> counts(configured_size_node_count, 0);
-    for (const qmomkit::CqmomActiveBranchCount& branch : active_branches)
-    {
-        if (branch.phase_space_dimension == velocity_dimension)
-        {
-            counts[branch.parent_path.node_index_at_level(0)] = branch.active_node_count;
-        }
-    }
-    return counts;
-}
-
-// The number density and velocity statistics reported in the paper figure and
-// used for the analytical checks below, from the quadrature of the state.
-Sample make_sample(const double time, const qmomkit::CqmomState& state, const std::size_t configured_size_node_count)
-{
-    const qmomkit::RawMomentRequest request{{{0, 0}, {0, 1}, {0, 2}}};
+    const qmomkit::RawMomentRequest request{{{0, 0}, {0, 1}}};
     const qmomkit::SelectedRawMomentResult moments = qmomkit::reconstruct_raw_moments(state.quadrature(), request);
     if (!moments.ok())
     {
         throw std::runtime_error("The velocity moment reconstruction failed: " + moments.message);
     }
-    const double mean = moments.values[1] / moments.values[0];
-    const double variance = moments.values[2] / moments.values[0] - mean * mean;
-    return Sample{time, moments.values[0], mean, variance, velocity_branch_counts(state.active_branch_counts(), configured_size_node_count)};
+    return Sample{time, moments.values[0], moments.values[1] / moments.values[0], state.quadrature().total_nodes()};
 }
 
 void write_csv(const std::vector<Sample>& samples)
@@ -135,15 +119,11 @@ void write_csv(const std::vector<Sample>& samples)
     {
         throw std::runtime_error("Could not open adaptive_branch_quadrature.csv for writing.");
     }
-    output << "time,number_density,mean_velocity,velocity_variance,branch_index,active_nodes\n";
+    output << "time,number_density,mean_velocity,active_velocity_nodes\n";
     output << std::scientific << std::setprecision(17);
     for (const Sample& sample : samples)
     {
-        for (std::size_t branch = 0; branch < sample.branch_counts.size(); ++branch)
-        {
-            output << sample.time << ',' << sample.number_density << ',' << sample.mean_velocity << ',' << sample.velocity_variance << ',' << branch
-                   << ',' << sample.branch_counts[branch] << '\n';
-        }
+        output << sample.time << ',' << sample.number_density << ',' << sample.mean_velocity << ',' << sample.velocity_node_count << '\n';
     }
 }
 
@@ -173,16 +153,14 @@ int main()
             return 1;
         }
         const qmomkit::CqmomPreparedCase cqmom_case = std::move(configured_case).value();
-        const std::size_t configured_size_node_count = cqmom_case.hierarchy().node_count(0);
         const qmomkit::CqmomPhaseSpaceEvolutionOptions options = std::move(configured_options).value();
         const qmomkit::OutputOptions output = std::move(configured_output).value();
 
         qmomkit::CqmomState state = cqmom_case.initial_state();
-        const Sample initial_sample = make_sample(initial_time, state, configured_size_node_count);
+        const Sample initial_sample = make_sample(initial_time, state);
         std::vector<Sample> output_samples{initial_sample};
-        const std::vector<std::size_t> initial_counts = initial_sample.branch_counts;
-        std::vector<std::size_t> minimum_counts = initial_counts;
-        std::vector<std::size_t> maximum_after_injection(configured_size_node_count, 0);
+        std::size_t minimum_node_count = initial_sample.velocity_node_count;
+        std::size_t maximum_node_count_after_injection = 0;
         double maximum_number_density_error = 0.0;
         double maximum_mean_error = 0.0;
 
@@ -204,14 +182,11 @@ int main()
             state = std::move(result.state);
             time = result.final_time;
 
-            const Sample current = make_sample(time, state, configured_size_node_count);
-            for (std::size_t branch = 0; branch < current.branch_counts.size(); ++branch)
+            const Sample current = make_sample(time, state);
+            minimum_node_count = std::min(minimum_node_count, current.velocity_node_count);
+            if (time >= pulse_start - 1.0e-12)
             {
-                minimum_counts[branch] = std::min(minimum_counts[branch], current.branch_counts[branch]);
-                if (time >= pulse_start - 1.0e-12)
-                {
-                    maximum_after_injection[branch] = std::max(maximum_after_injection[branch], current.branch_counts[branch]);
-                }
+                maximum_node_count_after_injection = std::max(maximum_node_count_after_injection, current.velocity_node_count);
             }
             maximum_number_density_error = std::max(maximum_number_density_error, std::abs(current.number_density - initial_sample.number_density));
             const double exact_mean =
@@ -230,16 +205,11 @@ int main()
 
         write_csv(output_samples);
 
-        // Every velocity branch must lose nodes as relaxation collapses it, and
+        // The velocity branch must lose nodes as relaxation collapses it, and
         // regrow after the variance injection; number density and mean velocity
         // must follow their exact values.
-        bool collapsed = true;
-        bool regrew = true;
-        for (std::size_t branch = 0; branch < configured_size_node_count; ++branch)
-        {
-            collapsed = collapsed && minimum_counts[branch] < initial_counts[branch];
-            regrew = regrew && maximum_after_injection[branch] > minimum_counts[branch];
-        }
+        const bool collapsed = minimum_node_count < initial_sample.velocity_node_count;
+        const bool regrew = maximum_node_count_after_injection > minimum_node_count;
         if (!collapsed || !regrew || maximum_number_density_error > number_density_tolerance || maximum_mean_error > mean_tolerance)
         {
             std::cerr << "The adaptive branch-specific lifecycle verification failed.\n";

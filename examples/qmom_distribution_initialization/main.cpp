@@ -13,7 +13,7 @@ int main()
     const double number_density = 2.5;
 
     // Step 1: turn an analytical distribution into raw moments. QMOMKit scales
-    // them by the number density rather than normalising it away, so m0 comes
+    // them by the number density rather than normalizing it away, so m0 comes
     // back as the total number density itself.
     const qmomkit::DistributionSpecification distribution = qmomkit::LogNormalDistribution{-0.2, 0.4};
     const qmomkit::RawMomentResult moments = qmomkit::compute_raw_moments(distribution, maximum_order, number_density);

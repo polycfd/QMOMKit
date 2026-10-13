@@ -1,4 +1,5 @@
 #include "monte_carlo/evolution.hpp"
+#include "monte_carlo/output.hpp"
 #include "particles_mc.hpp"
 #include "physics.hpp"
 #include "qmomkit/qmomkit.hpp"
@@ -82,10 +83,11 @@ int main()
         }
         if (output.write_moments)
         {
-            // The QMOMKit history holds the moments the state tracks; the Monte
-            // Carlo history holds the full moment tensor of the sample.
+            // Both histories hold the moments the state tracks, followed by any
+            // generalized moments configured in [output].
             moment_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.directory / "moment_history.txt", state, output));
-            mc_moment_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.directory / "moment_history_mc.txt", moment_extents));
+            mc_moment_writer.emplace(qmomkit::monte_carlo::make_moment_history_writer(output.directory / "moment_history_mc.txt", moment_extents,
+                                                                                      state.moment_indices(), output));
         }
         if (output.write_quadrature)
         {
@@ -97,7 +99,9 @@ int main()
             if (moment_writer)
             {
                 moment_writer->write(time, state, state.quadrature());
-                mc_moment_writer->write(time, paper_2d_bubbles_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents));
+                qmomkit::monte_carlo::write_moment_history_row(
+                    *mc_moment_writer, time, paper_2d_bubbles_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents),
+                    ensemble, particle_weight * static_cast<double>(ensemble.size()), output);
             }
             if (quadrature_writer)
             {

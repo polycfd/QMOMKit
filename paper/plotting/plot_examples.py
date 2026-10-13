@@ -46,10 +46,14 @@ def read_history(path: Path) -> list[Row]:
         return [dict(zip(header, (float(value) for value in line.split()))) for line in handle if line.split()]
 
 
-def compare(
-    qmomkit_rows: list[Row], monte_carlo_rows: list[Row], quantities: dict[str, Callable[[Row], float]]
-) -> dict[str, Comparison]:
+def compare(results_dir: Path, quantities: dict[str, Callable[[Row], float]]) -> dict[str, Comparison]:
     """Evaluate each compared quantity on the QMOMKit and Monte Carlo rows of the same output time."""
+    qmomkit_rows = read_history(results_dir / "moment_history.txt")
+    monte_carlo_rows = read_history(results_dir / "moment_history_mc.txt")
+    # Both histories are written by the same run at the same times; anything
+    # else is output left over from a different or interrupted run.
+    if [row["time"] for row in qmomkit_rows] != [row["time"] for row in monte_carlo_rows]:
+        raise ValueError(f"{results_dir}: the QMOMKit and Monte Carlo histories have different output times; rerun the study.")
     return {
         name: [
             {"time": qmomkit_row["time"], "qmomkit": evaluate(qmomkit_row), "monte_carlo": evaluate(monte_carlo_row)}
@@ -70,8 +74,7 @@ def ratio(numerator: str, denominator: str, factor: float = 1.0) -> Callable[[Ro
 def cavitation_data(results_dir: Path) -> dict[str, Comparison]:
     """Number density and the population-normalized first, mixed and second moments in (R, U)."""
     return compare(
-        read_history(results_dir / "moment_history.txt"),
-        read_history(results_dir / "moment_history_mc.txt"),
+        results_dir,
         {
             "M_00": column("M[0,0]"),
             "M_10/M_00": ratio("M[1,0]", "M[0,0]"),
@@ -90,8 +93,7 @@ def condensing_droplet_data(results_dir: Path) -> dict[str, Comparison]:
         return 1.0e12 * (row["M[2,0,0]"] / row["M[0,0,0]"] - (row["M[1,0,0]"] / row["M[0,0,0]"]) ** 2)
 
     return compare(
-        read_history(results_dir / "moment_history.txt"),
-        read_history(results_dir / "moment_history_mc.txt"),
+        results_dir,
         {
             "M_000": column("M[0,0,0]"),
             "M_300/M_200": ratio("M[3,0,0]", "M[2,0,0]", 1.0e6),
@@ -106,8 +108,7 @@ def condensing_droplet_data(results_dir: Path) -> dict[str, Comparison]:
 def spherical_breakup_quadrature_4d_data(results_dir: Path) -> dict[str, Comparison]:
     """Tracked moments, and the untracked moments the configuration adds as generalized columns, in (d, u, v, w)."""
     return compare(
-        read_history(results_dir / "moment_history.txt"),
-        read_history(results_dir / "moment_history_mc.txt"),
+        results_dir,
         {
             "M_0000": column("M[0,0,0,0]"),
             "M_1000/M_0000": ratio("M[1,0,0,0]", "M[0,0,0,0]", 1.0e3),
@@ -122,8 +123,7 @@ def spherical_breakup_quadrature_4d_data(results_dir: Path) -> dict[str, Compari
 def spherical_breakup_moments_5d_data(results_dir: Path) -> dict[str, Comparison]:
     """Tracked moments, and the generalized moments of volume order 4/3 the configuration adds, in (V, T, u, v, w)."""
     return compare(
-        read_history(results_dir / "moment_history.txt"),
-        read_history(results_dir / "moment_history_mc.txt"),
+        results_dir,
         {
             "M_00000": column("M[0,0,0,0,0]"),
             "M_10000": column("M[1,0,0,0,0]"),

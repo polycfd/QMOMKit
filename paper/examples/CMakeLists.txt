@@ -46,6 +46,17 @@ add_executable(
 )
 target_link_libraries(qmomkit_paper_5d_particles_breakup_heat_transfer PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
 
+foreach(target_name IN ITEMS qmomkit_paper_1d_aerosols_evaporation qmomkit_paper_2d_bubbles_cavitation qmomkit_paper_3d_droplets_condensation_nucleation
+                             qmomkit_paper_4d_particles_breakup_recoil qmomkit_paper_5d_particles_breakup_heat_transfer)
+    target_compile_features(${target_name} PRIVATE cxx_std_17)
+
+    if(MSVC)
+        target_compile_options(${target_name} PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(${target_name} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endforeach()
+
 configure_file(1d_aerosols_evaporation/configuration.qmom 1d_aerosols_evaporation/configuration.qmom COPYONLY)
 configure_file(2d_bubbles_cavitation/configuration.qmom 2d_bubbles_cavitation/configuration.qmom COPYONLY)
 configure_file(3d_droplets_condensation-nucleation/configuration.qmom 3d_droplets_condensation-nucleation/configuration.qmom COPYONLY)

@@ -13,7 +13,7 @@ node_counts = 2, 2
 conditioning_order = 0, 1
 
 [initial]
-# Marginals are normalised individually, then combined and scaled once by the
+# Marginals are normalized individually, then combined and scaled once by the
 # number_density below.
 type = independent_product
 number_density = 2.5

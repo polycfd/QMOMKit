@@ -115,7 +115,7 @@ def plot_adaptive(rows: list[dict[str, str]], output: Path) -> None:
     times = numeric(rows, "time")
     number_density = numeric(rows, "number_density")
     mean = numeric(rows, "mean_velocity")
-    active_nodes = [int(row["active_nodes"]) for row in rows]
+    active_nodes = [int(row["active_velocity_nodes"]) for row in rows]
     number_density_error = [abs(value - number_density[0]) for value in number_density]
     # Relaxation toward the equilibrium velocity 0.5 at rate 5, as in the study.
     exact_mean = [0.5 + (mean[0] - 0.5) * math.exp(-5.0 * time) for time in times]

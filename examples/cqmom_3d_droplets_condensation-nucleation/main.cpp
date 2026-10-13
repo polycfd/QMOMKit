@@ -64,6 +64,9 @@ int main()
     // requires a source callback, hence this zero-rate one.
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    // The nucleation flux is scaled by the initial number density of the sample.
+    const qmomkit::CqmomMomentBoundaryContribution nucleation = cqmom_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(
+        cqmom_3d_droplets_condensation_nucleation::make_nucleation_model(sampled->sampling.number_density));
     const qmomkit::RawMomentRequest printed_moments = cqmom_3d_droplets_condensation_nucleation::printed_moments();
 
     try
@@ -77,10 +80,6 @@ int main()
             std::cerr << "Initial moment reconstruction failed: " << initial_moments.message << '\n';
             return 1;
         }
-        // The nucleation flux is scaled by the initial number density M[0,0,0], the
-        // first printed moment.
-        const qmomkit::CqmomMomentBoundaryContribution nucleation = cqmom_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(
-            cqmom_3d_droplets_condensation_nucleation::make_nucleation_model(initial_moments.values.front()));
 
         std::optional<qmomkit::MomentWriter> moment_writer;
         std::optional<qmomkit::QuadratureWriter> quadrature_writer;

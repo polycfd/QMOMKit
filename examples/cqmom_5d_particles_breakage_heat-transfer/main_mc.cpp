@@ -46,7 +46,7 @@ int main()
     // The same sample the QMOMKit run starts from, here kept as particles of
     // equal statistical weight.
     const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-        cqmom_5d_particles_breakage_heat_transfer::sample_initial_population(configuration_file, configured_case.value().hierarchy());
+        cqmom_5d_particles_breakage_heat_transfer::sample_initial_distribution(configuration_file, configured_case.value().hierarchy());
     if (!sampled)
     {
         return 1;
@@ -97,14 +97,15 @@ int main()
         const double output_interval = output.interval.value_or(final_time - initial_time);
         double next_output_time = initial_time + output_interval;
         double time = initial_time;
-        while (time < final_time - 1.0e-14)
+        while (time < final_time - 1.0e-12)
         {
             // Strang splitting, as in the QMOMKit run: an advection half-step of the
             // particles, stochastic breakup over the whole step, and a second
             // advection half-step.
             const double step = std::min(time_step, final_time - time);
+            const double half_step = 0.5 * step;
             qmomkit::monte_carlo::EnsembleEvolutionResult first_advection =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + 0.5 * step, advection_options);
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + half_step, advection_options);
             if (!first_advection.ok())
             {
                 std::cerr << "First advection particle half-step failed: " << first_advection.message << '\n';
@@ -115,7 +116,7 @@ int main()
             cqmom_5d_particles_breakage_heat_transfer::apply_breakup(ensemble, step, generator);
 
             qmomkit::monte_carlo::EnsembleEvolutionResult second_advection =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time + 0.5 * step, time + step, advection_options);
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time + half_step, time + step, advection_options);
             if (!second_advection.ok())
             {
                 std::cerr << "Second advection particle half-step failed: " << second_advection.message << '\n';
@@ -124,7 +125,7 @@ int main()
             ensemble = std::move(second_advection.ensemble);
             time += step;
 
-            if (time + 1.0e-14 >= next_output_time || time >= final_time - 1.0e-14)
+            if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
                 write_output(time);
                 next_output_time += output_interval;

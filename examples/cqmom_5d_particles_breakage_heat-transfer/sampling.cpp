@@ -14,8 +14,8 @@
 namespace cqmom_5d_particles_breakage_heat_transfer
 {
 
-std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sample_initial_population(const std::filesystem::path& configuration_file,
-                                                                                           const qmomkit::PhaseSpaceHierarchy& hierarchy)
+std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sample_initial_distribution(const std::filesystem::path& configuration_file,
+                                                                                             const qmomkit::PhaseSpaceHierarchy& hierarchy)
 {
     std::ifstream input(configuration_file);
     if (!input)
@@ -46,7 +46,7 @@ std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sample_initial_
                 return qmomkit::monte_carlo::sample_initialization(specification.distribution, orders,
                                                                    {initialization_sample_count, initialization_seed});
             }
-            std::cerr << "This example requires a sampleable independent-product initial condition.\n";
+            std::cerr << "Monte Carlo initialization requires a sampleable independent-product CQMOM configuration.\n";
             return std::nullopt;
         },
         std::move(initial_condition).value());

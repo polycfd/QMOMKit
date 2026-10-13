@@ -118,13 +118,14 @@ Tests and examples are strictly separate and must never be conflated.
 - Example CMake projects must not call `enable_testing()` or `add_test()`.
 - Every QMOMKit feature has its own tests under `tests/`, independent of the
   examples; whether an example uses a feature has no bearing on its tests.
-- An example is written for its reader. `main.cpp` reads top to bottom: load
-  the configuration, build the callbacks, create the initial state, run the
-  time loop, write the output, print a short summary. The physics lives in its
-  own file, with its units.
-- An example checks only the statuses and errors QMOMKit reports, and stops
-  with their message. It does not check its own results, guard its callbacks
-  against misuse, or validate its physical constants.
+- An example is written for its reader. Its drivers, `main.cpp` and any
+  `main_mc.cpp`, read top to bottom: load the configuration, build the
+  callbacks, create the initial state, run the time loop, write the output,
+  print a short summary. The physics lives in its own file, with its units.
+- An example checks only the statuses and errors QMOMKit and its Monte Carlo
+  companion report, and stops with their message. It does not check its own
+  results, guard its callbacks against misuse, or validate its physical
+  constants.
 - An example does not repeat its configuration on the console. It prints a few
   physically meaningful quantities and where its output was written; the
   QMOMKit writers record the rest, as `write_moments` and `write_quadrature`

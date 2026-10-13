@@ -38,22 +38,21 @@ int main()
         std::cerr << configured_output.error() << '\n';
         return 1;
     }
-    const qmomkit::QmomCase qmom_case = std::move(configured_case).value();
+    qmomkit::QmomCase qmom_case = std::move(configured_case).value();
     const qmomkit::QmomPhaseSpaceEvolutionOptions options = std::move(configured_options).value();
     const qmomkit::OutputOptions output = std::move(configured_output).value();
 
     // Starting from the moments of the sample rather than from the configured
     // analytical moments is what makes the two runs comparable: both begin from
-    // the same finite population. The case keeps the configured node count and
-    // inversion options.
+    // the same finite population. Only the moments of the case are replaced; its
+    // node count, options and bounds are kept.
     const std::optional<qmom_1d_breakage_advection_with_mc::SamplingSetup> sampled =
         qmom_1d_breakage_advection_with_mc::sample_initial_distribution(configuration_file);
     if (!sampled)
     {
         return 1;
     }
-    const qmomkit::QmomCase sampled_case{sampled->moments.moments, qmom_case.node_count, qmom_case.qmom_options};
-    const std::vector<double> initial_moments = sampled->moments.moments.values();
+    qmom_case.moments = sampled->moments.moments;
 
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection_with_mc::advection_velocity();
     const qmomkit::QmomMomentSource source = qmom_1d_breakage_advection_with_mc::binary_fragmentation_source();
@@ -62,7 +61,8 @@ int main()
     {
         // initial_state() throws when the sampled moments admit no quadrature, and
         // the writers throw when a file cannot be written.
-        qmomkit::QmomState state = sampled_case.initial_state();
+        qmomkit::QmomState state = qmom_case.initial_state();
+        const std::vector<double> initial_moments = state.moment_values();
 
         std::optional<qmomkit::MomentWriter> moment_writer;
         std::optional<qmomkit::QuadratureWriter> quadrature_writer;

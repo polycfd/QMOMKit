@@ -41,7 +41,7 @@ int main()
     const qmomkit::OutputOptions output = std::move(configured_output).value();
 
     // The physics lives in physics.cpp: an advection velocity that relaxes the
-    // velocity distribution towards a single value, and a moment source that
+    // velocity distribution toward a single value, and a moment source that
     // injects velocity variance in a short pulse. Relaxation lets a velocity
     // branch lose a node; the pulse lets it grow one back.
     const cqmom_2d_adaptive_node_counts::VarianceInjectionParameters parameters;

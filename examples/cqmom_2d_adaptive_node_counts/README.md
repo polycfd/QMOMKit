@@ -16,10 +16,9 @@ With the default two-velocity-node configuration, each velocity branch follows:
 2 -> 1 -> 2 -> 1
 ```
 
-Exact transition times depend on the configured parameters, reconstruction
-tolerances, and output interval. The implementation supports other conditioning
-orders and configured maximum counts; focused regression coverage for those
-invariants lives in the root QMOMKit test suite.
+Exact transition times depend on the configured parameters and the
+reconstruction tolerances. The example works with other conditioning orders and
+configured maximum counts.
 
 ## Configuration
 

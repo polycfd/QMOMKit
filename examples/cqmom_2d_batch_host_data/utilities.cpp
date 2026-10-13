@@ -2,7 +2,6 @@
 
 #include "physics.hpp"
 
-#include <cmath>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>

@@ -126,7 +126,8 @@ than the CQMOM run because it evolves a finite population through breakage.
 ## Output files
 
 The CQMOM executable writes `output/moment_history.txt` and
-`output/quadrature_history.txt` at the configured $0.0025$ s cadence. The first
+`output/quadrature_history.txt` at the first step that reaches each multiple of
+the configured interval of $0.0025$ s. The first
 contains time and the moments represented by the current CQMOM state; the
 second contains terminal-node weights and coordinates. The MC executable writes
 matching selected raw moments to `output/moment_history_mc.txt`. Both

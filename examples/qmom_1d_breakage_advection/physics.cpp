@@ -20,7 +20,7 @@ constexpr double rate_exponent = 1.5;
 
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
-    // Diameters relax towards d = 1: smaller particles grow, larger ones shrink.
+    // Diameters relax toward d = 1: smaller particles grow, larger ones shrink.
     return [](double, const std::vector<double>& diameters, std::vector<double>& velocities, std::size_t)
     {
         for (std::size_t node = 0; node < diameters.size(); ++node)

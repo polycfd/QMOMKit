@@ -46,7 +46,7 @@ int main()
     // initial moments are replaced; the configured hierarchy, supports and
     // reconstruction settings are kept.
     const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-        cqmom_5d_particles_breakage_heat_transfer::sample_initial_population(configuration_file, configured_case.value().hierarchy());
+        cqmom_5d_particles_breakage_heat_transfer::sample_initial_distribution(configuration_file, configured_case.value().hierarchy());
     if (!sampled)
     {
         return 1;
@@ -60,9 +60,9 @@ int main()
     const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
 
     // particle_velocity() relaxes each particle's temperature T and velocity
-    // (u, v, w) towards the gas by heat transfer and drag, and breakup_source()
+    // (u, v, w) toward the gas by heat transfer and drag, and breakup_source()
     // replaces breaking particles by two daughters of half the volume whose
-    // temperature moves towards the gas temperature.
+    // temperature moves toward the gas temperature.
     const qmomkit::PhaseSpaceVelocity velocity = cqmom_5d_particles_breakage_heat_transfer::particle_velocity();
     const qmomkit::CqmomMomentSource source = cqmom_5d_particles_breakage_heat_transfer::breakup_source();
     const qmomkit::RawMomentRequest printed_moments = cqmom_5d_particles_breakage_heat_transfer::printed_moments();
@@ -110,7 +110,7 @@ int main()
         const double output_interval = output.interval.value_or(final_time - initial_time);
         double next_output_time = initial_time + output_interval;
         double time = initial_time;
-        while (time < final_time - 1.0e-14)
+        while (time < final_time - 1.0e-12)
         {
             // One step of the configured splitting scheme in the five-dimensional
             // phase space (V, T, u, v, w). The same call serves any dimension count:
@@ -126,7 +126,7 @@ int main()
             state = std::move(result.state);
             time = result.final_time;
 
-            if (time + 1.0e-14 >= next_output_time || time >= final_time - 1.0e-14)
+            if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
                 write_output(time);
                 next_output_time += output_interval;

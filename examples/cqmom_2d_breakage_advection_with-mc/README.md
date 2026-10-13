@@ -270,7 +270,7 @@ increase caused by fragmentation.
 Both executables start from the same fixed-seed sample, so their initial
 moments agree. At $t = 1$, the CQMOM run gives $M_{0,0} = 1.6487$, which is
 $e^{0.5}$ because the source gives
-$\mathrm{d}M_{0,0}/\mathrm{d}t = 0.5\,M_{0,0}$, and the Monte Carlo run $M_{0,0} = 1.6578$ from 16,578 particles. $M_{1,0}$
-and $M_{2,0}$ agree to within 0.2 percent and $M_{0,2}$ to within 1.3 percent.
-$M_{0,1}$ and $M_{1,1}$ stay near zero in both runs, where sampling noise
-dominates their difference.
+$\mathrm{d}M_{0,0}/\mathrm{d}t = 0.5\,M_{0,0}$, and the Monte Carlo run
+$M_{0,0} = 1.6578$ from 16,578 particles. $M_{1,0}$ and $M_{2,0}$ agree to
+within 0.2 percent and $M_{0,2}$ to within 1.3 percent. $M_{0,1}$ and $M_{1,1}$
+stay near zero in both runs, where sampling noise dominates their difference.

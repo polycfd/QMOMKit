@@ -366,7 +366,7 @@ while equal-volume diameter scaling preserves volume at each breakup event.
 Attrition, shape relaxation, drag, gravity, and recoil then change the size,
 shape, and velocity distributions. At $t = 1$ s, the CQMOM run gives
 $M_{0,0,0,0,0} = 3.093$ and the Monte Carlo run $3.0995$ from 30,995
-particles; the other printed moments agree to within 1.6 percent.
+particles; the other printed moments agree to within 1.7 percent.
 
 ## File guide
 
@@ -380,4 +380,4 @@ particles; the other printed moments agree to within 1.6 percent.
 | `breakage_model.*` | CQMOM binary-breakage source and matching MC event model |
 | `particles_mc.*` | Raw-moment estimation from the evolving MC ensemble |
 | `sampling.*` | Shared fixed-seed independent-product initialization |
-| `utilities.*` | Output setup and concise console summaries |
+| `utilities.*` | The printed moments and their console table |

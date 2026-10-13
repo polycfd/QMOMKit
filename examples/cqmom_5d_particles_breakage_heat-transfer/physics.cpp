@@ -10,22 +10,22 @@ namespace
 {
 
 constexpr double pi = 3.14159265358979323846;
-constexpr double gas_density = 1.2;
-constexpr double gas_viscosity = 1.8e-5;
-constexpr double gas_thermal_conductivity = 0.026;
-constexpr double gas_prandtl_number = 0.71;
-constexpr double gas_temperature = 300.0;
-constexpr double particle_density = 2000.0;
-constexpr double particle_heat_capacity = 1000.0;
-constexpr double gas_u = 2.0;
-constexpr double gas_v = 1.5;
-constexpr double gas_w = 0.8;
+constexpr double gas_density = 1.2;                // kg/m^3
+constexpr double gas_viscosity = 1.8e-5;           // Pa s
+constexpr double gas_thermal_conductivity = 0.026; // W/(m K)
+constexpr double gas_prandtl_number = 0.71;        // dimensionless
+constexpr double gas_temperature = 300.0;          // K
+constexpr double particle_density = 2000.0;        // kg/m^3
+constexpr double particle_heat_capacity = 1000.0;  // J/(kg K)
+constexpr double gas_u = 2.0;                      // m/s
+constexpr double gas_v = 1.5;                      // m/s
+constexpr double gas_w = 0.8;                      // m/s
 // These constants define the deliberately simple breakup temperature mapping
 // used to demonstrate generalized-moment source closure.
-constexpr double breakup_rate = 10.0;
-constexpr double reference_diameter = 1.0e-4;
-constexpr double breakup_temperature_relaxation = 1.0e-2;
-constexpr double reference_volume = pi * reference_diameter * reference_diameter * reference_diameter / 6.0;
+constexpr double breakup_rate = 10.0;                                                                        // 1/s
+constexpr double reference_diameter = 1.0e-4;                                                                // m
+constexpr double breakup_temperature_relaxation = 1.0e-2;                                                    // dimensionless
+constexpr double reference_volume = pi * reference_diameter * reference_diameter * reference_diameter / 6.0; // m^3
 
 double diameter_from_volume(const double volume)
 {

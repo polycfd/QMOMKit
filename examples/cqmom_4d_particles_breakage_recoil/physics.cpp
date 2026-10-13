@@ -10,18 +10,18 @@ namespace cqmom_4d_particles_breakage_recoil
 namespace
 {
 
-constexpr double gas_density = 1.2;
-constexpr double gas_viscosity = 1.8e-5;
-constexpr double particle_density = 2000.0;
-constexpr double gas_u = 2.0;
-constexpr double gas_v = 1.5;
-constexpr double gas_w = 0.8;
+constexpr double gas_density = 1.2;         // kg/m^3
+constexpr double gas_viscosity = 1.8e-5;    // Pa s
+constexpr double particle_density = 2000.0; // kg/m^3
+constexpr double gas_u = 2.0;               // m/s
+constexpr double gas_v = 1.5;               // m/s
+constexpr double gas_w = 0.8;               // m/s
 // These constants define the deliberately simple breakup/recoil mapping used
 // to demonstrate terminal-quadrature source closure.
-constexpr double breakup_rate = 10.0;
-constexpr double recoil_standard_deviation = 0.25;
-constexpr double recoil_reference_diameter = 1.0e-4;
-constexpr double daughter_diameter_factor = 0.79370052598409973738;
+constexpr double breakup_rate = 10.0;                               // 1/s
+constexpr double recoil_standard_deviation = 0.25;                  // m/s, at the reference diameter
+constexpr double recoil_reference_diameter = 1.0e-4;                // m
+constexpr double daughter_diameter_factor = 0.79370052598409973738; // 2^(-1/3), equal-volume daughters
 
 double integer_power(const double value, const std::size_t exponent)
 {

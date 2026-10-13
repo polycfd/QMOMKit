@@ -46,7 +46,7 @@ int main()
     // initial moments are replaced; the configured hierarchy, supports and
     // reconstruction settings are kept.
     const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-        cqmom_4d_particles_breakage_recoil::sample_initial_population(configuration_file, configured_case.value().hierarchy());
+        cqmom_4d_particles_breakage_recoil::sample_initial_distribution(configuration_file, configured_case.value().hierarchy());
     if (!sampled)
     {
         return 1;
@@ -59,7 +59,7 @@ int main()
     }
     const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
 
-    // particle_velocity() relaxes each particle's velocity (u, v, w) towards the
+    // particle_velocity() relaxes each particle's velocity (u, v, w) toward the
     // gas by drag, and breakup_source() replaces breaking particles by two
     // daughters with diameter-scaled recoil.
     const qmomkit::PhaseSpaceVelocity velocity = cqmom_4d_particles_breakage_recoil::particle_velocity();
@@ -109,7 +109,7 @@ int main()
         const double output_interval = output.interval.value_or(final_time - initial_time);
         double next_output_time = initial_time + output_interval;
         double time = initial_time;
-        while (time < final_time - 1.0e-14)
+        while (time < final_time - 1.0e-12)
         {
             // One step of the configured splitting scheme in the four-dimensional
             // phase space (d, u, v, w).
@@ -123,7 +123,7 @@ int main()
             state = std::move(result.state);
             time = result.final_time;
 
-            if (time + 1.0e-14 >= next_output_time || time >= final_time - 1.0e-14)
+            if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
                 write_output(time);
                 next_output_time += output_interval;

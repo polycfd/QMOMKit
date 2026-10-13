@@ -21,8 +21,6 @@ struct VarianceInjectionParameters
     double velocity_displacement = 0.10;
 };
 
-[[nodiscard]] bool source_pulse_active(double time, const VarianceInjectionParameters& parameters);
-
 [[nodiscard]] qmomkit::PhaseSpaceVelocity advection_velocity(const VarianceInjectionParameters& parameters);
 
 [[nodiscard]] qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionParameters& parameters);

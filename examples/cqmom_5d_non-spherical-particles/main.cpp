@@ -60,16 +60,6 @@ int main(int argc, char* argv[])
     {
         return 1;
     }
-    auto sampled_case = qmomkit::config::with_initial_moments(
-        configured_case.value(),
-        qmomkit::create_cqmom_moment_data(layout, qmomkit::make_selected_raw_moment_result(required_moments, sampled->moments.values)));
-    if (!sampled_case)
-    {
-        std::cerr << sampled_case.error() << '\n';
-        return 1;
-    }
-    const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
-
     // carrier_samples is the host-side carrier flow, owned here by the driver.
     // The velocity callback keeps a reference to it, which is how a host passes
     // local, time-varying field data to a callback without a global. It must
@@ -86,9 +76,19 @@ int main(int argc, char* argv[])
 
     try
     {
-        // initial_state() throws when the sampled moments admit no quadrature, and
+        // The sampled moments replace the configured ones; the case keeps its
+        // hierarchy and settings. create_cqmom_moment_data() and initial_state()
+        // throw when the moments do not fit the layout or admit no quadrature, and
         // the writers throw when a file cannot be written.
-        qmomkit::CqmomState state = cqmom_case.initial_state();
+        auto sampled_case = qmomkit::config::with_initial_moments(
+            configured_case.value(),
+            qmomkit::create_cqmom_moment_data(layout, qmomkit::make_selected_raw_moment_result(required_moments, sampled->moments.values)));
+        if (!sampled_case)
+        {
+            std::cerr << sampled_case.error() << '\n';
+            return 1;
+        }
+        qmomkit::CqmomState state = sampled_case.value().initial_state();
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), printed_moments);
         if (!initial_moments.ok())
         {

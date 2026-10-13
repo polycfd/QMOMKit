@@ -17,7 +17,7 @@ int main()
     const double final_time = 13.9;
     const double time_step = 0.01;
 
-    // The case, the advection options and the output options come from the same
+    // The case, the evolution options and the output options come from the same
     // file. A faulty file is reported as a message naming the key and line.
     auto configured_case = qmomkit::config::load_cqmom_prepared(configuration_file);
     if (!configured_case)

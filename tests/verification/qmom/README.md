@@ -65,6 +65,21 @@ Every accepted rule of $n$ nodes must have non-negative weights summing to
 $m_0$, sorted abscissas, and rebuild the first $2n$ moments. Where reduction
 starts depends on conditioning, not on a contract, and is not asserted.
 
+**Scaling and support**, `verification_qmom_scaling_and_support_<case>`
+(`scaling_and_support.cpp`). Seeded random rules of one to eight clustered
+weighted points, with weights spanning six decades, are inverted with up to two
+nodes more than they have, so many sequences lie on the boundary; both
+fixed-count refusals and adaptive reductions occur.
+
+- `power_of_two_scaling_is_exact`: scaling the coordinate by $2^p$ and the
+  number density by $2^q$ scales every moment exactly, so the status, the node
+  count, the abscissas times $2^p$ and the weights times $2^q$ must match bit
+  for bit, in fixed and adaptive inversion. No decision may depend on the unit
+  or the number density.
+- `no_more_nodes_than_weighted_points`: a fixed request for more nodes than
+  points is `not_realizable`, and adaptive inversion returns at most as many
+  nodes as points. No node may be made of rounding.
+
 **Abscissa bounds**, `verification_qmom_quadrature_bounds_<case>`
 (`quadrature_bounds.cpp`). Nodes inside the bounds give the unbounded result
 (`fixed_bounded_qmom_accepts_nodes_inside_interval`); a node outside gives
@@ -102,11 +117,14 @@ node, must return the status and a message containing the fragment;
   and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight.
 - Boundary, adaptive and bounds: $10^{-12}$, a safety bound over observed
   errors of $10^{-15}$ or zero.
+- Scaling and support: exact equality and node counts, no tolerance. Scalings
+  that would take a moment out of the normal double range are skipped, because
+  they are not exact.
 
 ## Reproduce
 
 ```bash
-ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds)|wheeler_analytical|adaptive_qmom)_' --output-on-failure
+ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|adaptive_qmom)_' --output-on-failure
 ```
 
 See [Building and running](../../../docs/developer/testing.md#building-and-running).

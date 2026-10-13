@@ -34,7 +34,7 @@ and keeps the CQMOM state of location `i` at position `i` of its state vector:
 
 ```cpp
 LocalHostData host_data = make_local_host_data(location_count, initial_time);
-std::vector<qmomkit::CqmomState> states(location_count, cqmom_prepared_case.initial_state());
+std::vector<qmomkit::CqmomState> states(location_count, cqmom_case.initial_state());
 ```
 
 A `*_batch_with_index(...)` call passes each state's position in `states` to
@@ -71,16 +71,16 @@ while (time < final_time - 1.0e-12)
         publish_carrier_flow_level(host_data, time);
     }
 
-    std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> evolved =
-        qmomkit::advance_cqmom_phase_space_batch_with_index(states, time, step, velocity, source, evolution_options);
+    std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> results =
+        qmomkit::advance_cqmom_phase_space_batch_with_index(states, time, step, velocity, source, options);
 
     for (std::size_t location = 0; location < location_count; ++location)
     {
-        if (!evolved[location].ok())
+        if (!results[location].ok())
         {
             // report the failed location and stop
         }
-        states[location] = std::move(evolved[location].state);
+        states[location] = std::move(results[location].state);
     }
     time += step;
 }
@@ -204,4 +204,4 @@ every 0.1 time units, through QMOMKit's native writers.
 | `configuration.qmom` | Hierarchy, initial condition, and output settings shared by all locations |
 | `host_data.*` | Host-side data per location: positions, fragmentation rates, and the two carrier-flow levels |
 | `physics.*` | Batch-index-aware velocity and moment-source callbacks reading the host data, and the exact solutions the summary compares with |
-| `utilities.*` | Output setup and the per-location console summary |
+| `utilities.*` | Per-location output file names and the per-location console summary |

@@ -162,9 +162,8 @@ The implementation applies this form as:
 | thermal conductivity | $k_a$ | `2.4031e-2` | `7.5904e-5` | `-3.1199e-6` | `-4.8653e-8` | `-1.3015e-7` |
 | heat capacity | $c_a$ | `1006.4` | `3.9654e-2` | `2.0101` | `4.15208e-4` | `-1.673e-1` |
 
-The callback validates that ambient air-property temperatures are in
-$[273.15,373.15]$ K and that droplet temperatures are in
-$[273.15,T_c)$.
+The correlations hold for ambient air temperatures in $[273.15,373.15]$ K and
+droplet temperatures in $[273.15,T_c)$, which the shipped case stays within.
 
 ### Vapor and heat-transfer correlations
 
@@ -577,28 +576,24 @@ cd build
 ./cqmom_3d_droplets_condensation_nucleation_mc_example
 ```
 
-The CQMOM executable prints phase-space and conditioning information,
-configured node counts, phase-space evolution and RK23 settings, sample count
-and seed, selected initial and final moments, final quadrature, and output
-paths. The Monte Carlo executable prints phase-space and RK23 information,
-sample count and seed, selected initial and final moments, final ensemble size,
-and its output path.
+Both executables print the same selection of initial and final raw moments, so
+the two runs can be compared line by line: the number density $M_{0,0,0}$ and
+the first and second moments of $r$, $w$ and $T$. The Monte Carlo executable
+also prints the initial and final droplet counts.
 
 ## Output files
 
 With the default output configuration, the CQMOM executable writes:
 
 ```text
-output/initial_moments.txt
 output/moment_history.txt
 output/quadrature_history.txt
 ```
 
-`initial_moments.txt` contains the case-defined initial CQMOM moments
-reconstructed from the sampled-initialization quadrature. `moment_history.txt`
-contains the CQMOM raw-moment history at the configured output interval. Both
-files are whitespace-delimited `MomentWriter` tables with a commented header
-containing `time` followed by moment labels such as `M[0,0,0]`.
+`moment_history.txt` contains the CQMOM raw-moment history at the configured
+output interval, starting with the initial state. It is a whitespace-delimited
+`MomentWriter` table with a commented header containing `time` followed by
+moment labels such as `M[0,0,0]`.
 
 `quadrature_history.txt` contains terminal CQMOM nodes over time. It is a
 `QuadratureWriter` table with time, public node index, conditioning path
@@ -656,3 +651,8 @@ radius change back into the temperature equation. Vertical velocities evolve
 under buoyancy-corrected gravity and drag, and droplets of different radii
 respond differently because the Reynolds number, drag coefficient, heat
 transfer, and mass transfer depend on $r$.
+
+At $t = 1$ s, the CQMOM run gives $M_{0,0,0} = 2$ and the Monte Carlo run
+$1.9947$ from 19,947 droplets. The mean temperature $M_{0,0,1}/M_{0,0,0}$ is
+about 313 K in both runs, near the ambient 313.15 K, and the other printed
+moments agree to within 0.3 percent.

@@ -3,7 +3,6 @@
 #include "physics.hpp"
 
 #include <cmath>
-#include <stdexcept>
 
 namespace qmom_1d_breakage_advection_with_mc
 {
@@ -14,10 +13,6 @@ std::vector<Particle> make_particles(const qmomkit::monte_carlo::Ensemble& ensem
     particles.reserve(ensemble.size());
     for (std::size_t sample_index = 0; sample_index < ensemble.size(); ++sample_index)
     {
-        if (ensemble[sample_index].size() != 1)
-        {
-            throw std::runtime_error("The MC particle example expects one-dimensional samples.");
-        }
         particles.push_back(Particle{sample_index, ensemble[sample_index][0]});
     }
     return particles;
@@ -36,17 +31,8 @@ qmomkit::monte_carlo::Ensemble to_ensemble(const std::vector<Particle>& particle
 
 void update_particle_diameters(std::vector<Particle>& particles, const qmomkit::monte_carlo::Ensemble& ensemble)
 {
-    if (particles.size() != ensemble.size())
-    {
-        throw std::runtime_error("Advection MC evolution changed the particle count unexpectedly.");
-    }
-
     for (std::size_t index = 0; index < particles.size(); ++index)
     {
-        if (ensemble[index].size() != 1)
-        {
-            throw std::runtime_error("The evolved MC ensemble is not one-dimensional.");
-        }
         particles[index].diameter = ensemble[index][0];
     }
 }

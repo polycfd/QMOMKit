@@ -41,10 +41,10 @@ empirical raw moments
 CQMOM case
         |
         v
-compute_cqmom(...) -> initial quadrature
+CqmomPreparedCase::initial_state() -> CqmomState with its initial quadrature
         |
         v
-advection CQMOM phase-space evolution
+CQMOM advection
 ```
 
 The direct Monte Carlo workflow is:
@@ -295,9 +295,9 @@ cd build
 ./cqmom_2d_bubbles_cavitation_example
 ```
 
-The executable prints sample metadata, time controls, selected initial and
-final raw moments, final terminal quadrature nodes and weights, and output
-paths.
+The executable prints the initial and final raw moments $M_{0,0}$, $M_{1,0}$,
+$M_{0,1}$, $M_{2,0}$, $M_{1,1}$ and $M_{0,2}$, and where its output was
+written.
 
 ## Run the direct Monte Carlo workflow
 
@@ -307,30 +307,27 @@ From the same build directory, run:
 ./cqmom_2d_bubbles_cavitation_mc_example
 ```
 
-The executable prints sample metadata, time controls, selected initial and
-final raw moments, final sample count, and its output path.
+The executable prints the same table of raw moments, so the two runs can be
+compared line by line, and where its output was written.
 
 ## Output files
 
 With the default output configuration, the CQMOM executable writes:
 
 ```text
-output/initial_moments.txt
 output/moment_history.txt
-output/initial_quadrature.txt
 output/quadrature_history.txt
 ```
 
-`initial_moments.txt` contains raw moments reconstructed from the initial CQMOM
-quadrature built from the sampled initialization. `moment_history.txt` contains
-the deterministic CQMOM raw-moment history at the configured output interval.
-Both files are whitespace-delimited `MomentWriter` tables with a commented
-header containing `time` followed by moment labels such as `M[0,0]`.
+`moment_history.txt` contains the deterministic CQMOM raw-moment history at the
+configured output interval, starting with the initial state. It is a
+whitespace-delimited `MomentWriter` table with a commented header containing
+`time` followed by moment labels such as `M[0,0]`.
 
-`initial_quadrature.txt` contains the initial terminal CQMOM nodes.
-`quadrature_history.txt` contains the terminal CQMOM quadrature history. These
-`QuadratureWriter` tables include time, public node index, conditioning path
-entries, terminal weight, and abscissas ordered as $R$ and $U$.
+`quadrature_history.txt` contains the terminal CQMOM quadrature history,
+starting with the initial quadrature. This `QuadratureWriter` table includes
+time, public node index, conditioning path entries, terminal weight, and
+abscissas ordered as $R$ and $U$.
 
 The direct Monte Carlo executable writes:
 
@@ -341,6 +338,17 @@ output/moment_history_mc.txt
 `moment_history_mc.txt` contains Monte Carlo estimated raw moments computed
 from the evolving finite sample with the constant per-sample weight $n_0/N$.
 It uses the same phase-space moment ordering as the sampled moment tensor.
+
+## What to expect
+
+Both executables start from the same fixed-seed sample, so their initial
+moments agree, and $M_{0,0}$ stays 1 because bubbles are only moved. At
+$t = 13.9$, the mean radius $M_{1,0}$ has fallen from about 1.000 to 0.839 in
+both runs, and $M_{2,0}$ agrees to within 0.1 percent. The velocity moments
+have decayed by two orders of magnitude, and at that level the runs differ
+more: $M_{0,2}$ is $2.8 \times 10^{-4}$ in the CQMOM run and
+$3.2 \times 10^{-4}$ in the Monte Carlo run, while $M_{0,1}$ and $M_{1,1}$
+stay near zero in both.
 
 ## Plotting
 

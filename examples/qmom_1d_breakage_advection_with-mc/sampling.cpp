@@ -1,34 +1,40 @@
 #include "sampling.hpp"
 
+#include "qmomkit/configuration.hpp"
+
 #include <fstream>
 #include <iostream>
-#include <optional>
 #include <sstream>
+#include <string>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 namespace qmom_1d_breakage_advection_with_mc
 {
 
-std::optional<std::string> read_configuration_text(const std::filesystem::path& path)
+std::optional<SamplingSetup> sample_initial_distribution(const std::filesystem::path& configuration_file)
 {
-    std::ifstream input(path);
+    std::ifstream input(configuration_file);
     if (!input)
     {
-        std::cerr << "Could not open configuration file: " << path << '\n';
+        std::cerr << "Could not open configuration file: " << configuration_file << '\n';
+        return std::nullopt;
+    }
+    std::ostringstream text;
+    text << input.rdbuf();
+
+    // The [initial] section describes the distribution analytically; the Monte
+    // Carlo companion samples it instead of computing its moments exactly.
+    auto initial_condition = qmomkit::config::parse_qmom_initial_condition(text.str(), configuration_file.string());
+    if (!initial_condition)
+    {
+        std::cerr << initial_condition.error() << '\n';
         return std::nullopt;
     }
 
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    return contents.str();
-}
-
-std::optional<SamplingSetup> sample_initial_distribution(const qmomkit::config::InitialConditionSpecification& initial_condition)
-{
     const qmomkit::monte_carlo::SamplingOptions sampling_options{initialization_sample_count, initialization_seed};
-
-    return std::visit(
+    std::optional<SamplingSetup> sampled = std::visit(
         [&](const auto& specification) -> std::optional<SamplingSetup>
         {
             using Specification = std::decay_t<decltype(specification)>;
@@ -47,7 +53,13 @@ std::optional<SamplingSetup> sample_initial_distribution(const qmomkit::config::
                 return std::nullopt;
             }
         },
-        initial_condition);
+        std::move(initial_condition).value());
+    if (sampled && !sampled->ok())
+    {
+        std::cerr << (sampled->sampling.ok() ? sampled->moments.message : sampled->sampling.message) << '\n';
+        return std::nullopt;
+    }
+    return sampled;
 }
 
 } // namespace qmom_1d_breakage_advection_with_mc

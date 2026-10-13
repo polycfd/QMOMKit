@@ -2,32 +2,14 @@
 
 #include "physics.hpp"
 
-#include <cmath>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
-#include <stdexcept>
 #include <string>
-#include <system_error>
 #include <vector>
 
 namespace cqmom_2d_batch_host_data
 {
-
-void print_configuration_errors(const std::string& error)
-{
-    std::cerr << error << '\n';
-}
-
-void ensure_output_directory(const std::filesystem::path& path)
-{
-    std::error_code error;
-    std::filesystem::create_directories(path, error);
-    if (error)
-    {
-        throw std::runtime_error("Could not create output directory " + path.string() + ": " + error.message());
-    }
-}
 
 std::filesystem::path location_output_file(const std::filesystem::path& directory, const std::size_t location, const std::string& name)
 {

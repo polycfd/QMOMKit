@@ -1,7 +1,6 @@
 #include "physics.hpp"
 
 #include <cmath>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -11,29 +10,25 @@ namespace
 {
 
 constexpr double pi = 3.14159265358979323846;
-constexpr double gas_density = 1.2;
-constexpr double gas_viscosity = 1.8e-5;
-constexpr double gas_thermal_conductivity = 0.026;
-constexpr double gas_prandtl_number = 0.71;
-constexpr double gas_temperature = 300.0;
-constexpr double particle_density = 2000.0;
-constexpr double particle_heat_capacity = 1000.0;
-constexpr double gas_u = 2.0;
-constexpr double gas_v = 1.5;
-constexpr double gas_w = 0.8;
+constexpr double gas_density = 1.2;                // kg/m^3
+constexpr double gas_viscosity = 1.8e-5;           // Pa s
+constexpr double gas_thermal_conductivity = 0.026; // W/(m K)
+constexpr double gas_prandtl_number = 0.71;        // dimensionless
+constexpr double gas_temperature = 300.0;          // K
+constexpr double particle_density = 2000.0;        // kg/m^3
+constexpr double particle_heat_capacity = 1000.0;  // J/(kg K)
+constexpr double gas_u = 2.0;                      // m/s
+constexpr double gas_v = 1.5;                      // m/s
+constexpr double gas_w = 0.8;                      // m/s
 // These constants define the deliberately simple breakup temperature mapping
 // used to demonstrate generalized-moment source closure.
-constexpr double breakup_rate = 10.0;
-constexpr double reference_diameter = 1.0e-4;
-constexpr double breakup_temperature_relaxation = 1.0e-2;
-constexpr double reference_volume = pi * reference_diameter * reference_diameter * reference_diameter / 6.0;
+constexpr double breakup_rate = 10.0;                                                                        // 1/s
+constexpr double reference_diameter = 1.0e-4;                                                                // m
+constexpr double breakup_temperature_relaxation = 1.0e-2;                                                    // dimensionless
+constexpr double reference_volume = pi * reference_diameter * reference_diameter * reference_diameter / 6.0; // m^3
 
 double diameter_from_volume(const double volume)
 {
-    if (!(volume > 0.0))
-    {
-        throw std::invalid_argument("Particle volume must remain positive.");
-    }
     return std::cbrt(6.0 * volume / pi);
 }
 
@@ -61,10 +56,6 @@ qmomkit::PhaseSpaceVelocity particle_velocity()
 {
     return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
     {
-        if (dimensions != 5)
-        {
-            throw std::invalid_argument("Thermal particle coordinates must be ordered as (V,T,u,v,w).");
-        }
         for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {
             const std::size_t first = node * dimensions;
@@ -92,10 +83,6 @@ qmomkit::CqmomMomentSource breakup_source()
 {
     return [](double, const qmomkit::CqmomSourceContext& context)
     {
-        if (context.dimension_count() != 5)
-        {
-            throw std::invalid_argument("The thermal breakup source requires phase space (V,T,u,v,w).");
-        }
         std::vector<double> rates(context.size(), 0.0);
         // Expanding the daughter-temperature mapping leaves integer volume
         // terms available through context.moment(...) and exposes fractional
@@ -157,10 +144,6 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
         {
             auto [parent, remaining] = std::move(pending.back());
             pending.pop_back();
-            if (parent.size() != 5)
-            {
-                throw std::runtime_error("MC particles must be ordered as (V,T,u,v,w).");
-            }
             std::exponential_distribution<double> wait(breakup_rate);
             const double event_time = wait(generator);
             if (event_time >= remaining)

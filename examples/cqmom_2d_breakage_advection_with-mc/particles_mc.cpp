@@ -13,24 +13,12 @@ namespace cqmom_2d_advection_breakage
 namespace
 {
 
-void require_two_dimensional_sample(const qmomkit::monte_carlo::Sample& sample)
-{
-    if (sample.size() != 2)
-    {
-        throw std::runtime_error("The 2D MC particle example expects samples ordered as (d,u).");
-    }
-}
-
 std::vector<std::size_t> maximum_orders_from_extents(const std::vector<std::size_t>& extents)
 {
     std::vector<std::size_t> maximum_orders;
     maximum_orders.reserve(extents.size());
     for (const std::size_t extent : extents)
     {
-        if (extent == 0)
-        {
-            throw std::invalid_argument("The 2D MC particle example requires non-empty moment extents.");
-        }
         maximum_orders.push_back(extent - 1);
     }
     return maximum_orders;
@@ -48,8 +36,6 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
     for (std::size_t particle_index = 0; particle_index < initial_particle_count; ++particle_index)
     {
         qmomkit::monte_carlo::Sample& parent = ensemble[particle_index];
-        require_two_dimensional_sample(parent);
-
         if (!breaks(generator))
         {
             continue;
@@ -63,10 +49,6 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
 qmomkit::RawMomentTensor compute_particle_moments(const qmomkit::monte_carlo::Ensemble& ensemble, const double particle_weight,
                                                   const std::vector<std::size_t>& moment_extents)
 {
-    for (const qmomkit::monte_carlo::Sample& sample : ensemble)
-    {
-        require_two_dimensional_sample(sample);
-    }
     const double number_density = particle_weight * static_cast<double>(ensemble.size());
     const qmomkit::monte_carlo::TensorMomentEstimate estimate =
         qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, maximum_orders_from_extents(moment_extents));

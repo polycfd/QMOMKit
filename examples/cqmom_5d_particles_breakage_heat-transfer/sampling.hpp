@@ -1,12 +1,11 @@
 #pragma once
 
 #include "monte_carlo/sampled_initialization.hpp"
-#include "qmomkit/configuration.hpp"
+#include "qmomkit/phase_space_hierarchy.hpp"
 
 #include <cstddef>
 #include <filesystem>
 #include <optional>
-#include <string>
 
 namespace cqmom_5d_particles_breakage_heat_transfer
 {
@@ -14,8 +13,13 @@ namespace cqmom_5d_particles_breakage_heat_transfer
 constexpr std::size_t initialization_sample_count = 10000;
 constexpr unsigned long long initialization_seed = 123;
 
-[[nodiscard]] std::optional<std::string> read_configuration_text(const std::filesystem::path& path);
+/**
+ * Samples the initial distribution configured in `configuration_file` and
+ * estimates the moment tensor the hierarchy needs from the sample. Both
+ * executables start from this sample, so their runs begin from the same finite
+ * population. A failure is reported on standard error and returns no value.
+ */
 [[nodiscard]] std::optional<qmomkit::monte_carlo::TensorSampledInitialization>
-sample_initial_population(const qmomkit::config::InitialConditionSpecification& initial_condition, const qmomkit::PhaseSpaceHierarchy& hierarchy);
+sample_initial_distribution(const std::filesystem::path& configuration_file, const qmomkit::PhaseSpaceHierarchy& hierarchy);
 
 } // namespace cqmom_5d_particles_breakage_heat_transfer

@@ -1,212 +1,28 @@
 #include "utilities.hpp"
 
-#include "qmomkit/multi_index.hpp"
-
-#include <algorithm>
 #include <cstddef>
 #include <iomanip>
-#include <iostream>
-#include <stdexcept>
-#include <system_error>
-#include <utility>
-#include <vector>
+#include <ostream>
 
 namespace cqmom_3d_droplets_condensation_nucleation
 {
-namespace
-{
-constexpr std::size_t max_console_moments = 12;
 
-void print_multi_index(const qmomkit::MultiIndex& order)
+qmomkit::RawMomentRequest printed_moments()
 {
-    std::cout << '[';
-    for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
-    {
-        if (dimension > 0)
-        {
-            std::cout << ',';
-        }
-        std::cout << order[dimension];
-    }
-    std::cout << ']';
+    return {{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {2, 0, 0}, {0, 2, 0}, {0, 0, 2}}};
 }
 
-void print_path(const qmomkit::ConditioningPathView path)
+void print_moments(std::ostream& stream, const std::string_view run, const std::vector<double>& initial_values,
+                   const std::vector<double>& final_values)
 {
-    std::cout << '[';
-    for (std::size_t level = 0; level < path.size(); ++level)
+    const qmomkit::RawMomentRequest request = printed_moments();
+    stream << run << ", raw moments M[i,j,k] of r^i w^j T^k:\n";
+    stream << "            " << std::setw(14) << "initial" << std::setw(14) << "final" << '\n';
+    for (std::size_t entry = 0; entry < request.indices.size(); ++entry)
     {
-        if (level > 0)
-        {
-            std::cout << ',';
-        }
-        std::cout << path.node_index_at_level(level);
-    }
-    std::cout << ']';
-}
-
-void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments)
-{
-    std::cout << label << '\n';
-    const std::size_t printed_count = std::min(max_console_moments, moments.values.size());
-    for (std::size_t index = 0; index < printed_count; ++index)
-    {
-        std::cout << "M";
-        print_multi_index(moments.indices[index]);
-        std::cout << " = " << moments.values[index] << '\n';
-    }
-    if (moments.values.size() > printed_count)
-    {
-        std::cout << "... " << (moments.values.size() - printed_count) << " more moments omitted from the console summary\n";
-    }
-}
-
-void print_index_vector(const std::vector<std::size_t>& values)
-{
-    std::cout << '[';
-    for (std::size_t index = 0; index < values.size(); ++index)
-    {
-        if (index > 0)
-        {
-            std::cout << ',';
-        }
-        std::cout << values[index];
-    }
-    std::cout << ']';
-}
-
-void print_quadrature(const qmomkit::CqmomQuadrature& quadrature)
-{
-    std::cout << "node  path       weight          r [m]           w [m/s]         T [K]\n";
-    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
-    {
-        std::cout << node << "     ";
-        print_path(quadrature.terminal_paths()[node]);
-        std::cout << "   " << quadrature.weights()[node] << "   " << quadrature.abscissas()[0][node] << "   " << quadrature.abscissas()[1][node]
-                  << "   " << quadrature.abscissas()[2][node] << '\n';
-    }
-}
-
-void print_run_metadata(const std::size_t sample_count, const unsigned long long initialization_seed, const double time_step, const double final_time)
-{
-    std::cout << "sample_count = " << sample_count << '\n';
-    std::cout << "initialization_seed = " << initialization_seed << '\n';
-    std::cout << "time_step = " << time_step << '\n';
-    std::cout << "final_time = " << final_time << '\n';
-}
-
-} // namespace
-
-void print_configuration_errors(const std::string& error)
-{
-    std::cerr << error << '\n';
-}
-
-void ensure_output_directory(const std::filesystem::path& path)
-{
-    std::error_code error;
-    std::filesystem::create_directories(path, error);
-    if (error)
-    {
-        throw std::runtime_error("Could not create output directory " + path.string() + ": " + error.message());
-    }
-}
-
-void print_cqmom_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_prepared_case,
-                                   const qmomkit::CqmomPhaseSpaceEvolutionOptions& phase_space_evolution_options)
-{
-    std::cout << std::setprecision(12);
-    std::cout << "phase-space dimensions: 3\n";
-    std::cout << "phase-space ordering: (r [m],w [m/s],T [K])\n";
-    std::cout << "conditioning_order = ";
-    print_index_vector(cqmom_prepared_case.hierarchy().conditioning_order());
-    std::cout << '\n';
-    std::cout << "node_counts = ";
-    print_index_vector(cqmom_prepared_case.hierarchy().node_counts());
-    std::cout << '\n';
-    std::cout << "phase-space evolution: Strang-split advection and boundary nucleation\n";
-    std::cout << qmomkit::format_cqmom_settings(cqmom_prepared_case.qmom_options().adaptive, cqmom_prepared_case.vandermonde_solver(),
-                                                cqmom_prepared_case.diagnostic_level());
-    std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
-}
-
-void print_monte_carlo_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_prepared_case, const qmomkit::NodeAdvectionOptions& node_options)
-{
-    std::cout << std::setprecision(12);
-    std::cout << "phase-space dimensions: 3\n";
-    std::cout << "phase-space ordering: (r [m],w [m/s],T [K])\n";
-    std::cout << "node_counts = ";
-    print_index_vector(cqmom_prepared_case.hierarchy().node_counts());
-    std::cout << '\n';
-    std::cout << "particle evolution: Strang-split advection and population nucleation\n";
-    std::cout << qmomkit::format_node_advection_options(node_options);
-}
-
-void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
-                          const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory,
-                          const std::size_t sample_count, const unsigned long long initialization_seed, const double time_step,
-                          const double final_time, const bool wrote_moments, const bool wrote_quadrature)
-{
-    std::cout << std::setprecision(12);
-    std::cout << "3D CQMOM droplets: condensation and nucleation\n";
-    std::cout << "phase-space ordering: (r [m],w [m/s],T [K])\n";
-    print_run_metadata(sample_count, initialization_seed, time_step, final_time);
-
-    std::cout << '\n';
-    print_selected_moments("Initial moments:", initial_moments);
-
-    std::cout << '\n';
-    print_selected_moments("Final moments:", final_moments);
-
-    std::cout << "\nFinal quadrature:\n";
-    print_quadrature(final_quadrature);
-
-    if (wrote_moments || wrote_quadrature)
-    {
-        std::cout << "\nOutputs written to:\n";
-        if (wrote_moments)
-        {
-            std::cout << (output_directory / "initial_moments.txt").string() << '\n';
-            std::cout << (output_directory / "moment_history.txt").string() << '\n';
-        }
-        if (wrote_quadrature)
-        {
-            std::cout << (output_directory / "quadrature_history.txt").string() << '\n';
-        }
-    }
-    else
-    {
-        std::cout << "\nOutput disabled by configuration.\n";
-    }
-}
-
-void print_monte_carlo_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
-                                      const std::filesystem::path& output_directory, const std::size_t final_particle_count,
-                                      const std::size_t sample_count, const unsigned long long initialization_seed, const double time_step,
-                                      const double final_time, const bool wrote_moments)
-{
-    std::cout << std::setprecision(12);
-    std::cout << "3D direct Monte Carlo droplets: condensation and nucleation\n";
-    std::cout << "phase-space ordering: (r [m],w [m/s],T [K])\n";
-    print_run_metadata(sample_count, initialization_seed, time_step, final_time);
-
-    std::cout << '\n';
-    print_selected_moments("Initial moments:", initial_moments);
-
-    std::cout << '\n';
-    print_selected_moments("Final moments:", final_moments);
-
-    std::cout << "\nFinal ensemble:\n";
-    std::cout << "final_sample_count = " << final_particle_count << '\n';
-
-    if (wrote_moments)
-    {
-        std::cout << "\nOutputs written to:\n";
-        std::cout << (output_directory / "moment_history_mc.txt").string() << '\n';
-    }
-    else
-    {
-        std::cout << "\nMoment output disabled by configuration.\n";
+        const qmomkit::MultiIndex& order = request.indices[entry];
+        stream << "  M[" << order[0] << ',' << order[1] << ',' << order[2] << "]  " << std::setw(14) << initial_values[entry] << std::setw(14)
+               << final_values[entry] << '\n';
     }
 }
 

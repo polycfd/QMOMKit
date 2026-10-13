@@ -29,9 +29,8 @@ u,v,w\sim\mathcal N(0,0.5^2).
 $$
 
 The CQMOM calculation initializes from raw moments estimated from that
-ensemble; the MC calculation advances the ensemble itself. Both verify the
-sampled tensor before evolution, so they begin from the same finite-sample
-population.
+ensemble; the MC calculation advances the ensemble itself, so both begin from
+the same finite-sample population.
 
 The carrier gas has
 $`(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\ \mathrm{Pa\,s})`$
@@ -109,4 +108,8 @@ than an exact duplicate of the CQMOM result.
 
 ## Output files
 
-The CQMOM executable writes `output/moment_history.txt` and `output/quadrature_history.txt` at the configured $0.01$ s cadence. The first contains time and the moments represented by the current CQMOM state; the second contains terminal-node weights and coordinates. The MC executable writes its matching selected raw moments to `output/moment_history_mc.txt`. Both executables print the initial and final tracked moments (up to 20 on the console).
+The CQMOM executable writes `output/moment_history.txt` and `output/quadrature_history.txt` at the configured $0.01$ s cadence. The first contains time and the moments represented by the current CQMOM state; the second contains terminal-node weights and coordinates. The MC executable writes its matching selected raw moments to `output/moment_history_mc.txt`. Both executables print the same selection of initial and final raw moments, so the two runs can be compared line by line: the number density, the first moments, the second moment of each coordinate, and $M_{1,1,0,0}$, which drag couples. The MC executable also prints the initial and final particle counts.
+
+## What to expect
+
+Both runs start from the same moments. At $t = 0.1$ s, the CQMOM run gives $M_{0,0,0,0} = 2.718$, which is $e$ because breakage at rate $10\ \mathrm{s^{-1}}$ multiplies the number density by $e^{10 \cdot 0.1}$, and the Monte Carlo run $2.690$ from 26,897 particles. The other printed moments agree to within 1.3 percent.

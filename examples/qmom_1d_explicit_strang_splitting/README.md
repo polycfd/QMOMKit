@@ -62,8 +62,8 @@ $$
 $$
 
 $S(t)$ is positive only over the finite interval $[0.16, 0.25)$. The source
-preserves total mass and the mean while allowing an adaptively reduced one-node
-state to regrow to two nodes.
+preserves the total number density and the mean while allowing an adaptively
+reduced one-node state to regrow to two nodes.
 
 The nonzero equilibrium matters: relaxation toward $\xi_{\mathrm{eq}} = 0$ would
 only shrink the distribution without changing its shape, and adaptive reduction
@@ -76,33 +76,28 @@ The time loop keeps the three public stage calls visible:
 
 ```cpp
 const qmomkit::QmomPhaseSpaceEvolutionResult first_advection =
-    qmomkit::advance_qmom_advection(
-        trial_state, time, 0.5 * time_step, velocity, phase_space_evolution_options);
+    qmomkit::advance_qmom_advection(state, time, half_step, velocity, options);
 
 const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
-    qmomkit::advance_qmom_moment_source(
-        first_advection.state, time, time_step, source,
-        phase_space_evolution_options);
+    qmomkit::advance_qmom_moment_source(first_advection.state, time, step, source, options);
 
-const qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
-    qmomkit::advance_qmom_advection(
-        moment_source.state, time + 0.5 * time_step,
-        0.5 * time_step, velocity, phase_space_evolution_options);
+qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
+    qmomkit::advance_qmom_advection(moment_source.state, time + half_step, half_step, velocity, options);
 ```
 
 For a macro step beginning at `time`, the first advection half-step starts at
 `time`, the moment-source stage integrates over the whole step from `time`, and
-the second advection half-step starts at `time + 0.5 * time_step`. This is the
+the second advection half-step starts at `time + half_step`. This is the
 sequence of the `strang` scheme, so the example's results match
 `advance_qmom_phase_space(...)` exactly, also for a source that depends on
 time.
 
 ## Transactional commit
 
-The host application advances a trial state through all three stages. The
-accepted macro-step state is updated only after the second advection
-half-step succeeds. If a standalone stage fails, it rolls back only to its own
-stage input, so the application keeps the previous macro-step state unchanged.
+Each stage starts from the result of the previous one, and the application
+replaces its state only after the second advection half-step succeeds. If a
+standalone stage fails, it rolls back only to its own stage input, so the
+application keeps the previous macro-step state unchanged.
 
 ## Lifecycle
 
@@ -140,12 +135,13 @@ cd build
 
 ## Output files
 
-The executable writes:
+With the shipped `[output]` section, the executable writes:
 
 - `output/quadrature_history.txt`
 
-The file is written through `qmomkit::QuadratureWriter::for_qmom(...)` after
-the initial accepted state and after each completed Strang macro-step.
+Setting `write_moments = true` adds `output/moment_history.txt`. Both are
+written after the initial accepted state and after each completed Strang
+macro-step.
 
 `quadrature_history.txt` records one row per active node:
 

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -16,14 +15,6 @@ constexpr std::size_t dimension_count = 5;
 // Equal-volume binary fragmentation gives
 // d_daughter / d_parent = 2^(-1/3).
 constexpr double daughter_diameter_factor = 0.79370052598409973737585281963615413019574666394993;
-
-void require_sample(const qmomkit::monte_carlo::Sample& sample)
-{
-    if (sample.size() != dimension_count)
-    {
-        throw std::runtime_error("The 5D MC particle example expects samples ordered as (d, chi, u, v, w).");
-    }
-}
 
 [[nodiscard]] double integer_power(double base, std::size_t exponent)
 {
@@ -91,12 +82,7 @@ void require_sample(const qmomkit::monte_carlo::Sample& sample)
         return 0.0;
     }
 
-    const double rate = parameters.fragmentation_rate_constant * std::pow(diameter, parameters.fragmentation_power);
-    if (!std::isfinite(rate) || rate < 0.0)
-    {
-        throw std::runtime_error("Binary fragmentation produced a non-finite or negative event rate.");
-    }
-    return rate;
+    return parameters.fragmentation_rate_constant * std::pow(diameter, parameters.fragmentation_power);
 }
 
 [[nodiscard]] double parent_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndexView order)
@@ -136,18 +122,6 @@ qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParam
     return [parameters](double, const qmomkit::CqmomSourceContext& moments)
     {
         std::vector<double> source(moments.size(), 0.0);
-        if (moments.dimension_count() != dimension_count)
-        {
-            throw std::invalid_argument("The 5D binary breakage source received a context with the wrong rank.");
-        }
-        for (std::size_t index = 0; index < moments.size(); ++index)
-        {
-            if (moments.index(index).size() != dimension_count)
-            {
-                throw std::invalid_argument("The 5D binary breakage source received a moment index with the wrong rank.");
-            }
-        }
-
         for (std::size_t moment_index = 0; moment_index < moments.size(); ++moment_index)
         {
             const qmomkit::MultiIndexView order = moments.index(moment_index);
@@ -180,7 +154,6 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
 
     for (qmomkit::monte_carlo::Sample sample : ensemble)
     {
-        require_sample(sample);
         pending.emplace_back(std::move(sample), step_size);
         while (!pending.empty())
         {

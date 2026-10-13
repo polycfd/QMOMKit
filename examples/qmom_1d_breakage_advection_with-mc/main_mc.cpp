@@ -11,11 +11,9 @@
 #include <cstddef>
 #include <exception>
 #include <filesystem>
-#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <random>
-#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -27,210 +25,120 @@ int main()
     const double final_time = 1.0;
     const double time_step = 0.01;
 
-    const std::optional<std::string> configuration_text = qmom_1d_breakage_advection_with_mc::read_configuration_text(configuration_file);
-    if (!configuration_text.has_value())
+    auto configured_output = qmomkit::config::load_output_options(configuration_file);
+    if (!configured_output)
     {
+        std::cerr << configured_output.error() << '\n';
         return 1;
     }
+    const qmomkit::OutputOptions output = std::move(configured_output).value();
 
-    auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
-    if (!initial_condition)
-    {
-        qmom_1d_breakage_advection_with_mc::print_configuration_errors(initial_condition.error());
-        return 1;
-    }
-
-    auto output_configured = qmomkit::config::load_output_options(configuration_file);
-    if (!output_configured)
-    {
-        qmom_1d_breakage_advection_with_mc::print_configuration_errors(output_configured.error());
-        return 1;
-    }
-    const qmomkit::OutputOptions output_options = std::move(output_configured).value();
-
+    // The same sample the QMOMKit run starts from, here kept as particles of
+    // equal statistical weight.
     const std::optional<qmom_1d_breakage_advection_with_mc::SamplingSetup> sampled =
-        qmom_1d_breakage_advection_with_mc::sample_initial_distribution(std::move(initial_condition).value());
-    if (!sampled.has_value())
+        qmom_1d_breakage_advection_with_mc::sample_initial_distribution(configuration_file);
+    if (!sampled)
     {
         return 1;
     }
-    if (!sampled->sampling.ok())
-    {
-        std::cerr << sampled->sampling.message << '\n';
-        return 1;
-    }
-    if (!sampled->moments.ok())
-    {
-        std::cerr << sampled->moments.message << '\n';
-        return 1;
-    }
-
+    std::vector<qmom_1d_breakage_advection_with_mc::Particle> particles =
+        qmom_1d_breakage_advection_with_mc::make_particles(sampled->sampling.ensemble);
+    const std::size_t initial_particle_count = particles.size();
+    const double particle_weight = sampled->sampling.number_density / static_cast<double>(initial_particle_count);
     const std::size_t maximum_order = sampled->moments.moments.values().size() - 1;
-
-    std::vector<qmom_1d_breakage_advection_with_mc::Particle> particles;
-    try
-    {
-        particles = qmom_1d_breakage_advection_with_mc::make_particles(sampled->sampling.ensemble);
-    }
-    catch (const std::exception& error)
-    {
-        std::cerr << error.what() << '\n';
-        return 1;
-    }
-
-    const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
     std::size_t next_particle_id = particles.size();
     std::mt19937_64 breakage_generator(qmom_1d_breakage_advection_with_mc::breakage_seed);
 
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection_with_mc::advection_velocity();
     const qmomkit::AdaptiveRkOptions advection_options;
+    const std::vector<double> initial_moments =
+        qmom_1d_breakage_advection_with_mc::compute_particle_moments(particles, particle_weight, maximum_order);
 
-    std::vector<double> final_moments = qmom_1d_breakage_advection_with_mc::compute_particle_moments(particles, particle_weight, maximum_order);
-    const std::vector<double> initial_moments = final_moments;
-    std::vector<std::tuple<double, std::size_t, double>> particle_history;
-    if (output_options.write_moments)
-    {
-        for (const qmom_1d_breakage_advection_with_mc::Particle& particle : particles)
-        {
-            particle_history.emplace_back(initial_time, particle.id, particle.diameter);
-        }
-    }
-
-    std::optional<qmomkit::MomentWriter> moment_history_writer;
     try
     {
-        if (output_options.write_moments)
+        // The writers throw when a file cannot be written. The particle history is
+        // kept with the moment history and written at the end.
+        std::optional<qmomkit::MomentWriter> moment_writer;
+        std::vector<std::tuple<double, std::size_t, double>> particle_history;
+        if (output.write_moments)
         {
-            std::filesystem::create_directories(output_options.directory);
-            moment_history_writer.emplace(qmomkit::monte_carlo::make_moment_history_writer(output_options.directory / "moment_history_mc.txt",
-                                                                                           final_moments.size(), output_options));
-            qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, initial_time, qmomkit::MomentSet(final_moments),
-                                                           qmom_1d_breakage_advection_with_mc::to_ensemble(particles),
-                                                           particle_weight * static_cast<double>(particles.size()), output_options);
+            std::filesystem::create_directories(output.directory);
+            moment_writer.emplace(
+                qmomkit::monte_carlo::make_moment_history_writer(output.directory / "moment_history_mc.txt", initial_moments.size(), output));
         }
-    }
-    catch (const std::exception& error)
-    {
-        std::cerr << error.what() << '\n';
-        return 1;
-    }
-
-    const double output_interval = output_options.interval.value_or(final_time - initial_time);
-    double time = initial_time;
-    double next_output_time = initial_time + output_interval;
-    while (time < final_time - 1.0e-12)
-    {
-        const double current_step = std::min(time_step, final_time - time);
-        const double half_step = 0.5 * current_step;
-
-        // Strang stage 1: advection half-step evolves particle diameters.
-        qmomkit::monte_carlo::EnsembleEvolutionResult first_advection = qmomkit::monte_carlo::evolve_ensemble(
-            qmom_1d_breakage_advection_with_mc::to_ensemble(particles), velocity, time, time + half_step, advection_options);
-        if (!first_advection.ok())
+        const auto write_output = [&](const double time)
         {
-            std::cerr << "First advection particle half-step failed: " << first_advection.message << '\n';
-            return 1;
-        }
-
-        try
-        {
-            qmom_1d_breakage_advection_with_mc::update_particle_diameters(particles, first_advection.ensemble);
-        }
-        catch (const std::exception& error)
-        {
-            std::cerr << error.what() << '\n';
-            return 1;
-        }
-
-        // Strang stage 2: stochastic binary fragmentation acts on particles.
-        qmom_1d_breakage_advection_with_mc::apply_binary_breakage(particles, current_step, breakage_generator, next_particle_id);
-
-        // Strang stage 3: advection half-step evolves the post-breakage particles.
-        qmomkit::monte_carlo::EnsembleEvolutionResult second_advection = qmomkit::monte_carlo::evolve_ensemble(
-            qmom_1d_breakage_advection_with_mc::to_ensemble(particles), velocity, time + half_step, time + current_step, advection_options);
-        if (!second_advection.ok())
-        {
-            std::cerr << "Second advection particle half-step failed: " << second_advection.message << '\n';
-            return 1;
-        }
-
-        try
-        {
-            qmom_1d_breakage_advection_with_mc::update_particle_diameters(particles, second_advection.ensemble);
-        }
-        catch (const std::exception& error)
-        {
-            std::cerr << error.what() << '\n';
-            return 1;
-        }
-
-        time += current_step;
-
-        if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
-        {
-            final_moments = qmom_1d_breakage_advection_with_mc::compute_particle_moments(particles, particle_weight, maximum_order);
-            if (moment_history_writer.has_value())
+            if (moment_writer)
             {
-                try
+                const std::vector<double> moments =
+                    qmom_1d_breakage_advection_with_mc::compute_particle_moments(particles, particle_weight, maximum_order);
+                qmomkit::monte_carlo::write_moment_history_row(*moment_writer, time, qmomkit::MomentSet(moments),
+                                                               qmom_1d_breakage_advection_with_mc::to_ensemble(particles),
+                                                               particle_weight * static_cast<double>(particles.size()), output);
+                for (const qmom_1d_breakage_advection_with_mc::Particle& particle : particles)
                 {
-                    qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, time, qmomkit::MomentSet(final_moments),
-                                                                   qmom_1d_breakage_advection_with_mc::to_ensemble(particles),
-                                                                   particle_weight * static_cast<double>(particles.size()), output_options);
-                    for (const qmom_1d_breakage_advection_with_mc::Particle& particle : particles)
-                    {
-                        particle_history.emplace_back(time, particle.id, particle.diameter);
-                    }
-                }
-                catch (const std::exception& error)
-                {
-                    std::cerr << error.what() << '\n';
-                    return 1;
+                    particle_history.emplace_back(time, particle.id, particle.diameter);
                 }
             }
-            while (next_output_time <= time + 1.0e-12)
+        };
+        write_output(initial_time);
+
+        const double output_interval = output.interval.value_or(final_time - initial_time);
+        double next_output_time = initial_time + output_interval;
+        double time = initial_time;
+        while (time < final_time - 1.0e-12)
+        {
+            const double step = std::min(time_step, final_time - time);
+            const double half_step = 0.5 * step;
+
+            // Strang splitting, as in the QMOMKit run: an advection half-step of the
+            // particle diameters, stochastic binary fragmentation over the whole
+            // step, and a second advection half-step.
+            const qmomkit::monte_carlo::EnsembleEvolutionResult first_advection = qmomkit::monte_carlo::evolve_ensemble(
+                qmom_1d_breakage_advection_with_mc::to_ensemble(particles), velocity, time, time + half_step, advection_options);
+            if (!first_advection.ok())
             {
+                std::cerr << "First advection particle half-step failed: " << first_advection.message << '\n';
+                return 1;
+            }
+            qmom_1d_breakage_advection_with_mc::update_particle_diameters(particles, first_advection.ensemble);
+
+            qmom_1d_breakage_advection_with_mc::apply_binary_breakage(particles, step, breakage_generator, next_particle_id);
+
+            const qmomkit::monte_carlo::EnsembleEvolutionResult second_advection = qmomkit::monte_carlo::evolve_ensemble(
+                qmom_1d_breakage_advection_with_mc::to_ensemble(particles), velocity, time + half_step, time + step, advection_options);
+            if (!second_advection.ok())
+            {
+                std::cerr << "Second advection particle half-step failed: " << second_advection.message << '\n';
+                return 1;
+            }
+            qmom_1d_breakage_advection_with_mc::update_particle_diameters(particles, second_advection.ensemble);
+
+            time += step;
+            if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
+            {
+                write_output(time);
                 next_output_time += output_interval;
             }
         }
-    }
-
-    const std::filesystem::path particle_history_file = output_options.directory / "particle_history.txt";
-
-    try
-    {
-        if (output_options.write_moments)
+        if (output.write_moments)
         {
-            qmom_1d_breakage_advection_with_mc::write_particle_history(particle_history_file, particle_history);
+            qmom_1d_breakage_advection_with_mc::write_particle_history(output.directory / "particle_history.txt", particle_history);
+        }
+
+        const std::vector<double> final_moments =
+            qmom_1d_breakage_advection_with_mc::compute_particle_moments(particles, particle_weight, maximum_order);
+        qmom_1d_breakage_advection_with_mc::print_moments(std::cout, "Monte Carlo run", initial_moments, final_moments);
+        std::cout << "Particles: " << initial_particle_count << " -> " << particles.size() << '\n';
+        if (moment_writer)
+        {
+            std::cout << "Output written to " << output.directory.string() << "/\n";
         }
     }
     catch (const std::exception& error)
     {
         std::cerr << error.what() << '\n';
         return 1;
-    }
-
-    std::cout << std::setprecision(12);
-    qmom_1d_breakage_advection_with_mc::print_common_run_summary(std::cout, "Monte Carlo particles", configuration_file, output_options.directory,
-                                                                 qmom_1d_breakage_advection_with_mc::initialization_sample_count,
-                                                                 qmom_1d_breakage_advection_with_mc::initialization_seed, initial_time, final_time,
-                                                                 time_step, output_interval);
-    std::cout << "Representation: sampled particles with constant statistical weight\n";
-    std::cout << "Breakage seed: " << qmom_1d_breakage_advection_with_mc::breakage_seed << '\n';
-    std::cout << "Fragmentation rate: " << qmom_1d_breakage_advection_with_mc::fragmentation_rate << '\n';
-
-    qmom_1d_breakage_advection_with_mc::print_moments(std::cout, "Initial moments", initial_moments);
-    qmom_1d_breakage_advection_with_mc::print_moments(std::cout, "Final moments", final_moments);
-
-    std::cout << "\nFinal ensemble at t = " << time << ":\n";
-    std::cout << "initial_particle_count = " << qmom_1d_breakage_advection_with_mc::initialization_sample_count << '\n';
-    std::cout << "final_particle_count = " << particles.size() << '\n';
-    if (output_options.write_moments)
-    {
-        std::cout << "\nCompleted Monte Carlo particle workflow. Outputs written to " << output_options.directory << '\n';
-    }
-    else
-    {
-        std::cout << "\nCompleted Monte Carlo particle workflow. Output disabled by configuration.\n";
     }
 
     return 0;

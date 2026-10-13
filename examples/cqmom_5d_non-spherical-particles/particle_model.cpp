@@ -1,7 +1,6 @@
 #include "particle_model.hpp"
 
 #include <cmath>
-#include <stdexcept>
 #include <vector>
 
 namespace cqmom_5d_non_spherical_particles
@@ -47,12 +46,6 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
     return [parameters, &carrier_flow](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities,
                                        const std::size_t dimensions)
     {
-        if (dimensions != 5)
-        {
-            throw std::invalid_argument("The non-spherical particle model expects coordinates ordered "
-                                        "as (d, chi, u, v, w).");
-        }
-
         // The carrier flow is host data rather than part of the particle model. It
         // is reconstructed once for the whole node set, at the stage time QMOMKit
         // supplies, from the two host levels the driver published.

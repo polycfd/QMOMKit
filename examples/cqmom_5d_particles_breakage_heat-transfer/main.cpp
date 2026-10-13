@@ -8,138 +8,141 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
-#include <stdexcept>
 #include <utility>
-#include <vector>
 
 int main()
 {
-    using namespace cqmom_5d_particles_breakage_heat_transfer;
-    constexpr double initial_time = 0.0;
-    constexpr double final_time = 10.0e-2;
-    constexpr double time_step = 10.0e-4;
+    const std::filesystem::path configuration_file = "configuration.qmom";
+    const double initial_time = 0.0;
+    const double final_time = 0.1;
+    const double time_step = 0.001;
+
+    // The case, the evolution options and the output options come from the same
+    // file. A faulty file is reported as a message naming the key and line.
+    auto configured_case = qmomkit::config::load_cqmom_prepared(configuration_file);
+    if (!configured_case)
+    {
+        std::cerr << configured_case.error() << '\n';
+        return 1;
+    }
+    auto configured_options = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+    if (!configured_options)
+    {
+        std::cerr << configured_options.error() << '\n';
+        return 1;
+    }
+    auto configured_output = qmomkit::config::load_output_options(configuration_file);
+    if (!configured_output)
+    {
+        std::cerr << configured_output.error() << '\n';
+        return 1;
+    }
+    const qmomkit::CqmomPhaseSpaceEvolutionOptions options = std::move(configured_options).value();
+    const qmomkit::OutputOptions output = std::move(configured_output).value();
+
+    // Both the deterministic run and its Monte Carlo reference start from one
+    // sampled ensemble, so any later difference between them comes from the
+    // evolution rather than from a different starting population. Only the
+    // initial moments are replaced; the configured hierarchy, supports and
+    // reconstruction settings are kept.
+    const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
+        cqmom_5d_particles_breakage_heat_transfer::sample_initial_distribution(configuration_file, configured_case.value().hierarchy());
+    if (!sampled)
+    {
+        return 1;
+    }
+    auto sampled_case = qmomkit::config::with_initial_moments(configured_case.value(), sampled->moments.moments);
+    if (!sampled_case)
+    {
+        std::cerr << sampled_case.error() << '\n';
+        return 1;
+    }
+    const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
+
+    // particle_velocity() relaxes each particle's temperature T and velocity
+    // (u, v, w) toward the gas by heat transfer and drag, and breakup_source()
+    // replaces breaking particles by two daughters of half the volume whose
+    // temperature moves toward the gas temperature.
+    const qmomkit::PhaseSpaceVelocity velocity = cqmom_5d_particles_breakage_heat_transfer::particle_velocity();
+    const qmomkit::CqmomMomentSource source = cqmom_5d_particles_breakage_heat_transfer::breakup_source();
+    const qmomkit::RawMomentRequest printed_moments = cqmom_5d_particles_breakage_heat_transfer::printed_moments();
+
     try
     {
-        const std::filesystem::path configuration_file = "configuration.qmom";
-        const auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
-        const auto evolution = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
-        const auto output = qmomkit::config::load_output_options(configuration_file);
-        const auto text = read_configuration_text(configuration_file);
-        if (!configured || !evolution || !output || !text)
+        // initial_state() throws when the sampled moments admit no quadrature, and
+        // the writers throw when a file cannot be written.
+        qmomkit::CqmomState state = cqmom_case.initial_state();
+        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), printed_moments);
+        if (!initial_moments.ok())
         {
-            std::cerr << "Could not load configuration.qmom.\n";
+            std::cerr << "Initial moment reconstruction failed: " << initial_moments.message << '\n';
             return 1;
-        }
-        const auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*text, configuration_file.string());
-        if (!initial_condition)
-        {
-            std::cerr << initial_condition.error() << '\n';
-            return 1;
-        }
-        // Both the deterministic run and its Monte Carlo reference start from one
-        // sampled ensemble, so any later difference between them comes from the
-        // evolution rather than from a different starting population.
-        const auto sampled = sample_initial_population(initial_condition.value(), configured.value().hierarchy());
-        if (!sampled || !sampled->ok())
-        {
-            std::cerr << "Sampled initialization failed.\n";
-            return 1;
-        }
-        const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
-        const qmomkit::RawMomentTensor mc_initial = ensemble_moments(sampled->sampling.ensemble, particle_weight, sampled->moments.moments.extents);
-        // Guard the premise above: the two paths must agree exactly at t = 0, so
-        // this compares them bit for bit rather than within a tolerance.
-        if (maximum_tensor_difference(sampled->moments.moments, mc_initial) != 0.0)
-        {
-            throw std::runtime_error("The sampled CQMOM and Monte Carlo initial moments differ.");
         }
 
-        // Replace only the initial moments; the configured hierarchy, supports and
-        // reconstruction settings are kept.
-        const auto sampled_case_result = qmomkit::config::with_initial_moments(configured.value(), sampled->moments.moments);
-        if (!sampled_case_result)
+        std::optional<qmomkit::MomentWriter> moment_writer;
+        std::optional<qmomkit::QuadratureWriter> quadrature_writer;
+        if (output.write_moments || output.write_quadrature)
         {
-            std::cerr << sampled_case_result.error() << '\n';
-            return 1;
+            std::filesystem::create_directories(output.directory);
         }
-        qmomkit::CqmomState state = sampled_case_result.value().initial_state();
-        const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
-        // The layout lists exactly the multi-indices this hierarchy needs. Reusing
-        // it as a moment request means the before/after summaries report the same
-        // moment set, which is what makes them comparable.
-        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(sampled_case_result.value().hierarchy());
-        const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
-        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, request);
-
-        const qmomkit::CqmomMomentSource source = breakup_source();
-        if (output.value().write_moments || output.value().write_quadrature)
+        if (output.write_moments)
         {
-            ensure_output_directory(output.value().directory);
+            moment_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.directory / "moment_history.txt", state, output));
         }
-        std::optional<qmomkit::MomentWriter> moment_history_writer;
-        if (output.value().write_moments)
+        if (output.write_quadrature)
         {
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history.txt", state, output.value()));
-            moment_history_writer->write(initial_time, state, state.quadrature());
+            quadrature_writer.emplace(
+                qmomkit::QuadratureWriter::for_cqmom(output.directory / "quadrature_history.txt", state.hierarchy().number_of_dimensions()));
         }
-        std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
-        if (output.value().write_quadrature)
+        const auto write_output = [&](const double time)
         {
-            quadrature_history_writer.emplace(
-                qmomkit::QuadratureWriter::for_cqmom(output.value().directory / "quadrature_history.txt", initial_quadrature.number_of_dimensions()));
-            quadrature_history_writer->write(initial_time, initial_quadrature);
-        }
-        const double output_interval = output.value().interval.value_or(final_time - initial_time);
-        double time = initial_time;
-        double next_output = initial_time + output_interval;
-        while (time < final_time - 1.0e-14)
-        {
-            // One complete step in a five-dimensional phase space (V, T, u, v, w).
-            // Note that the same call serves any dimension count: the hierarchy in
-            // the state decides how many coordinates the callbacks receive.
-            const qmomkit::CqmomPhaseSpaceEvolutionResult step = qmomkit::advance_cqmom_phase_space(
-                state, time, std::min(time_step, final_time - time), particle_velocity(), source, evolution.value());
-            if (!step.ok())
+            if (moment_writer)
             {
-                std::cerr << "CQMOM phase-space evolution failed: " << step.message << '\n';
+                moment_writer->write(time, state, state.quadrature());
+            }
+            if (quadrature_writer)
+            {
+                quadrature_writer->write(time, state.quadrature());
+            }
+        };
+        write_output(initial_time);
+
+        const double output_interval = output.interval.value_or(final_time - initial_time);
+        double next_output_time = initial_time + output_interval;
+        double time = initial_time;
+        while (time < final_time - 1.0e-12)
+        {
+            // One step of the configured splitting scheme in the five-dimensional
+            // phase space (V, T, u, v, w). The same call serves any dimension count:
+            // the hierarchy in the state decides how many coordinates the callbacks
+            // receive.
+            qmomkit::CqmomPhaseSpaceEvolutionResult result =
+                qmomkit::advance_cqmom_phase_space(state, time, std::min(time_step, final_time - time), velocity, source, options);
+            if (!result.ok())
+            {
+                std::cerr << "CQMOM phase-space evolution failed: " << result.message << '\n';
                 return 1;
             }
-            state = step.state;
-            time = step.final_time;
-            if (time + 1.0e-14 >= next_output || time >= final_time - 1.0e-14)
+            state = std::move(result.state);
+            time = result.final_time;
+
+            if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
-                if (quadrature_history_writer.has_value())
-                {
-                    quadrature_history_writer->write(time, state.quadrature());
-                }
-                if (moment_history_writer.has_value())
-                {
-                    moment_history_writer->write(time, state, state.quadrature());
-                }
-                while (next_output <= time + 1.0e-14)
-                {
-                    next_output += output_interval;
-                }
+                write_output(time);
+                next_output_time += output_interval;
             }
         }
-        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), request);
 
-        std::cout << "5D CQMOM particle breakage and heat-transfer example\n";
-        std::cout << "phase-space ordering: (V,T,u,v,w)\n";
-        print_selected_moments("Initial tracked moments:", initial_moments);
-        std::cout << '\n';
-        print_selected_moments("Final tracked moments:", final_moments);
-        if (output.value().write_moments || output.value().write_quadrature)
+        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), printed_moments);
+        if (!final_moments.ok())
         {
-            std::cout << "\nOutputs written to:\n";
-            if (output.value().write_moments)
-            {
-                std::cout << (output.value().directory / "moment_history.txt").string() << '\n';
-            }
-            if (output.value().write_quadrature)
-            {
-                std::cout << (output.value().directory / "quadrature_history.txt").string() << '\n';
-            }
+            std::cerr << "Final moment reconstruction failed: " << final_moments.message << '\n';
+            return 1;
+        }
+        cqmom_5d_particles_breakage_heat_transfer::print_moments(std::cout, "QMOMKit run", initial_moments.values, final_moments.values);
+        if (moment_writer || quadrature_writer)
+        {
+            std::cout << "Output written to " << output.directory.string() << "/\n";
         }
     }
     catch (const std::exception& error)
@@ -147,5 +150,6 @@ int main()
         std::cerr << error.what() << '\n';
         return 1;
     }
+
     return 0;
 }

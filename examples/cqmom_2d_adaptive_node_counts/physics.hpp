@@ -4,10 +4,12 @@
 #include "qmomkit/node_advection.hpp"
 
 #include <cstddef>
-#include <string>
 
 namespace cqmom_2d_adaptive_node_counts
 {
+
+// The velocity u is phase-space coordinate 1 of (d, u).
+constexpr std::size_t velocity_dimension = 1;
 
 struct VarianceInjectionParameters
 {
@@ -19,16 +21,8 @@ struct VarianceInjectionParameters
     double velocity_displacement = 0.10;
 };
 
-[[nodiscard]] VarianceInjectionParameters default_variance_injection_parameters();
-
-[[nodiscard]] std::size_t velocity_phase_space_dimension();
-
-[[nodiscard]] bool source_pulse_active(double time, const VarianceInjectionParameters& parameters);
-
 [[nodiscard]] qmomkit::PhaseSpaceVelocity advection_velocity(const VarianceInjectionParameters& parameters);
 
 [[nodiscard]] qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionParameters& parameters);
-
-[[nodiscard]] bool validate_variance_injection_source_rates(const VarianceInjectionParameters& parameters, std::string& message);
 
 } // namespace cqmom_2d_adaptive_node_counts

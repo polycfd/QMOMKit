@@ -16,10 +16,9 @@ With the default two-velocity-node configuration, each velocity branch follows:
 2 -> 1 -> 2 -> 1
 ```
 
-Exact transition times depend on the configured parameters, reconstruction
-tolerances, and output interval. The implementation supports other conditioning
-orders and configured maximum counts; focused regression coverage for those
-invariants lives in the root QMOMKit test suite.
+Exact transition times depend on the configured parameters and the
+reconstruction tolerances. The example works with other conditioning orders and
+configured maximum counts.
 
 ## Configuration
 
@@ -132,32 +131,30 @@ cd build
 ./cqmom_2d_adaptive_node_counts_example
 ```
 
-The executable performs concise runtime consistency checks for the demonstrated
-adaptive lifecycle and exits with failure if that lifecycle is not obtained.
-
 ## Output files
 
 The executable writes the standard deterministic CQMOM files when output is
 enabled:
 
-- `output/initial_moments.txt`
-- `output/initial_quadrature.txt`
 - `output/moment_history.txt`
 - `output/quadrature_history.txt`
 
-It also prints output-interval samples with time, source on/off state, velocity
-mean, velocity variance, branch-identified active velocity counts, and terminal
-paths. Active velocity counts use:
+Their first rows hold the initial state; the quadrature history shows the
+terminal nodes of every branch at each output time. The executable prints each
+change of a velocity branch's node count as QMOMKit reports it in the step
+diagnostics: the time, the parent path of the branch, such as `[0]` or `[1]`,
+and the active node counts before and after:
 
 ```text
-parent-path: active/configured
+Node-count changes of the velocity branches:
+  t = 3.016  branch [0]  2 -> 1 nodes (reduced)
+  t = 3.080  branch [1]  2 -> 1 nodes (reduced)
+  t = 4.000  branch [0]  1 -> 2 nodes (grew)
+  t = 4.000  branch [1]  1 -> 2 nodes (grew)
+  t = 6.618  branch [0]  2 -> 1 nodes (reduced)
+  t = 6.630  branch [1]  2 -> 1 nodes (reduced)
 ```
 
-For a marginal velocity branch, the parent path is shown as `root`. Conditional
-velocity branches use their actual parent paths, such as `[0]` or `[1]`.
-
-The transition table lists the time, velocity-branch parent path, count change,
-and configured maximum.
-
-The implementation is generic in conditioning order and branch identity. The
-repository tests verify additional conditioning orders and maximum counts.
+Relaxation collapses both velocity branches to one node shortly after
+$t = 3$, the pulse at $t = 4$ restores two nodes, and relaxation collapses
+them again after $t = 6.6$.

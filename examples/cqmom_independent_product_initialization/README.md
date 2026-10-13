@@ -52,11 +52,11 @@ cd build
 ./cqmom_independent_product_initialization_example
 ```
 
-The executable writes no files. It prints the hierarchy, conditioning order,
-and reconstructed node weights and abscissas. The `x0` and `x1` labels in the
-terminal output are example-specific formatting for the shipped two-dimensional
-case: `x0` is `size` and `x1` is `velocity`. They are not a limitation of
-QMOMKit's multidimensional representation.
+The executable writes no files. It prints the reconstructed node weights and
+abscissas. The `x0` and `x1` labels in the terminal output are example-specific
+formatting for the shipped two-dimensional case: `x0` is `size` and `x1` is
+`velocity`. They are not a limitation of QMOMKit's multidimensional
+representation.
 
 ## What to expect
 

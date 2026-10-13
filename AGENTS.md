@@ -116,8 +116,8 @@ Tests and examples are strictly separate and must never be conflated.
 - An example must never be registered with CTest or treated as an automated
   test, including as a smoke test.
 - Example CMake projects must not call `enable_testing()` or `add_test()`.
-- Important invariants demonstrated by an example must have focused coverage
-  under `tests/`.
+- Every QMOMKit feature has its own tests under `tests/`, independent of the
+  examples; whether an example uses a feature has no bearing on its tests.
 - An example is written for its reader. `main.cpp` reads top to bottom: load
   the configuration, build the callbacks, create the initial state, run the
   time loop, write the output, print a short summary. The physics lives in its
@@ -136,8 +136,8 @@ Tests and examples are strictly separate and must never be conflated.
 - Run changed examples and check their numerical behavior; compilation alone is
   not sufficient. Document relevant physical assumptions and units, and preserve
   Monte Carlo or reference companions when they are part of the example design.
-  Examples are user-facing documentation and application-level evidence, not
-  replacements for focused tests or verification.
+  Examples are user-facing documentation only; they are never evidence that
+  QMOMKit is correct.
 
 ## Paper and Manuscript Boundary
 

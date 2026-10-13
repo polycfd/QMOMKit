@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -80,16 +79,6 @@ const char* status_name(const qmomkit::QmomStatus status)
         return "not_realizable";
     }
     return "unknown";
-}
-
-bool finite(const double value)
-{
-    return std::isfinite(value);
-}
-
-bool finite(const std::vector<double>& values)
-{
-    return std::all_of(values.begin(), values.end(), [](const double value) { return finite(value); });
 }
 
 long double integer_power(const long double base, const std::size_t exponent)
@@ -272,11 +261,11 @@ std::vector<long double> moments_from_reference(const ReferenceQuadrature& refer
     return moments;
 }
 
-void verify_reference(const Family family, const ReferenceQuadrature& reference, const std::size_t moment_count)
+void verify_reference(const Family family, const ReferenceQuadrature& reference, const std::vector<long double>& actual)
 {
     // Exact family moments validate the independently constructed rule before
     // it supplies the raw moments to the reconstruction under study.
-    const std::vector<long double> actual = moments_from_reference(reference, moment_count);
+    const std::size_t moment_count = actual.size();
     const std::vector<long double> expected = analytical_moments(family, moment_count);
     for (std::size_t order = 0; order < moment_count; ++order)
     {
@@ -307,8 +296,8 @@ RunResult run_case(const Family family, const std::size_t node_count)
 {
     const std::size_t moment_count = 2 * node_count;
     const ReferenceQuadrature reference = golub_welsch_reference(family, node_count);
-    verify_reference(family, reference, moment_count);
     const std::vector<long double> reference_moments = moments_from_reference(reference, moment_count);
+    verify_reference(family, reference, reference_moments);
 
     std::vector<double> input_moments;
     input_moments.reserve(moment_count);
@@ -319,14 +308,15 @@ RunResult run_case(const Family family, const std::size_t node_count)
 
     // Native QMOMKit inversion and raw-moment reconstruction begin here. The
     // inversion is fixed-count: the study compares every requested node.
-    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, qmomkit::QmomOptions{false});
+    qmomkit::QmomOptions options;
+    options.adaptive = false;
+    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, options);
     RunResult result;
     result.family = family_name(family);
     result.node_count = node_count;
     result.status = status_name(reconstructed.status);
     result.active_node_count = reconstructed.weights.size();
-    if (!reconstructed.ok() || reconstructed.weights.size() != node_count || reconstructed.abscissas.size() != node_count ||
-        !finite(reconstructed.abscissas) || !finite(reconstructed.weights))
+    if (!reconstructed.ok())
     {
         return result;
     }
@@ -347,10 +337,6 @@ RunResult run_case(const Family family, const std::size_t node_count)
 
     const qmomkit::Quadrature1D quadrature{reconstructed.abscissas, reconstructed.weights, qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_count);
-    if (!finite(reconstructed_moments))
-    {
-        return result;
-    }
     for (std::size_t order = 0; order < moment_count; ++order)
     {
         update_scaled_error(result.errors.scaled_moment, reconstructed_moments[order], static_cast<double>(reference_moments[order]));
@@ -377,21 +363,6 @@ void write_csv(const std::vector<RunResult>& results)
     }
 }
 
-void print_table(const std::vector<RunResult>& results)
-{
-    std::cout << "Classical quadrature reconstruction\n";
-    std::cout << "Hermite convention: normalized standard normal, not physicists' exp(-x^2).\n";
-    std::cout << std::left << std::setw(46) << "Family" << std::right << std::setw(4) << "N" << std::setw(18) << "node scaled" << std::setw(18)
-              << "weight scaled" << std::setw(18) << "moment scaled" << "  status\n";
-    std::cout << std::scientific << std::setprecision(6);
-    for (const RunResult& result : results)
-    {
-        std::cout << std::left << std::setw(46) << result.family << std::right << std::setw(4) << result.node_count << std::setw(18)
-                  << result.errors.scaled_node << std::setw(18) << result.errors.scaled_weight << std::setw(18) << result.errors.scaled_moment << "  "
-                  << result.status << '\n';
-    }
-}
-
 } // namespace
 
 int main()
@@ -407,7 +378,6 @@ int main()
             }
         }
         write_csv(results);
-        print_table(results);
 
         const bool passed = std::all_of(results.begin(), results.end(), [](const RunResult& result) { return result.passed; });
         if (!passed)

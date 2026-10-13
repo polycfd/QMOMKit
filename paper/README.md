@@ -62,7 +62,7 @@ cmake --build paper/verification/build --parallel
 (cd paper/verification/build && ./qmomkit_paper_quadrature_1d)
 (cd paper/verification/build && ./qmomkit_paper_adaptive_branch_quadrature)
 (cd paper/verification/build && ./qmomkit_paper_time_convergence)
-(cd paper/verification/build && ./qmomkit_paper_cqmom_affine_chain)  
+(cd paper/verification/build && ./qmomkit_paper_cqmom_affine_chain)
 
 # 4. Write the figures into paper/plotting/.
 python3 paper/plotting/plot_examples.py
@@ -71,8 +71,9 @@ python3 paper/plotting/plot_verification.py
 
 Each study is wrapped in `( ... )` so it runs in a subshell: the directory
 change applies only inside the parentheses, and you stay at the repository root
-throughout. That matters because every study reads its `configuration.qmom`
-from the current directory while the executable itself sits one level up.
+throughout. That matters because each application study reads its
+`configuration.qmom` from the current directory while the executable itself sits
+one level up.
 
 ## Did it work?
 
@@ -89,9 +90,6 @@ quadrature_reconstruction.pdf
 adaptive_branch_quadrature.pdf
 splitting_convergence.pdf
 ```
-
-The verification studies also print their results as tables on standard output;
-redirect them to a file if you want to keep those numbers.
 
 ## Application studies
 
@@ -116,9 +114,10 @@ What each study does:
 - `2d_bubbles_cavitation`: 2D CQMOM bubble cavitation, compared with Monte Carlo.
 - `3d_droplets_condensation-nucleation`: 3D CQMOM droplet condensation and
   nucleation, compared with Monte Carlo.
-- `4d_particles_breakup_recoil`: 4D CQMOM particle breakup with recoil.
+- `4d_particles_breakup_recoil`: 4D CQMOM particle breakup with recoil,
+  compared with Monte Carlo.
 - `5d_particles_breakup_heat-transfer`: 5D CQMOM particle breakup with heat
-  transfer, including generalized moments.
+  transfer, including generalized moments, compared with Monte Carlo.
 
 All five link against the Monte Carlo companion in `tools/monte_carlo`, so that
 package must be installed before `paper/examples` will configure.
@@ -131,13 +130,12 @@ These write CSV files into `paper/verification/build/`.
 | --- | --- | --- | --- |
 | `qmomkit_paper_quadrature_1d` | `quadrature_1d.csv` | `quadrature_reconstruction.pdf` | seconds |
 | `qmomkit_paper_adaptive_branch_quadrature` | `adaptive_branch_quadrature.csv` | `adaptive_branch_quadrature.pdf` | seconds |
-| `qmomkit_paper_time_convergence` | `splitting_convergence.csv`, `rk_convergence.csv` | `splitting_convergence.pdf` | seconds |
+| `qmomkit_paper_time_convergence` | `splitting_convergence.csv` | `splitting_convergence.pdf` | seconds |
 | `qmomkit_paper_cqmom_affine_chain` | `cqmom_affine_chain.csv` | none | ~2 minutes |
 
 `qmomkit_paper_cqmom_affine_chain` is by far the slowest and feeds numbers
 quoted in the paper text rather than any figure, so you can skip it if you only
-want the figures. `rk_convergence.csv` is likewise reported as a table rather
-than plotted.
+want the figures.
 
 ## Running only part of the pipeline
 
@@ -162,7 +160,7 @@ does not point at the install prefix. Re-run step 1, and check that you are at
 the repository root so that `$PWD/install` resolves correctly.
 
 **A study exits with a configuration error.** It was launched from the wrong
-directory. Each executable reads `configuration.qmom` from the current
+directory. Each application study reads `configuration.qmom` from the current
 directory, so run it from its own case directory as the commands above do.
 
 **A plotting script reports a missing file.** The corresponding study has not

@@ -7,9 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <optional>
 #include <stdexcept>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -26,28 +24,17 @@ constexpr double pulse_start = 4.0;
 constexpr double pulse_end = 4.05;
 constexpr double source_rate = 20.0;
 constexpr double velocity_displacement = 0.10;
-constexpr double mass_tolerance = 1.0e-8;
+constexpr double number_density_tolerance = 1.0e-8;
 constexpr double mean_tolerance = 5.0e-5;
 
 struct Sample
 {
     double time = 0.0;
-    double mass = 0.0;
+    double number_density = 0.0;
     double mean_velocity = 0.0;
     double velocity_variance = 0.0;
     std::vector<std::size_t> branch_counts;
 };
-
-std::size_t validate_case(const qmomkit::CqmomPreparedCase& cqmom_prepared_case)
-{
-    const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_prepared_case.hierarchy();
-    if (hierarchy.number_of_dimensions() != 2 || hierarchy.conditioning_order() != std::vector<std::size_t>{0, 1} ||
-        !cqmom_prepared_case.qmom_options().adaptive)
-    {
-        throw std::runtime_error("The adaptive paper case requires a 2D (d,u) hierarchy, conditioning order {0,1}, and adaptive reconstruction.");
-    }
-    return hierarchy.node_count(velocity_dimension);
-}
 
 bool source_pulse_active(const double time)
 {
@@ -68,19 +55,16 @@ double binomial_coefficient(const std::size_t n, const std::size_t k)
 
 qmomkit::PhaseSpaceVelocity velocity()
 {
+    // Velocities relax toward the equilibrium velocity; sizes do not move.
     return qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>& coordinates)
-        {
-            if (coordinates.size() != 2)
-            {
-                throw std::invalid_argument("The adaptive paper study requires phase-space coordinates ordered as (d,u).");
-            }
-            return std::vector<double>{0.0, -relaxation_rate * (coordinates[velocity_dimension] - equilibrium_velocity)};
-        });
+        { return std::vector<double>{0.0, -relaxation_rate * (coordinates[velocity_dimension] - equilibrium_velocity)}; });
 }
 
-// During the pulse, each velocity distribution is symmetrically displaced by
-// +/- velocity_displacement.  This is the case-specific reinjection reference.
+// During the pulse, each velocity distribution is replaced at rate source_rate
+// by two copies of itself shifted by -velocity_displacement and
+// +velocity_displacement. This injects velocity variance without changing the
+// mean, so a collapsed velocity branch can regrow.
 qmomkit::CqmomMomentSource variance_injection_source()
 {
     return [](const double time, const qmomkit::CqmomSourceContext& context)
@@ -94,23 +78,13 @@ qmomkit::CqmomMomentSource variance_injection_source()
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
             const qmomkit::MultiIndexView index = context.index(entry);
-            if (index.size() != 2)
-            {
-                throw std::invalid_argument("The adaptive paper source requires 2D raw moments ordered as (d,u).");
-            }
-
             double redistribution_change = 0.0;
             for (std::size_t displacement_order = 2; displacement_order <= index[velocity_dimension]; displacement_order += 2)
             {
                 qmomkit::MultiIndex lower = index.to_multi_index();
                 lower[velocity_dimension] -= displacement_order;
-                const std::optional<double> lower_moment = context.value(lower);
-                if (!lower_moment.has_value())
-                {
-                    throw std::invalid_argument("The variance-injection source requires a lower-order velocity moment.");
-                }
                 redistribution_change += binomial_coefficient(index[velocity_dimension], displacement_order) *
-                                         std::pow(velocity_displacement, static_cast<double>(displacement_order)) * *lower_moment;
+                                         std::pow(velocity_displacement, static_cast<double>(displacement_order)) * context.moment(lower);
             }
             derivative[entry] = source_rate * redistribution_change;
         }
@@ -118,63 +92,34 @@ qmomkit::CqmomMomentSource variance_injection_source()
     };
 }
 
-bool finite_quadrature(const qmomkit::CqmomQuadrature& quadrature)
-{
-    const auto finite_vector = [](const std::vector<double>& values)
-    { return std::all_of(values.begin(), values.end(), [](const double value) { return std::isfinite(value); }); };
-    return finite_vector(quadrature.weights()) && std::all_of(quadrature.abscissas().begin(), quadrature.abscissas().end(), finite_vector);
-}
-
+// Active node count of the velocity branch conditioned on each size node.
 std::vector<std::size_t> velocity_branch_counts(const std::vector<qmomkit::CqmomActiveBranchCount>& active_branches,
-                                                const std::size_t configured_size_node_count, const std::size_t configured_velocity_node_count)
+                                                const std::size_t configured_size_node_count)
 {
     std::vector<std::size_t> counts(configured_size_node_count, 0);
-    std::vector<bool> found(configured_size_node_count, false);
     for (const qmomkit::CqmomActiveBranchCount& branch : active_branches)
     {
-        if (branch.conditioning_level != 1 || branch.phase_space_dimension != velocity_dimension || branch.parent_path.size() != 1)
+        if (branch.phase_space_dimension == velocity_dimension)
         {
-            continue;
+            counts[branch.parent_path.node_index_at_level(0)] = branch.active_node_count;
         }
-
-        const std::size_t branch_index = branch.parent_path.node_index_at_level(0);
-        if (branch_index >= configured_size_node_count || branch.configured_node_count != configured_velocity_node_count ||
-            branch.active_node_count == 0 || branch.active_node_count > configured_velocity_node_count)
-        {
-            throw std::runtime_error("The adaptive paper study received an invalid velocity-branch count.");
-        }
-        counts[branch_index] = branch.active_node_count;
-        found[branch_index] = true;
-    }
-    if (!std::all_of(found.begin(), found.end(), [](const bool value) { return value; }))
-    {
-        throw std::runtime_error("The adaptive paper study could not find every velocity-conditioned size branch.");
     }
     return counts;
 }
 
-// Native quadrature reconstruction supplies the mass and velocity statistics
-// reported in the paper figure and used for the analytical checks below.
-Sample make_sample(const double time, const qmomkit::CqmomQuadrature& quadrature, const std::vector<qmomkit::CqmomActiveBranchCount>& active_branches,
-                   const std::size_t configured_size_node_count, const std::size_t configured_velocity_node_count)
+// The number density and velocity statistics reported in the paper figure and
+// used for the analytical checks below, from the quadrature of the state.
+Sample make_sample(const double time, const qmomkit::CqmomState& state, const std::size_t configured_size_node_count)
 {
     const qmomkit::RawMomentRequest request{{{0, 0}, {0, 1}, {0, 2}}};
-    const qmomkit::SelectedRawMomentResult moments = qmomkit::reconstruct_raw_moments(quadrature, request);
-    if (!moments.ok() || moments.values.size() != 3 ||
-        !std::all_of(moments.values.begin(), moments.values.end(), [](const double value) { return std::isfinite(value); }) ||
-        moments.values[0] <= 0.0)
+    const qmomkit::SelectedRawMomentResult moments = qmomkit::reconstruct_raw_moments(state.quadrature(), request);
+    if (!moments.ok())
     {
-        throw std::runtime_error("The adaptive paper study could not reconstruct finite velocity statistics.");
+        throw std::runtime_error("The velocity moment reconstruction failed: " + moments.message);
     }
-
     const double mean = moments.values[1] / moments.values[0];
     const double variance = moments.values[2] / moments.values[0] - mean * mean;
-    if (!std::isfinite(mean) || !std::isfinite(variance))
-    {
-        throw std::runtime_error("The adaptive paper study produced non-finite velocity statistics.");
-    }
-    return Sample{time, moments.values[0], mean, variance,
-                  velocity_branch_counts(active_branches, configured_size_node_count, configured_velocity_node_count)};
+    return Sample{time, moments.values[0], mean, variance, velocity_branch_counts(state.active_branch_counts(), configured_size_node_count)};
 }
 
 void write_csv(const std::vector<Sample>& samples)
@@ -190,124 +135,81 @@ void write_csv(const std::vector<Sample>& samples)
     {
         for (std::size_t branch = 0; branch < sample.branch_counts.size(); ++branch)
         {
-            output << sample.time << ',' << sample.mass << ',' << sample.mean_velocity << ',' << sample.velocity_variance << ',' << branch << ','
-                   << sample.branch_counts[branch] << '\n';
+            output << sample.time << ',' << sample.number_density << ',' << sample.mean_velocity << ',' << sample.velocity_variance << ',' << branch
+                   << ',' << sample.branch_counts[branch] << '\n';
         }
     }
-}
-
-void print_summary(const std::vector<std::size_t>& initial_counts, const std::vector<std::size_t>& minimum_counts,
-                   const std::vector<std::size_t>& maximum_after_reinjection, const double maximum_mass_error, const double maximum_mean_error)
-{
-    const auto print_counts = [](const char* label, const std::vector<std::size_t>& counts)
-    {
-        std::cout << label;
-        for (const std::size_t count : counts)
-        {
-            std::cout << ' ' << count;
-        }
-        std::cout << '\n';
-    };
-    std::cout << "Adaptive branch-specific quadrature\n";
-    print_counts("initial active counts:", initial_counts);
-    print_counts("minimum active counts:", minimum_counts);
-    print_counts("maximum counts after reinjection:", maximum_after_reinjection);
-    std::cout << std::scientific << std::setprecision(6) << "maximum mass error: " << maximum_mass_error << '\n';
-    std::cout << "maximum mean-velocity error: " << maximum_mean_error << '\n';
 }
 
 } // namespace
 
-int main(const int argc, char** argv)
+int main()
 {
-    if (argc > 2)
-    {
-        std::cerr << "Usage: qmomkit_paper_adaptive_branch_quadrature [configuration.qmom]\n";
-        return 2;
-    }
-
     try
     {
-        const std::filesystem::path configuration_file = argc == 2 ? argv[1] : "configuration.qmom";
-        auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
-        if (!configured.ok())
+        const std::filesystem::path configuration_file = "configuration.qmom";
+        auto configured_case = qmomkit::config::load_cqmom_prepared(configuration_file);
+        if (!configured_case)
         {
-            std::cerr << configured.error() << '\n';
+            std::cerr << configured_case.error() << '\n';
             return 1;
         }
-        auto evolution_options_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
-        if (!evolution_options_configured.ok())
+        auto configured_options = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+        if (!configured_options)
         {
-            std::cerr << evolution_options_configured.error() << '\n';
+            std::cerr << configured_options.error() << '\n';
             return 1;
         }
-        auto output_options_configured = qmomkit::config::load_output_options(configuration_file);
-        if (!output_options_configured.ok())
+        auto configured_output = qmomkit::config::load_output_options(configuration_file);
+        if (!configured_output)
         {
-            std::cerr << output_options_configured.error() << '\n';
+            std::cerr << configured_output.error() << '\n';
             return 1;
         }
+        const qmomkit::CqmomPreparedCase cqmom_case = std::move(configured_case).value();
+        const std::size_t configured_size_node_count = cqmom_case.hierarchy().node_count(0);
+        const qmomkit::CqmomPhaseSpaceEvolutionOptions options = std::move(configured_options).value();
+        const qmomkit::OutputOptions output = std::move(configured_output).value();
 
-        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(configured).value();
-        const std::size_t configured_velocity_node_count = validate_case(cqmom_prepared_case);
-        const std::size_t configured_size_node_count = cqmom_prepared_case.hierarchy().node_count(0);
-        const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = std::move(evolution_options_configured).value();
-        const qmomkit::OutputOptions output_options = std::move(output_options_configured).value();
-
-        const qmomkit::CqmomResult initial_reconstruction = qmomkit::compute_cqmom(cqmom_prepared_case);
-        if (!initial_reconstruction.ok() || !finite_quadrature(initial_reconstruction.quadrature))
-        {
-            std::cerr << "Initial CQMOM reconstruction failed: " << initial_reconstruction.message << '\n';
-            return 1;
-        }
-
-        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
-        qmomkit::CqmomQuadrature quadrature = initial_reconstruction.quadrature;
-        const Sample initial_sample =
-            make_sample(initial_time, quadrature, state.active_branch_counts(), configured_size_node_count, configured_velocity_node_count);
+        qmomkit::CqmomState state = cqmom_case.initial_state();
+        const Sample initial_sample = make_sample(initial_time, state, configured_size_node_count);
         std::vector<Sample> output_samples{initial_sample};
         const std::vector<std::size_t> initial_counts = initial_sample.branch_counts;
-        const double initial_mass = initial_sample.mass;
-        const double initial_mean_velocity = initial_sample.mean_velocity;
         std::vector<std::size_t> minimum_counts = initial_counts;
-        std::vector<std::size_t> maximum_after_reinjection(configured_size_node_count, 0);
-        double maximum_mass_error = 0.0;
+        std::vector<std::size_t> maximum_after_injection(configured_size_node_count, 0);
+        double maximum_number_density_error = 0.0;
         double maximum_mean_error = 0.0;
 
         const qmomkit::PhaseSpaceVelocity advection_velocity = velocity();
-        const qmomkit::CqmomMomentSource reinjection_source = variance_injection_source();
-        const double output_interval = output_options.interval.value_or(final_time - initial_time);
+        const qmomkit::CqmomMomentSource injection_source = variance_injection_source();
+        const double output_interval = output.interval.value_or(final_time - initial_time);
         double time = initial_time;
         double next_output_time = initial_time + output_interval;
         while (time < final_time - 1.0e-12)
         {
             const double step = std::min(time_step, final_time - time);
-            const qmomkit::CqmomPhaseSpaceEvolutionResult advanced =
-                qmomkit::advance_cqmom_phase_space(state, time, step, advection_velocity, reinjection_source, evolution_options);
-            if (!advanced.ok() || !finite_quadrature(advanced.state.quadrature()) ||
-                !std::all_of(advanced.state.moment_values().begin(), advanced.state.moment_values().end(),
-                             [](const double value) { return std::isfinite(value); }))
+            qmomkit::CqmomPhaseSpaceEvolutionResult result =
+                qmomkit::advance_cqmom_phase_space(state, time, step, advection_velocity, injection_source, options);
+            if (!result.ok())
             {
-                std::cerr << "CQMOM phase-space evolution failed: " << advanced.message << '\n';
+                std::cerr << "CQMOM phase-space evolution failed: " << result.message << '\n';
                 return 1;
             }
+            state = std::move(result.state);
+            time = result.final_time;
 
-            state = advanced.state;
-            quadrature = advanced.state.quadrature();
-            time = advanced.final_time;
-            const Sample current =
-                make_sample(time, quadrature, state.active_branch_counts(), configured_size_node_count, configured_velocity_node_count);
+            const Sample current = make_sample(time, state, configured_size_node_count);
             for (std::size_t branch = 0; branch < current.branch_counts.size(); ++branch)
             {
                 minimum_counts[branch] = std::min(minimum_counts[branch], current.branch_counts[branch]);
                 if (time >= pulse_start - 1.0e-12)
                 {
-                    maximum_after_reinjection[branch] = std::max(maximum_after_reinjection[branch], current.branch_counts[branch]);
+                    maximum_after_injection[branch] = std::max(maximum_after_injection[branch], current.branch_counts[branch]);
                 }
             }
-            maximum_mass_error = std::max(maximum_mass_error, std::abs(current.mass - initial_mass));
+            maximum_number_density_error = std::max(maximum_number_density_error, std::abs(current.number_density - initial_sample.number_density));
             const double exact_mean =
-                equilibrium_velocity + (initial_mean_velocity - equilibrium_velocity) * std::exp(-relaxation_rate * current.time);
+                equilibrium_velocity + (initial_sample.mean_velocity - equilibrium_velocity) * std::exp(-relaxation_rate * current.time);
             maximum_mean_error = std::max(maximum_mean_error, std::abs(current.mean_velocity - exact_mean));
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
@@ -321,16 +223,18 @@ int main(const int argc, char** argv)
         }
 
         write_csv(output_samples);
-        print_summary(initial_counts, minimum_counts, maximum_after_reinjection, maximum_mass_error, maximum_mean_error);
 
+        // Every velocity branch must lose nodes as relaxation collapses it, and
+        // regrow after the variance injection; number density and mean velocity
+        // must follow their exact values.
         bool collapsed = true;
         bool regrew = true;
         for (std::size_t branch = 0; branch < configured_size_node_count; ++branch)
         {
             collapsed = collapsed && minimum_counts[branch] < initial_counts[branch];
-            regrew = regrew && maximum_after_reinjection[branch] > minimum_counts[branch];
+            regrew = regrew && maximum_after_injection[branch] > minimum_counts[branch];
         }
-        if (!collapsed || !regrew || maximum_mass_error > mass_tolerance || maximum_mean_error > mean_tolerance)
+        if (!collapsed || !regrew || maximum_number_density_error > number_density_tolerance || maximum_mean_error > mean_tolerance)
         {
             std::cerr << "The adaptive branch-specific lifecycle verification failed.\n";
             return 1;

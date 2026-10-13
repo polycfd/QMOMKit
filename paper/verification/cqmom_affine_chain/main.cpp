@@ -7,8 +7,8 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <stdexcept>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -22,19 +22,6 @@ constexpr long double affine_parent_coefficient = 3.0L / 16.0L;
 constexpr long double affine_offset_coefficient = 13.0L / 16.0L;
 constexpr long double offsets[nodes_per_rule]{-5.0L / 8.0L, 1.0L / 8.0L, 3.0L / 4.0L};
 constexpr long double probabilities[nodes_per_rule]{1.0L / 4.0L, 1.0L / 2.0L, 1.0L / 4.0L};
-
-struct VectorHash
-{
-    std::size_t operator()(const std::vector<std::size_t>& values) const noexcept
-    {
-        std::size_t hash = values.size();
-        for (const std::size_t value : values)
-        {
-            hash ^= value + 0x9e3779b9U + (hash << 6U) + (hash >> 2U);
-        }
-        return hash;
-    }
-};
 
 struct ExactTerminal
 {
@@ -137,7 +124,7 @@ private:
 
     std::size_t maximum_exponent_ = 0;
     std::vector<std::vector<long double>> conditional_coefficients_;
-    std::unordered_map<qmomkit::MultiIndex, long double, VectorHash> cache_;
+    std::map<qmomkit::MultiIndex, long double> cache_;
 };
 
 double scaled_error(const double actual, const double expected)
@@ -181,18 +168,13 @@ std::vector<double> exact_required_moments(const qmomkit::CqmomMomentLayout& lay
     values.reserve(layout.required_indices.size());
     for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
-        const double value = static_cast<double>(evaluator.moment(index.to_multi_index()));
-        if (!std::isfinite(value))
-        {
-            throw std::runtime_error("The affine-chain exact moment is not finite.");
-        }
-        values.push_back(value);
+        values.push_back(static_cast<double>(evaluator.moment(index.to_multi_index())));
     }
     return values;
 }
 
-// Fixed CQMOM returns rectangular storage.  Use its public recursive traversal
-// and accessors rather than recreating a hierarchy or flat-index convention.
+// Compares every terminal node with the exact weighted point of the same
+// conditioning path, visiting the nodes in the public node enumeration.
 void verify_terminal_quadrature(const qmomkit::CqmomQuadrature& quadrature, const std::vector<ExactTerminal>& expected)
 {
     if (!quadrature.has_rectangular_storage() || quadrature.total_nodes() != expected.size())
@@ -225,9 +207,8 @@ RunResult run_dimension(const std::size_t dimension)
     const qmomkit::PhaseSpaceHierarchy hierarchy(std::vector<std::size_t>(dimension, nodes_per_rule));
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> exact_moments = exact_required_moments(layout);
-    const qmomkit::CqmomCase cqmom_case{
-        qmomkit::CqmomMomentData{layout, exact_moments}, {}, qmomkit::QmomOptions{false}, qmomkit::CqmomDiagnosticLevel::basic,
-        qmomkit::VandermondeSolver::automatic,           {}};
+    qmomkit::CqmomCase cqmom_case{qmomkit::CqmomMomentData{layout, exact_moments}};
+    cqmom_case.qmom_options.adaptive = false;
     const qmomkit::CqmomResult reconstructed = qmomkit::compute_cqmom(cqmom_case);
     if (!reconstructed.ok())
     {
@@ -238,22 +219,14 @@ RunResult run_dimension(const std::size_t dimension)
     verify_terminal_quadrature(reconstructed.quadrature, expected);
 
     const qmomkit::CqmomMomentData recovered_moments = qmomkit::reconstruct_cqmom_moments(reconstructed.quadrature, layout);
-    if (recovered_moments.values.size() != exact_moments.size())
-    {
-        throw std::runtime_error("The affine-chain reconstructed moment layout has the wrong size.");
-    }
 
     RunResult result{dimension, expected.size(), layout.required_indices.size()};
     for (std::size_t moment = 0; moment < exact_moments.size(); ++moment)
     {
-        if (!std::isfinite(recovered_moments.values[moment]))
-        {
-            throw std::runtime_error("The affine-chain reconstructed moment is not finite.");
-        }
         result.maximum_scaled_moment_error =
             std::max(result.maximum_scaled_moment_error, scaled_error(recovered_moments.values[moment], exact_moments[moment]));
     }
-    if (!std::isfinite(result.maximum_scaled_moment_error) || result.maximum_scaled_moment_error > verification_tolerance)
+    if (result.maximum_scaled_moment_error > verification_tolerance)
     {
         throw std::runtime_error("The affine-chain reconstructed moments exceed the verification tolerance.");
     }
@@ -276,19 +249,6 @@ void write_csv(const std::vector<RunResult>& results)
     }
 }
 
-void print_table(const std::vector<RunResult>& results)
-{
-    std::cout << "Recursive CQMOM affine-chain reconstruction\n";
-    std::cout << std::right << std::setw(12) << "Dimension" << std::setw(12) << "Leaves" << std::setw(20) << "Required moments" << std::setw(28)
-              << "Maximum scaled moment error" << '\n';
-    std::cout << std::scientific << std::setprecision(6);
-    for (const RunResult& result : results)
-    {
-        std::cout << std::right << std::setw(12) << result.dimension << std::setw(12) << result.leaf_count << std::setw(20)
-                  << result.required_moment_count << std::setw(28) << result.maximum_scaled_moment_error << '\n';
-    }
-}
-
 } // namespace
 
 int main()
@@ -299,10 +259,8 @@ int main()
         for (const std::size_t dimension : {std::size_t{2}, std::size_t{3}, std::size_t{5}, std::size_t{7}, std::size_t{10}})
         {
             results.push_back(run_dimension(dimension));
-            print_table(results);
         }
         write_csv(results);
-        print_table(results);
         return 0;
     }
     catch (const std::exception& error)

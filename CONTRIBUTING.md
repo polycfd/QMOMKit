@@ -33,10 +33,10 @@ Depending on the change, this may include:
 Passing the existing test suite is necessary but is not, by itself, evidence
 that a new numerical method or model is correct.
 
-Scientific claims, references, and validation data should be checked against
-primary sources wherever practical.
-[Validation evidence](docs/developer/testing_and_validation.md#validation-evidence)
-lists what a validation case must state.
+Scientific claims and references should be checked against primary sources
+wherever practical.
+[Verification evidence](docs/developer/testing.md#verification-evidence)
+lists what a verification case must state.
 
 ## New features
 
@@ -106,14 +106,14 @@ Contributors remain fully responsible for AI-assisted contributions and should:
 
 Material use of generative AI should be mentioned in a _pull request_ when that
 information is useful for reviewing the provenance, implementation process, or
-validation of the contribution.
+verification of the contribution.
 
 ## Building, testing and formatting
 
 Before submitting a contribution, run the tests relevant to the change and
 report what was run. Run the core suite in a Debug build, because the unit tests
 use `assert()`;
-[Building and running](docs/developer/testing_and_validation.md#building-and-running)
+[Building and running](docs/developer/testing.md#building-and-running)
 has the commands, also for the installed-package and Monte Carlo checks. For
 changes that affect common numerical infrastructure, broader regression and
 verification testing may be appropriate.
@@ -125,7 +125,7 @@ also builds with GCC and `-Werror`, so a compiler warning fails the build.
 New functionality must include suitable tests as part of the contribution;
 relying solely on pre-existing tests is not sufficient.
 
-Do not weaken tests, tolerances, or validation criteria merely to make a new
+Do not weaken tests, tolerances, or acceptance criteria merely to make a new
 implementation pass without establishing why the change is justified.
 
 ## Pull requests

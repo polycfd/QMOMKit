@@ -365,7 +365,7 @@ exception escaping a scalar call stops the loop.
 ## Verifying a change
 
 A change to a stage, a scheme or an integrator needs the evidence of
-[Testing and validation](testing_and_validation.md#validation-evidence), here
+[Testing](testing.md#verification-evidence), here
 from the exact solutions in
 [`tests/verification/phase_space_evolution/`](../../tests/verification/phase_space_evolution/).
 Commuting cases, whose split solution is exact, isolate the integrators;

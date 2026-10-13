@@ -104,7 +104,7 @@ default initializer, `{}` for a class type. In a Debug build,
 `tests/public_headers/brace_initialization.cpp` is compiled with
 `-Wmissing-field-initializers` and fails the `-Werror` build otherwise. A new
 public header follows the steps in
-[Testing and validation](testing_and_validation.md#public-headers), and a
+[Testing](testing.md#public-headers), and a
 change to installed headers or exports also runs the package consumer.
 [AGENTS.md](../../AGENTS.md#public-and-internal-apis) has the full rules for
 public API changes.
@@ -170,5 +170,5 @@ core:
   [`checked_size.hpp`](../../src/internal/checked_size.hpp).
 
 Building, formatting and CI are in
-[Testing and validation](testing_and_validation.md); installing and
+[Testing](testing.md); installing and
 embedding are in [Installation](../user/1_installation.md).

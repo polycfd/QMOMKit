@@ -48,8 +48,8 @@ paths belong to one repository and do not modify adjacent repositories or
 manuscript material unless explicitly requested.
 
 Verify actual paths, public APIs, options, repository state, commands,
-numerical results, and validation evidence. Distinguish observed facts from
-assumptions. Never invent citations, commands, test outcomes, validation
+numerical results, and verification evidence. Distinguish observed facts from
+assumptions. Never invent citations, commands, test outcomes, verification
 results, API names, options, paths, or repository state.
 
 Stop and report a precise blocker when the requested behavior is unsupported by
@@ -73,7 +73,7 @@ docs/user/
 
 docs/developer/
     Architecture, numerical conventions, algorithm design, phase-space evolution,
-    validation, testing, and engineering practices.
+    verification, testing, and engineering practices.
 
 examples/
     Standalone applications consuming an installed QMOMKit package.
@@ -84,7 +84,7 @@ tests/
 
 tools/monte_carlo/
     Optional QMOMKitMonteCarlo companion package for finite-sample reference
-    and validation workflows.
+    and verification workflows.
 
 tools/plotting/
     Lightweight plotting helpers for QMOMKit output.
@@ -153,7 +153,7 @@ qmomkit_monte_carlo::qmomkit_monte_carlo
 ```
 
 It may depend on QMOMKit. The core QMOMKit package must not depend on Monte
-Carlo headers, implementations, examples, scripts, or validation-only
+Carlo headers, implementations, examples, scripts, or verification-only
 infrastructure.
 
 Keep mandatory dependencies minimal. Do not add a mandatory numerical backend,
@@ -266,11 +266,11 @@ installed downstream consumers where relevant.
 
 Changes to numerical conventions are high-risk. Preserve the contracts in
 `docs/developer/numerical_conventions.md` unless a change is intentional,
-documented, tested, and independently validated.
+documented, tested, and independently verified.
 
 When a convention is ambiguous, make the assumption explicit and support it
 with an analytical, manufactured, convergence, or independently generated
-validation case.
+verification case.
 
 The following conventions must not be changed:
 
@@ -328,7 +328,7 @@ Avoid misleading descriptions such as “hybrid phase-space evolution” when re
 standard operator-splitting workflow.
 
 See `docs/developer/phase_space_evolution.md` for the current phase-space evolution workflow,
-callback contracts, status propagation, and validation requirements.
+callback contracts, status propagation, and verification requirements.
 
 ## Implementation Principles
 
@@ -367,7 +367,14 @@ Comments should explain mathematical intent, non-obvious assumptions, and
 local constraints. They should not record development history or restate
 obvious code.
 
-## Testing and Validation
+## Testing and Verification
+
+Verification checks that QMOMKit solves its mathematical problems correctly,
+against references that follow from the mathematics; the test suite automates
+it. Validation assesses a physical model against physical data for its
+intended use and belongs to the models built with QMOMKit, not to its tests.
+Input validation means checking arguments. Do not use "validation" for
+verification.
 
 Every behavioral change requires tests at the level that owns the behavior.
 
@@ -384,7 +391,7 @@ require a new physical example.
 Unit tests under `tests/unit/` intentionally use C/C++ `assert()`, and `NDEBUG`
 disables those checks. Build and run QMOMKit functional tests with
 `CMAKE_BUILD_TYPE=Debug`. In general, use Debug by default when building,
-running, auditing, or validating the suite. A Release CTest result is not proof
+running, or auditing the suite. A Release CTest result is not proof
 that the unit suite passed. Do not propose replacing the assertions unless the
 user explicitly requests a redesign of the unit-test mechanism.
 
@@ -392,7 +399,7 @@ Use:
 
 ```text
 tests/unit/
-    Local functions, types, options, indexing, diagnostics, validation, and
+    Local functions, types, options, indexing, diagnostics, input validation, and
     failure paths.
 
 tests/component_regression/
@@ -414,7 +421,7 @@ tools/monte_carlo/tests/
 ```
 
 Numerical algorithm changes must be supported by evidence beyond agreement with the
-previous implementation. Validate them against analytical results, manufactured cases,
+previous implementation. Verify them against analytical results, manufactured cases,
 convergence behavior, independent implementations, or independently generated
 reference data as appropriate.
 
@@ -430,7 +437,7 @@ Do not hide discrepancies by silently loosening tolerances. Changes to
 tolerances, acceptance criteria, node reduction, fallback behavior, node
 ordering, or status mapping require explicit approval, focused tests, and documented justification.
 
-Validation changes must state:
+A verification case must state:
 
 - how the reference is constructed;
 - what assumptions are made;
@@ -441,7 +448,7 @@ Validation changes must state:
 See:
 
 ```text
-docs/developer/testing_and_validation.md
+docs/developer/testing.md
 ```
 
 ## Build and Installation
@@ -449,10 +456,10 @@ docs/developer/testing_and_validation.md
 The root project owns and installs the core QMOMKit package.
 
 The normal root CTest suite runs in a Debug build against the build-tree
-`qmomkit` target. Installed-package validation is separate:
+`qmomkit` target. The installed-package check is separate:
 `tests/package_consumer/` is the dedicated installed-package consumer check.
 Examples and companion tools may also consume an installed package where
-appropriate. Run installed-package validation when changing installation,
+appropriate. Run the installed-package check when changing installation,
 exports, package metadata, installed public headers, or public behavior whose
 downstream consumption is relevant.
 
@@ -499,13 +506,13 @@ While making changes:
 - keep mathematical assumptions explicit;
 - add or update tests at the same ownership level as the behavior;
 - update user or developer documentation when the supported design changes;
-- run the relevant formatting, build, test, and validation commands.
+- run the relevant formatting, build, test, and verification commands.
 
 When reporting completed work, include:
 
 - files modified;
 - behavior or documentation changed;
-- tests and validation commands run;
+- tests and verification commands run;
 - any unresolved concerns, limitations, or uncertainties.
 
 ## Copyright and Source Code Adaptation

@@ -108,4 +108,4 @@ ctest --test-dir tools/monte_carlo/build-tests --output-on-failure
 
 The tests check without `assert()`, so any build type runs them in full. Their
 conventions and the estimator behind the standard errors are in
-[Testing and validation](../../docs/developer/testing_and_validation.md#monte-carlo-references).
+[Testing](../../docs/developer/testing.md#monte-carlo-references).

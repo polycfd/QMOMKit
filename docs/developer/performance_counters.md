@@ -2,7 +2,7 @@
 
 Performance counters measure how much numerical work a call did. They are not
 evidence of correctness, which is the job of the
-[test suite](testing_and_validation.md), and they are not timings: to find
+[test suite](testing.md), and they are not timings: to find
 where time goes, profile a `Release` or `RelWithDebInfo` build of a
 representative workload, and compare only runs from the same machine,
 compiler, build type and load. Counters say why a workload is expensive and

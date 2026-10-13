@@ -16,4 +16,4 @@ ctest --test-dir build-tests --output-on-failure
 
 `ctest --test-dir build-tests -N` lists every test. Where a test goes, how it is
 registered, the CI checks and the evidence a numerical change needs are in
-[Testing and validation](../docs/developer/testing_and_validation.md).
+[Testing](../docs/developer/testing.md).

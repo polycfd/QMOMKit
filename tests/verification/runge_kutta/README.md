@@ -56,4 +56,4 @@ Observed orders lie within 0.04 of nominal and slopes near 1.
 ctest --test-dir build-tests -R '^verification_(runge_kutta_analytical_|(ssp_rk3|rk23|rk45)_.*convergence$)' --output-on-failure
 ```
 
-See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).
+See [Building and running](../../../docs/developer/testing.md#building-and-running).

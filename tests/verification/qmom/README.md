@@ -109,4 +109,4 @@ node, must return the status and a message containing the fragment;
 ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds)|wheeler_analytical|adaptive_qmom)_' --output-on-failure
 ```
 
-See [Building and running](../../../docs/developer/testing_and_validation.md#building-and-running).
+See [Building and running](../../../docs/developer/testing.md#building-and-running).

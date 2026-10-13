@@ -43,7 +43,7 @@ Evolution, input and output:
 
 Evidence:
 
-- [Testing and validation](testing_and_validation.md): the test tree, CI,
+- [Testing](testing.md): the test tree, CI,
   and the evidence numerical changes need.
 - [Performance counters](performance_counters.md): the internal counters of
   numerical work.
@@ -67,7 +67,7 @@ Every change then follows the same steps:
 
 1. Add or update tests at the level that owns the behavior, and give a
    numerical change evidence beyond agreement with the old code
-   ([Testing and validation](testing_and_validation.md)).
+   ([Testing](testing.md)).
 2. Build and run the suite in Debug, and format the changed files.
 3. Update the page that owns the topic, and the
    [user documentation](../user/README.md) where public behavior or a
@@ -76,4 +76,4 @@ Every change then follows the same steps:
 
 Tolerances, acceptance criteria, node reduction, fallback behavior, node
 ordering and status mapping change only with explicit approval
-([AGENTS.md](../../AGENTS.md#testing-and-validation)).
+([AGENTS.md](../../AGENTS.md#testing-and-verification)).

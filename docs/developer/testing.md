@@ -1,10 +1,10 @@
-# Testing and validation
+# Testing
 
 This page covers where a test goes, how it is registered, built and run, the
-CI checks, and the evidence a numerical change needs. Tests are plain C++
-executables registered with CTest; there is no test framework, and `ctest -N`
-lists them all. The rules on what every change must be tested with are in
-[AGENTS.md](../../AGENTS.md#testing-and-validation).
+CI checks, and the verification evidence a numerical change needs. Tests are
+plain C++ executables registered with CTest; there is no test framework, and
+`ctest -N` lists them all. The rules on what every change must be tested with
+are in [AGENTS.md](../../AGENTS.md#testing-and-verification).
 
 ## The test tree
 
@@ -193,10 +193,17 @@ REPORT_ONLY=true ./tools/indent-all    # list files that would change
 naming rules. No workflow runs clang-tidy; code must nevertheless be
 compatible with it.
 
-## Validation evidence
+## Verification evidence
+
+Verification checks that QMOMKit solves its mathematical problems correctly,
+against references that follow from the mathematics, and passes or fails
+against a stated tolerance, so the test suite automates it. Validation assesses
+whether a model represents a physical system for its intended use, against
+physical data and with a judgment of the accuracy that use needs; it belongs
+to the models built with QMOMKit, not to the test suite.
 
 A numerical change needs evidence beyond agreement with the implementation it
-replaces, and a validation change states its reference, assumptions, error
+replaces, and a verification case states its reference, assumptions, error
 metric, tolerance and reproduction. The references used here:
 
 - analytical results: exact discrete quadratures, classical Gaussian rules,
@@ -206,7 +213,8 @@ metric, tolerance and reproduction. The references used here:
 - convergence: the observed order under step refinement, compared with the
   formal order only for fixed steps; adaptive steps test the controller;
 - independent references: separately constructed data or implementations;
-- Monte Carlo references, below.
+- Monte Carlo references, below: finite-sample solutions of the same
+  mathematical problem, not physical data.
 
 Expected values come from the mathematical case, never from another call into
 the code under test. A relative error against a reference at or near zero, such

@@ -24,7 +24,7 @@ how it was produced.
 
 Because AI-assisted code generation can accelerate development without providing
 evidence of correctness, QMOMKit has adopted a deliberately rigorous approach to
-testing and numerical validation. New functionality is supported, as
+testing and numerical verification. New functionality is supported, as
 appropriate, by unit and regression tests, manufactured or analytical
 verification cases, independent numerical comparisons, and physically meaningful
 examples.
@@ -37,8 +37,8 @@ The evidence itself is what matters, and it is meant to be inspected rather than
 taken on trust:
 
 - the [test suite](tests/) and the principles behind it, in the
-  [testing and validation guide](docs/developer/testing_and_validation.md);
-- the [validation evidence](docs/developer/testing_and_validation.md#validation-evidence)
+  [testing guide](docs/developer/testing.md);
+- the [verification evidence](docs/developer/testing.md#verification-evidence)
   a numerical change needs: analytical, manufactured, and convergence-based
   verification;
 - the [examples](examples/README.md), which apply the library to concrete
@@ -58,7 +58,7 @@ checked against them.
 ## Scientific claims
 
 The same evidentiary standard applies to scientific content. Scientific claims,
-references, numerical methods, and validation results must be checked against
+references, numerical methods, and verification results must be checked against
 primary sources or independently established evidence. AI-generated
 explanations, references, or numerical conclusions are not authoritative sources.
 

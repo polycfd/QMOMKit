@@ -5,7 +5,7 @@
 These tests pin behavior a change could break while verification still
 passes: operator results and diagnostics, status mapping, agreement between
 `CqmomCase` and the default `CqmomPreparedCase`, and recorded CQMOM results
-([Testing and validation](../../docs/developer/testing_and_validation.md#the-test-tree),
+([Testing](../../docs/developer/testing.md#the-test-tree),
 [CQMOM](../../docs/developer/cqmom.md),
 [Phase-space evolution](../../docs/developer/phase_space_evolution.md)).
 
@@ -72,4 +72,4 @@ after a refactor with one compiler pins it bit for bit.
 ctest --test-dir build-tests -R '^component_regression_' --output-on-failure
 ```
 
-See [Building and running](../../docs/developer/testing_and_validation.md#building-and-running).
+See [Building and running](../../docs/developer/testing.md#building-and-running).

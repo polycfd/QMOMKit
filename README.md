@@ -104,8 +104,7 @@ cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
 cmake --build build-tests --parallel
 ctest --test-dir build-tests --output-on-failure
 ```
-See the [testing and validation guide](docs/developer/testing_and_validation.md) for
-details.
+See the [testing guide](docs/developer/testing.md) for details.
 
 ## Documentation
 
@@ -113,7 +112,7 @@ details.
 - **Using QMOMKit:** [concepts](docs/user/3_concepts.md), [moments and quadrature](docs/user/4_moments_and_quadrature.md), [evolving in time](docs/user/5_evolving_in_time.md), [coupling QMOMKit](docs/user/6_coupling_qmomkit.md), and the [reference](docs/user/7_reference.md).
 - **Examples:** the [examples index](examples/README.md) and the [list in the user guide](docs/user/8_going_further.md#examples).
 - **Optional Monte Carlo tooling:** the [Monte Carlo companion](tools/monte_carlo/README.md).
-- **Development:** the [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing and validation](docs/developer/testing_and_validation.md).
+- **Development:** the [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing](docs/developer/testing.md).
 - **Coupling to host codes:** [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings)
 
 ## Repository structure
@@ -148,7 +147,7 @@ QMOMKit/
 
 Generative AI tools have been used extensively during the development of QMOMKit. Their use has reinforced a central principle of the project: confidence in scientific software should come from evidence rather than from the origin of an implementation. Neither human-written nor AI-assisted code is inherently correct.
 
-QMOMKit therefore relies on a deliberately rigorous approach to testing, numerical validation, and documentation, so that its behavior can be checked rather than taken on trust. See [DEVELOPMENT_PHILOSOPHY.md](DEVELOPMENT_PHILOSOPHY.md) for the full statement and for where that evidence lives.
+QMOMKit therefore relies on a deliberately rigorous approach to testing, numerical verification, and documentation, so that its behavior can be checked rather than taken on trust. See [DEVELOPMENT_PHILOSOPHY.md](DEVELOPMENT_PHILOSOPHY.md) for the full statement and for where that evidence lives.
 
 ## How to cite
 

@@ -4,7 +4,7 @@ A pull request should explain:
 what changed;
 why the change is needed;
 any important numerical or API decisions;
-how the change was validated;
+how the change was verified;
 which example demonstrates new functionality, where applicable;
 which user and developer documentation was added or updated; and
 any known limitations or follow-up work.

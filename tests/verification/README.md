@@ -4,7 +4,7 @@ Each case checks a mathematical property or public workflow against a
 reference built independently of the code under test. Its source header and
 the README of its area state the reference, assumptions, error metric,
 tolerance and reproduction; registration, checks and build commands are in
-[Testing and validation](../../docs/developer/testing_and_validation.md).
+[Testing](../../docs/developer/testing.md).
 
 | Area | What is verified | Reference |
 | --- | --- | --- |
@@ -26,4 +26,4 @@ tolerance and reproduction; registration, checks and build commands are in
 ctest --test-dir build-tests -R '^verification_' --output-on-failure
 ```
 
-See [Building and running](../../docs/developer/testing_and_validation.md#building-and-running).
+See [Building and running](../../docs/developer/testing.md#building-and-running).

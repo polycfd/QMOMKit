@@ -41,7 +41,7 @@ size nodes and two velocity nodes; with adaptive reconstruction, those counts
 are maximums.
 
 Post-source reconstruction automatically tests controlled branch-local growth
-back toward the configured maximum. Growth is validated per velocity branch and
+back toward the configured maximum. Growth is checked per velocity branch and
 may increase by at most one active node per accepted moment-source stage.
 
 The shipped configuration uses `conditioning_order = 0, 1`, so velocity is
@@ -76,8 +76,7 @@ not depend on the unit of the coordinate, so the branches would keep their
 nodes.
 
 The moment-source is active only over a fixed pulse interval. For each
-parent state $(d,u)$, it applies the deliberately simple numerical validation
-event:
+parent state $(d,u)$, it applies the deliberately simple splitting event:
 
 $$
 (d,u) \to \frac{1}{2}(d,u-\Delta u) + \frac{1}{2}(d,u+\Delta u).
@@ -112,7 +111,7 @@ S_{p,2} = \lambda\,du^2 M_{p,0}.
 After the pulse ends, the same advection relaxation again collapses the
 velocity variance and adaptive Wheeler reduces recovered branches back toward
 one node. This repeated collapse and regrowth is the active-node-count behavior
-validated by the example.
+demonstrated by the example.
 
 ## Build and run
 
@@ -161,4 +160,4 @@ The transition table lists the time, velocity-branch parent path, count change,
 and configured maximum.
 
 The implementation is generic in conditioning order and branch identity. The
-repository tests validate additional conditioning orders and maximum counts.
+repository tests verify additional conditioning orders and maximum counts.

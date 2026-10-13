@@ -6,6 +6,8 @@ qmomkit_add_test_executable(test_qmom_moment_space_boundary moment_space_boundar
 qmomkit_register_source_logical_cases(test_qmom_moment_space_boundary verification "${CMAKE_CURRENT_LIST_DIR}/moment_space_boundary.cpp")
 qmomkit_add_test_executable(test_qmom_quadrature_bounds quadrature_bounds.cpp)
 qmomkit_register_source_logical_cases(test_qmom_quadrature_bounds verification "${CMAKE_CURRENT_LIST_DIR}/quadrature_bounds.cpp")
+qmomkit_add_test_executable(test_qmom_scaling_and_support scaling_and_support.cpp)
+qmomkit_register_source_logical_cases(test_qmom_scaling_and_support verification "${CMAKE_CURRENT_LIST_DIR}/scaling_and_support.cpp")
 qmomkit_add_test_executable(test_qmom_compute_failures qmom_compute_failures.cpp)
 foreach(case_name IN ITEMS negative_zeroth_moment negative_variance insufficient_moments insufficient_moments_bounded_adaptive non_finite_moment_bounded_adaptive zero_node_count)
     string(REPLACE "_" " " case_label "${case_name}")

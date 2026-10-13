@@ -68,6 +68,13 @@ fixtures. The adaptive rounding bound scales with the coordinate
 ([QMOM](../../../docs/developer/qmom.md#rounding-bound-on-the-recurrence)), so
 units must not change the result.
 
+`verification_cqmom_power_of_two_scaling_results_scale_exactly`
+(`power_of_two_scaling.cpp`) scales coordinate $d$ by $2^{p_d}$ and the number
+density by $2^q$. These scalings change every moment exactly, so on seeded
+random rules in two and three dimensions with random conditioning orders, in
+fixed and adaptive mode and with every Vandermonde solver, the status, the terminal node count, the abscissas and
+the weights must scale bit for bit, failed reconstructions included.
+
 ### Public workflows
 
 `verification_cqmom_public_workflows` (`cqmom_public_workflows.cpp`) loads
@@ -127,6 +134,7 @@ Errors are absolute unless relative, $|a - e| / \max(|e|, 1)$.
 | Two dimensions | $10^{-12}$ | positions, weights; relative moments | observed $10^{-15}$; moments reach $10^3$ |
 | Three to six dimensions | $10^{-11}$ | positions, weights; relative moments | error grows from $10^{-15}$ in 3D to $5 \times 10^{-13}$ in 6D; the bound sits a factor of 20 above |
 | Coordinate units | $2 \times 10^{-10}$; `disparate_units` $10^{-10}$ | relative positions divided by $s$; weights; relative moments divided by $\prod_d s_d^{k_d}$ | safety bounds, observed $10^{-16}$ |
+| Power-of-two scaling | none | exact equality of status, node count, positions and weights | power-of-two scalings are exact in floating point |
 | Workflows, reconstruction, bounds | $10^{-12}$ | positions, weights, moments | observed $10^{-15}$; moments below $10^2$ |
 | Recursive inversion | $10^{-12}$ to $10^{-7}$ per case | positions, weights, moments | safety bounds; the loosest cover 3D moments with errors of $10^{-11}$ |
 | Branch growth | $5 \times 10^{-11}$ | positions, weights, moments | safety bound: SSP-RK3 integrates a constant rate exactly; observed $10^{-16}$ |

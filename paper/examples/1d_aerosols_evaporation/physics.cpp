@@ -8,9 +8,9 @@ namespace paper_1d_aerosols_evaporation
 namespace
 {
 
-// Diameters in micrometers. Evaporation follows the d-squared law,
-// d(d)/dt = -K / (2 d), so d^2 decreases linearly at the rate K until the
-// aerosol reaches its residual diameter.
+// Diameters in micrometers and time in seconds. Evaporation follows the
+// d-squared law, d(d)/dt = -K / (2 d), so d^2 decreases linearly at the rate
+// K in um^2/s until the aerosol reaches its residual diameter.
 constexpr double residual_diameter = 0.8;
 constexpr double maximum_initial_diameter = 1000.0;
 constexpr double evaporation_coefficient = 500.0;

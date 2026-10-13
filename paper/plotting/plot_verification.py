@@ -136,7 +136,7 @@ def plot_adaptive(rows: list[dict[str, str]], output: Path) -> None:
     axes[1].legend(loc="lower left", frameon=False, fontsize=8)
 
     for axis in axes:
-        axis.axvspan(4.0, 4.05, color="0.55", alpha=0.5, label="moment-source interval")
+        axis.axvspan(4.0, 4.05, color="0.55", alpha=0.5)
         axis.grid(True, which="both", alpha=0.25)
     figure.subplots_adjust(wspace=0.38)
     save(figure, output)

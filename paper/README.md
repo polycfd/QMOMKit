@@ -16,15 +16,16 @@ pieces, in case you want to run only part of the pipeline.
 
 - A C++17 compiler.
 - CMake 3.16 or newer.
-- Python 3 with `matplotlib`, for the figures only.
+- Python 3.9 or newer with `matplotlib`, for the figures only.
 
 Nothing else is downloaded or required. Every command below is run **from the
 repository root**. Results go to `install/` and the various `build/`
 directories, which git ignores, and the figures go to `paper/plotting/`, where
 they will show up as untracked files.
 
-The whole pipeline takes a few minutes, two and a half of which are one verification
-study (`qmomkit_paper_cqmom_affine_chain`); everything else runs in seconds.
+The whole pipeline takes a few minutes, about two and a half of which are one
+verification study (`qmomkit_paper_cqmom_affine_chain`); everything else runs in
+seconds.
 
 ## Reproduce everything
 
@@ -148,7 +149,8 @@ python3 paper/plotting/plot_verification.py --help
 ```
 
 `plot_examples.py` reads `paper/examples/build/`, and `plot_verification.py`
-reads the three CSV files above; each takes an `--output-dir` for the figures.
+reads `quadrature_1d.csv`, `adaptive_branch_quadrature.csv` and
+`splitting_convergence.csv`; each takes an `--output-dir` for the figures.
 You can regenerate one group of figures without rerunning the other group's
 studies, but every study a script reads must have been run at least once.
 
@@ -160,8 +162,9 @@ does not point at the install prefix. Re-run step 1, and check that you are at
 the repository root so that `$PWD/install` resolves correctly.
 
 **A study exits with a configuration error.** It was launched from the wrong
-directory. Each application study reads `configuration.qmom` from the current
-directory, so run it from its own case directory as the commands above do.
+directory. Each application study, and `qmomkit_paper_adaptive_branch_quadrature`,
+reads `configuration.qmom` from the current directory, so run it from the
+directory the commands above use.
 
 **A plotting script reports a missing file.** The corresponding study has not
 been run yet, or was run from the wrong directory so its output landed

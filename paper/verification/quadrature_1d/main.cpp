@@ -281,6 +281,9 @@ void verify_reference(const Family family, const ReferenceQuadrature& reference,
     const std::vector<long double> expected = analytical_moments(family, moment_count);
     for (std::size_t order = 0; order < moment_count; ++order)
     {
+        // This check validates the long-double reference rule, not QMOMKit. The
+        // floor of 1 only keeps the scale away from zero for the one-node rules
+        // and is harmless here; the errors reported below use no floor.
         const long double scale = std::max({1.0L, std::abs(expected[order]), absolute_moment_sum(reference, order)});
         const long double scaled_error = std::abs(actual[order] - expected[order]) / scale;
         if (!std::isfinite(static_cast<double>(actual[order])) || scaled_error > reference_tolerance)

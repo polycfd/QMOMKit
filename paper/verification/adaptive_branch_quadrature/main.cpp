@@ -24,9 +24,9 @@ constexpr double pulse_start = 4.0;
 constexpr double pulse_end = 4.05;
 constexpr double source_rate = 20.0;
 constexpr double velocity_displacement = 0.10;
-// The source preserves number density and mean velocity exactly, so their
-// errors are the round-off of the reconstruction and of the node advection,
-// whose relative tolerance is 1e-12.
+// The source and the reduction of the velocity node count both preserve number
+// density and mean velocity exactly, so their errors come only from the node
+// advection, whose relative tolerance is 1e-12, and from round-off.
 constexpr double number_density_tolerance = 1.0e-11;
 constexpr double mean_tolerance = 1.0e-11;
 

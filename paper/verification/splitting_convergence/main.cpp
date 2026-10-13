@@ -17,6 +17,9 @@ namespace
 constexpr double splitting_final_time = 1.2;
 constexpr double noncommuting_b = 0.45;
 constexpr double noncommuting_gamma = 0.17;
+// The initial distribution: two weighted points.
+constexpr double initial_weights[2]{0.45, 0.55};
+constexpr double initial_nodes[2]{-0.6, 1.4};
 
 struct SplitRun
 {
@@ -75,6 +78,27 @@ std::vector<double> noncommuting_exact(const std::vector<double>& initial, const
     return exact;
 }
 
+// The same solution as weighted points: each point moves along
+// xi(t) = b/gamma + (xi(0) - b/gamma) exp(-gamma t) and keeps its weight. The
+// moment errors are scaled by sum_i w_i |xi_i(t)|^k of these points, as in the
+// quadrature studies.
+std::vector<double> exact_absolute_moment_sums(const std::size_t count, const double elapsed)
+{
+    const double equilibrium = noncommuting_b / noncommuting_gamma;
+    std::vector<double> sums(count, 0.0);
+    for (std::size_t node = 0; node < 2; ++node)
+    {
+        const double position = std::abs(equilibrium + (initial_nodes[node] - equilibrium) * std::exp(-noncommuting_gamma * elapsed));
+        double power = 1.0;
+        for (double& sum : sums)
+        {
+            sum += initial_weights[node] * power;
+            power *= position;
+        }
+    }
+    return sums;
+}
+
 qmomkit::PhaseSpaceVelocity noncommuting_velocity()
 {
     return qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{noncommuting_b}; });
@@ -109,16 +133,15 @@ const char* split_mode_name(const qmomkit::PhaseSpaceEvolutionScheme scheme)
 
 SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const std::size_t level, const double step_size)
 {
-    // The initial distribution is the two-node rule with weights 0.45 and 0.55
-    // at -0.6 and 1.4; its moments m_0 to m_3 start the run.
+    // The moments m_0 to m_3 of the two initial weighted points start the run.
     std::vector<double> initial(4, 0.0);
     double left_power = 1.0;
     double right_power = 1.0;
     for (double& moment : initial)
     {
-        moment = 0.45 * left_power + 0.55 * right_power;
-        left_power *= -0.6;
-        right_power *= 1.4;
+        moment = initial_weights[0] * left_power + initial_weights[1] * right_power;
+        left_power *= initial_nodes[0];
+        right_power *= initial_nodes[1];
     }
     const std::size_t step_count = static_cast<std::size_t>(std::lround(splitting_final_time / step_size));
     const qmomkit::QmomCase qmom_case{qmomkit::MomentSet{initial}, 2, {}};
@@ -142,11 +165,12 @@ SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const s
     }
 
     const std::vector<double> exact = noncommuting_exact(initial, splitting_final_time);
+    const std::vector<double> scales = exact_absolute_moment_sums(exact.size(), splitting_final_time);
     SplitRun run{split_mode_name(scheme), level, step_size};
     for (std::size_t moment = 0; moment < exact.size(); ++moment)
     {
-        const double absolute = std::abs(state.moment_values()[moment] - exact[moment]);
-        run.maximum_scaled_moment_error = std::max(run.maximum_scaled_moment_error, absolute / std::max(1.0, std::abs(exact[moment])));
+        run.maximum_scaled_moment_error =
+            std::max(run.maximum_scaled_moment_error, std::abs(state.moment_values()[moment] - exact[moment]) / scales[moment]);
     }
     return run;
 }

@@ -178,7 +178,7 @@ def plot_splitting_convergence(rows: list[dict[str, str]], output: Path) -> None
     y_mid = (y0 * y1)**0.5
     axis.annotate("2", xy=(x_mid, y_mid), xytext=(0, 4), textcoords="offset points", ha="center", va="bottom", fontsize=8)
 
-    axis.set_xlabel("$\\Delta t$ [s]")
+    axis.set_xlabel("$\\Delta t$")
     axis.set_ylabel("$E_{\\Delta t}$")
     axis.grid(True, which="both", alpha=0.25)
     axis.legend(frameon=False, loc="lower right", bbox_to_anchor=(0.52, 0.3), fontsize=8)

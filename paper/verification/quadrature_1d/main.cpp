@@ -293,9 +293,14 @@ void verify_reference(const Family family, const ReferenceQuadrature& reference,
     }
 }
 
-void update_scaled_error(double& maximum_scaled, const double actual, const double expected, const double scale)
+// Each error is scaled by the size of the reference rule it belongs to, so the
+// metric does not change when the coordinate or the number density is rescaled.
+// A zero scale, the single node at 0 of a one-node symmetric rule and its higher
+// moments, leaves the absolute error.
+void update_scaled_error(double& maximum_scaled, const double actual, const double expected, const long double scale)
 {
-    maximum_scaled = std::max(maximum_scaled, std::abs(actual - expected) / scale);
+    const double absolute = std::abs(actual - expected);
+    maximum_scaled = std::max(maximum_scaled, scale > 0.0L ? absolute / static_cast<double>(scale) : absolute);
 }
 
 RunResult run_case(const Family family, const std::size_t node_count)
@@ -335,23 +340,27 @@ RunResult run_case(const Family family, const std::size_t node_count)
     }
     std::sort(recovered_rule.begin(), recovered_rule.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
 
+    // Nodes are scaled by the extent max_i |x_i| of the reference rule, weights
+    // by its total weight m_0, and moments by sum_i w_i |x_i|^k.
+    long double extent = 0.0L;
+    long double total_weight = 0.0L;
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        const double reference_node = static_cast<double>(reference.nodes[node]);
-        const double reference_weight = static_cast<double>(reference.weights[node]);
-        update_scaled_error(result.errors.scaled_node, recovered_rule[node].first, reference_node, std::max(1.0, std::abs(reference_node)));
-        update_scaled_error(result.errors.scaled_weight, recovered_rule[node].second, reference_weight, std::max(1.0, std::abs(reference_weight)));
+        extent = std::max(extent, std::abs(reference.nodes[node]));
+        total_weight += reference.weights[node];
+    }
+    for (std::size_t node = 0; node < node_count; ++node)
+    {
+        update_scaled_error(result.errors.scaled_node, recovered_rule[node].first, static_cast<double>(reference.nodes[node]), extent);
+        update_scaled_error(result.errors.scaled_weight, recovered_rule[node].second, static_cast<double>(reference.weights[node]), total_weight);
     }
 
     const qmomkit::Quadrature1D quadrature{reconstructed.abscissas, reconstructed.weights, qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_count);
     for (std::size_t order = 0; order < moment_count; ++order)
     {
-        // Moment errors are scaled by max(1, |m_k|, sum_i w_i |x_i|^k) of the
-        // reference rule, the same scale as the analytical check of the reference.
-        const long double scale = std::max({1.0L, std::abs(reference_moments[order]), absolute_moment_sum(reference, order)});
         update_scaled_error(result.errors.scaled_moment, reconstructed_moments[order], static_cast<double>(reference_moments[order]),
-                            static_cast<double>(scale));
+                            absolute_moment_sum(reference, order));
     }
 
     result.passed = result.errors.scaled_node <= tolerance && result.errors.scaled_weight <= tolerance && result.errors.scaled_moment <= tolerance;

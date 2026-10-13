@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -87,10 +86,6 @@ qmomkit::PhaseSpaceVelocity particle_velocity()
 {
     return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
     {
-        if (dimensions != 4)
-        {
-            throw std::invalid_argument("Particle coordinates must be ordered as positive (d,u,v,w).");
-        }
         for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {
             const std::size_t first = node * dimensions;
@@ -113,10 +108,6 @@ qmomkit::CqmomMomentSource breakup_source()
 {
     return [](double, const qmomkit::CqmomSourceContext& context)
     {
-        if (context.dimension_count() != 4)
-        {
-            throw std::invalid_argument("The spherical recoil source requires phase space (d,u,v,w).");
-        }
         std::vector<double> rates(context.size(), 0.0);
         // The nonlinear daughter-state transformation is evaluated on terminal
         // nodes because its mixed moments are outside the finite transport set.
@@ -147,10 +138,6 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
         {
             auto [parent, remaining] = std::move(pending.back());
             pending.pop_back();
-            if (parent.size() != 4)
-            {
-                throw std::runtime_error("MC particles must be ordered as (d,u,v,w).");
-            }
             std::exponential_distribution<double> wait(breakup_rate);
             const double event_time = wait(generator);
             if (event_time >= remaining)

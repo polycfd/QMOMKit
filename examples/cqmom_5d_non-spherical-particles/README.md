@@ -340,24 +340,22 @@ output directory is relative to the process's working directory.
 
 ## Output and expected behavior
 
-For the normal bounded run, the CQMOM executable prints its selected initial
-and final moments and the output paths. The console stays deliberately narrow:
-the reconstructed quadrature and the full moment history go to the output files
-below rather than to the screen. It writes:
+Both executables print the same selection of initial and final raw moments, so
+the two runs can be compared line by line: the number density, the first
+moments, the second moment of each coordinate, and $M_{1,1,0,0,0}$, which
+breakage couples. The MC executable also prints the initial and final particle
+counts. The reconstructed quadrature and the full moment history go to the
+output files rather than to the screen. The CQMOM executable writes:
 
 ```text
-output/initial_moments.txt
 output/moment_history.txt
-output/initial_quadrature.txt
 output/quadrature_history.txt
 ```
 
-The moment files contain time and raw-moment columns. The quadrature files
-contain terminal weights, conditioning paths, and abscissas ordered as
-`(d, chi, u, v, w)`.
-
-The MC executable prints corresponding initial and final sampled moments and
-the final ensemble size. It writes:
+The moment history contains time and raw-moment columns, the quadrature
+history terminal weights, conditioning paths, and abscissas ordered as
+`(d, chi, u, v, w)`; the first rows of both hold the initial state. The MC
+executable writes:
 
 ```text
 output/moment_history_mc.txt
@@ -366,7 +364,9 @@ output/moment_history_mc.txt
 Breakup increases number density by replacing parents with daughter pairs,
 while equal-volume diameter scaling preserves volume at each breakup event.
 Attrition, shape relaxation, drag, gravity, and recoil then change the size,
-shape, and velocity distributions.
+shape, and velocity distributions. At $t = 1$ s, the CQMOM run gives
+$M_{0,0,0,0,0} = 3.093$ and the Monte Carlo run $3.0995$ from 30,995
+particles; the other printed moments agree to within 1.6 percent.
 
 ## File guide
 

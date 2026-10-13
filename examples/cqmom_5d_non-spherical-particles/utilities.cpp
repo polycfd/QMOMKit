@@ -1,172 +1,42 @@
 #include "utilities.hpp"
 
-#include "qmomkit/multi_index.hpp"
-
-#include <algorithm>
 #include <cstddef>
 #include <iomanip>
-#include <iostream>
-#include <stdexcept>
-#include <system_error>
-#include <vector>
+#include <ostream>
+#include <sstream>
 
 namespace cqmom_5d_non_spherical_particles
 {
-namespace
-{
-constexpr std::size_t max_console_moments = 12;
 
-std::size_t moment_total_degree(const qmomkit::MultiIndex& order)
+qmomkit::RawMomentRequest printed_moments()
 {
-    std::size_t degree = 0;
-    for (const std::size_t exponent : order)
-    {
-        degree += exponent;
-    }
-    return degree;
+    return {{{0, 0, 0, 0, 0},
+             {1, 0, 0, 0, 0},
+             {0, 1, 0, 0, 0},
+             {0, 0, 1, 0, 0},
+             {0, 0, 0, 1, 0},
+             {0, 0, 0, 0, 1},
+             {2, 0, 0, 0, 0},
+             {0, 2, 0, 0, 0},
+             {0, 0, 2, 0, 0},
+             {0, 0, 0, 2, 0},
+             {0, 0, 0, 0, 2},
+             {1, 1, 0, 0, 0}}};
 }
 
-void print_multi_index(const qmomkit::MultiIndex& order)
+void print_moments(std::ostream& stream, const std::string_view run, const std::vector<double>& initial_values,
+                   const std::vector<double>& final_values)
 {
-    std::cout << '[';
-    for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
+    const qmomkit::RawMomentRequest request = printed_moments();
+    stream << run << ", raw moments M[i,j,k,l,m] of d^i chi^j u^k v^l w^m:\n";
+    stream << "                " << std::setw(14) << "initial" << std::setw(14) << "final" << '\n';
+    for (std::size_t entry = 0; entry < request.indices.size(); ++entry)
     {
-        if (dimension > 0)
-        {
-            std::cout << ',';
-        }
-        std::cout << order[dimension];
-    }
-    std::cout << ']';
-}
-
-void print_moment_entry(const qmomkit::MultiIndex& order, const double value)
-{
-    std::cout << "M";
-    print_multi_index(order);
-    std::cout << " = " << value << '\n';
-}
-
-void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments)
-{
-    std::cout << label << '\n';
-    const std::size_t printed_count = std::min(max_console_moments, moments.values.size());
-    for (std::size_t index = 0; index < printed_count; ++index)
-    {
-        print_moment_entry(moments.indices[index], moments.values[index]);
-    }
-    if (moments.values.size() > printed_count)
-    {
-        std::cout << "... " << (moments.values.size() - printed_count) << " more moments omitted from the console summary\n";
-    }
-}
-
-void print_moment_tensor(const qmomkit::RawMomentTensor& moments, const std::vector<qmomkit::MultiIndex>& terminal_moment_indices)
-{
-    if (moments.values.size() != qmomkit::product_extents(moments.extents))
-    {
-        throw std::runtime_error("The Monte Carlo moment tensor does not match its configured extents.");
-    }
-    for (const qmomkit::MultiIndex& order : terminal_moment_indices)
-    {
-        if (order.size() != moments.extents.size())
-        {
-            throw std::runtime_error("A terminal moment index does not match the Monte Carlo moment tensor rank.");
-        }
-        for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
-        {
-            if (order[dimension] >= moments.extents[dimension])
-            {
-                throw std::runtime_error("A terminal moment index is outside the Monte Carlo moment tensor extents.");
-            }
-        }
-        print_moment_entry(order, moments.values[qmomkit::flatten_multi_index(order, moments.extents)]);
-    }
-}
-
-} // namespace
-
-std::vector<qmomkit::MultiIndex> select_terminal_moment_indices(const qmomkit::MultiIndexTable& required_indices)
-{
-    std::vector<qmomkit::MultiIndex> selected_indices = required_indices.to_multi_indices();
-    // Stable sorting by total degree gives readable console output while preserving
-    // the CQMOM hierarchy order as the tie-break within each degree. File-output
-    // ordering is unaffected.
-    std::stable_sort(selected_indices.begin(), selected_indices.end(), [](const qmomkit::MultiIndex& lhs, const qmomkit::MultiIndex& rhs)
-                     { return moment_total_degree(lhs) < moment_total_degree(rhs); });
-    if (selected_indices.size() > max_console_moments)
-    {
-        selected_indices.resize(max_console_moments);
-    }
-    return selected_indices;
-}
-
-void print_configuration_errors(const std::string& error)
-{
-    std::cerr << error << '\n';
-}
-
-void ensure_output_directory(const std::filesystem::path& path)
-{
-    std::error_code error;
-    std::filesystem::create_directories(path, error);
-    if (error)
-    {
-        throw std::runtime_error("Could not create output directory " + path.string() + ": " + error.message());
-    }
-}
-
-void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
-                          const std::filesystem::path& output_directory, const bool wrote_moments, const bool wrote_quadrature)
-{
-    std::cout << std::setprecision(12);
-    print_selected_moments("Initial moments:", initial_moments);
-
-    std::cout << '\n';
-    print_selected_moments("Final moments:", final_moments);
-
-    if (wrote_moments || wrote_quadrature)
-    {
-        std::cout << "\nOutputs written to:\n";
-        if (wrote_moments)
-        {
-            std::cout << (output_directory / "initial_moments.txt").string() << '\n';
-            std::cout << (output_directory / "moment_history.txt").string() << '\n';
-        }
-        if (wrote_quadrature)
-        {
-            std::cout << (output_directory / "initial_quadrature.txt").string() << '\n';
-            std::cout << (output_directory / "quadrature_history.txt").string() << '\n';
-        }
-    }
-    else
-    {
-        std::cout << "\nOutput disabled by configuration.\n";
-    }
-}
-
-void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_moments, const qmomkit::RawMomentTensor& final_moments,
-                                      const std::vector<qmomkit::MultiIndex>& terminal_moment_indices, const std::filesystem::path& output_directory,
-                                      const std::size_t final_particle_count, const bool wrote_moments)
-{
-    std::cout << std::setprecision(12);
-    std::cout << "Initial moments:\n";
-    print_moment_tensor(initial_moments, terminal_moment_indices);
-
-    std::cout << "\nFinal moments:\n";
-    print_moment_tensor(final_moments, terminal_moment_indices);
-
-    std::cout << "\nFinal ensemble:\n";
-    std::cout << "final_sample_count = " << final_particle_count << '\n';
-
-    if (wrote_moments)
-    {
-        std::cout << "\nOutputs written to:\n";
-        std::cout << (output_directory / "moment_history_mc.txt").string() << '\n';
-    }
-    else
-    {
-        std::cout << "\nMoment output disabled by configuration.\n";
+        const qmomkit::MultiIndex& order = request.indices[entry];
+        std::ostringstream label;
+        label << "M[" << order[0] << ',' << order[1] << ',' << order[2] << ',' << order[3] << ',' << order[4] << ']';
+        stream << "  " << std::left << std::setw(14) << label.str() << std::right << std::setw(14) << initial_values[entry] << std::setw(14)
+               << final_values[entry] << '\n';
     }
 }
 

@@ -41,10 +41,7 @@ ensemble moments
 CQMOM case
         |
         v
-compute_cqmom(...) -> initial quadrature
-        |
-        v
-CqmomPreparedCase::initial_state() -> CqmomState
+CqmomPreparedCase::initial_state() -> CqmomState with its initial quadrature
         |
         v
 CQMOM phase-space evolution
@@ -236,23 +233,17 @@ cd build
 ./cqmom_2d_breakage_advection_with_mc_example
 ```
 
-Running the CQMOM executable writes:
+Running the CQMOM executable prints the initial and final raw moments
+$M_{0,0}$, $M_{1,0}$, $M_{0,1}$, $M_{2,0}$, $M_{1,1}$ and $M_{0,2}$, and writes:
 
-- `output/initial_moments.txt`
-- `output/initial_quadrature.txt`
 - `output/moment_history.txt`
 - `output/quadrature_history.txt`
 
-It also prints the sampled initialization metadata, selected initial and final
-raw moments, and the final terminal quadrature nodes and weights.
-
-`initial_moments.txt` records raw moments reconstructed from the initial CQMOM
-quadrature built from the sampled initialization. `moment_history.txt` records
-the deterministic CQMOM raw-moment evolution. `initial_quadrature.txt` and
-`quadrature_history.txt` record terminal node weights and abscissas for
-inspecting the reconstructed representation. All four files are written through
-QMOMKit-native writers as whitespace-delimited text tables with commented
-headers.
+`moment_history.txt` records the deterministic CQMOM raw-moment evolution, and
+`quadrature_history.txt` the terminal node weights and abscissas of the
+reconstructed representation; the first rows of both hold the initial state.
+Both files are written through QMOMKit-native writers as whitespace-delimited
+text tables with commented headers.
 
 ## Run the direct Monte Carlo workflow
 
@@ -262,15 +253,24 @@ From the same build directory, run:
 ./cqmom_2d_breakage_advection_with_mc_mc_example
 ```
 
-Running the direct MC executable writes:
+Running the direct MC executable prints the same table of raw moments, so the
+two runs can be compared line by line, and the initial and final particle
+counts. It writes:
 
 - `output/moment_history_mc.txt`
-
-It also prints the sampled initialization metadata, selected initial and final
-raw moments, and the final sample count.
 
 `moment_history_mc.txt` stores Monte Carlo estimated moments with
 `qmomkit::MomentWriter`. It is a whitespace-delimited text table with a
 commented header line. It uses a constant per-sample statistical weight from
 the initial sampled ensemble, so $M_{0,0}$ reflects the sample population
 increase caused by fragmentation.
+
+## What to expect
+
+Both executables start from the same fixed-seed sample, so their initial
+moments agree. At $t = 1$, the CQMOM run gives $M_{0,0} = 1.6487$, which is
+$e^{0.5}$ because the source gives
+$\mathrm{d}M_{0,0}/\mathrm{d}t = 0.5\,M_{0,0}$, and the Monte Carlo run $M_{0,0} = 1.6578$ from 16,578 particles. $M_{1,0}$
+and $M_{2,0}$ agree to within 0.2 percent and $M_{0,2}$ to within 1.3 percent.
+$M_{0,1}$ and $M_{1,1}$ stay near zero in both runs, where sampling noise
+dominates their difference.

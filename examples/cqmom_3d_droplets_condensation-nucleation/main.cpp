@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -19,172 +18,138 @@ int main()
     const double final_time = 1.0;
     const double time_step = 0.01;
 
+    // The case, the evolution options and the output options come from the same
+    // file. A faulty file is reported as a message naming the key and line.
+    auto configured_case = qmomkit::config::load_cqmom_prepared(configuration_file);
+    if (!configured_case)
+    {
+        std::cerr << configured_case.error() << '\n';
+        return 1;
+    }
+    auto configured_options = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+    if (!configured_options)
+    {
+        std::cerr << configured_options.error() << '\n';
+        return 1;
+    }
+    auto configured_output = qmomkit::config::load_output_options(configuration_file);
+    if (!configured_output)
+    {
+        std::cerr << configured_output.error() << '\n';
+        return 1;
+    }
+    const qmomkit::CqmomPhaseSpaceEvolutionOptions options = std::move(configured_options).value();
+    const qmomkit::OutputOptions output = std::move(configured_output).value();
+
+    // Starting from the moments of the sample rather than from the configured
+    // analytical moments is what makes the two runs comparable: both begin from
+    // the same finite population. The case keeps its hierarchy and settings.
+    const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
+        cqmom_3d_droplets_condensation_nucleation::sample_initial_distribution(configuration_file, configured_case.value().hierarchy());
+    if (!sampled)
+    {
+        return 1;
+    }
+    auto sampled_case = qmomkit::config::with_initial_moments(configured_case.value(), sampled->moments.moments);
+    if (!sampled_case)
+    {
+        std::cerr << sampled_case.error() << '\n';
+        return 1;
+    }
+    const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
+
+    const qmomkit::PhaseSpaceVelocity velocity = cqmom_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
+    // Nucleation creates droplets at the edge of phase space, so it is a boundary
+    // contribution rather than a volumetric source. The composed step still
+    // requires a source callback, hence this zero-rate one.
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    const qmomkit::RawMomentRequest printed_moments = cqmom_3d_droplets_condensation_nucleation::printed_moments();
+
     try
     {
-        auto output_configured = qmomkit::config::load_output_options(configuration_file);
-        if (!output_configured)
+        // initial_state() throws when the sampled moments admit no quadrature, and
+        // the writers throw when a file cannot be written.
+        qmomkit::CqmomState state = cqmom_case.initial_state();
+        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), printed_moments);
+        if (!initial_moments.ok())
         {
-            cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(output_configured.error());
+            std::cerr << "Initial moment reconstruction failed: " << initial_moments.message << '\n';
             return 1;
         }
-        auto phase_space_evolution_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
-        if (!phase_space_evolution_configured)
-        {
-            cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(phase_space_evolution_configured.error());
-            return 1;
-        }
-        const qmomkit::OutputOptions output_options = std::move(output_configured).value();
+        // The nucleation flux is scaled by the initial number density M[0,0,0], the
+        // first printed moment.
+        const qmomkit::CqmomMomentBoundaryContribution nucleation = cqmom_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(
+            cqmom_3d_droplets_condensation_nucleation::make_nucleation_model(initial_moments.values.front()));
 
-        const std::optional<std::string> configuration_text = cqmom_3d_droplets_condensation_nucleation::read_configuration_text(configuration_file);
-        if (!configuration_text.has_value())
-            return 1;
-
-        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
-        if (!configured_cqmom)
+        std::optional<qmomkit::MomentWriter> moment_writer;
+        std::optional<qmomkit::QuadratureWriter> quadrature_writer;
+        if (output.write_moments || output.write_quadrature)
         {
-            cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(configured_cqmom.error());
-            return 1;
+            std::filesystem::create_directories(output.directory);
         }
-
-        auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
-        if (!initial_condition)
+        if (output.write_moments)
         {
-            cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(initial_condition.error());
-            return 1;
+            moment_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.directory / "moment_history.txt", state, output));
         }
-
-        const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            cqmom_3d_droplets_condensation_nucleation::sample_initial_distribution(std::move(initial_condition).value(),
-                                                                                   configured_cqmom.value().hierarchy());
-        if (!sampled.has_value())
-            return 1;
-        if (!sampled->ok())
+        if (output.write_quadrature)
         {
-            std::cerr << sampled->sampling.message << sampled->moments.message << '\n';
-            return 1;
+            quadrature_writer.emplace(
+                qmomkit::QuadratureWriter::for_cqmom(output.directory / "quadrature_history.txt", state.hierarchy().number_of_dimensions()));
         }
-
-        auto sampled_case_result = qmomkit::config::with_initial_moments(configured_cqmom.value(), std::move(sampled->moments.moments));
-        if (!sampled_case_result)
+        const auto write_output = [&](const double time)
         {
-            cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(sampled_case_result.error());
-            return 1;
-        }
-        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case_result).value();
+            if (moment_writer)
+            {
+                moment_writer->write(time, state, state.quadrature());
+            }
+            if (quadrature_writer)
+            {
+                quadrature_writer->write(time, state.quadrature());
+            }
+        };
+        write_output(initial_time);
 
-        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
-        const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
-        // M[0,0,0] is the total number density. The nucleation model is scaled by
-        // the initial value, so it is read back from the reconstructed quadrature
-        // rather than assumed from the configuration.
-        const qmomkit::RawMomentRequest initial_number_request{std::vector<qmomkit::MultiIndex>{{0, 0, 0}}};
-        const qmomkit::SelectedRawMomentResult initial_number_moment = qmomkit::reconstruct_raw_moments(initial_quadrature, initial_number_request);
-        if (!initial_number_moment.ok() || initial_number_moment.values.size() != 1)
-        {
-            std::cerr << "Could not obtain initial M[0,0,0] for the nucleation model.\n";
-            return 1;
-        }
-        const cqmom_3d_droplets_condensation_nucleation::NucleationModel nucleation_model =
-            cqmom_3d_droplets_condensation_nucleation::make_nucleation_model(initial_number_moment.values.front());
-
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
-        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
-        const qmomkit::PhaseSpaceVelocity velocity = cqmom_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
-
-        // The nucleation burst is short compared with the step, so this example
-        // insists on Strang splitting rather than accepting whatever the file
-        // configured: a first-order composition would misplace the burst in time.
-        qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
-        if (phase_space_evolution_options.scheme != qmomkit::PhaseSpaceEvolutionScheme::strang)
-        {
-            std::cerr << "The condensation-nucleation example requires configured Strang splitting.\n";
-            return 1;
-        }
-        cqmom_3d_droplets_condensation_nucleation::validate_nucleation_interval(initial_time, final_time);
-        // Nucleation creates droplets at the edge of phase space, so it is a
-        // boundary contribution rather than a volumetric source. The composed step
-        // still requires a source callback, hence this zero-rate placeholder.
-        const qmomkit::CqmomMomentSource zero_moment_source = [](double, const qmomkit::CqmomSourceContext& context)
-        { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
-        const auto nucleation_boundary = cqmom_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
-        cqmom_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_prepared_case, phase_space_evolution_options);
-
-        if (output_options.write_moments || output_options.write_quadrature)
-        {
-            cqmom_3d_droplets_condensation_nucleation::ensure_output_directory(output_options.directory);
-        }
-        std::optional<qmomkit::MomentWriter> moment_history_writer;
-        if (output_options.write_moments)
-        {
-            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state, output_options)
-                .write(initial_time, state, state.quadrature());
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state, output_options));
-            moment_history_writer->write(initial_time, state, state.quadrature());
-        }
-        std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
-        if (output_options.write_quadrature)
-        {
-            quadrature_history_writer.emplace(
-                qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "quadrature_history.txt", initial_quadrature.number_of_dimensions()));
-            quadrature_history_writer->write(initial_time, initial_quadrature);
-        }
-
-        const double output_interval = output_options.interval.value_or(final_time - initial_time);
-        double time = initial_time;
+        const double output_interval = output.interval.value_or(final_time - initial_time);
         double next_output_time = initial_time + output_interval;
+        double time = initial_time;
         while (time < final_time - 1.0e-12)
         {
-            const double current_step =
+            // Steps end at the start and the end of nucleation. While nucleation is
+            // active, the step composes advection with the boundary contribution;
+            // otherwise there is nothing to compose, and advection alone is used.
+            const double step =
                 cqmom_3d_droplets_condensation_nucleation::limit_step_to_nucleation_interval(time, std::min(time_step, final_time - time));
-            const bool nucleation_active = cqmom_3d_droplets_condensation_nucleation::nucleation_is_active(time);
-            const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
-                // While nucleation is active the step must compose advection with
-                // the boundary contribution; once it stops there is nothing to
-                // compose, so the cheaper advection-only call is used instead.
-                nucleation_active ? qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, zero_moment_source, nucleation_boundary,
-                                                                       phase_space_evolution_options)
-                                  : qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
-            if (!phase_space_evolved.ok())
+            qmomkit::CqmomPhaseSpaceEvolutionResult result =
+                cqmom_3d_droplets_condensation_nucleation::nucleation_is_active(time)
+                    ? qmomkit::advance_cqmom_phase_space(state, time, step, velocity, zero_source, nucleation, options)
+                    : qmomkit::advance_cqmom_advection(state, time, step, velocity, options);
+            if (!result.ok())
             {
-                std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
+                std::cerr << "CQMOM phase-space evolution failed: " << result.message << '\n';
                 return 1;
             }
-            state = phase_space_evolved.state;
-            time = phase_space_evolved.final_time;
+            state = std::move(result.state);
+            time = result.final_time;
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
-                if (quadrature_history_writer.has_value())
-                {
-                    quadrature_history_writer->write(time, state.quadrature());
-                }
-                if (moment_history_writer.has_value())
-                {
-                    moment_history_writer->write(time, state, state.quadrature());
-                }
-                while (next_output_time <= time + 1.0e-12)
-                {
-                    next_output_time += output_interval;
-                }
+                write_output(time);
+                next_output_time += output_interval;
             }
         }
 
-        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, moment_output_request);
-        if (!initial_moments.ok())
-        {
-            std::cerr << "Initial CQMOM moment reconstruction failed: " << initial_moments.message << '\n';
-            return 1;
-        }
-        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), moment_output_request);
+        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), printed_moments);
         if (!final_moments.ok())
         {
-            std::cerr << "Final CQMOM moment reconstruction failed: " << final_moments.message << '\n';
+            std::cerr << "Final moment reconstruction failed: " << final_moments.message << '\n';
             return 1;
         }
-        cqmom_3d_droplets_condensation_nucleation::print_result_summary(initial_moments, final_moments, state.quadrature(), output_options.directory,
-                                                                        cqmom_3d_droplets_condensation_nucleation::initialization_sample_count,
-                                                                        cqmom_3d_droplets_condensation_nucleation::initialization_seed, time_step,
-                                                                        final_time, output_options.write_moments, output_options.write_quadrature);
+        cqmom_3d_droplets_condensation_nucleation::print_moments(std::cout, "QMOMKit run", initial_moments.values, final_moments.values);
+        if (moment_writer || quadrature_writer)
+        {
+            std::cout << "Output written to " << output.directory.string() << "/\n";
+        }
     }
     catch (const std::exception& error)
     {

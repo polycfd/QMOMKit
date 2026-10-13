@@ -11,10 +11,6 @@
 namespace cqmom_2d_batch_host_data
 {
 
-void print_configuration_errors(const std::string& error);
-
-void ensure_output_directory(const std::filesystem::path& path);
-
 // Output file of one location, for example output/location_3_moment_history.txt.
 [[nodiscard]] std::filesystem::path location_output_file(const std::filesystem::path& directory, std::size_t location, const std::string& name);
 

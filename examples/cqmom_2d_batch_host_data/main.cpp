@@ -30,22 +30,25 @@ int main()
     {
         using namespace cqmom_2d_batch_host_data;
 
+        // The case, the evolution options and the output options come from the
+        // same file. A faulty file is reported as a message naming the key and
+        // line.
         auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
         if (!configured)
         {
-            print_configuration_errors(configured.error());
+            std::cerr << configured.error() << '\n';
             return 1;
         }
         auto output_configured = qmomkit::config::load_output_options(configuration_file);
         if (!output_configured)
         {
-            print_configuration_errors(output_configured.error());
+            std::cerr << output_configured.error() << '\n';
             return 1;
         }
         auto evolution_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
         if (!evolution_configured)
         {
-            print_configuration_errors(evolution_configured.error());
+            std::cerr << evolution_configured.error() << '\n';
             return 1;
         }
         const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(configured).value();
@@ -70,7 +73,7 @@ int main()
 
         if (output_options.write_moments || output_options.write_quadrature)
         {
-            ensure_output_directory(output_options.directory);
+            std::filesystem::create_directories(output_options.directory);
         }
         std::vector<qmomkit::MomentWriter> moment_writers;
         std::vector<qmomkit::QuadratureWriter> quadrature_writers;

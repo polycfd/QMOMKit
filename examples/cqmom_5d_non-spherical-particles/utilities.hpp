@@ -1,28 +1,25 @@
 #pragma once
 
-#include "qmomkit/moment_reconstruction.hpp"
-#include "qmomkit/multi_index.hpp"
-#include "qmomkit/raw_moment_tensor.hpp"
+#include "qmomkit/distributions.hpp"
 
-#include <cstddef>
-#include <filesystem>
-#include <string>
+#include <iosfwd>
+#include <string_view>
 #include <vector>
 
 namespace cqmom_5d_non_spherical_particles
 {
 
-void print_configuration_errors(const std::string& error);
+/**
+ * The moments both executables print: the number density, the first raw
+ * moments, the second raw moment of each coordinate, and the diameter-shape
+ * moment M[1,1,0,0,0] that breakage couples.
+ */
+[[nodiscard]] qmomkit::RawMomentRequest printed_moments();
 
-void ensure_output_directory(const std::filesystem::path& path);
-
-[[nodiscard]] std::vector<qmomkit::MultiIndex> select_terminal_moment_indices(const qmomkit::MultiIndexTable& required_indices);
-
-void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
-                          const std::filesystem::path& output_directory, bool wrote_moments, bool wrote_quadrature);
-
-void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_moments, const qmomkit::RawMomentTensor& final_moments,
-                                      const std::vector<qmomkit::MultiIndex>& terminal_moment_indices, const std::filesystem::path& output_directory,
-                                      std::size_t final_particle_count, bool wrote_moments);
+/**
+ * Prints the initial and final values of `printed_moments()` side by side. Both
+ * executables use it, so their summaries line up for comparison.
+ */
+void print_moments(std::ostream& stream, std::string_view run, const std::vector<double>& initial_values, const std::vector<double>& final_values);
 
 } // namespace cqmom_5d_non_spherical_particles

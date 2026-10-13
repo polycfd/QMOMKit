@@ -37,7 +37,8 @@ parameters are $\ln(\pi/6)+3(-9.210340371976184)=-28.278050699307204$ and
 $3(0.12)=0.36$.
 
 The CQMOM path initializes from moments estimated from this ensemble; the MC
-path advances the ensemble itself. Both verify that tensor before evolution.
+path advances the ensemble itself, so both begin from the same finite-sample
+population.
 The physical diameter used by the transport models is $d(V)=(6V/\pi)^{1/3}$.
 
 The carrier gas has
@@ -129,8 +130,11 @@ The CQMOM executable writes `output/moment_history.txt` and
 contains time and the moments represented by the current CQMOM state; the
 second contains terminal-node weights and coordinates. The MC executable writes
 matching selected raw moments to `output/moment_history_mc.txt`. Both
-executables print the initial and final tracked moments (up to 20 on the
-console).
+executables print the same selection of initial and final raw moments, so the
+two runs can be compared line by line: the number density, the first moments,
+the second moment of each coordinate, and $M_{1,1,0,0,0}$, which size-dependent
+heating couples. The MC executable also prints the initial and final particle
+counts.
 
 ## What to expect
 
@@ -141,3 +145,10 @@ fractional-volume generalized moments required by the daughter-temperature
 mapping. The Monte Carlo companion is a stochastic particle-based
 companion/reference realization, so it is useful for comparing trends rather
 than exact pointwise agreement.
+
+At $t = 0.1$ s, the CQMOM run gives $M_{0,0,0,0,0} = 2.718$, which is $e$
+because breakage at rate $10\ \mathrm{s^{-1}}$ multiplies the number density
+by $e^{10 \cdot 0.1}$, and the Monte Carlo run $2.722$ from 27,224 particles.
+The total volume $M_{1,0,0,0,0}$ is the same before and after in both runs.
+The other printed moments agree to within 0.2 percent, except $M_{2,0,0,0,0}$,
+which differs by 1.1 percent.

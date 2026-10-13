@@ -28,8 +28,6 @@ struct NucleationModel
 
 [[nodiscard]] NucleationModel make_nucleation_model(double initial_number_density);
 
-void validate_nucleation_interval(double initial_time, double final_time);
-
 [[nodiscard]] double limit_step_to_nucleation_interval(double time, double maximum_step);
 
 [[nodiscard]] bool nucleation_is_active(double time) noexcept;
@@ -38,7 +36,7 @@ void validate_nucleation_interval(double initial_time, double final_time);
 
 [[nodiscard]] qmomkit::monte_carlo::PopulationBirthResult inject_nucleated_droplets(const NucleationModel& model,
                                                                                     const qmomkit::monte_carlo::Ensemble& ensemble,
-                                                                                    double number_density, double time, double time_step,
+                                                                                    double number_density, double time_step,
                                                                                     unsigned long long random_seed);
 
 } // namespace cqmom_3d_droplets_condensation_nucleation

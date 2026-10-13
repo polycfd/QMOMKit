@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <cstddef>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -31,11 +30,6 @@ qmomkit::CqmomMomentSource binary_fragmentation_source()
         for (std::size_t index = 0; index < moments.size(); ++index)
         {
             const qmomkit::MultiIndexView order = moments.index(index);
-            if (order.size() != 2)
-            {
-                throw std::invalid_argument("The 2D CQMOM fragmentation source received a moment index with the wrong rank.");
-            }
-
             const double diameter_order = static_cast<double>(order[0]);
             // Binary fragmentation d -> d/2 leaves u unchanged:
             // dM_ij/dt = lambda * (2^(1-i) - 1) * M_ij.

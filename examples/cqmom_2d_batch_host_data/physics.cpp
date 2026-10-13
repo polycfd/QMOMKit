@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <cstddef>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -17,11 +16,6 @@ qmomkit::BatchPhaseSpaceVelocity advection_velocity(const LocalHostData& host_da
     return [&host_data](const std::size_t location, const double time, const std::vector<double>& coordinates, std::vector<double>& velocities,
                         const std::size_t dimensions)
     {
-        if (dimensions != 2)
-        {
-            throw std::invalid_argument("The 2D CQMOM advection velocity expects coordinates ordered as (d, u).");
-        }
-
         // The carrier flow depends on the location and the time only, so it is
         // reconstructed once for all nodes of this location.
         const double carrier_velocity = carrier_velocity_at(host_data, location, time);
@@ -45,11 +39,6 @@ qmomkit::BatchCqmomMomentSource binary_fragmentation_source(const LocalHostData&
         for (std::size_t index = 0; index < moments.size(); ++index)
         {
             const qmomkit::MultiIndexView order = moments.index(index);
-            if (order.size() != 2)
-            {
-                throw std::invalid_argument("The 2D CQMOM fragmentation source received a moment index with the wrong rank.");
-            }
-
             const double diameter_order = static_cast<double>(order[0]);
             const double daughter_factor = std::pow(2.0, 1.0 - diameter_order);
             source[index] = fragmentation_rate * (daughter_factor - 1.0) * moments.value(index);

@@ -1,7 +1,6 @@
 #include "physics.hpp"
 
 #include <cmath>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -30,10 +29,6 @@ constexpr double reference_volume = pi * reference_diameter * reference_diameter
 
 double diameter_from_volume(const double volume)
 {
-    if (!(volume > 0.0))
-    {
-        throw std::invalid_argument("Particle volume must remain positive.");
-    }
     return std::cbrt(6.0 * volume / pi);
 }
 
@@ -61,10 +56,6 @@ qmomkit::PhaseSpaceVelocity particle_velocity()
 {
     return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
     {
-        if (dimensions != 5)
-        {
-            throw std::invalid_argument("Thermal particle coordinates must be ordered as (V,T,u,v,w).");
-        }
         for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {
             const std::size_t first = node * dimensions;
@@ -92,10 +83,6 @@ qmomkit::CqmomMomentSource breakup_source()
 {
     return [](double, const qmomkit::CqmomSourceContext& context)
     {
-        if (context.dimension_count() != 5)
-        {
-            throw std::invalid_argument("The thermal breakup source requires phase space (V,T,u,v,w).");
-        }
         std::vector<double> rates(context.size(), 0.0);
         // Expanding the daughter-temperature mapping leaves integer volume
         // terms available through context.moment(...) and exposes fractional
@@ -157,10 +144,6 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
         {
             auto [parent, remaining] = std::move(pending.back());
             pending.pop_back();
-            if (parent.size() != 5)
-            {
-                throw std::runtime_error("MC particles must be ordered as (V,T,u,v,w).");
-            }
             std::exponential_distribution<double> wait(breakup_rate);
             const double event_time = wait(generator);
             if (event_time >= remaining)

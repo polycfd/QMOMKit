@@ -1,38 +1,15 @@
 #include "utilities.hpp"
 
 #include "monte_carlo/moments.hpp"
-#include "qmomkit/multi_index.hpp"
 
-#include <algorithm>
-#include <cmath>
 #include <iomanip>
-#include <iostream>
+#include <ostream>
+#include <sstream>
 #include <stdexcept>
-#include <system_error>
-#include <utility>
+#include <string>
 
 namespace cqmom_5d_particles_breakage_heat_transfer
 {
-namespace
-{
-
-constexpr std::size_t max_console_moments = 20;
-
-void print_multi_index(const qmomkit::MultiIndex& order)
-{
-    std::cout << '[';
-    for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
-    {
-        if (dimension > 0)
-        {
-            std::cout << ',';
-        }
-        std::cout << order[dimension];
-    }
-    std::cout << ']';
-}
-
-} // namespace
 
 std::vector<std::size_t> maximum_orders(const std::vector<std::size_t>& extents)
 {
@@ -40,10 +17,6 @@ std::vector<std::size_t> maximum_orders(const std::vector<std::size_t>& extents)
     orders.reserve(extents.size());
     for (const std::size_t extent : extents)
     {
-        if (extent == 0)
-        {
-            throw std::invalid_argument("Moment extents must be non-empty.");
-        }
         orders.push_back(extent - 1);
     }
     return orders;
@@ -61,69 +34,35 @@ qmomkit::RawMomentTensor ensemble_moments(const qmomkit::monte_carlo::Ensemble& 
     return estimate.moments;
 }
 
-double maximum_tensor_difference(const qmomkit::RawMomentTensor& left, const qmomkit::RawMomentTensor& right)
+qmomkit::RawMomentRequest printed_moments()
 {
-    if (left.extents != right.extents || left.values.size() != right.values.size())
-    {
-        throw std::invalid_argument("Cannot compare moment tensors with different extents.");
-    }
-    double difference = 0.0;
-    for (std::size_t index = 0; index < left.values.size(); ++index)
-    {
-        difference = std::max(difference, std::abs(left.values[index] - right.values[index]));
-    }
-    return difference;
+    return {{{0, 0, 0, 0, 0},
+             {1, 0, 0, 0, 0},
+             {0, 1, 0, 0, 0},
+             {0, 0, 1, 0, 0},
+             {0, 0, 0, 1, 0},
+             {0, 0, 0, 0, 1},
+             {2, 0, 0, 0, 0},
+             {0, 2, 0, 0, 0},
+             {0, 0, 2, 0, 0},
+             {0, 0, 0, 2, 0},
+             {0, 0, 0, 0, 2},
+             {1, 1, 0, 0, 0}}};
 }
 
-qmomkit::SelectedRawMomentResult select_moments(const qmomkit::RawMomentTensor& moments, const qmomkit::RawMomentRequest& request)
+void print_moments(std::ostream& stream, const std::string_view run, const std::vector<double>& initial_values,
+                   const std::vector<double>& final_values)
 {
-    std::vector<double> values;
-    values.reserve(request.indices.size());
-    for (const qmomkit::MultiIndex& index : request.indices)
+    const qmomkit::RawMomentRequest request = printed_moments();
+    stream << run << ", raw moments M[i,j,k,l,m] of V^i T^j u^k v^l w^m:\n";
+    stream << "                " << std::setw(14) << "initial" << std::setw(14) << "final" << '\n';
+    for (std::size_t entry = 0; entry < request.indices.size(); ++entry)
     {
-        if (index.size() != moments.extents.size())
-        {
-            throw std::invalid_argument("Requested raw moment rank must match the Monte Carlo tensor.");
-        }
-        for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
-        {
-            if (index[dimension] >= moments.extents[dimension])
-            {
-                throw std::out_of_range("Requested raw moment is outside the Monte Carlo tensor.");
-            }
-        }
-        values.push_back(moments.values[qmomkit::flatten_multi_index(index, moments.extents)]);
-    }
-    return qmomkit::make_selected_raw_moment_result(request, std::move(values));
-}
-
-void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments)
-{
-    if (!moments.ok())
-    {
-        throw std::runtime_error("Could not select tracked raw moments: " + moments.message);
-    }
-    std::cout << std::setprecision(12) << label << '\n';
-    const std::size_t printed_count = std::min(max_console_moments, moments.values.size());
-    for (std::size_t index = 0; index < printed_count; ++index)
-    {
-        std::cout << "M";
-        print_multi_index(moments.indices[index]);
-        std::cout << " = " << moments.values[index] << '\n';
-    }
-    if (moments.values.size() > printed_count)
-    {
-        std::cout << "... " << (moments.values.size() - printed_count) << " more tracked moments written to the history file\n";
-    }
-}
-
-void ensure_output_directory(const std::filesystem::path& path)
-{
-    std::error_code error;
-    std::filesystem::create_directories(path, error);
-    if (error)
-    {
-        throw std::runtime_error("Could not create output directory " + path.string() + ": " + error.message());
+        std::ostringstream label;
+        label << "M[" << request.indices[entry][0] << ',' << request.indices[entry][1] << ',' << request.indices[entry][2] << ','
+              << request.indices[entry][3] << ',' << request.indices[entry][4] << ']';
+        stream << "  " << std::left << std::setw(14) << label.str() << std::right << std::setw(14) << initial_values[entry] << std::setw(14)
+               << final_values[entry] << '\n';
     }
 }
 

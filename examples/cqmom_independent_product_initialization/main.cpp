@@ -22,13 +22,6 @@ int main()
     // CqmomState is the runtime state passed to phase-space evolution workflows.
     const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 
-    const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_prepared_case.hierarchy();
-    std::cout << "configuration -> CqmomPreparedCase -> initial_state -> CqmomState\n";
-    std::cout << "CqmomPreparedCase: immutable configuration/problem definition\n";
-    std::cout << "CqmomState: evolving phase-space evolution state created from the case\n";
-    std::cout << "node_counts = {" << hierarchy.node_counts()[0] << ", " << hierarchy.node_counts()[1] << "}\n";
-    std::cout << "conditioning_order = {" << hierarchy.conditioning_order()[0] << ", " << hierarchy.conditioning_order()[1] << "}\n";
-
     for (std::size_t node = 0; node < state.quadrature().weights().size(); ++node)
     {
         std::cout << "node " << node << ": weight=" << state.quadrature().weights()[node];

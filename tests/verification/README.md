@@ -1,15 +1,16 @@
 # Verification
 
 Each case checks a mathematical property or public workflow against a
-reference built independently of the code under test. Its source header and
+reference built independently of the code under test, or against the code
+itself under an exact transformation of its input. Its source header and
 the README of its area state the reference, assumptions, error metric,
 tolerance and reproduction; registration, checks and build commands are in
 [Testing](../../docs/developer/testing.md).
 
 | Area | What is verified | Reference |
 | --- | --- | --- |
-| [QMOM](qmom/README.md) | Wheeler inversion with fixed and adaptive node counts and abscissa bounds; the moment-space boundary; failures | exact discrete quadratures, classical Gaussian rules |
-| [CQMOM](cqmom/README.md) | recursive reconstruction in up to six dimensions: conditioning orders, adaptive branch counts, bounds, unit invariance, moment reconstruction | prescribed product, affine and branch-dependent quadratures |
+| [QMOM](qmom/README.md) | Wheeler inversion with fixed and adaptive node counts and abscissa bounds; the moment-space boundary; exact power-of-two scaling; no more nodes than weighted points; failures | exact discrete quadratures, classical Gaussian rules; the inversion itself under exact scaling |
+| [CQMOM](cqmom/README.md) | recursive reconstruction in up to six dimensions: conditioning orders, adaptive branch counts, bounds, unit invariance, exact power-of-two scaling, moment reconstruction | prescribed product, affine and branch-dependent quadratures; the reconstruction itself under exact scaling |
 | [Distributions](distributions/README.md) | raw moments of distributions, mixtures and products; configured initialization | closed-form and high-precision moments |
 | [Realizability](realizability/README.md) | support-aware classification and diagnostics | Hamburger, Stieltjes and Hausdorff examples |
 | [Vandermonde](vandermonde/README.md) | the configured solvers on ordinary and clustered systems; diagnostics under rescaling | prescribed terminal quadratures |

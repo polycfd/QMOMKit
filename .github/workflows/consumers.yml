@@ -41,7 +41,9 @@ jobs:
       # The installed-package consumer and the Monte Carlo companion are
       # separate CMake projects that find QMOMKit as an installed package, so
       # the root build never compiles them. The library is installed once and
-      # both are built against that installation.
+      # both are built against that installation. The companion is then
+      # installed into the same prefix, and its own package consumer is built
+      # against both.
       - name: Install QMOMKit (Debug)
         run: |
           cmake -S . -B build-install -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="${{ env.INSTALL_PREFIX }}"
@@ -57,9 +59,20 @@ jobs:
       - name: Compile the Monte Carlo companion tests (Debug)
         run: |
           cmake -S tools/monte_carlo -B build-monte-carlo -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
-            -DCMAKE_PREFIX_PATH="${{ env.INSTALL_PREFIX }}"
+            -DCMAKE_PREFIX_PATH="${{ env.INSTALL_PREFIX }}" -DCMAKE_INSTALL_PREFIX="${{ env.INSTALL_PREFIX }}"
           cmake --build build-monte-carlo -j${{ env.COMPILE_JOBS }}
 
       - name: Run the Monte Carlo companion tests (Debug)
         run: |
           ctest --test-dir build-monte-carlo --output-on-failure -j${{ env.TEST_JOBS }}
+
+      - name: Install the Monte Carlo companion (Debug)
+        run: |
+          cmake --install build-monte-carlo
+
+      - name: Compile and run the Monte Carlo package consumer (Debug)
+        run: |
+          cmake -S tools/monte_carlo/tests/package_consumer -B build-monte-carlo-consumer -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_PREFIX_PATH="${{ env.INSTALL_PREFIX }}"
+          cmake --build build-monte-carlo-consumer -j${{ env.COMPILE_JOBS }}
+          ./build-monte-carlo-consumer/consumer

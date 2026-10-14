@@ -202,7 +202,7 @@ void test_selected_numerical_failures()
         qmomkit::monte_carlo::compute_requested_ensemble_moments(Ensemble{{std::numeric_limits<double>::max()}}, 1.0, monomial_overflow);
     check_empty_failure(monomial_result);
     CHECK(monomial_result.status == EnsembleMomentStatus::non_finite_moment);
-    CHECK(monomial_result.message == "Tensor moment accumulation became non-finite.");
+    CHECK(monomial_result.message == "Selected moment accumulation became non-finite.");
 
     const RawMomentRequest sum_squares_overflow{{{1}}};
     const SelectedEnsembleMomentEstimate sum_squares_result =

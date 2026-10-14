@@ -1,5 +1,7 @@
 #include "monte_carlo/evolution.hpp"
 
+#include "ensemble_checks.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -69,9 +71,9 @@ namespace
 // Neither the dimension check nor the finiteness check below can see that: the
 // buffer is the right size and zero is a finite velocity.
 //
-// Debug builds fill it with a recognisable quiet-NaN payload first and report
+// Debug builds fill it with a recognizable quiet-NaN payload first and report
 // any entry that still holds it. Release builds compile this away and keep the
-// plain zero initialisation. Comparison is by bit pattern because NaN never
+// plain zero initialization. Comparison is by bit pattern because NaN never
 // compares equal to itself. Diagnostics stay per sample, matching the
 // surrounding messages; `evolve_ensemble` reports which sample failed.
 #ifndef NDEBUG
@@ -124,7 +126,7 @@ void poison_velocity_buffer([[maybe_unused]] std::vector<double>& velocities) no
 {
     if (ensemble.empty())
     {
-        return invalid_result("Ensemble must contain at least one sample.");
+        return invalid_result(internal::ensemble_problem_message(internal::EnsembleProblem::empty));
     }
     if (!velocity)
     {
@@ -139,23 +141,13 @@ void poison_velocity_buffer([[maybe_unused]] std::vector<double>& velocities) no
         return invalid_result("Evolution time interval must be nonzero.");
     }
 
-    const std::size_t dimensions = ensemble.front().size();
-    if (dimensions == 0)
+    // Every problem with the samples, a non-finite coordinate included, is
+    // reported as invalid input for the sample it was found in.
+    const internal::EnsembleCheck check = internal::check_ensemble(ensemble);
+    if (check.problem != internal::EnsembleProblem::none)
     {
-        return invalid_result("Samples must contain at least one phase-space coordinate.", 0);
+        return invalid_result(internal::ensemble_problem_message(check.problem), check.sample_index);
     }
-    for (std::size_t sample_index = 0; sample_index < ensemble.size(); ++sample_index)
-    {
-        if (ensemble[sample_index].size() != dimensions)
-        {
-            return invalid_result("All samples must have the same phase-space dimension.", sample_index);
-        }
-        if (!all_finite(ensemble[sample_index]))
-        {
-            return invalid_result("Sample coordinate is non-finite.", sample_index);
-        }
-    }
-
     return {};
 }
 

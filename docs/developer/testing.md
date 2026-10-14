@@ -144,17 +144,23 @@ cmake --build build-package-consumer -j8
 ./build-package-consumer/consumer
 
 cmake -S tools/monte_carlo -B build-monte-carlo -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
-  -DCMAKE_PREFIX_PATH="$PWD/install-consumers"
+  -DCMAKE_PREFIX_PATH="$PWD/install-consumers" -DCMAKE_INSTALL_PREFIX="$PWD/install-consumers"
 cmake --build build-monte-carlo -j8
 ctest --test-dir build-monte-carlo --output-on-failure -j8
+
+cmake --install build-monte-carlo
+cmake -S tools/monte_carlo/tests/package_consumer -B build-monte-carlo-consumer -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_PREFIX_PATH="$PWD/install-consumers"
+cmake --build build-monte-carlo-consumer -j8
+./build-monte-carlo-consumer/consumer
 ```
 
 The consumer uses only `find_package(QMOMKit CONFIG REQUIRED)` and
 `qmomkit::qmomkit`, includes `<qmomkit/qmomkit.hpp>`, and runs a short QMOM and
 CQMOM workflow; it returns non-zero if any step fails. Run it when changing
 installation, exports, package metadata or installed headers.
-`tools/monte_carlo/tests/package_consumer/` checks the companion package the
-same way once it is installed into the same prefix.
+`tools/monte_carlo/tests/package_consumer/` checks the installed companion
+package the same way, from the same prefix.
 
 ## CI gates
 
@@ -167,7 +173,7 @@ requests.
 | CI-Release | [`release.yml`](../../.github/workflows/release.yml) | the suite in Release, without instrumentation | the first block of [Building and running](#building-and-running) with `-DCMAKE_BUILD_TYPE=Release` |
 | CI-Warnings-GCC | [`warnings_gcc.yml`](../../.github/workflows/warnings_gcc.yml) | a Debug build of library and tests with the runner's `g++` and `-Werror`; nothing is run | `cmake -S . -B build-warnings-gcc -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON -DCMAKE_CXX_COMPILER=g++ -DCMAKE_CXX_FLAGS="-Werror"`, then build |
 | CI-Indentation | [`clang-format.yml`](../../.github/workflows/clang-format.yml) | [`tools/check_indentation.sh`](../../tools/check_indentation.sh) with clang-format 22.1 | see below |
-| CI-Consumers | [`consumers.yml`](../../.github/workflows/consumers.yml) | install, package consumer, Monte Carlo tests, all Debug | the last block of [Building and running](#building-and-running) |
+| CI-Consumers | [`consumers.yml`](../../.github/workflows/consumers.yml) | install, package consumer, Monte Carlo tests, Monte Carlo install and package consumer, all Debug | the last block of [Building and running](#building-and-running) |
 
 On pull requests, every workflow skips changes confined to `docs/**`; all but
 CI-Indentation also skip `examples/**`, and CI-Consumers skips `paper/**`.

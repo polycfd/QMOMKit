@@ -90,6 +90,43 @@ void test_multidimensional_birth_preserves_phase_space_order()
     CHECK_CLOSE(moments.moments.values[mixed_index], 14.0 + 30.0 * static_cast<double>(birth_count), 0.0);
 }
 
+// The birth count is Poisson with mean birth_number_density / w, where
+// w = n0 / N is the weight of one sample. Over many injections with different
+// seeds, the mean count must lie within five standard errors of that rate, and
+// so must the sample variance, which a Poisson count shares with its mean; a
+// count rounded from the mean would have no variance at all.
+void test_birth_count_follows_the_poisson_rate()
+{
+    const Ensemble ensemble{{1.0}, {3.0}};
+    constexpr double number_density = 4.0;
+    constexpr double birth_number_density = 2000.0;
+    const double rate = birth_number_density / (number_density / static_cast<double>(ensemble.size()));
+    constexpr std::size_t injection_count = 200;
+    const BirthCoordinateSampler sampler = [](std::mt19937_64&) { return Sample{5.0}; };
+
+    double sum = 0.0;
+    double sum_squares = 0.0;
+    for (std::size_t injection = 0; injection < injection_count; ++injection)
+    {
+        const PopulationBirthResult result =
+            qmomkit::monte_carlo::inject_population(ensemble, number_density, birth_number_density, sampler, 3000 + injection);
+        CHECK(result.ok());
+        const double birth_count = static_cast<double>(result.ensemble.size() - ensemble.size());
+        sum += birth_count;
+        sum_squares += birth_count * birth_count;
+    }
+
+    const double count = static_cast<double>(injection_count);
+    const double mean = sum / count;
+    const double variance = (sum_squares - sum * sum / count) / (count - 1.0);
+    // Standard errors of the mean and of the sample variance of a Poisson count
+    // with mean and variance `rate`, whose fourth cumulant is also `rate`.
+    const double mean_standard_error = std::sqrt(rate / count);
+    const double variance_standard_error = std::sqrt(2.0 * rate * rate / (count - 1.0) + rate / count);
+    CHECK_CLOSE(mean, rate, 5.0 * mean_standard_error);
+    CHECK_CLOSE(variance, rate, 5.0 * variance_standard_error);
+}
+
 void test_seed_reproducibility()
 {
     const Ensemble ensemble{{0.5, -1.0}, {1.5, 2.0}};
@@ -195,6 +232,7 @@ int main(const int argc, char** argv)
             {"zero_birth_is_a_no_op", test_zero_birth_is_a_no_op},
             {"deterministic_birth_preserves_weight_and_moments", test_deterministic_birth_preserves_weight_and_moments},
             {"multidimensional_birth_preserves_phase_space_order", test_multidimensional_birth_preserves_phase_space_order},
+            {"birth_count_follows_the_poisson_rate", test_birth_count_follows_the_poisson_rate},
             {"seed_reproducibility", test_seed_reproducibility},
             {"invalid_inputs", test_invalid_inputs},
             {"injected_samples_are_evolved", test_injected_samples_are_evolved},

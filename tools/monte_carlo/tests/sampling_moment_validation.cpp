@@ -25,19 +25,25 @@ namespace
 using qmomkit::monte_carlo::Ensemble;
 using qmomkit::monte_carlo::SamplingOptions;
 
-double global_maximum_error = 0.0;
+// A sampled moment must lie within this many of its estimated standard errors of
+// the analytical moment. The seeds are fixed, so each check is deterministic for
+// a given standard library. Another library draws different samples; with about
+// a hundred checks at five standard errors, a correct sampler then fails one with
+// a probability of roughly 1e-4.
+constexpr double standard_error_multiple = 5.0;
 
-void update_maximum_error(const double error)
-{
-    global_maximum_error = std::max(global_maximum_error, error);
-}
+double global_maximum_standardized_error = 0.0;
 
 void check_close_with_standard_error(const double estimate, const double expected, const double standard_error, const std::size_t order,
                                      const SamplingOptions& options)
 {
     const double absolute_error = std::abs(estimate - expected);
-    update_maximum_error(absolute_error);
-    const double tolerance = std::max(2.0e-2 * std::max(1.0, std::abs(expected)), 8.0 * standard_error + 1.0e-12);
+    if (standard_error > 0.0)
+    {
+        global_maximum_standardized_error = std::max(global_maximum_standardized_error, absolute_error / standard_error);
+    }
+    // m0 has no sampling error, so the small absolute term only admits rounding.
+    const double tolerance = standard_error_multiple * standard_error + 1.0e-12;
     std::ostringstream context;
     context << "order=" << order << " sample_count=" << options.sample_count << " seed=" << options.seed << " standard_error=" << standard_error;
     CHECK_CLOSE_CONTEXT(estimate, expected, tolerance, 0.0, context.str());
@@ -71,6 +77,10 @@ void test_single_distribution_validation()
         compare_one_dimensional_to_analytical(qmomkit::NormalDistribution{0.75, 1.2}, 2.5, 4, SamplingOptions{sample_count, 4101});
         compare_one_dimensional_to_analytical(qmomkit::GammaDistribution{2.0, 0.7}, 1.75, 3, SamplingOptions{sample_count, 4102});
         compare_one_dimensional_to_analytical(qmomkit::LogNormalDistribution{-0.2, 0.35}, 3.0, 3, SamplingOptions{sample_count, 4103});
+        compare_one_dimensional_to_analytical(qmomkit::BetaDistribution{2.0, 5.0}, 1.5, 4, SamplingOptions{sample_count, 4104});
+        compare_one_dimensional_to_analytical(qmomkit::ChiDistribution{4.0}, 0.8, 4, SamplingOptions{sample_count, 4105});
+        compare_one_dimensional_to_analytical(qmomkit::ChiSquaredDistribution{5.0}, 1.2, 3, SamplingOptions{sample_count, 4106});
+        compare_one_dimensional_to_analytical(qmomkit::WeibullDistribution{1.5, 0.8}, 2.0, 4, SamplingOptions{sample_count, 4107});
     }
 }
 
@@ -331,6 +341,6 @@ int main(const int argc, char** argv)
             {"generalized_moment_matches_cqmom_quadrature", test_generalized_moment_matches_cqmom_quadrature},
             {"invalid_inputs", test_invalid_inputs},
         });
-    std::cout << "Monte Carlo sampling moment validation maximum analytical absolute error: " << global_maximum_error << '\n';
+    std::cout << "Largest moment error in standard errors: " << global_maximum_standardized_error << '\n';
     return status;
 }

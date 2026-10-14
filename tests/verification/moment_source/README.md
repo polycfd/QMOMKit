@@ -8,9 +8,10 @@ fixed-step SSP-RK3
 These cases verify that `advance_qmom_moments_with_source` reproduces the
 closed-form solutions of linear moment ODEs, for rates acting on each order
 alone and for rates coupling orders, that it converges at third order, and
-that the advanced moments remain invertible. The CQMOM case advances the CQMOM
-moment vector through this vector overload; `advance_cqmom_moments_with_source`
-is not covered here.
+that the advanced moments remain invertible. The `common_rate_relaxation` case
+advances the CQMOM moment vector through this vector overload. Separate cases
+call `advance_cqmom_moments_with_source` itself: with a boundary contribution
+and with realizability policies for single coordinates.
 
 ## Cases
 
@@ -57,6 +58,39 @@ After each plan the test checks:
   quadrature reproduces them; the CQMOM case also keeps its conditioning order
   and fixed storage.
 
+`verification_moment_source_cqmom_update_<case>` (`cqmom_source_update.cpp`)
+uses node counts $\{2, 2\}$ and references that SSP-RK3 reproduces exactly:
+
+- `relaxation_matches_the_ssp_rk3_step`: the weighted points of
+  `common_rate_relaxation` relax toward their target,
+  $\dot M_\alpha = -r\,(M_\alpha - M^*_\alpha)$ with $r = 0.45$. One SSP-RK3
+  step of $\Delta t$ is exactly $M^* + P(-r\Delta t)\,(M - M^*)$ with
+  $P(z) = 1 + z + z^2/2 + z^3/6$; one step and five steps of 0.06 from
+  $t = 0.1$. The rate reads each entry's multi-index from the source context.
+- `source_and_boundary_are_integrated_exactly`: a constant source
+  $0.5\,c^\alpha$ plus a boundary birth $(0.8 - 0.6t + 1.5t^2)\,b^\alpha$ at
+  $c = (0.7, -0.2)$, $b = (0.3, -0.4)$. SSP-RK3 weighs its stage times
+  $t$, $t+\Delta t$, $t+\Delta t/2$ like Simpson's rule, so one step of 0.3 from
+  $t = 0.2$ adds the exact integral.
+- Coordinate policies, on independent coordinates
+  $M_{(k,j)} = A_k B_j$ with $B = (1, 0, 1, 0)$ and the rate $-r M_\alpha$ on
+  every entry with second exponent 2, which multiplies $B_2$ by $P(-r\Delta t)$
+  per step and by $1 - r\Delta t$ in the first stage; a real-line policy on the
+  second coordinate rejects a negative $B_2$, over a step of 1.5:
+  - `final_only_coordinate_policy_halves_a_rejected_step`: FinalOnly,
+    $r = 2$, one retry: $B_2 = P(-1.5)^2$;
+  - `every_stage_coordinate_policy_halves_a_rejected_step`: EveryStage,
+    $r = 1$, one retry: $B_2 = P(-0.75)^2$;
+  - `rejected_step_without_retries_returns_the_input`: `rejected_by_predicate`
+    and the input moments;
+  - `failed_update_discards_an_accepted_part_of_the_interval`: EveryStage with
+    $r = 1$ before $t = 0.75$ and $r = 2$ from then on, one retry, minimum
+    time step 0.5: the half step to 0.75 is accepted, the rest fails with
+    `minimum_timestep_reached`, and the update returns its input, not the
+    moments at 0.75;
+  - `policy_checks_only_its_own_coordinate`: the FinalOnly policy on the first
+    coordinate accepts the full step, $B_2 = P(-3) = -2$.
+
 ## Tolerances
 
 - Advanced moments: `2e-6` absolute; the unit-floored relative error checked
@@ -65,6 +99,10 @@ After each plan the test checks:
   The two finest observed orders, the ones asserted, are within 0.03 of 3.
 - Reconstructed moments and $m_0$: `2e-8`, a safety bound; the observed
   errors are at roundoff or zero.
+- `cqmom_update` cases: `1e-13` relative to $\max(|\text{reference}|, 1)$,
+  since the references are exact up to rounding; the observed errors are at
+  most `2.2e-16`. Statuses and retry counts are compared exactly, and a failed
+  update must return its input moments exactly.
 
 ## Reproduce
 

@@ -620,20 +620,20 @@ output. From the repository root, after running the example, plot moment
 histories with:
 
 ```bash
-python tools/plotting/plot_moments.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/moment_history.txt
-python tools/plotting/plot_moments.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/moment_history_mc.txt
+python3 tools/plotting/plot_moments.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/moment_history.txt
+python3 tools/plotting/plot_moments.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/moment_history_mc.txt
 ```
 
 Selected moment columns can be requested by label:
 
 ```bash
-python tools/plotting/plot_moments.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/moment_history.txt --moments 'M[0,0,0]' 'M[1,0,0]' 'M[0,1,0]' 'M[0,0,1]'
+python3 tools/plotting/plot_moments.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/moment_history.txt --moments 'M[0,0,0]' 'M[1,0,0]' 'M[0,1,0]' 'M[0,0,1]'
 ```
 
 Plot the CQMOM quadrature history with:
 
 ```bash
-python tools/plotting/plot_quadrature.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/quadrature_history.txt
+python3 tools/plotting/plot_quadrature.py examples/cqmom_3d_droplets_condensation-nucleation/build/output/quadrature_history.txt
 ```
 
 The plotting scripts read the existing whitespace-delimited output files and

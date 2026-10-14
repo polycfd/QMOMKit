@@ -73,9 +73,20 @@ def rows_by_node(data: np.ndarray) -> list[tuple[int, np.ndarray]]:
     return grouped
 
 
+def node_count_changes(data: np.ndarray) -> bool:
+    """Whether the number of rows, that is of active nodes, differs between output times."""
+
+    _times, counts = np.unique(data[:, 0], return_counts=True)
+    return len(set(counts.tolist())) > 1
+
+
 def plot_node_lines(ax, data: np.ndarray, value_column: int, ylabel: str) -> None:
+    # Node indices are positions in the node list of each output time. When the
+    # number of nodes changes, an index can refer to a different node at the next
+    # time, so the points are not joined by lines.
+    linestyle = "none" if node_count_changes(data) else "-"
     for node, rows in rows_by_node(data):
-        ax.plot(rows[:, 0], rows[:, value_column], marker="o", markersize=3, label=f"node {node}")
+        ax.plot(rows[:, 0], rows[:, value_column], marker="o", markersize=3, linestyle=linestyle, label=f"node {node}")
     ax.set_xlabel("time")
     ax.set_ylabel(ylabel)
     ax.grid(True, alpha=0.3)

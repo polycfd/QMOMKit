@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -16,6 +17,10 @@ import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# Files with more moment columns than this show only the number density and the
+# first moments unless --moments selects others.
+MAXIMUM_DEFAULT_COLUMNS = 10
 
 
 def read_qmomkit_table(path: Path) -> tuple[list[str], np.ndarray]:
@@ -34,18 +39,33 @@ def read_qmomkit_table(path: Path) -> tuple[list[str], np.ndarray]:
     if labels is None:
         raise ValueError(f"{path} does not contain a '# time ...' header")
 
+    not_moments = [label for label in labels[1:] if not re.fullmatch(r"[MG]\[[^\]]+\]", label)]
+    if not_moments:
+        raise ValueError(f"{path} is not a MomentWriter history; columns that are not moments: " + ", ".join(not_moments))
+
     data = np.loadtxt(path, comments="#", ndmin=2)
     if data.shape[1] != len(labels):
         raise ValueError(f"{path} has {data.shape[1]} data columns but {len(labels)} header labels")
     return labels, data
 
 
+def total_order(label: str) -> float:
+    """Sum of the orders in a label such as 'M[1,0,2]' or 'G[0.5,1]'."""
+
+    return sum(float(order) for order in label[2:-1].split(","))
+
+
 def choose_moments(labels: list[str], requested: list[str] | None) -> list[str]:
-    """Return requested moment labels, or all non-time columns."""
+    """Return requested moment labels, all moment columns of a small file, or
+    the raw moments of total order zero and one of a large file."""
 
     moments = labels[1:]
     if not requested:
-        return moments
+        if len(moments) <= MAXIMUM_DEFAULT_COLUMNS:
+            return moments
+        low_orders = [label for label in moments if label.startswith("M[") and total_order(label) <= 1]
+        print(f"{len(moments)} moment columns; plotting those of total order 0 and 1. Select others with --moments.")
+        return low_orders
 
     missing = [name for name in requested if name not in moments]
     if missing:
@@ -69,7 +89,7 @@ def plot_moments(path: Path, output: Path, requested: list[str] | None) -> None:
     ax.set_xlabel("time")
     ax.set_ylabel("raw moment")
     ax.grid(True, alpha=0.3)
-    ax.legend(fontsize="small")
+    ax.legend(fontsize="small", loc="upper left", bbox_to_anchor=(1.02, 1.0))
     fig.tight_layout()
     fig.savefig(output, dpi=160)
 

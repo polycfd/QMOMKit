@@ -76,7 +76,7 @@ if(BUILD_TESTING)
     endfunction()
 
     monte_carlo_add_test_executable(monte_carlo_population_birth_tests tests/population_birth.cpp)
-    monte_carlo_add_test_executable(monte_carlo_sampling_moment_validation_tests tests/sampling_moment_validation.cpp)
+    monte_carlo_add_test_executable(monte_carlo_sampling_moment_verification_tests tests/sampling_moment_verification.cpp)
     monte_carlo_add_test_executable(monte_carlo_ensemble_evolution_tests tests/ensemble_evolution.cpp)
     monte_carlo_add_test_executable(monte_carlo_weighted_point_evolution_tests tests/weighted_point_evolution.cpp)
     monte_carlo_add_test_executable(monte_carlo_sampled_initialization_tests tests/sampled_initialization.cpp)

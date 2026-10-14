@@ -69,7 +69,7 @@ void compare_one_dimensional_to_analytical(const qmomkit::DistributionSpecificat
     }
 }
 
-void test_single_distribution_validation()
+void test_single_distribution_verification()
 {
     const std::vector<std::size_t> sample_counts{40000, 120000};
     for (const std::size_t sample_count : sample_counts)
@@ -124,7 +124,7 @@ void compare_mixture_to_analytical(const qmomkit::DistributionMixture& mixture, 
     }
 }
 
-void test_mixture_validation()
+void test_mixture_verification()
 {
     compare_mixture_to_analytical(
         qmomkit::DistributionMixture{{{qmomkit::NormalDistribution{-1.0, 0.5}, 1.25}, {qmomkit::NormalDistribution{2.0, 0.8}, 2.75}}}, 4,
@@ -160,7 +160,7 @@ void compare_product_to_analytical(const qmomkit::IndependentProductDistribution
     CHECK(std::abs(estimate.moments.values.front() - product.number_density) < 1.0e-14);
 }
 
-void test_independent_product_validation()
+void test_independent_product_verification()
 {
     compare_product_to_analytical(
         qmomkit::IndependentProductDistribution{{qmomkit::GammaDistribution{2.0, 0.5}, qmomkit::NormalDistribution{0.5, 0.7}}, 2.2},
@@ -172,7 +172,7 @@ void test_independent_product_validation()
         std::vector<std::size_t>{1, 2, 2}, SamplingOptions{180000, 7102});
 }
 
-void test_independent_product_mixture_marginal_validation()
+void test_independent_product_mixture_marginal_verification()
 {
     const qmomkit::DistributionMixture mixture{
         {{qmomkit::LogNormalDistribution{-0.3, 0.25}, 1.5}, {qmomkit::LogNormalDistribution{0.4, 0.45}, 3.25}}};
@@ -331,10 +331,10 @@ int main(const int argc, char** argv)
         argc, argv,
         {
             {"all_supported_single_family_sampling_smoke", test_all_supported_single_family_sampling_smoke},
-            {"single_distribution_validation", test_single_distribution_validation},
-            {"mixture_validation", test_mixture_validation},
-            {"independent_product_validation", test_independent_product_validation},
-            {"independent_product_mixture_marginal_validation", test_independent_product_mixture_marginal_validation},
+            {"single_distribution_verification", test_single_distribution_verification},
+            {"mixture_verification", test_mixture_verification},
+            {"independent_product_verification", test_independent_product_verification},
+            {"independent_product_mixture_marginal_verification", test_independent_product_mixture_marginal_verification},
             {"standard_error_convergence", test_standard_error_convergence},
             {"asymmetric_tensor_moment_layout", test_asymmetric_tensor_moment_layout},
             {"generalized_moment_output", test_generalized_moment_output},

@@ -14,7 +14,9 @@ namespace qmomkit::monte_carlo
  *
  * The operation owns the pseudo-random engine for one injection call and passes
  * it to this callback. A deterministic injection may ignore the engine and
- * return the same phase-space coordinate every time.
+ * return the same phase-space coordinate every time. Any exception the
+ * callback throws, whether derived from `std::exception` or not, ends the
+ * injection with `invalid_input`.
  */
 using BirthCoordinateSampler = std::function<Sample(std::mt19937_64&)>;
 

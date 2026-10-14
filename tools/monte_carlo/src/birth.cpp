@@ -1,5 +1,7 @@
 #include "monte_carlo/birth.hpp"
 
+#include "ensemble_checks.hpp"
+
 #include <cmath>
 #include <cstddef>
 #include <exception>
@@ -22,29 +24,18 @@ namespace
                                                                    const BirthCoordinateSampler& sample_birth, const unsigned long long seed,
                                                                    std::size_t& dimensions, double& representative_weight)
 {
-    if (ensemble.empty())
+    const internal::EnsembleCheck check = internal::check_ensemble(ensemble);
+    dimensions = check.dimensions;
+    if (check.problem == internal::EnsembleProblem::empty)
     {
         return birth_failure(seed, SamplingStatus::invalid_input, "Positive population birth requires a non-empty ensemble.");
     }
-
-    dimensions = ensemble.front().size();
-    if (dimensions == 0)
+    if (check.problem != internal::EnsembleProblem::none)
     {
-        return birth_failure(seed, SamplingStatus::invalid_input, "Samples must contain at least one phase-space coordinate.");
-    }
-    for (const Sample& sample : ensemble)
-    {
-        if (sample.size() != dimensions)
-        {
-            return birth_failure(seed, SamplingStatus::invalid_input, "All samples must have the same phase-space dimension.");
-        }
-        for (const double coordinate : sample)
-        {
-            if (!std::isfinite(coordinate))
-            {
-                return birth_failure(seed, SamplingStatus::non_finite_sample, "Sample coordinate is non-finite.");
-            }
-        }
+        return birth_failure(seed,
+                             check.problem == internal::EnsembleProblem::non_finite_coordinate ? SamplingStatus::non_finite_sample
+                                                                                               : SamplingStatus::invalid_input,
+                             internal::ensemble_problem_message(check.problem));
     }
 
     if (!std::isfinite(number_density) || number_density <= 0.0)

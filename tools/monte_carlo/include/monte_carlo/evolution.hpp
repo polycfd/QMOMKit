@@ -30,6 +30,13 @@ enum class EnsembleEvolutionStatus
  * On success, `ensemble` contains one evolved sample for each input sample. On
  * failure, no partially evolved ensemble is returned; diagnostics identify the
  * failing sample and RK23 status when available.
+ *
+ * Invalid input, a non-finite sample coordinate included, gives
+ * `invalid_input`; for a problem with a sample, `failed_sample_index` names
+ * that sample. When the velocity callback throws or breaks its contract, the
+ * status is `velocity_failed`, `rk23_status` is `invalid_input` and
+ * `final_time` is `t0`: the integration of that sample is abandoned, so neither
+ * the RK23 status nor the time of the failure is known.
  */
 struct EnsembleEvolutionResult
 {

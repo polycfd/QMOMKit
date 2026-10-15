@@ -33,6 +33,13 @@ CQMOM, an adaptive reduction likewise replaces the given required moments by
 those of the reduced quadrature. Stored moments that overflow a double make
 the candidate `reconstruction_failed`.
 
+`initial_state()` runs the same construction as `state_candidate(...)` and
+differs only in how it reports failure. It is called once, at setup, where a
+failure means the case itself is wrong, so it throws; `state_candidate(...)`
+runs for every location and step of a coupled host, where an outcome other than
+`success`, such as an emptied cell, is an expected local event, so it returns a
+status.
+
 Moments and quadrature of a state therefore always agree, and a step starts
 from the stored quadrature without reconstructing it. Every successful stage
 builds its result state the same way, from the quadrature it accepted.

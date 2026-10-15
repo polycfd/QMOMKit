@@ -18,6 +18,18 @@ every step:
 3. advance the state;
 4. store the moments of the advanced state.
 
+A state lasts only as long as phase-space evolution alone changes its moments,
+so with transport in between it lives for one phase-space update. The moments
+stay with your code, as the conserved quantities of its discretization. The
+state is the means of advancing them in phase space, so between steps no
+second copy exists that could disagree with yours. Creating the state adds no
+moment inversion: the transported moments must be reconstructed before they can
+be advanced, and `state_candidate(...)` reconstructs them once. For CQMOM, the
+states of a prepared case share its branch structure instead of rebuilding it.
+If creating or advancing a state fails, discard it: your moments are unchanged,
+so there is nothing to restore, and whether to retry the transport step, retry
+with a smaller step, or stop is your decision.
+
 Start each cell from your own moments, in the case's moment order, or from
 `initial_state().moment_values()`.
 
@@ -55,6 +67,18 @@ moments it is given. It reconstructs the quadrature once and does not throw:
 were rejected, and the [Reference](7_reference.md#statuses) lists all cases.
 Passing a realizability policy is optional; it checks the moments before the
 reconstruction.
+
+A cell is `empty` when its number density, $m_0$ or $M_{0,\ldots,0}$, is
+non-negative but below `QmomOptions::cutoff`, `1e-30` by default: the smallest
+number density the Wheeler inversion reconstructs, an absolute value in the
+units of $m_0$. Such a cell, emptied by transport or holding only rounding
+errors, has no quadrature and nothing to evolve, so a policy never rejects it,
+and your code keeps its moments as they are, as the loop above does. A negative
+$m_0$ is not `empty`: the candidate reports `reconstruction_failed`, or
+`realizability_rejected` under a policy. The cutoff may be changed by setting
+it in code, as `qmom_case.qmom_options.cutoff`, or for CQMOM on the `CqmomCase`
+before preparing it, for example for a case loaded with
+`config::load_cqmom(...)`. However, the cutoff does not have a `.qmom` key.
 
 For CQMOM, create the moment data once and replace only its values, in the
 order of its layout's `required_indices`. Every state then shares the prepared

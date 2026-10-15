@@ -58,9 +58,12 @@ case.
 
 A *state* is what evolves: moments together with the quadrature that matches
 them. `initial_state()` creates one from a case, and each time step returns a
-new one. A state cannot be edited, so moments that your application changes
-become a state through `state_candidate(...)`, as described in
-[Coupling QMOMKit](6_coupling_qmomkit.md).
+new one. A state cannot be edited, and it lasts only as long as phase-space
+evolution alone changes its moments. A run of QMOMKit alone advances one state
+from start to end; when your application also changes the moments, for example
+by transporting them, it ought to create a new state from them for every update
+with `state_candidate(...)`, as described in
+[Coupling QMOMKit](6_coupling_qmomkit.md#moments-changed-by-your-code).
 
 ## Adaptive and fixed node counts
 

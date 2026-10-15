@@ -10,12 +10,17 @@ reconstruction, abscissa bounds and branch growth. See
 [CQMOM](../../../docs/developer/cqmom.md) for the recursion and
 [QMOM](../../../docs/developer/qmom.md) for the inversion on each branch.
 
-Except for two recursive cases noted below, every reference is a set of
-weighted points whose raw moments $M_k = \sum_q W_q \prod_d \xi_{q,d}^{k_d}$
-are summed by the test or written into the `.qmom` fixture, never computed by
-QMOMKit; the expected result is the set of points itself. `recursive_quadrature.cpp` and `recursive_cqmom.cpp` call
-the internal recursion and inspect its traversal tree; all other cases use the
-public API. Failures of `compute_cqmom(...)` are covered in
+Every reference is a set of weighted points whose raw moments
+$M_k = \sum_q W_q \prod_d \xi_{q,d}^{k_d}$ are summed by the test or written
+into the `.qmom` fixture, never computed by QMOMKit; the expected result is the
+set of points itself. The exceptions are named below:
+`recursive_1d_reduces_to_wheeler`, compared with `compute_quadrature`; the
+velocity-collapse case, which starts from non-realizable moments; the
+power-of-two case, which compares the reconstruction with itself under exact
+scaling; and `failure_paths`, which expects exceptions.
+`recursive_quadrature.cpp` and `recursive_cqmom.cpp` call the internal
+recursion and inspect its traversal tree; all other cases use the public API.
+Failures of `compute_cqmom(...)` are covered in
 [`cqmom_compute_failures.cpp`](../../component_regression/cqmom_compute_failures.cpp).
 
 ## Cases
@@ -29,7 +34,7 @@ public API. Failures of `compute_cqmom(...)` are covered in
 | --- | --- | --- | --- |
 | `independent_product` | $\xi_0 \in \{1, 3\}$, weights {0.4, 0.6}; independently $\xi_1 \in \{-1, 2\}$, weights {0.25, 0.75} | no | {2, 2} |
 | `deterministic_affine` | same $\xi_0$; $\xi_1 = 2\xi_0 + 1$ | yes | {1, 1} |
-| `branch_dependent` | $\xi_0 \in \{1, 3\}$, weights {0.35, 0.65}; $\xi_1 = -0.5$, or $\{1, 4\}$ with weights {0.3, 0.7} | yes | {1, 2} |
+| `branch_dependent` | $\xi_0 \in \{1, 3\}$, weights {0.35, 0.65}; $\xi_1 = -0.5$ on $\xi_0 = 1$, and $\{1, 4\}$ with weights {0.3, 0.7} on $\xi_0 = 3$ | yes | {1, 2} |
 
 Checked: parent and conditional positions and weights, terminal paths, positive
 weights summing to $M_{0,0} = 1$, node counts in the diagnostics, and the
@@ -72,8 +77,9 @@ units must not change the result.
 (`power_of_two_scaling.cpp`) scales coordinate $d$ by $2^{p_d}$ and the number
 density by $2^q$. These scalings change every moment exactly, so on seeded
 random rules in two and three dimensions with random conditioning orders, in
-fixed and adaptive mode and with every Vandermonde solver, the status, the terminal node count, the abscissas and
-the weights must scale bit for bit, failed reconstructions included.
+fixed and adaptive mode and with every Vandermonde solver, the status, the
+terminal node count, the abscissas and the weights must scale bit for bit,
+failed reconstructions included.
 
 ### Public workflows
 
@@ -87,22 +93,23 @@ hold exactly the ten required moments in their documented order.
 
 `verification_cqmom_moment_reconstruction_*` (`moment_reconstruction.cpp`):
 `qmom_all_orders` for a three-point rule, which also requires an unsuccessful
-1D quadrature to throw; `cqmom_selected`, where the request {2,0}, {0,0},
-{1,1}, {0,2}, {2,0}, {3,1} keeps its order and duplicate;
-`cqmom_required_layout`, aligned with `layout.required_indices`; and
-`failure_paths`, where a wrong-rank request and a mismatched hierarchy each
-throw.
+1D quadrature to throw. The other cases rebuild moments from the quadrature of
+`independent_product.qmom` and compare them with that rule's moments:
+`cqmom_selected`, where the request {2,0}, {0,0}, {1,1}, {0,2}, {2,0}, {3,1}
+keeps its order and duplicate; `cqmom_required_layout`, aligned with
+`layout.required_indices`; and `failure_paths`, where a wrong-rank request and
+a mismatched hierarchy each throw.
 
 ### Recursive inversion
 
 `verification_recursive_quadrature_manufactured_*` (`recursive_quadrature.cpp`)
 covers one to three dimensions, both 2D orders, node counts 2 and 3, and
 adaptive branches with fewer points than requested, mostly through the rebuilt
-tensor. In one dimension the result must equal the Wheeler result of
-`compute_quadrature`. The
-`..._velocity_collapse_...` case uses non-realizable moments {1, 0, -1, 0} for
-$\xi_1$ instead of a rule and checks only its reduction to one node in
-either conditioning order.
+tensor. In one dimension, `recursive_1d_reduces_to_wheeler`, the result must
+equal the Wheeler result of `compute_quadrature`.
+`recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders`
+uses non-realizable moments {1, 0, -1, 0} for $\xi_1$ instead of a rule and
+checks only its reduction to one node in either conditioning order.
 
 `verification_cqmom_recursive_*` (`recursive_cqmom.cpp`) compares positions and
 weights in six fixed cases, `1d` to `4d_adversarial_non_identity` (clustered
@@ -133,11 +140,12 @@ Errors are absolute unless relative, $|a - e| / \max(|e|, 1)$.
 | --- | --- | --- | --- |
 | Two dimensions | $10^{-12}$ | positions, weights; relative moments | observed $10^{-15}$; moments reach $10^3$ |
 | Three to six dimensions | $10^{-11}$ | positions, weights; relative moments | error grows from $10^{-15}$ in 3D to $5 \times 10^{-13}$ in 6D; the bound sits a factor of 20 above |
-| Coordinate units | $2 \times 10^{-10}$; `disparate_units` $10^{-10}$ | relative positions divided by $s$; weights; relative moments divided by $\prod_d s_d^{k_d}$ | safety bounds, observed $10^{-16}$ |
+| Coordinate units | $2 \times 10^{-10}$; `disparate_units` $10^{-10}$ | relative positions divided by $s$; weights; relative moments divided by $\prod_d s_d^{k_d}$ | safety bounds, observed below $10^{-15}$ |
 | Power-of-two scaling | none | exact equality of status, node count, positions and weights | power-of-two scalings are exact in floating point |
 | Workflows, reconstruction, bounds | $10^{-12}$ | positions, weights, moments | observed $10^{-15}$; moments below $10^2$ |
 | Recursive inversion | $10^{-12}$ to $10^{-7}$ per case | positions, weights, moments | safety bounds; the loosest cover 3D moments with errors of $10^{-11}$ |
 | Branch growth | $5 \times 10^{-11}$ | positions, weights, moments | safety bound: SSP-RK3 integrates a constant rate exactly; observed $10^{-16}$ |
+| `failure_paths` | none | the expected exception | |
 
 ## Reproduce
 

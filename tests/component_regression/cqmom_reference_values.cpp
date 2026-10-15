@@ -57,6 +57,10 @@
  *   after the change with one compiler and compare: within a single toolchain
  *   the results are reproducible bit for bit.
  *
+ *   cqmom_reference_values.inc has no shipped generator. To record it, walk
+ *   static_cases() and evolution_cases() as this test does, in a program
+ *   outside the repository, and print each accepted quadrature at %.17g.
+ *
  * WHEN IT IS TESTED
  *   Debug and Release. The checks are explicit and do not rely on assert().
  */

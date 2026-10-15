@@ -13,9 +13,11 @@ reject a rule without clipping it.
 
 ## Cases
 
-**Classical and manufactured rules**, `verification_qmom_analytical_<case>`
-(`qmom_analytical.cpp`, `expected.hpp`, `<case>.qmom`). Each fixture holds the
-first $2N$ raw moments of a rule listed independently in `expected.hpp`:
+### Classical and manufactured rules
+
+`verification_qmom_analytical_<case>` (`qmom_analytical.cpp`, `expected.hpp`,
+`<case>.qmom`). Each fixture holds the first $2n$ raw moments of a rule listed
+independently in `expected.hpp`:
 
 | Cases | Reference rule |
 | --- | --- |
@@ -29,17 +31,20 @@ positive, sum to $m_0$ and rebuild every moment. Uniform nodes must lie in
 $[0, 1]$, exponential nodes must be positive, uniform and Gaussian rules must
 be symmetric, and Gaussian odd moments must vanish.
 
-**Wheeler inversion**, `verification_wheeler_analytical_<case>`
-(`wheeler_analytical.cpp`). Rules of one to six and of eight chosen weighted
-points must be recovered from their moments, including the eight-point rule at
-number density 2500, three points scaled by every fourth power of ten from
-$10^{-20}$ to $10^{20}$, and droplet diameters of 20 to 200 micrometers given in
-meters (`droplet_diameters_in_metres_are_recovered`). Reordering the input
-points must change neither the moments nor the sorted output.
+### Wheeler inversion
 
-**Moment-space boundary**, `verification_qmom_moment_space_boundary_<case>`
-(`moment_space_boundary.cpp`) and
-`verification_adaptive_qmom_adaptive_public_qmom_reconstruction`
+`verification_wheeler_analytical_<case>` (`wheeler_analytical.cpp`). Rules of
+one to six and of eight chosen weighted points must be recovered from their
+moments, including the eight-point rule at number density 2500, three points
+scaled by every fourth power of ten from $10^{-20}$ to $10^{20}$, and droplet
+diameters of 20 to 200 micrometers given in meters
+(`droplet_diameters_in_metres_are_recovered`). Reordering the input points must
+change neither the moments nor the sorted output.
+
+### Moment-space boundary
+
+`verification_qmom_moment_space_boundary_<case>` (`moment_space_boundary.cpp`)
+and `verification_adaptive_qmom_adaptive_public_qmom_reconstruction`
 (`adaptive_qmom.cpp`). Three-point rules approach a two-point rule as two nodes
 coalesce (separation down to $10^{-10}$) or the middle weight vanishes (down to
 $10^{-14}$); the six moments of a two-point rule lie on the boundary for three
@@ -51,7 +56,7 @@ nodes.
 - `adaptive_reduction_preserves_represented_moments`,
   `accepted_reduction_respects_weight_ratio`: adaptive inversion accepts both
   sweeps; in the weight sweep, rules of two or more nodes have
-  $\min w / \max w > r_{\min}$.
+  $\min w / \max w$ above the option `rmin`.
 - `boundary_crossing_matches_realizability`: raising $m_4$ gives three nodes and
   `strictly_realizable`; lowering it gives `not_realizable` from both
   `compute_qmom` and `check_realizability`.
@@ -65,23 +70,27 @@ Every accepted rule of $n$ nodes must have non-negative weights summing to
 $m_0$, sorted abscissas, and rebuild the first $2n$ moments. Where reduction
 starts depends on conditioning, not on a contract, and is not asserted.
 
-**Scaling and support**, `verification_qmom_scaling_and_support_<case>`
-(`scaling_and_support.cpp`). Seeded random rules of one to eight clustered
-weighted points, with weights spanning six decades, are inverted with up to two
-nodes more than they have, so many sequences lie on the boundary; both
-fixed-count refusals and adaptive reductions occur.
+### Scaling and support
+
+`verification_qmom_scaling_and_support_<case>` (`scaling_and_support.cpp`).
+Seeded random rules of one to eight clustered weighted points, with weights
+spanning six decades, are inverted with up to two nodes more than they have, so
+many sequences lie on the boundary; both fixed-count refusals and adaptive
+reductions occur.
 
 - `power_of_two_scaling_is_exact`: scaling the coordinate by $2^p$ and the
   number density by $2^q$ scales every moment exactly, so the status, the node
   count, the abscissas times $2^p$ and the weights times $2^q$ must match bit
   for bit, in fixed and adaptive inversion. No decision may depend on the unit
-  or the number density.
+  or the number density, except the absolute cutoff on $m_0$.
 - `no_more_nodes_than_weighted_points`: a fixed request for more nodes than
   points is `not_realizable`, and adaptive inversion returns at most as many
   nodes as points. No node may be made of rounding.
 
-**Abscissa bounds**, `verification_qmom_quadrature_bounds_<case>`
-(`quadrature_bounds.cpp`). Nodes inside the bounds give the unbounded result
+### Abscissa bounds
+
+`verification_qmom_quadrature_bounds_<case>` (`quadrature_bounds.cpp`), with
+bounds $[\ell, u]$. Nodes inside the bounds give the unbounded result
 (`fixed_bounded_qmom_accepts_nodes_inside_interval`); a node outside gives
 `not_realizable` with that node unclipped
 (`fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping`);
@@ -91,11 +100,13 @@ $10^{6}$, a node half the margin $10^{-12}\max(|\ell|, |u|)$ beyond a bound is
 accepted and one twice the margin beyond is rejected
 (`bounded_qmom_acceptance_does_not_depend_on_the_unit`).
 
-**Failure statuses**, `verification_qmom_compute_failure_<case>`
-(`qmom_compute_failures.cpp`). Fixed-count requests, except the bounded
-adaptive ones, since adaptive inversion answers a negative variance with one
-node, must return the status and a message containing the fragment;
-`invalid_input` returns no nodes.
+### Failure statuses
+
+`verification_qmom_compute_failure_<case>` (`qmom_compute_failures.cpp`). Each
+request must return the listed status and a message containing the fragment;
+`invalid_input` returns no nodes. Requests are fixed-count unless marked
+adaptive, because adaptive inversion would answer the negative variance with
+one node.
 
 | Case | Request | Status | Fragment |
 | --- | --- | --- | --- |
@@ -108,18 +119,14 @@ node, must return the status and a message containing the fragment;
 
 ## Tolerances
 
-- Classical rules: $10^{-12}$, absolute and relative to
-  $\max(|\text{reference}|, 1)$; observed $10^{-16}$ to $10^{-14}$.
-- Wheeler up to three points: absolute $10^{-14}$ to $10^{-11}$ per case,
-  observed $10^{-15}$ to $10^{-13}$. From four points, relative to the largest
-  $|\xi|$ and the total weight: $10^{-12}$, but $10^{-10}$ for eight points and
-  $2 \times 10^{-12}$ for the droplets, because conditioning worsens with $n$
-  and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight.
-- Boundary, adaptive and bounds: $10^{-12}$, a safety bound over observed
-  errors of $10^{-15}$ or zero.
-- Scaling and support: exact equality and node counts, no tolerance. Scalings
-  that would take a moment out of the normal double range are skipped, because
-  they are not exact.
+| Cases | Tolerance | Metric | Why |
+| --- | --- | --- | --- |
+| Classical rules | $10^{-12}$ | both absolute and relative to $\max(\lvert\text{reference}\rvert, 1)$ | observed $10^{-16}$ to $10^{-14}$ |
+| Wheeler, up to three points | $10^{-14}$ to $10^{-11}$ per case | absolute | observed $10^{-15}$ to $10^{-13}$ |
+| Wheeler, from four points and the scaled points | $10^{-12}$; $10^{-10}$ for eight points, $2 \times 10^{-12}$ for the droplets | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight |
+| Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
+| Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
+| Failure statuses | none | exact status and message fragment | |
 
 ## Reproduce
 

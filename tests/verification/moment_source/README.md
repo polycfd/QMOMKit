@@ -9,7 +9,8 @@ These cases verify that `advance_qmom_moments_with_source` reproduces the
 closed-form solutions of linear moment ODEs, for rates acting on each order
 alone and for rates coupling orders, that it converges at third order, and
 that the advanced moments remain invertible. The `common_rate_relaxation` case
-advances the CQMOM moment vector through this vector overload. Separate cases
+advances the CQMOM moment vector through the vector overload of
+`advance_qmom_moments_with_source`. Separate cases
 call `advance_cqmom_moments_with_source` itself: with a boundary contribution
 and with realizability policies for single coordinates.
 
@@ -81,8 +82,8 @@ uses node counts $\{2, 2\}$ and references that SSP-RK3 reproduces exactly:
     $r = 2$, one retry: $B_2 = P(-1.5)^2$;
   - `every_stage_coordinate_policy_halves_a_rejected_step`: EveryStage,
     $r = 1$, one retry: $B_2 = P(-0.75)^2$;
-  - `rejected_step_without_retries_returns_the_input`: `rejected_by_predicate`
-    and the input moments;
+  - `rejected_step_without_retries_returns_the_input`: EveryStage, $r = 1$, no
+    retries: `rejected_by_predicate` and the input moments;
   - `failed_update_discards_an_accepted_part_of_the_interval`: EveryStage with
     $r = 1$ before $t = 0.75$ and $r = 2$ from then on, one retry, minimum
     time step 0.5: the half step to 0.75 is accepted, the rest fails with

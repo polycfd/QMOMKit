@@ -46,7 +46,7 @@ All are `verification_distributions_analytical_<case>`
   and, configured,
   `configuration_independent_product_{two_dimensional,normal_gamma,beta_log_normal_weibull,dimension_sweep}`,
   the last in four to six dimensions.
-  `configuration_independent_product_mixture_marginal` has a lognormal-mixture
+  `configuration_independent_product_mixture_marginal` has a log-normal-mixture
   marginal with $m_0 = 4.75$, which must be divided out; its prepared case is
   then reconstructed with `compute_cqmom` and must rebuild its moments.
 - **Failure reporting**: `maximum_order_zero_and_invalid_parameters`,
@@ -75,7 +75,7 @@ Errors are relative to $\max(|\text{reference}|, 1)$ unless stated otherwise.
 - Error-free and high-precision references: purely relative
   $4(k + 1)\epsilon$ at order $k$, observed about $2\epsilon$.
 - Mixtures, products and configured moments: $10^{-13}$ to $10^{-12}$, with
-  $10^{-11}$ absolute for tensors with lognormal and Weibull factors; observed
+  $10^{-11}$ absolute for tensors with log-normal and Weibull factors; observed
   $10^{-15}$ or below. The odd moments of the normals at $\pm 10$ cancel to
   zero and are checked at $10^{-12}$ ($10^{-14}$ for $m_1$); they are observed
   exactly zero.

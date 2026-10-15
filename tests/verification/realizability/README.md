@@ -14,7 +14,7 @@ density, and that rounding of the input may weaken a verdict to `boundary` or
 
 All are `verification_realizability_analytical_<case>`
 (`realizability_analytical.cpp`). Realizable references are analytical
-densities (normal, gamma, lognormal, beta, uniform) or chosen weighted points;
+densities (normal, gamma, log-normal, beta, uniform) or chosen weighted points;
 non-realizable ones violate a stated condition.
 
 - `diagnostic_success_cases`, `diagnostic_failure_cases`,
@@ -51,8 +51,9 @@ non-realizable ones violate a stated condition.
 ## Tolerances
 
 Verdicts, and in the diagnostic cases the checked order and, for rejections
-and boundary cases, the limiting matrix, must match exactly. There a strict verdict needs a pivot above the tolerance
-used and a rejection one below its negative, so neither rests on rounding. The
+and boundary cases, the limiting matrix, must match exactly. In those cases a
+strict verdict needs a pivot above the tolerance used and a rejection one below
+its negative, so neither rests on rounding. The
 classifier runs at its default relative tolerance $10^{-12}$; the near-boundary
 cases set $10^{-8}$, so that moving $m_4$ of two points at $\pm 1$ by $10^{-10}$
 is `numerically_indeterminate` and by $10^{-6}$ is decided, as are variances of

@@ -46,9 +46,8 @@ All names start with `component_regression_`.
   [`vandermonde/`](../verification/vandermonde/README.md) instead.
 
 `cqmom_reference_values.inc` has no shipped generator; changing it needs the
-justification of any numerical change. To record, walk `static_cases()` and
-`evolution_cases()` as the test does in a program outside the repository and
-print each accepted quadrature at `%.17g`.
+justification of any numerical change, and its source header says how to
+record it.
 
 ## Tolerances
 

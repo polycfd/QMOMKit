@@ -42,12 +42,12 @@ Headers are included as `<monte_carlo/...>`, and everything lives in
 | Header | Provides |
 | --- | --- |
 | `ensemble.hpp` | `Ensemble`, a vector of samples in phase-space order, and `SamplingOptions` (sample count, seed) |
-| `sampling.hpp` | Samples of a distribution, mixture or independent product |
+| `sampling.hpp` | `sample_distribution(...)`, `sample_mixture(...)`, `sample_independent_product(...)`: samples of a distribution, mixture or independent product |
 | `sampled_initialization.hpp` | `sample_initialization(...)`: a sample together with the moments of that sample, all of them up to a maximum order or only those of a `RawMomentRequest` |
-| `moments.hpp` | Raw and selected moments of an ensemble with their standard errors, and generalized moments |
+| `moments.hpp` | `compute_ensemble_moments(...)`, `compute_requested_ensemble_moments(...)`, `compute_generalized_ensemble_moments(...)`: raw and selected moments of an ensemble with their standard errors, and generalized moments |
 | `evolution.hpp` | `evolve_ensemble(...)`: moves every sample with a `PhaseSpaceVelocity` (RK23), calling it for one sample at a time, so a velocity that couples nodes acts on each particle alone |
 | `birth.hpp` | `inject_population(...)`: adds a Poisson number of samples for a given integrated birth amount into a non-empty population, and returns the number density to use from then on |
-| `output.hpp` | Moment-history files written with QMOMKit's `MomentWriter` |
+| `output.hpp` | `make_moment_history_writer(...)`, `write_moment_history_row(...)`: moment-history files written with QMOMKit's `MomentWriter` |
 
 Sampling, moment, evolution and birth results have `ok()`, `status` and
 `message`; an initialization result has `ok()` and its `sampling` and
@@ -57,37 +57,48 @@ instead. A sample repeats for the same seed, compiler and standard library.
 ## Comparing QMOMKit with a sample
 
 ```cpp
+#include <monte_carlo/evolution.hpp>
+#include <monte_carlo/moments.hpp>
+#include <monte_carlo/sampled_initialization.hpp>
+#include <qmomkit/qmomkit.hpp>
+
+#include <iostream>
+
 namespace mc = qmomkit::monte_carlo;
 
-// One sample of 100000 particles, and the moments of exactly that sample.
-const mc::OneDimensionalSampledInitialization initial =
-    mc::sample_initialization(qmomkit::LogNormalDistribution{-0.2, 0.4}, 2.5, 3, mc::SamplingOptions{100000, 1201});
-
-// The same velocity moves the QMOM nodes and the particles: dxi/dt = -0.5 xi.
-const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
-    [](double, const std::vector<double>& xi) { return std::vector<double>{-0.5 * xi[0]}; });
-const qmomkit::QmomMomentSource no_source = [](double, const qmomkit::QmomSourceContext& context)
-{ return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
-
-const qmomkit::QmomState state = qmomkit::QmomCase{initial.moments.moments, 2}.initial_state();
-const qmomkit::QmomPhaseSpaceEvolutionResult qmom = qmomkit::advance_qmom_phase_space(state, 0.0, 1.0, velocity, no_source);
-const mc::EnsembleEvolutionResult particles = mc::evolve_ensemble(initial.sampling.ensemble, velocity, 0.0, 1.0);
-
-const mc::OneDimensionalMomentEstimate sampled =
-    mc::compute_ensemble_moments(particles.ensemble, initial.sampling.number_density, 3);
-for (std::size_t order = 0; order < sampled.moments.size(); ++order)
+int main()
 {
-    std::cout << "m" << order << ": QMOM " << qmom.state.moment_values()[order] << ", Monte Carlo " << sampled.moments[order]
-              << " +/- " << sampled.standard_errors[order] << '\n';
+    // One sample of 100000 particles, and the moments of exactly that sample.
+    const mc::OneDimensionalSampledInitialization initial =
+        mc::sample_initialization(qmomkit::LogNormalDistribution{-0.2, 0.4}, 2.5, 3, mc::SamplingOptions{100000, 1201});
+
+    // The same velocity moves the QMOM nodes and the particles: dxi/dt = -0.5 xi.
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& xi) { return std::vector<double>{-0.5 * xi[0]}; });
+    const qmomkit::QmomMomentSource no_source = [](double, const qmomkit::QmomSourceContext& context)
+    { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    const qmomkit::QmomState state = qmomkit::QmomCase{initial.moments.moments, 2}.initial_state();
+    const qmomkit::QmomPhaseSpaceEvolutionResult qmom = qmomkit::advance_qmom_phase_space(state, 0.0, 1.0, velocity, no_source);
+    const mc::EnsembleEvolutionResult particles = mc::evolve_ensemble(initial.sampling.ensemble, velocity, 0.0, 1.0);
+
+    const mc::OneDimensionalMomentEstimate sampled =
+        mc::compute_ensemble_moments(particles.ensemble, initial.sampling.number_density, 3);
+    for (std::size_t order = 0; order < sampled.moments.size(); ++order)
+    {
+        std::cout << "m" << order << ": QMOM " << qmom.state.moment_values()[order] << ", Monte Carlo " << sampled.moments[order]
+                  << " +/- " << sampled.standard_errors[order] << '\n';
+    }
 }
 ```
 
 Check `ok()` on each result before using the next. A difference of a few
 standard errors is sampling noise, not a discrepancy; $m_0$ has none, since
-every sample carries the same weight. For CQMOM, sample an
-independent product with the request
-`RawMomentRequest{layout.required_indices.to_multi_indices()}` of the case's
-layout; the estimated `values` then come in layout order, and
+every sample carries the same weight. For CQMOM, sample an independent
+product with `sample_initialization(product, request, options)`, where
+`request` is `RawMomentRequest{layout.required_indices.to_multi_indices()}` and
+`layout` is `create_cqmom_moment_layout(prepared_case.hierarchy())`; the
+estimated `values` then come in layout order, and
 `CqmomMomentData{layout, values}` holds them.
 
 ## Examples

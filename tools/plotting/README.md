@@ -35,31 +35,27 @@ Plot selected moment columns:
 python3 tools/plotting/plot_moments.py output/moments.txt --moments 'M[0]' 'M[2]'
 ```
 
-Tables whose columns are not `M[...]` or `G[...]` moments are refused.
+Tables whose columns are not `M[...]` or `G[...]` moments are refused. The
+figure is written next to the input as `<stem>_moments.png`, or to `--output`.
 
 ## Quadrature Histories
 
-Plot a one-dimensional QMOM `QuadratureWriter` file:
-
-```bash
-python3 tools/plotting/plot_quadrature.py output/quadrature.txt
-```
-
-Plot a CQMOM quadrature history:
+Plot a QMOM or CQMOM `QuadratureWriter` file; the script tells them apart by
+the header:
 
 ```bash
 python3 tools/plotting/plot_quadrature.py output/quadrature_history.txt
 ```
 
+A QMOM file gives `<stem>.png` next to the input, a CQMOM file
+`<stem>_history.png` and `<stem>_final.png`; `--output` sets the path or
+prefix instead.
+
 For QMOM output, each row is one active node at one output time. Adaptive QMOM
 files may contain different active node counts at different times, and inactive
 nodes are not padded. For CQMOM output, each row is one terminal node with its
-recursive path. The script plots weights and abscissas by public node index and
+recursive path. The script plots weights and abscissas by `node_index` and
 adds a simple final-time CQMOM node visualization. When the number of nodes
 changes between output times, an index can refer to a different node at the
 next time, so the points are then shown without connecting lines.
 Multidimensional CQMOM output is shown in the first two dimensions.
-
-These scripts deliberately avoid a general projection framework, trajectory
-analysis, or specialized interpretation of CQMOM nodes. They read the column
-labels and numeric rows directly from the native output files.

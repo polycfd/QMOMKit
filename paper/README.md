@@ -29,9 +29,9 @@ seconds.
 
 ## Reproduce everything
 
-Copy this whole block (without the explanatory comments)
-into a shell at the repository root. It builds
-everything, runs all nine studies, and writes all eight figures.
+Paste this block into a shell at the repository root; in an interactive zsh,
+run `setopt interactive_comments` first so that the comment lines are skipped.
+It builds everything, runs all nine studies, and writes all eight figures.
 
 ```bash
 # 1. Build and install QMOMKit and its Monte Carlo companion.
@@ -105,7 +105,7 @@ Each study writes its results to `output/` inside its own directory under
 | `4d_particles_breakup_recoil` | `qmomkit_paper_4d_particles_breakup_recoil` | `cqmom_spherical_breakup_quadrature_4d_moments.pdf` |
 | `5d_particles_breakup_heat-transfer` | `qmomkit_paper_5d_particles_breakup_heat_transfer` | `cqmom_spherical_breakup_moments_5d_moments.pdf` |
 
-Note that the executable names use underscores throughout, while three of the
+Note that the executable names use underscores throughout, while two of the
 directory names contain a hyphen. Copy the commands rather than retyping them.
 
 What each study does:

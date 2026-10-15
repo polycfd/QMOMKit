@@ -29,12 +29,13 @@ target_link_libraries(example_target PRIVATE qmomkit_monte_carlo::qmomkit_monte_
 
 ## Build pattern
 
-Install QMOMKit first, as described in [Installation](../docs/user/1_installation.md).
-From an example directory, configure against that install prefix:
+Install QMOMKit first, as described in [Installation](../docs/user/1_installation.md),
+which installs into `install/` at the repository root by default. From an
+example directory:
 
 ```bash
 cd examples/example_name
-cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/qmomkit
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
 cd build
 ./example_executable
@@ -44,10 +45,10 @@ Examples using the Monte Carlo companion to produce reference results
 need `QMOMKitMonteCarlo` installed to the same prefix;
 see its [README](../tools/monte_carlo/README.md).
 
-Most examples with a local `configuration.qmom` copy it into `build/` during
-CMake configuration, so generated output is written under the build directory.
-A few instead take the configuration file as a command-line argument and are run
-from the example directory; their own README says which.
+Examples with a local `configuration.qmom` copy it into `build/` during CMake
+configuration, so their output is written under the build directory.
+`cqmom_5d_non-spherical-particles` instead takes the configuration file as a
+command-line argument; its README shows how it is run.
 
 Examples that write QMOM or CQMOM moments and quadrature use
 `qmomkit::MomentWriter` and `qmomkit::QuadratureWriter` to write `.txt` files. These

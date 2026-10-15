@@ -1,377 +1,98 @@
-# 2D CQMOM bubble cavitation example
+# 2D CQMOM bubble cavitation
 
-## Purpose and workflows
+This example, based on
+[Bryngelson et al. (2023)](https://www.doi.org/10.1016/j.jcp.2023.111917),
+moves a spatially uniform population of oscillating bubbles through the phase
+space of bubble radius and radial velocity by nonlinear CQMOM node advection.
+`main.cpp` loads a `qmomkit::CqmomPreparedCase`, replaces its initial
+moments with those of a finite sample through
+`qmomkit::config::with_initial_moments(...)` and advances them with
+`qmomkit::advance_cqmom_advection(...)`; `main_mc.cpp`, the Monte Carlo
+reference, moves the sampled bubbles themselves with
+`qmomkit::monte_carlo::evolve_ensemble(...)`.
 
-This standalone example is based on the work of
-[Bryngelson et al. (2023)](https://www.doi.org/10.1016/j.jcp.2023.111917) and
-evolves a spatially uniform bubble population in the
-two-dimensional cavitation phase space $\boldsymbol{\xi} = (R,U)$,
-where $R$ is the instantaneous dimensionless bubble radius and
-$U=\dot R$ is the dimensionless radial velocity.
+## Model
 
-The example contains two executables:
-
-- `cqmom_2d_bubbles_cavitation_example`: initializes CQMOM from empirical raw
-  moments of a deterministic finite sampled population and advances the CQMOM
-  quadrature through the advection cavitation velocity.
-- `cqmom_2d_bubbles_cavitation_mc_example`: evolves the same deterministic
-  finite sampled population directly with the Monte Carlo companion utilities.
-
-Both workflows use the same [configuration.qmom](./configuration.qmom),
-distribution parameters, sample count, initialization seed, coordinate order,
-and advection phase-space velocity. The Monte Carlo executable is a direct
-sampled-population companion for this example.
-
-The CQMOM driver retains the normal case loaded from
-[configuration.qmom](./configuration.qmom) and replaces its initial moments
-with the complete sampled tensor using `with_initial_moments(...)`.
-
-The CQMOM workflow is:
-
-```text
-configuration.qmom
-        |
-        v
-fixed-seed sampled initialization
-        |
-        v
-empirical raw moments
-        |
-        v
-CQMOM case
-        |
-        v
-CqmomPreparedCase::initial_state() -> CqmomState with its initial quadrature
-        |
-        v
-CQMOM advection
-```
-
-The direct Monte Carlo workflow is:
-
-```text
-configuration.qmom
-        |
-        v
-fixed-seed sampled initialization
-        |
-        v
-finite sampled population
-        |
-        v
-advection sample evolution
-```
-
-## Phase-space definition and raw moments
-
-The configured phase-space order is (R, U).
-
-The same order is used by [configuration.qmom](./configuration.qmom), the
-sampled ensemble, the phase-space velocity callback, CQMOM moment exponents,
-quadrature abscissas, and output files. Coordinate names are example metadata;
-QMOMKit itself treats them as generic phase-space coordinates.
-
-For a number density function $n(R,U)$, the raw (unnormalized) moments are
+The phase-space coordinates are, in this order, the bubble radius $R$ and the
+radial velocity $U = \mathrm{d}R/\mathrm{d}t$, and $n(R,U)$ is the number
+density; $R$, $U$, time $t$ and all parameters are dimensionless. The raw
+moments are $M_{i,j} = \iint R^i U^j\, n(R,U)\,\mathrm{d}R\,\mathrm{d}U$. Each
+bubble follows
 
 ```math
-\begin{aligned}
-M_{i,j}
-&=
-\int R^i U^j n(R,U)\,\mathrm{d}R\,\mathrm{d}U.
-\end{aligned}
-```
-
-Here $i$ is the order in radius and $j$ is the order in radial velocity.
-The zeroth moment $M_{0,0}$ is the total number density.
-
-The finite sampled initialization estimates the same raw moments as
-
-$$
-\begin{aligned}
-M_{i,j}^{(N)}
-&=
-\frac{n_0}{N}
-\sum_{p=1}^{N}
-R_p^i U_p^j,
-\end{aligned}
-$$
-
-where $N$ is the sample count, $n_0$ is the configured total number density,
-$(R_p,U_p)$ is sample $p$, and $n_0/N$ is the constant statistical weight
-carried by each sample. The empirical moments $M_{i,j}^{(N)}$ initialize the
-CQMOM case, while the same samples $(R_p,U_p)$ initialize the direct Monte
-Carlo companion.
-
-## Cavitation model
-
-The advection callback in [physics.cpp](./physics.cpp) advances each point in
-phase space with
-
-$$
-\frac{\mathrm{d}R}{\mathrm{d}t}=U,
-$$
-
-and
-
-```math
-\begin{aligned}
+\frac{\mathrm{d}R}{\mathrm{d}t} = U,
+\qquad
 \frac{\mathrm{d}U}{\mathrm{d}t}
-&=
-\frac{1}{R}
-\left[
+= \frac{1}{R}\left[
 \left(\frac{R_o}{R}\right)^{3\gamma}
--\frac{1}{C_p}
--\frac{2}{\mathrm{We}\,R_o}
-\left(
-\frac{R_o}{R}
--
-\left(\frac{R_o}{R}\right)^{3\gamma}
-\right)
--\frac{3}{2}U^2
--\frac{4}{\mathrm{Re}}\frac{U}{R}
-\right].
-\end{aligned}
+- \frac{1}{C_p}
+- \frac{2}{\mathrm{We}\,R_o}\left(\frac{R_o}{R}
+- \left(\frac{R_o}{R}\right)^{3\gamma}\right)
+- \frac{3}{2}U^2
+- \frac{4}{\mathrm{Re}}\frac{U}{R}
+\right],
 ```
 
-The symbols are:
+with the constants set in [physics.hpp](./physics.hpp):
 
-- $R$: instantaneous dimensionless bubble radius;
-- $U$: dimensionless radial velocity;
-- $t$: dimensionless time used by the example driver;
-- $R_o$: reference radius;
-- $C_p$: pressure coefficient;
-- $\gamma$: heat-capacity ratio;
-- $\mathrm{Re}$: Reynolds number parameter;
-- $\mathrm{We}$: Weber number parameter.
+| Symbol | Meaning | Value |
+|---|---|---:|
+| $R_o$ | reference radius | 1.0 |
+| $C_p$ | pressure coefficient | 0.3 |
+| $\gamma$ | heat-capacity ratio | 1.4 |
+| $\mathrm{Re}$ | Reynolds number | 10.0 |
+| $\mathrm{We}$ | Weber number | 1.39 |
 
-The implemented constants are compiled into the example physics callback:
+The velocity callback is in [physics.cpp](./physics.cpp). Both drivers advance
+from $t = 0$ to $t = 13.9$ in steps of $0.01$. Bubbles are only moved, so the
+node advection keeps the weights and moves the abscissas.
 
-| Symbol | Code name | Value | Role |
-|---|---|---:|---|
-| $R_o$ | `reference_radius` | `1.0` | reference radius in the radius ratio |
-| $C_p$ | `pressure_coefficient` | `0.3` | pressure coefficient in the forcing term |
-| $\gamma$ | `heat_capacity_ratio` | `1.4` | exponent coefficient for compression |
-| $\mathrm{Re}$ | `reynolds_number` | `10.0` | viscous damping parameter |
-| $\mathrm{We}$ | `weber_number` | `1.39` | surface-tension parameter |
-
-## Initialization shared by CQMOM and Monte Carlo
-
-The supplied initialization is an independent product distribution with total
-number density
-
-$$
-n_0 = 1.
-$$
-
-The configured marginals are:
-
-- $R$ is log-normal with `mu_log = -0.02` and `sigma_log = 0.2`.
-- $U$ is normal with `mean = 0.0` and `standard_deviation = 0.2`.
-
-For the implemented log-normal parameterization,
+[configuration.qmom](./configuration.qmom) defines the initial number density
+as the total number density $n_0 = 1$ times the product of a log-normal
+distribution of $R$ with `mu_log = -0.02` and `sigma_log = 0.2`, whose mean is
+$\exp(-0.02 + 0.2^2/2) = 1$, and a normal distribution of $U$ with mean $0$ and
+standard deviation $0.2$. It sets `node_counts = 2, 2`, two nodes in $R$ and,
+conditioned on each, two in $U$; `adaptive = false` in `[qmom]`, so all four
+nodes are kept; and `maximum_orders = 3, 3`, so the sample provides $M_{i,j}$
+for $i, j \le 3$. Both executables draw the same $N = 10000$ samples
+$(R_p, U_p)$ with a fixed seed ([sampling.hpp](./sampling.hpp)) and give each
+the weight $n_0/N$, and the Monte Carlo companion estimates
 
 ```math
-\begin{aligned}
-\mathbb{E}[R]
-&=
-\exp\left(
-\mu_{\log}
-+
-\frac{\sigma_{\log}^2}{2}
-\right)
-=
-\exp\left(-0.02+\frac{0.2^2}{2}\right)
-=
-\exp(0)
-=
-1.
-\end{aligned}
+M_{i,j} = \frac{n_0}{N}\sum_{p=1}^{N} R_p^i U_p^j.
 ```
-
-Both executables are initialized based on the same sample of 10000 bubbles
-through the shared sampling helper. The CQMOM executable computes empirical raw
-moments from that finite sample and builds a sampled-moment CQMOM case. The
-direct Monte Carlo executable evolves the sampled ensemble itself.
-
-## Numerical workflow and configuration
-
-The numerical CQMOM hierarchy is selected in `configuration.qmom`:
-
-```ini
-[phase_space]
-names = R, U
-node_counts = 2, 2
-conditioning_order = 0, 1
-
-[initial]
-type = independent_product
-number_density = 1.0
-maximum_orders = 3, 3
-```
-
-The `node_counts = 2, 2` setting gives two nodes in $R$, two conditional
-nodes in $U$, and four terminal CQMOM nodes in the full default topology.
-The `conditioning_order = 0, 1` setting reconstructs $R$ first and $U$
-second. The `maximum_orders = 3, 3` setting requests sampled tensor moments
-with orders $0,\ldots,3$ in each configured phase-space dimension.
-
-The driver time controls are compiled local constants:
-
-```ini
-initial_time = 0.0
-final_time = 13.9
-time_step = 0.01
-```
-
-The output settings are read from:
-
-```ini
-[output]
-directory = output
-write_moments = true
-write_quadrature = true
-interval = 0.1
-```
-
-[configuration.qmom](./configuration.qmom) does not contain an explicit
-`[time_integration]` section. The CQMOM executable loads the default
-phase-space evolution options and advances the accepted CQMOM state with
-`qmomkit::advance_cqmom_advection(...)`. During advection CQMOM phase-space
-advection, quadrature abscissas move and weights are preserved over the
-advection advancement; raw moments change because the abscissas change.
-
-The direct Monte Carlo executable advances every sample with
-`qmomkit::monte_carlo::evolve_ensemble(...)` and the same cavitation velocity
-callback.
 
 ## Build and run
 
-This example is a standalone installed-package consumer. It requires both
-QMOMKit and the optional QMOMKitMonteCarlo companion package.
-
-From the repository root, install both packages into the shared
-repository-local `install/` prefix:
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md); this example also needs the
+Monte Carlo companion, see its [README](../../tools/monte_carlo/README.md).
+From this directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
-cmake --install build
-
-cmake -S tools/monte_carlo -B tools/monte_carlo/build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="$PWD/install" \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-
-cmake --build tools/monte_carlo/build
-cmake --install tools/monte_carlo/build
-```
-
-Then configure and build this example from its directory:
-
-```bash
-cd examples/cqmom_2d_bubbles_cavitation
-
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../../install"
-cmake --build build
-```
-
-This builds:
-
-- `cqmom_2d_bubbles_cavitation_example`
-- `cqmom_2d_bubbles_cavitation_mc_example`
-
-CMake copies `configuration.qmom` into the example build directory.
-
-## Run the CQMOM workflow
-
-Run from the example build directory so generated output stays there:
-
-```bash
 cd build
 ./cqmom_2d_bubbles_cavitation_example
-```
-
-The executable prints the initial and final raw moments $M_{0,0}$, $M_{1,0}$,
-$M_{0,1}$, $M_{2,0}$, $M_{1,1}$ and $M_{0,2}$, and where its output was
-written.
-
-## Run the direct Monte Carlo workflow
-
-From the same build directory, run:
-
-```bash
 ./cqmom_2d_bubbles_cavitation_mc_example
 ```
 
-The executable prints the same table of raw moments, so the two runs can be
-compared line by line, and where its output was written.
+## Output
 
-## Output files
-
-With the default output configuration, the CQMOM executable writes:
-
-```text
-output/moment_history.txt
-output/quadrature_history.txt
-```
-
-`moment_history.txt` contains the deterministic CQMOM raw-moment history at the
-configured output interval, starting with the initial state. It is a
-whitespace-delimited `MomentWriter` table with a commented header containing
-`time` followed by moment labels such as `M[0,0]`.
-
-`quadrature_history.txt` contains the terminal CQMOM quadrature history,
-starting with the initial quadrature. This `QuadratureWriter` table includes
-time, public node index, conditioning path entries, terminal weight, and
-abscissas ordered as $R$ and $U$.
-
-The direct Monte Carlo executable writes:
-
-```text
-output/moment_history_mc.txt
-```
-
-`moment_history_mc.txt` contains Monte Carlo estimated raw moments computed
-from the evolving finite sample with the constant per-sample weight $n_0/N$.
-It uses the same phase-space moment ordering as the sampled moment tensor.
+Both executables print the initial and final raw moments $M_{0,0}$,
+$M_{1,0}$, $M_{0,1}$, $M_{2,0}$, $M_{1,1}$ and $M_{0,2}$. Every $0.1$ in time,
+the QMOMKit run writes `build/output/moment_history.txt` and
+`build/output/quadrature_history.txt`, and the Monte Carlo run
+`build/output/moment_history_mc.txt`. The scripts in
+[tools/plotting](../../tools/plotting/README.md) plot these files.
 
 ## What to expect
 
-Both executables start from the same fixed-seed sample, so their initial
-moments agree, and $M_{0,0}$ stays 1 because bubbles are only moved. At
-$t = 13.9$, the mean radius $M_{1,0}$ has fallen from about 1.000 to 0.839 in
-both runs, and $M_{2,0}$ agrees to within 0.1 percent. The velocity moments
-have decayed by two orders of magnitude, and at that level the runs differ
-more: $M_{0,2}$ is $2.8 \times 10^{-4}$ in the CQMOM run and
-$3.2 \times 10^{-4}$ in the Monte Carlo run, while $M_{0,1}$ and $M_{1,1}$
-stay near zero in both.
-
-## Plotting
-
-The repository provides generic plotting helpers for QMOMKit-native text
-output. From the repository root, after running the example, plot moment
-histories with:
-
-```bash
-python3 tools/plotting/plot_moments.py examples/cqmom_2d_bubbles_cavitation/build/output/moment_history.txt
-python3 tools/plotting/plot_moments.py examples/cqmom_2d_bubbles_cavitation/build/output/moment_history_mc.txt
-```
-
-Selected moment columns can be requested by label:
-
-```bash
-python3 tools/plotting/plot_moments.py examples/cqmom_2d_bubbles_cavitation/build/output/moment_history.txt --moments 'M[0,0]' 'M[1,0]' 'M[0,1]'
-```
-
-Plot the CQMOM quadrature history with:
-
-```bash
-python3 tools/plotting/plot_quadrature.py examples/cqmom_2d_bubbles_cavitation/build/output/quadrature_history.txt
-```
-
-The plotting scripts read the existing whitespace-delimited output files and
-write PNG files next to the input file.
+Both runs start from the same sample, so their initial moments agree, and
+$M_{0,0}$ stays 1 because bubbles are only moved. At $t = 13.9$, the mean
+radius $M_{1,0}$ has fallen from about 1.000 to 0.839 in both runs, and
+$M_{2,0}$ agrees to within 0.1 percent. The velocity moments have decayed by
+two orders of magnitude, and at that level the runs differ more: $M_{0,2}$ is
+$2.8 \times 10^{-4}$ in the QMOMKit run and $3.2 \times 10^{-4}$ in the Monte
+Carlo run, while $M_{0,1}$ and $M_{1,1}$ stay near zero in both. The Monte
+Carlo run is a stochastic reference with sampling noise, not an exact solution.

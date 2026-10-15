@@ -1,38 +1,44 @@
-# QMOM Mixture Initialization Example
+# QMOM initialization from a mixture
 
-This example loads an absolute-density distribution mixture from
-[configuration.qmom](./configuration.qmom), lets QMOMKit generate its raw
-moments, and reconstructs a one-dimensional QMOM quadrature.
+This example loads a QMOM case with `load_qmom(...)` from
+[configuration.qmom](./configuration.qmom), in which QMOMKit generates the raw
+moments of a two-component mixture, and reconstructs a three-node quadrature
+with `compute_qmom(...)`.
 
-The phase-space coordinate is the scalar distribution variable $\xi$. The
-mixture contains:
+## Model
 
-- a gamma component with number density $1.5$, shape $2.0$, and scale $0.4$;
-- a log-normal component with number density $0.8$, logarithmic mean $-0.2$,
-  and logarithmic standard deviation $0.5$.
+The number density $n(\xi)$ of a dimensionless coordinate $\xi$ is the sum of
 
-The component densities are absolute number densities, not normalized mixture
-fractions. Therefore the total number density is
-$m_0 = 1.5 + 0.8 = 2.3$. For raw, unnormalized moments, each component's
-analytical moment is multiplied by its absolute number density and the
-components are added. QMOMKit requests moments through order $5$ for the
-requested three-node quadrature.
+- a gamma distribution with number density $1.5$, shape $2.0$ and scale $0.4$;
+- a log-normal distribution with number density $0.8$, logarithmic mean
+  $-0.2$ and logarithmic standard deviation $0.5$.
 
-The native configuration syntax is `type = mixture` with contiguous
-`[initial.mixture.component.K]` sections. Each component supplies its
-`number_density` in [configuration.qmom](./configuration.qmom); QMOMKit
-performs the mixture moment generation during `load_qmom(...)`.
+`type = mixture` selects the mixture, and each
+`[initial.mixture.component.K]` section sets one component. Component number
+densities are absolute, not fractions, so each component's moments are scaled
+by its number density and added, and $m_0 = 1.5 + 0.8 = 2.3$. Three nodes
+(`node_counts = 3`) need $m_0, \dots, m_5$; `maximum_order = 5` requests
+them. See the [Reference](../../docs/user/7_reference.md#initial) for the
+keys.
 
-Build and run from this example directory:
+## Build and run
+
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md). From this directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../../install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
 cd build
 ./qmom_mixture_initialization_example
 ```
 
-The executable writes no files. It prints $m_0$, then the reconstructed QMOM
-weights and abscissas. The quadrature is a three-node representation of the
-combined mixture.
+## Output
+
+The example prints $m_0$ and the weight and abscissa of each node. It writes no
+files.
+
+## What to expect
+
+$m_0 = 2.3$. The quadrature has weights of about 1.37, 0.90 and 0.03 at
+abscissas of about 0.44, 1.38 and 3.34, and the weights sum to $m_0$.

@@ -11,7 +11,7 @@ namespace cqmom_2d_advection_breakage
 
 /**
  * The moments both executables print: the number density, the first and the
- * second raw moments of (d, u).
+ * second raw moments of (V, u).
  */
 [[nodiscard]] qmomkit::RawMomentRequest printed_moments();
 

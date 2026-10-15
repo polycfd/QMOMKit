@@ -52,7 +52,7 @@ int main()
         // and the writers throw when a file cannot be written.
         qmomkit::QmomState state = qmom_case.initial_state();
         const double initial_number_density = state.moment_values()[0];
-        const double initial_mean_diameter = state.moment_values()[1] / initial_number_density;
+        const double initial_mean_volume = state.moment_values()[1] / initial_number_density;
 
         std::optional<qmomkit::MomentWriter> moment_writer;
         std::optional<qmomkit::QuadratureWriter> quadrature_writer;
@@ -107,12 +107,12 @@ int main()
 
         const double final_number_density = state.moment_values()[0];
         std::cout << "Number density M0:    " << initial_number_density << " -> " << final_number_density << '\n';
-        std::cout << "Mean diameter M1/M0:  " << initial_mean_diameter << " -> " << state.moment_values()[1] / final_number_density << '\n';
+        std::cout << "Mean volume M1/M0:    " << initial_mean_volume << " -> " << state.moment_values()[1] / final_number_density << '\n';
         std::cout << "Final quadrature at t = " << time << ":\n";
         const qmomkit::QmomResult& quadrature = state.quadrature();
         for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
         {
-            std::cout << "  weight " << quadrature.weights[node] << " at d = " << quadrature.abscissas[node] << '\n';
+            std::cout << "  weight " << quadrature.weights[node] << " at V = " << quadrature.abscissas[node] << '\n';
         }
         if (moment_writer || quadrature_writer)
         {

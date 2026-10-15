@@ -16,7 +16,7 @@ void print_moments(std::ostream& stream, const std::string_view run, const std::
                    const std::vector<double>& final_values)
 {
     const qmomkit::RawMomentRequest request = printed_moments();
-    stream << run << ", raw moments M[i,j] of d^i u^j:\n";
+    stream << run << ", raw moments M[i,j] of V^i u^j:\n";
     stream << "          " << std::setw(14) << "initial" << std::setw(14) << "final" << '\n';
     for (std::size_t entry = 0; entry < request.indices.size(); ++entry)
     {

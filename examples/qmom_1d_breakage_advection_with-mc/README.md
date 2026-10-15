@@ -1,209 +1,84 @@
-# QMOM: 1D MC initialization and sample-based evolution
+# 1D QMOM breakage and advection with a Monte Carlo reference
 
-## Purpose
+This example runs the breakage and advection model of
+[qmom_1d_breakage_advection](../qmom_1d_breakage_advection/README.md), with a
+constant fragmentation rate, twice from the same finite sample of particles.
+`main.cpp` starts QMOMKit from the raw moments of the sample and advances them
+with `qmomkit::advance_qmom_phase_space(...)`; `main_mc.cpp`, the Monte Carlo
+reference, advances the sampled particles themselves with the Monte Carlo
+companion.
 
-This tutorial-style example is the Monte Carlo sampled-initialization companion
-to `examples/qmom_1d_breakage_advection/`.
+## Model
 
-Both examples use the same configured bimodal distribution,
-$`0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)`$. This example uses a
-constant fragmentation rate, the special case $p = 0$ of the size-dependent rate
-in `examples/qmom_1d_breakage_advection/`. This directory contains two workflows
-that start from the same finite sampled ensemble. The Monte Carlo companion
-tool is used in both of its main roles here: as a sample realization tool and
-as a direct sampled-ensemble reference path.
+The phase-space coordinate is the particle volume $V$ and $n(V)$ is the number
+density; $V$, time $t$ and all parameters are dimensionless. The raw moments
+are $m_k = \int V^k n(V)\,\mathrm{d}V$. Volumes relax toward $V = 1$,
 
-Sample realization workflow:
-
-```text
-distribution
-    -> fixed-seed Monte Carlo sample
-    -> finite sample ensemble
+```math
+\frac{\mathrm{d}V}{\mathrm{d}t} = 1 - V,
 ```
 
-The Monte Carlo tool represents a finite sample ensemble. In this example, each
-sample is interpreted as a physical particle for the breakage model.
+and particles break at the constant rate $\lambda = 0.5$, one particle of
+volume $V$ into two of volume $V/2$, which conserves the total volume $m_1$.
+The moments change as
 
-Analytical initialization example:
-
-```text
-distribution
-    -> analytical moments
-    -> QMOM
+```math
+\frac{\mathrm{d}m_k}{\mathrm{d}t} = \lambda\left(2^{1-k}-1\right)m_k.
 ```
 
-MC initialization example:
+In the Monte Carlo run each particle breaks within a step $\Delta t$ with
+probability $1-\exp(-\lambda\,\Delta t)$. Both runs use Strang splitting: half
+a step of advection, the breakage over the whole step, and a second half step
+of advection. The velocity and the moment source are in
+[physics.cpp](./physics.cpp), $\lambda$ in [physics.hpp](./physics.hpp), the
+stochastic breakage in [particles_mc.cpp](./particles_mc.cpp), and the time
+span $0 \le t \le 1$ with $\Delta t = 0.01$ in both drivers.
 
-```text
-distribution
-    -> sampled ensemble
-    -> statistical moments
-    -> QMOM
-    -> phase-space advection + moment-source QMOM evolution
+[configuration.qmom](./configuration.qmom) defines the initial number density
+as two normal modes with number densities $0.5$ each, means $1$ and $3$ and
+standard deviations $0.1$ and $0.2$, so the total number density is
+$n_0 = 1$. It sets three quadrature nodes, so QMOMKit carries
+$m_0, \ldots, m_5$. Both executables draw the same $N = 10000$ samples $V_p$
+with a fixed seed ([sampling.hpp](./sampling.hpp)) and give each the weight
+$n_0/N$, and the Monte Carlo companion estimates
+
+```math
+m_k = \frac{n_0}{N}\sum_{p=1}^{N} V_p^k.
 ```
 
-Monte Carlo sampled-distribution companion:
-
-```text
-distribution
-    -> same sampled ensemble
-    -> sample-based stochastic evolution
-    -> statistical moments
-```
-
-The distribution remains defined in [configuration.qmom](./configuration.qmom).
-This example draws 10,000 samples with a fixed seed. With $d$ as the
-particle-diameter coordinate, the QMOM workflow estimates raw, unnormalized
-moments from the ensemble as
-
-$$
-M_k = \frac{n_0}{N}\sum_{p=1}^{N} d_p^k,
-$$
-
-where $n_0$ is the configured total number density and $N$ is the sample count.
-It uses those moments to construct a `qmomkit::QmomCase` and initial
-`qmomkit::QmomState`. The Monte Carlo workflow evolves the sampled ensemble
-directly with the same advection and binary-fragmentation models.
-
-The sample is finite, so its raw moments include ordinary Monte Carlo sampling
-uncertainty. Increasing the sample count generally reduces this uncertainty,
-although high-order moments and broad distributions may converge more slowly.
-The initial total number density is distributed across the samples as a
-constant statistical weight.
-
-The Monte Carlo workflow is a direct stochastic particle-based
-companion/reference realization, not an automated formal validation test. It
-does not estimate uncertainty or declare one history to be exact truth.
-
-## QMOM evolution
-
-After sampled initialization, the QMOM evolution matches the analytical
-initialization example:
-
-```text
-Phase-space advection half-step
-        ↓
-Moment-source update
-        ↓
-QMOM reconstruction
-        ↓
-Phase-space advection half-step
-```
-
-The phase-space advection physics and moment-source binary fragmentation source
-are in [physics.cpp](./physics.cpp). The time controls are local constants in
-[main.cpp](./main.cpp):
-
-- `initial_time`
-- `final_time`
-- `time_step`
-
-The output directory, enabled files, and output cadence are read from
-`[output]` in [configuration.qmom](./configuration.qmom).
-
-## Monte Carlo moment evolution
-
-The Monte Carlo workflow uses the same configured distribution, sample count,
-and initialization seed as the QMOM workflow. It then applies the same Strang
-sequence directly to the sampled ensemble:
-
-```text
-Advection sampled-ensemble half-step
-        ↓
-Stochastic binary fragmentation
-        ↓
-Advection sampled-ensemble half-step
-```
-
-The advection sampled-ensemble update uses
-`qmomkit::monte_carlo::evolve_ensemble`. The stochastic breakage mechanics are
-local to this example in [particles_mc.cpp](./particles_mc.cpp). The advection
-velocity and fragmentation rate are shared with the QMOM workflow through
-[physics.cpp](./physics.cpp).
+`main.cpp` replaces the moments of the configured case with these before it
+creates the initial `qmomkit::QmomState`.
 
 ## Build and run
 
-From the repository root, install both packages into the shared
-repository-local `install/` prefix:
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md); this example also needs the
+Monte Carlo companion, see its [README](../../tools/monte_carlo/README.md).
+From this directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
-cmake --install build
-
-cmake -S tools/monte_carlo -B tools/monte_carlo/build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="$PWD/install" \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-
-cmake --build tools/monte_carlo/build
-cmake --install tools/monte_carlo/build
-```
-
-Then configure this example from its directory:
-
-```bash
-cd examples/qmom_1d_breakage_advection_with-mc
-
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../../install"
-cmake --build build
-```
-
-The build copies [configuration.qmom](./configuration.qmom) into `build/`.
-
-## Run the QMOM example
-
-Run from the build directory so generated output stays there:
-
-```bash
 cd build
 ./qmom_1d_breakage_advection_with_mc_example
-```
-
-Running the executable prints the raw moments $M_0$ to $M_5$ at the start and
-the end, and writes:
-
-- `output/moment_history.txt`
-- `output/quadrature_history.txt`
-
-These files are written with `qmomkit::MomentWriter` and
-`qmomkit::QuadratureWriter`. They are whitespace-delimited text tables with a
-commented header line; their first rows hold the initial state.
-
-## Run the direct Monte Carlo companion
-
-From the same build directory, run:
-
-```bash
 ./qmom_1d_breakage_advection_with_mc_mc_example
 ```
 
-Running the executable prints the same table of raw moments, so the two runs
-can be compared line by line, and the initial and final particle counts. It
-writes:
+## Output
 
-- `output/moment_history_mc.txt`
-- `output/particle_history.txt`
-
-The Monte Carlo moments use a constant per-sample statistical weight from the
-initial sampled ensemble and are written with `qmomkit::MomentWriter`.
-`particle_history.txt` is a custom particle snapshot table, not a QMOMKit
-moment or quadrature output.
+Both executables print the initial and final raw moments $m_0, \ldots, m_5$,
+labeled `M0` to `M5`; the Monte Carlo run also prints the initial and final
+particle counts. Every $0.1$ in time, the QMOMKit run writes
+`build/output/moment_history.txt` and `build/output/quadrature_history.txt`,
+and the Monte Carlo run `build/output/moment_history_mc.txt` and
+`build/output/particle_history.txt`, which lists the time, identifier and
+volume of every particle.
 
 ## What to expect
 
-Both executables reproduce the same fixed-seed sampled initialization, so their
-initial sampled moments describe the same finite ensemble. The direct Monte
-Carlo companion evolves particles stochastically, whereas QMOM evolves a finite
-quadrature closure of sampled moments. Compare trends such as number-density
-growth and moment evolution, but do not expect final histories to agree
-point-for-point: finite sampling variation and the different representations
-produce differences during evolution. At $t = 1$, the QMOMKit run gives
-$M_0 = 1.6487$, which is $e^{0.5}$ because
-$\mathrm{d}M_0/\mathrm{d}t = 0.5\,M_0$, and the Monte Carlo run
-$M_0 = 1.6578$ from 16,578 particles; $M_1$ to $M_5$ agree to within
-0.2 percent.
+Both runs start from the same sample, so their initial moments agree. At
+$t = 1$, the QMOMKit run gives $m_0 = 1.64872$, which is $e^{0.5}$ because
+$\mathrm{d}m_0/\mathrm{d}t = 0.5\,m_0$, and the Monte Carlo run
+$m_0 = 1.6578$ from 16578 particles; $m_1$ to $m_5$ agree to within 0.2
+percent. The Monte Carlo run is a stochastic reference with sampling noise, not
+an exact solution, so the two runs are not expected to agree to more digits.

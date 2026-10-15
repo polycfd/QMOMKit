@@ -1,65 +1,44 @@
-# CQMOM Independent Product Initialization
+# CQMOM initialization from an independent product
 
-This example loads an independent-product CQMOM setup from configuration and
-shows the complete normal initialization lifecycle:
+This example loads a two-dimensional CQMOM case with `load_cqmom_prepared(...)`
+from [configuration.qmom](./configuration.qmom), creates its `CqmomState` with
+`initial_state()`, and prints the quadrature from `state.quadrature()`.
 
-```text
-configuration
-    -> load_cqmom_prepared(...)
-    -> CqmomPreparedCase
-    -> CqmomPreparedCase::initial_state()
-    -> CqmomState
-    -> state.quadrature()
-    -> quadrature nodes and weights
-```
+## Model
 
-The shipped configuration is two-dimensional and orders its phase space as
-`(size, velocity)`. It requests a $2 \times 2$ CQMOM hierarchy with
-`conditioning_order = 0, 1`: two size nodes and two conditional velocity
-nodes. The initial number density is `2.5`, with a gamma distribution in
-`size` (shape `3.0`, scale `0.2`) and a normal distribution in `velocity`
-(mean `-0.5`, standard deviation `1.25`).
+The phase space is `(size, velocity)`; the names are labels, and both
+coordinates are dimensionless. `type = independent_product` makes the number
+density $n(\mathrm{size}, \mathrm{velocity})$ the product of a gamma
+distribution in size (shape $3.0$, scale $0.2$) and a normal distribution in
+velocity (mean $-0.5$, standard deviation $1.25$), scaled once by
+`number_density = 2.5`, so the raw moment $M_{0,0} = 2.5$.
+`node_counts = 2, 2` asks for two size nodes and two velocity nodes, and
+`conditioning_order = 0, 1` reconstructs size first and velocity conditioned
+on it; see
+[Conditioning order](../../docs/user/4_moments_and_quadrature.md#conditioning-order).
+With `conditioning_order = 1, 0`, velocity is reconstructed first: for this
+independent product the same four weighted points result, listed with velocity
+as the outer branch, and `x0` still denotes size and `x1` velocity.
 
-For the number density $n(\mathrm{size},\mathrm{velocity})$, the raw
-multivariate moments are
+## Build and run
 
-```math
-M_{i,j} = \int\!\int \mathrm{size}^i\mathrm{velocity}^j\,
-n(\mathrm{size},\mathrm{velocity})\,
-\mathrm{d}\mathrm{size}\,\mathrm{d}\mathrm{velocity}.
-```
-
-They are unnormalized, so $M_{0,0}$ is the total number density `2.5`.
-`CqmomPreparedCase::initial_state()` constructs the initial `CqmomState` from the
-configured moment tensor, and the executable reads the accepted conditional
-quadrature from `state.quadrature()`. The direct `compute_cqmom(...)` API
-remains available for standalone reconstruction, but is not used by this
-example. The example does not add phase-space advection, a moment source, or a
-boundary contribution.
-
-`CqmomPreparedCase` is the immutable configuration and problem definition. `CqmomState`
-is the runtime state that a phase-space evolution workflow evolves later. This
-example creates the state but does not add phase-space evolution physics.
-
-
-Build and run from this example directory:
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md). From this directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../../install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
 cd build
 ./cqmom_independent_product_initialization_example
 ```
 
-The executable writes no files. It prints the reconstructed node weights and
-abscissas. The `x0` and `x1` labels in the terminal output are example-specific
-formatting for the shipped two-dimensional case: `x0` is `size` and `x1` is
-`velocity`. They are not a limitation of QMOMKit's multidimensional
-representation.
+## Output
+
+The example prints the weight and coordinates of each node, with `x0` the size
+and `x1` the velocity. It writes no files.
 
 ## What to expect
 
-The shipped `2 x 2` hierarchy produces four terminal CQMOM nodes. Their
-global weights sum to the configured total number density `2.5`, while their
-coordinates represent the independent `size` and `velocity` initialization.
+Four nodes: size nodes at 0.4 and 1.2, each paired with velocity nodes at
+-1.75 and 0.75. The weights are 0.9375 at size 0.4 and 0.3125 at size 1.2, and
+sum to $M_{0,0} = 2.5$.

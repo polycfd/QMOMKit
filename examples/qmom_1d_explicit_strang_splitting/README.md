@@ -1,152 +1,84 @@
-# Explicit 1D QMOM Strang Splitting
+# 1D QMOM with explicit Strang splitting
 
-This example demonstrates application-managed Strang splitting for adaptive
-one-dimensional QMOM phase-space evolution. The application owns the stage
-sequence:
+This example drives the stages of a Strang step itself instead of calling
+`advance_qmom_phase_space(...)`, as described in [Driving the stages
+yourself](../../docs/user/6_coupling_qmomkit.md#driving-the-stages-yourself).
+Each step of length $\Delta t$ runs
 
 ```text
-C(dt/2) -> D(dt) -> C(dt/2)
+advection(Δt/2) -> source(Δt) -> advection(Δt/2)
 ```
 
-and calls the public stage API directly.
-
-The example-local velocity and source callbacks are defined in
-[physics.cpp](./physics.cpp); the application-owned stage sequence remains
-visible in [main.cpp](./main.cpp).
-
-## API levels
-
-`advance_qmom_phase_space(...)` is the library-managed complete phase-space
-evolution workflow. It owns the configured Strang or Lie stage ordering for one
-macro step.
-
-`advance_qmom_advection(...)` and `advance_qmom_moment_source(...)` let the
-surrounding application own the splitting sequence while still passing accepted
-`QmomState` objects between stages.
-
-## Numerical distinction
-
-The advection stage directly advects the current quadrature nodes and
-reconstructs the stored raw moments from those same active nodes. It preserves
-the active node count.
-
-The moment-source-evolution stage integrates raw moments through the source
-callback and then performs fixed or adaptive QMOM reconstruction. Adaptive
-reduction and controlled one-node growth occur only after this moment-source
-reconstruction.
+with `advance_qmom_advection(state, t, Δt/2, ...)`,
+`advance_qmom_moment_source(..., t, Δt, ...)` and
+`advance_qmom_advection(..., t + Δt/2, Δt/2, ...)`, the sequence of the
+`strang` scheme, so the results equal those of `advance_qmom_phase_space(...)`.
+Between the stages it reports when the adaptive reconstruction after the
+source changes the number of active nodes.
 
 ## Model
 
-The phase-space advection model is linear relaxation:
-
-$$
-\frac{\mathrm{d}\xi}{\mathrm{d}t} = -a\left(\xi - \xi_{\mathrm{eq}}\right).
-$$
-
-with $a = 500$ and $\xi_{\mathrm{eq}} = 0.5$. The velocities collapse onto
-$\xi_{\mathrm{eq}}$, and the variance decays as
+The phase-space coordinate is a particle velocity $u$; $u$ and the time $t$ are
+dimensionless. Node advection relaxes the velocities toward
+$u_\mathrm{eq} = 0.5$,
 
 ```math
-\operatorname{Var}[\xi](t) = \operatorname{Var}[\xi](0)\exp(-2at).
+\frac{\mathrm{d}u}{\mathrm{d}t} = -a\left(u - u_\mathrm{eq}\right),
+\qquad a = 500,
 ```
 
-The moment-source is a manufactured symmetric variance-injection source:
+so the variance decays as $\exp(-2at)$. The source adds variance at constant
+number density and mean,
 
-$$
-\begin{aligned}
-\frac{\mathrm{d}m_0}{\mathrm{d}t} &= 0, &
-\frac{\mathrm{d}m_1}{\mathrm{d}t} &= 0, \\
-\frac{\mathrm{d}m_2}{\mathrm{d}t} &= S(t), &
-\frac{\mathrm{d}m_3}{\mathrm{d}t} &= 0.
-\end{aligned}
-$$
-
-$S(t)$ is positive only over the finite interval $[0.16, 0.25)$. The source
-preserves the total number density and the mean while allowing an adaptively
-reduced one-node state to regrow to two nodes.
-
-The nonzero equilibrium matters: relaxation toward $\xi_{\mathrm{eq}} = 0$ would
-only shrink the distribution without changing its shape, and adaptive reduction
-does not depend on the unit of the coordinate, so the state would keep both
-nodes.
-
-## Explicit Strang sequence
-
-The time loop keeps the three public stage calls visible:
-
-```cpp
-const qmomkit::QmomPhaseSpaceEvolutionResult first_advection =
-    qmomkit::advance_qmom_advection(state, time, half_step, velocity, options);
-
-const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
-    qmomkit::advance_qmom_moment_source(first_advection.state, time, step, source, options);
-
-qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
-    qmomkit::advance_qmom_advection(moment_source.state, time + half_step, half_step, velocity, options);
+```math
+\frac{\mathrm{d}m_0}{\mathrm{d}t} = \frac{\mathrm{d}m_1}{\mathrm{d}t}
+= \frac{\mathrm{d}m_3}{\mathrm{d}t} = 0,
+\qquad
+\frac{\mathrm{d}m_2}{\mathrm{d}t} = S(t),
 ```
 
-For a macro step beginning at `time`, the first advection half-step starts at
-`time`, the moment-source stage integrates over the whole step from `time`, and
-the second advection half-step starts at `time + half_step`. This is the
-sequence of the `strang` scheme, so the example's results match
-`advance_qmom_phase_space(...)` exactly, also for a source that depends on
-time.
+with $S = 12$ for $0.16 \le t < 0.25$ and $S = 0$ otherwise. $a$,
+$u_\mathrm{eq}$ and $S$ are set in [physics.cpp](./physics.cpp). The nonzero
+$u_\mathrm{eq}$ matters: relaxation toward zero would only shrink the
+distribution without changing its shape, and adaptive reduction does not
+depend on the unit of the coordinate, so the state would keep both nodes.
 
-## Transactional commit
-
-Each stage starts from the result of the previous one, and the application
-replaces its state only after the second advection half-step succeeds. If a
-standalone stage fails, it rolls back only to its own stage input, so the
-application keeps the previous macro-step state unchanged.
-
-## Lifecycle
-
-The shipped constants produce a deterministic adaptive lifecycle:
-
-```text
-2 -> 1 -> 2 -> 1
-```
-
-The exact transition times depend on selected tolerances and source
-parameters. With this configuration, advection relaxation collapses the
-variance while retaining the current active topology, a source-free
-moment-source reconstruction reduces two nodes to one, the finite source pulse
-regrows the state to two nodes, and later source-free reconstruction reduces it
-again.
+[configuration.qmom](./configuration.qmom) gives the moments
+$m_0, \ldots, m_3 = 1, 0, 1, 0$, a zero-mean unit-variance population, on two
+nodes with `adaptive = true`, so the reconstruction after the source may drop
+or regain a node. It also sets the `strang` scheme, which this example
+reproduces by hand, and the tolerances of the `rk23` node advection.
+[main.cpp](./main.cpp) advances from $t = 0$ to $0.5$ with steps of $0.1$ and
+replaces its state only after all three stages of a step succeed.
 
 ## Build and run
 
-From the repository root, install QMOMKit, then configure this standalone
-example against the installed package:
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md). From this directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-cmake --build build
-cmake --install build
-
-cd examples/qmom_1d_explicit_strang_splitting
-cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
 cd build
 ./qmom_1d_explicit_strang_splitting_example
 ```
 
-## Output files
+## Output
 
-With the shipped `[output]` section, the executable writes:
+The example prints the initial number of active nodes, then, for each step in
+which the reconstruction after the source changes it, the time $t + \Delta t/2$
+of the source stage and the counts before and after, and finally the final
+number of active nodes and the output directory. It writes the quadrature
+after the initial state and after each step to
+`build/output/quadrature_history.txt`; setting `write_moments = true` in the
+`[output]` section of `configuration.qmom` adds
+`build/output/moment_history.txt`.
 
-- `output/quadrature_history.txt`
+## What to expect
 
-Setting `write_moments = true` adds `output/moment_history.txt`. Both are
-written after the initial accepted state and after each completed Strang
-macro-step.
-
-`quadrature_history.txt` records one row per active node:
-
-```text
-time node_index weight x0
-```
-
-Inactive adaptive nodes are not written as physical quadrature nodes.
+The active node count goes $2 \to 1 \to 2 \to 1$, with the changes reported at
+$t = 0.05$, $0.15$ and $0.35$. Relaxation collapses the two nodes onto
+$u = 0.5$ during the first step, and the reconstruction after the source
+reduces them to one. The source pulse adds variance and the state regains a
+second node, which the reconstruction drops again once relaxation has removed
+that variance. The run ends with one node of weight 1 at $u = 0.5$.

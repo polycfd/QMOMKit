@@ -20,8 +20,7 @@ conditioning_order = 0, 2, 1
 adaptive = true
 
 [time_integration]
-# Second-order splitting. The example checks this value and refuses to run
-# with a first-order scheme, because the nucleation burst is short.
+# Second-order splitting.
 scheme = strang
 
 [time_integration.node_advection]

@@ -1,207 +1,110 @@
-# CQMOM 2D batch evolution with host data
+# 2D CQMOM batch evolution with host data
 
-This example shows how a host application advances many CQMOM states with the
-batch-index-aware batch functions and gives the callbacks time-varying local
-data. The host here owns eight locations, standing in for the mesh nodes held
-by one processor. It packages its data for those locations, advances all of
-them with one `advance_cqmom_phase_space_batch_with_index(...)` call per step,
-and lets the callbacks read the data of the location they are evaluated for.
-
-The physics is that of
-[`cqmom_2d_breakage_advection_with-mc`](../cqmom_2d_breakage_advection_with-mc/README.md),
-without the Monte Carlo companion. The particle velocity now relaxes toward a
-local carrier flow supplied by the host, and the fragmentation rate is a local
-host property.
-
-## One index for host data and states
-
-The host stores everything its callbacks need in arrays indexed by the local
-location index `i` ([`host_data.hpp`](host_data.hpp)):
-
-```cpp
-struct LocalHostData
-{
-    std::vector<double> position;                  // used by the host's flow solver only
-    std::vector<double> fragmentation_rate;        // read by the moment source
-    std::vector<double> carrier_velocity_current;  // newest carrier-flow level
-    std::vector<double> carrier_velocity_previous; // the level before it
-    double sample_time = 0.0;
-    double sample_interval = 0.0;
-};
-```
-
-and keeps the CQMOM state of location `i` at position `i` of its state vector:
-
-```cpp
-LocalHostData host_data = make_local_host_data(location_count, initial_time);
-std::vector<qmomkit::CqmomState> states(location_count, cqmom_case.initial_state());
-```
-
-A `*_batch_with_index(...)` call passes each state's position in `states` to
-the callbacks as `batch_index`. Because the host uses the same index for its
-own arrays, a callback reads entry `batch_index` directly, with no mapping in
-between ([`physics.cpp`](physics.cpp)):
-
-```cpp
-return [&host_data](std::size_t location, double time, const std::vector<double>& coordinates,
-               std::vector<double>& velocities, std::size_t dimensions)
-{
-    const double carrier_velocity = carrier_velocity_at(host_data, location, time);
-    // ... fill velocities for every node of this location
-};
-```
-
-The callbacks capture `host_data` by reference and read its current contents on
-every invocation. The host therefore publishes new data between steps without
-rebuilding the callbacks, and `host_data` must outlive them; passing a temporary
-is rejected at compile time.
-
-## The time loop
-
-Each step the host publishes its new carrier-flow level at all locations, then
-advances every location with one call, then checks every entry and takes the
-new states back ([`main.cpp`](main.cpp)):
-
-```cpp
-while (time < final_time - 1.0e-12)
-{
-    const double step = std::min(time_step, final_time - time);
-    if (time > initial_time)
-    {
-        publish_carrier_flow_level(host_data, time);
-    }
-
-    std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> results =
-        qmomkit::advance_cqmom_phase_space_batch_with_index(states, time, step, velocity, source, options);
-
-    for (std::size_t location = 0; location < location_count; ++location)
-    {
-        if (!results[location].ok())
-        {
-            // report the failed location and stop
-        }
-        states[location] = std::move(results[location].state);
-    }
-    time += step;
-}
-```
-
-All entries of a batch share the time, the time step and the evolution options.
-Each entry keeps its own status, diagnostics, adaptive substeps and retries, so
-every result is checked. This example stops at the first failed location.
-
-## Time-varying host data
-
-The host cannot evaluate its flow field at the internal stage times QMOMKit
-passes the velocity callback, and it does not know the field at `time + step`.
-It keeps the level it computed last and the level before it, and
-`carrier_velocity_at(...)` extends the straight line through them to the
-requested stage time. This is second-order accurate in the time step, matching
-the second-order Strang splitting. On the first step no previous level exists,
-and the current level is held constant for that step. The same pattern, for a
-single location, is explained in more detail in
-[Supplying host data to a callback](../cqmom_5d_non-spherical-particles/README.md#supplying-host-data-to-a-callback)
-in `cqmom_5d_non-spherical-particles`.
+This example advances eight CQMOM states, standing in for the locations one
+process of a host application owns, with one
+`advance_cqmom_phase_space_batch_with_index(...)` call per step, as described
+in [Many states at once](../../docs/user/6_coupling_qmomkit.md#many-states-at-once).
+The callbacks receive each state's position in the vector as `batch_index` and
+read the host data of that location, including a carrier flow that changes in
+time.
 
 ## Model
 
-The phase-space ordering is $(d,u)$: particle size and particle velocity. At
-location $x_i$ the velocity callback returns
-
-$$
-\frac{\mathrm{d}d}{\mathrm{d}t} = 1-d, \qquad
-\frac{\mathrm{d}u}{\mathrm{d}t} = u_f(x_i,t)-u,
-$$
-
-with the travelling-wave carrier flow
+The phase-space coordinates are the particle volume $V$ and the particle
+velocity $u$, in that order; $V$, $u$, the position $x$ and the time $t$ are
+dimensionless. At location $x_i$ the velocity callback returns
 
 ```math
-u_f(x,t) = \sin\!\big(2\pi(x - 0.5\,t)\big).
+\frac{\mathrm{d}V}{\mathrm{d}t} = 1-V, \qquad
+\frac{\mathrm{d}u}{\mathrm{d}t} = u_f(x_i,t)-u,
 ```
 
-The moment source is binary fragmentation $d \to d/2$ at the local rate
-$\lambda_i$, leaving $u$ unchanged:
+with the traveling-wave carrier flow
+$u_f(x,t) = \sin\!\big(2\pi(x - 0.5\,t)\big)$. The moment source is binary
+breakage $V \to V/2$ at the local rate $\lambda_i$, leaving $u$ unchanged:
 
-$$
+```math
 \frac{\mathrm{d}M_{j,k}}{\mathrm{d}t} = \lambda_i\left(2^{1-j}-1\right)M_{j,k}.
-$$
+```
 
 The eight locations sit at $x_i = i/8$, and $\lambda_i$ rises linearly from
-0.25 at $x_0$ to 0.6875 at $x_7$. Every location starts from the configured
-independent product, $d \sim \mathcal{N}(2, 0.5^2)$ and
-$u \sim \mathcal{N}(0, 0.5^2)$ with number density 1, on a
-$2 \times 2$ hierarchy with conditioning order $(d, u)$.
+0.25 at $x_0$ to 0.6875 at $x_7$. The carrier flow and the rates are set in
+[host_data.hpp](./host_data.hpp) and [host_data.cpp](./host_data.cpp); the
+callbacks are defined in [physics.cpp](./physics.cpp).
+[configuration.qmom](./configuration.qmom) starts every location from the same
+independent product, $V \sim \mathcal{N}(2, 0.5^2)$ and
+$u \sim \mathcal{N}(0, 0.5^2)$ with number density 1, on a $2 \times 2$
+hierarchy with conditioning order $(V, u)$. Each step uses the default Strang
+splitting. [main.cpp](./main.cpp) advances from $t = 0$ to $1$ with steps of
+$0.01$.
 
-## Expected behavior
+### One index for host data and states
 
-The locations differ only through the host data, so the results show directly
-that each callback read its own location's entries:
+The host keeps the state of location `i` at position `i` of its state vector
+and every array of its `LocalHostData` ([host_data.hpp](./host_data.hpp)) in
+the same order, so a callback reads entry `batch_index` directly. The
+callbacks capture the host data by reference, so the host publishes a new
+carrier-flow level between steps without rebuilding them. Each step it
+publishes the level, advances all locations with one call, and checks every
+result; this example stops at the first failed location.
 
-- **Number density.** Advection leaves it unchanged and fragmentation
-  multiplies it by $e^{\lambda_i t}$, so its exact value is $n_0 e^{\lambda_i t}$.
-  The summary prints the computed $M_{0,0}$ next to it, and the two agree to the
-  printed digits.
-- **Mean velocity.** Fragmentation does not change $u$, so the mean velocity
-  $m = M_{0,1}/M_{0,0}$ obeys $\dot m = u_f(x_i,t) - m$. With
-  $\phi_i = 2\pi x_i$ and $\omega = \pi$, its exact solution is
+### Time-varying host data
 
-  $$m(t) = m_p(t) + \big(m(0) - m_p(0)\big)e^{-t}, \qquad m_p(t) = \frac{\sin(\phi_i - \omega t) + \omega\cos(\phi_i - \omega t)}{1 + \omega^2}.$$
-
-  The particles follow the flow damped and delayed: the periodic part $m_p$
-  has amplitude $1/\sqrt{1+\pi^2} \approx 0.30$ and lags the flow by about
-  $72^\circ$, and the start-up transient from $m(0) = 0$ decays as $e^{-t}$.
-  The summary prints the computed mean velocity next to $m(1)$. They differ by
-  at most about $1.1\times10^{-4}$ with the shipped `time_step = 0.01`.
-  Halving the step gives $2.8\times10^{-5}$, and halving it again gives
-  $6.9\times10^{-6}$, which is second-order convergence.
-- **Opposite locations.** Locations half a wavelength apart see opposite flows
-  at all times, so location $i$ and location $i+4$ end with opposite mean
-  velocities.
+QMOMKit evaluates the velocity at stage times inside the step, where the host
+has no flow data. The host keeps its last two carrier-flow levels and
+`carrier_velocity_at(...)` extrapolates linearly to the requested time, which
+keeps the step second order, as described in [Host data that changes in
+time](../../docs/user/6_coupling_qmomkit.md#host-data-that-changes-in-time). On
+the first step only one level exists, and it is held constant.
 
 ## Build and run
 
-Requires an installed QMOMKit package. From the repository root:
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md). From this directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
-cmake --install build
-```
-
-Then configure and build this example from its directory:
-
-```bash
-cd examples/cqmom_2d_batch_host_data
-cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
-cmake --build build
-```
-
-The build copies `configuration.qmom` into `build/`. Run from the build
-directory so that the output stays there:
-
-```bash
 cd build
 ./cqmom_2d_batch_host_data_example
 ```
 
-The executable prints one summary row per location: its position and
-fragmentation rate, then the computed $M_{0,0}$ and mean velocity, each next to
-its exact value. With the shipped `[output]` settings it writes, for every location
-`i`,
+## Output
 
-- `output/location_<i>_moment_history.txt`
-- `output/location_<i>_quadrature_history.txt`
+The example prints one row per location at $t = 1$: its position $x$, its
+rate $\lambda$, the number density $M_{0,0}$ and the mean velocity
+$M_{0,1}/M_{0,0}$, each next to its exact value. It writes the moments and the
+quadrature of every location `i` every $0.1$ to
+`build/output/location_<i>_moment_history.txt` and
+`build/output/location_<i>_quadrature_history.txt`, as set in the `[output]`
+section of `configuration.qmom`.
 
-every 0.1 time units, through QMOMKit's native writers.
+## What to expect
 
-## File guide
+The locations differ only through the host data, so each row shows the
+behavior of its own location:
 
-| File | Purpose |
-|---|---|
-| `main.cpp` | Driver: loads the configuration, packages the host data, and runs the batch time loop |
-| `configuration.qmom` | Hierarchy, initial condition, and output settings shared by all locations |
-| `host_data.*` | Host-side data per location: positions, fragmentation rates, and the two carrier-flow levels |
-| `physics.*` | Batch-index-aware velocity and moment-source callbacks reading the host data, and the exact solutions the summary compares with |
-| `utilities.*` | Per-location output file names and the per-location console summary |
+- **Number density.** Advection leaves it unchanged and breakage multiplies
+  it by $e^{\lambda_i t}$, from 1.28403 at $x_0$ to 1.98874 at $x_7$. The
+  computed and exact columns agree to the printed digits.
+- **Mean velocity.** Breakage does not change $u$, so the mean velocity
+  $m = M_{0,1}/M_{0,0}$ obeys $\dot m = u_f(x_i,t) - m$. With
+  $\phi_i = 2\pi x_i$ and $\omega = \pi$, its exact solution is
+
+  ```math
+  m(t) = m_p(t) + \big(m(0) - m_p(0)\big)e^{-t}, \qquad
+  m_p(t) = \frac{\sin(\phi_i - \omega t)
+  + \omega\cos(\phi_i - \omega t)}{1 + \omega^2}.
+  ```
+
+  The particles follow the flow damped and delayed: the periodic part $m_p$
+  has amplitude $1/\sqrt{1+\pi^2} \approx 0.30$ and lags the flow by about
+  $72^\circ$, and the start-up transient from $m(0) = 0$ decays as $e^{-t}$.
+  The computed and exact mean velocities differ by at most about
+  $1.1\times10^{-4}$ with the time step of $0.01$. Halving the step in
+  `main.cpp` reduces the difference to $2.8\times10^{-5}$, and halving it
+  again to $6.9\times10^{-6}$, the second-order convergence of the Strang
+  splitting.
+- **Opposite locations.** Locations half a wavelength apart see opposite
+  flows at all times, so locations $i$ and $i+4$ end with opposite mean
+  velocities.

@@ -24,16 +24,16 @@ qmomkit::monte_carlo::Ensemble to_ensemble(const std::vector<Particle>& particle
     ensemble.reserve(particles.size());
     for (const Particle& particle : particles)
     {
-        ensemble.push_back(qmomkit::monte_carlo::Sample{particle.diameter});
+        ensemble.push_back(qmomkit::monte_carlo::Sample{particle.volume});
     }
     return ensemble;
 }
 
-void update_particle_diameters(std::vector<Particle>& particles, const qmomkit::monte_carlo::Ensemble& ensemble)
+void update_particle_volumes(std::vector<Particle>& particles, const qmomkit::monte_carlo::Ensemble& ensemble)
 {
     for (std::size_t index = 0; index < particles.size(); ++index)
     {
-        particles[index].diameter = ensemble[index][0];
+        particles[index].volume = ensemble[index][0];
     }
 }
 
@@ -51,8 +51,8 @@ void apply_binary_breakage(std::vector<Particle>& particles, const double step_s
             continue;
         }
 
-        particles[particle_index].diameter *= 0.5;
-        particles.push_back(Particle{next_particle_id, particles[particle_index].diameter});
+        particles[particle_index].volume *= 0.5;
+        particles.push_back(Particle{next_particle_id, particles[particle_index].volume});
         ++next_particle_id;
     }
 }
@@ -66,7 +66,7 @@ std::vector<double> compute_particle_moments(const std::vector<Particle>& partic
         for (std::size_t order = 0; order < moments.size(); ++order)
         {
             moments[order] += particle_weight * power;
-            power *= particle.diameter;
+            power *= particle.volume;
         }
     }
     return moments;

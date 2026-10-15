@@ -6,7 +6,7 @@
 namespace cqmom_2d_batch_host_data
 {
 
-// The host's carrier flow is a travelling wave, u_f(x, t) = A sin(2 pi (x - c t)),
+// The host's carrier flow is a traveling wave, u_f(x, t) = A sin(2 pi (x - c t)),
 // so neighboring locations see the same flow at different phases.
 inline constexpr double pi = 3.14159265358979323846;
 inline constexpr double carrier_amplitude = 1.0;

@@ -77,7 +77,7 @@ int main()
                                                                particle_weight * static_cast<double>(particles.size()), output);
                 for (const qmom_1d_breakage_advection_with_mc::Particle& particle : particles)
                 {
-                    particle_history.emplace_back(time, particle.id, particle.diameter);
+                    particle_history.emplace_back(time, particle.id, particle.volume);
                 }
             }
         };
@@ -92,7 +92,7 @@ int main()
             const double half_step = 0.5 * step;
 
             // Strang splitting, as in the QMOMKit run: an advection half-step of the
-            // particle diameters, stochastic binary fragmentation over the whole
+            // particle volumes, stochastic binary fragmentation over the whole
             // step, and a second advection half-step.
             const qmomkit::monte_carlo::EnsembleEvolutionResult first_advection = qmomkit::monte_carlo::evolve_ensemble(
                 qmom_1d_breakage_advection_with_mc::to_ensemble(particles), velocity, time, time + half_step, advection_options);
@@ -101,7 +101,7 @@ int main()
                 std::cerr << "First advection particle half-step failed: " << first_advection.message << '\n';
                 return 1;
             }
-            qmom_1d_breakage_advection_with_mc::update_particle_diameters(particles, first_advection.ensemble);
+            qmom_1d_breakage_advection_with_mc::update_particle_volumes(particles, first_advection.ensemble);
 
             qmom_1d_breakage_advection_with_mc::apply_binary_breakage(particles, step, breakage_generator, next_particle_id);
 
@@ -112,7 +112,7 @@ int main()
                 std::cerr << "Second advection particle half-step failed: " << second_advection.message << '\n';
                 return 1;
             }
-            qmom_1d_breakage_advection_with_mc::update_particle_diameters(particles, second_advection.ensemble);
+            qmom_1d_breakage_advection_with_mc::update_particle_volumes(particles, second_advection.ensemble);
 
             time += step;
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)

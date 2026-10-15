@@ -1,178 +1,81 @@
-# QMOM: 1D phase-space advection with a moment-source
+# 1D QMOM breakage and advection
 
-## Purpose
+This example evolves a three-node `QmomState` with
+`advance_qmom_phase_space(...)`, which combines two callbacks by operator
+splitting: a phase-space velocity that moves the quadrature nodes, and a
+breakage source that returns moment rates. The source evaluates its rates over
+the nodes of the stage quadrature with `context.for_each_node(...)`, which
+closes moments of non-integer order that the state does not track.
 
-This tutorial-style example initializes and evolves a one-dimensional QMOM
-representation for a particle-size distribution with advection node motion
-and a size-dependent fragmentation source written over the quadrature nodes. The initial state is specified in
-[configuration.qmom](./configuration.qmom). The phase-space coordinate is $\xi=d$, where $d$ is
-particle diameter and $n(d)$ is the number density. The raw, unnormalized
-moments are
-```math
-M_k = \int_{\mathbb{R}} d^k n(d)\,\mathrm{d}d.
-```
+## Model
 
-The workflow is:
-
-```text
-initial distribution
-    -> raw moments
-    -> QMOM inversion
-    -> quadrature nodes and weights
-    -> phase-space advection and moment-source evolution with Strang splitting
-```
-
-The executable uses a small bimodal distribution,
-$`0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)`$, and reconstructs a three-node QMOM
-quadrature from moments $M_0$ through $M_5$. QMOMKit reads the mixture
-configuration, generates the analytical raw moments, and then the example calls
-`qmomkit::QmomCase::initial_state()` to construct the initial `QmomState`.
-
-Users can modify the number of QMOM nodes and the mode densities, locations,
-and standard deviations directly in [configuration.qmom](./configuration.qmom).
-For $n$ QMOM nodes, the configuration must request moments through order $2N -
-1$.
-
-The phase-space evolution defined in [physics.cpp](./physics.cpp) is:
-
-$$\frac{\mathrm{d}d}{\mathrm{d}t} = 1-d. $$
-
-Particles smaller than $d=1$ grow, and particles larger than $d=1$ shrink. The
-example passes this callback to `qmomkit::advance_qmom_phase_space(...)`, which
-manages the phase-space evolution as part of the configured phase-space
-evolution step. The underlying advection stage advances quadrature nodes, and
-weights are unchanged during that stage.
-
-The moment-source is also defined in [physics.cpp](./physics.cpp). It is a
-binary fragmentation model,
-
-$$d \to \frac{d}{2},$$
-
-in which one particle of diameter $d$ becomes two of diameter $d/2$, at a rate
-that grows with size,
-
-$$a(d) = a_\mathrm{ref}\left(\frac{d}{d_\mathrm{ref}}\right)^{p},
-\qquad a_\mathrm{ref} = 0.5,\quad d_\mathrm{ref} = 1,\quad p = \tfrac{3}{2}.$$
-
-The raw moments then change as
+The phase-space coordinate is the particle volume $V$ and $n(V)$ is the number
+density, with raw moments $m_k = \int V^k\,n(V)\,\mathrm{d}V$. Volume and time
+$t$ are dimensionless. Volumes relax toward $V = 1$,
 
 ```math
-\frac{\mathrm{d}M_k}{\mathrm{d}t}
-= \left(2^{1-k}-1\right)\int a(d)\,d^k\,n(d)\,\mathrm{d}d
-= \left(2^{1-k}-1\right)\frac{a_\mathrm{ref}}{d_\mathrm{ref}^{\,p}}\,M_{k+3/2}.
+\frac{\mathrm{d}V}{\mathrm{d}t} = 1 - V,
 ```
 
-The right-hand side needs moments of order $k + 3/2$, which are not among the
-transported moments $M_0$ through $M_5$. The source callback closes it with the
-quadrature: it evaluates the integral over the nodes of the quadrature that
-QMOMKit builds from the current moments, through `context.for_each_node(...)`:
+and particles break into two of half the volume, $V \to V/2$, at the rate
 
 ```math
-\frac{\mathrm{d}M_k}{\mathrm{d}t} \approx \left(2^{1-k}-1\right)
-\sum_i w_i\,a(d_i)\,d_i^k.
+a(V) = a_\mathrm{ref}\left(\frac{V}{V_\mathrm{ref}}\right)^{p},
+\qquad a_\mathrm{ref} = 0.5,\quad V_\mathrm{ref} = 1,\quad p = \tfrac{3}{2}.
 ```
 
-QMOMKit reconstructs that quadrature at every Runge-Kutta stage of the
-moment-source update, so the node values follow the moments as they change. The
-example passes this callback to `qmomkit::advance_qmom_phase_space(...)`, which
-manages the moment-source update as part of the configured phase-space
-evolution step. With $p = 0$ the rate is constant and the source reduces to
-$\mathrm{d}M_k/\mathrm{d}t = a_\mathrm{ref}\left(2^{1-k}-1\right)M_k$, the
-model used by
-[`qmom_1d_breakage_advection_with-mc`](../qmom_1d_breakage_advection_with-mc/README.md).
+Breakage conserves the total volume $m_1$, and the moments change as
 
-The time loop in [main.cpp](./main.cpp) calls
-`qmomkit::advance_qmom_phase_space(...)` for each configured phase-space
-evolution step. With the shipped `strang` setting, the native phase-space
-evolution operation uses:
-
-```text
-Advection half-step
-        ↓
-Moment-source update
-        ↓
-QMOM reconstruction
-        ↓
-Advection half-step
+```math
+\frac{\mathrm{d}m_k}{\mathrm{d}t}
+= \left(2^{1-k}-1\right)\int a(V)\,V^k\,n(V)\,\mathrm{d}V
+\approx \left(2^{1-k}-1\right)\sum_i w_i\,a(V_i)\,V_i^k,
 ```
 
-This keeps the distinction visible: phase-space advection moves the quadrature
-nodes, while the fragmentation source changes the raw moments, using the nodes
-of each stage quadrature only to evaluate its rates.
+where $w_i$ and $V_i$ are the weights and abscissas of the quadrature that
+QMOMKit reconstructs from the moments of each Runge–Kutta stage. The exact
+right-hand side needs $m_{k+3/2}$, which the state does not track. With $p = 0$
+the rate is constant and the source is closed in the moments, the model of
+[qmom_1d_breakage_advection_with-mc](../qmom_1d_breakage_advection_with-mc/README.md).
+$a_\mathrm{ref}$, $V_\mathrm{ref}$ and $p$ are set in
+[physics.cpp](./physics.cpp), which defines both callbacks.
 
-These two callbacks are choices made by this breakage model. A different
-QMOMKit workflow may use only phase-space advection, only moment-source
-evolution, or add a boundary contribution callback when the physics includes
-phase-space boundary exchange.
-
-The time controls are local constants in [main.cpp](./main.cpp):
-
-- `initial_time`
-- `final_time`
-- `time_step`
-
-These define the physical simulation duration and timestep size. The output
-cadence is read from `[output].interval` in
-[configuration.qmom](./configuration.qmom).
-
-The quadrature weights represent the amount of distribution mass carried by
-each node. The abscissas are the particle diameters at which that mass is
-concentrated in the QMOM approximation.
+[configuration.qmom](./configuration.qmom) defines the initial number density
+$0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$ and three nodes
+(`node_counts = 3`). For $n$ nodes, `maximum_order` must be at least $2n-1$,
+or omitted to use that minimum; here it is 5. The file has no
+`[time_integration]` section, so each step uses the default Strang splitting:
+half a step of node advection, the source step, half a step of node
+advection, as described in [Evolving in
+time](../../docs/user/5_evolving_in_time.md). [main.cpp](./main.cpp) advances
+from $t = 0$ to $1$ with steps of $0.01$.
 
 ## Build and run
 
-Build from this example directory:
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md). From this directory:
 
 ```bash
-cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
-```
-
-The build copies [configuration.qmom](./configuration.qmom) into `build/`. Run
-from the build directory so generated output stays there:
-
-```bash
 cd build
 ./qmom_1d_breakage_advection_example
 ```
 
-Running the executable writes:
+## Output
 
-- `output/moments.txt`
-- `output/quadrature.txt`
-
-It also prints the number density $M_0$ and the mean diameter $M_1/M_0$ at the
-start and the end, and the final quadrature.
-
-The output directory, enabled files, and write cadence are configured through
-the standard QMOMKit output section in
-[configuration.qmom](./configuration.qmom):
-
-```ini
-[output]
-directory = output
-write_moments = true
-write_quadrature = true
-interval = 0.1
-```
-
-`moments.txt` records the raw-moment evolution of the represented
-distribution. `quadrature.txt` records the reconstructed node weights and
-abscissas at the same output times so users can inspect the numerical
-representation. Both files are written through QMOMKit-native writers as
-whitespace-delimited text tables with commented headers.
+The example prints the initial and final number density $m_0$ and mean volume
+$m_1/m_0$, and the final quadrature. It writes the moments and the quadrature
+every $0.1$ to `build/output/moments.txt` and `build/output/quadrature.txt`, as
+set in the `[output]` section of `configuration.qmom`.
 
 ## What to expect
 
-The fragmentation source increases $M_0$, so the represented number density
-grows. Because large particles break faster, the large mode near $d = 3$
-initially fragments about five times as fast as the small mode near $d = 1$.
-Fragmentation and advection both shrink the large particles, so the growth of
-$M_0$ slows over time: it gains about 0.14 in the first 0.1 time units and
-about 0.09 in the last. By $t = 1$, $M_0$ has grown from 1 to about 2.04,
-compared with about 1.65 at the constant rate $a_\mathrm{ref}$, and the mean
-diameter has fallen from 2 to about 0.87. In `moments.txt`, $M_5$ falls from
-about 127 to about 2.8, and the third node of the final quadrature, near
-$d = 1.7$, carries the least weight. The final quadrature shows the combined
-effect of population multiplication and diameter relaxation rather than either
-mechanism in isolation.
+Breakage raises $m_0$. Large particles break faster: the mode near $V = 3$
+initially breaks about five times as fast as the mode near $V = 1$. Breakage
+and advection both shrink the large particles, so the growth of $m_0$ slows: it
+gains about 0.14 in the first $0.1$ and about 0.09 in the last. By $t = 1$,
+$m_0$ has grown from 1 to about 2.04, against about 1.65 for the constant rate
+$a_\mathrm{ref}$, and the mean volume has fallen from 2 to about 0.87. In
+`moments.txt`, $m_5$ falls from about 127 to about 2.8. The third node of the
+final quadrature, near $V = 1.7$, carries the least weight.

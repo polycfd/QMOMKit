@@ -1,11 +1,11 @@
-# Two-dimensional CQMOM case in (d, u). Every location the host owns starts
+# Two-dimensional CQMOM case in (V, u). Every location the host owns starts
 # from this case; the locations differ only through the host data the callbacks
 # read, not through this file.
 
 # The number of coordinates decides the method: one uses QMOM, several CQMOM.
 # Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
-names = d, u
+names = V, u
 # Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
 # so raising this asks for more information from the initial condition.
 node_counts = 2, 2

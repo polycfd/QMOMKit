@@ -1,30 +1,39 @@
-# QMOM Distribution Initialization Example
+# QMOM initialization from a distribution
 
-This example generates raw moments from an analytical log-normal distribution
-and reconstructs a one-dimensional QMOM quadrature.
+This example generates the raw moments of a log-normal distribution with
+`compute_raw_moments(...)` and reconstructs a two-node QMOM quadrature from
+them with `compute_qmom(...)`, as described in
+[Moments and quadrature](../../docs/user/4_moments_and_quadrature.md#from-distributions).
 
-The phase-space coordinate is the scalar distribution variable $\xi$. The
-implemented distribution is `LogNormalDistribution{-0.2, 0.4}`, where the
-parameters are the logarithmic mean and logarithmic standard deviation. The
-total number density is `2.5`. QMOMKit requests moments through order
-`2 * node_count - 1 = 3` for the requested two-node quadrature.
+## Model
 
-The generated values are raw, unnormalized moments. In particular, $m_0$ is
-the total number density `2.5`; it is not normalized away before QMOM
-reconstruction. QMOMKit evaluates the analytical distribution moments, then
-`compute_qmom(...)` converts those moments into two weights and two
-abscissas. The printed weights and abscissas are the finite QMOM
-representation of the log-normal distribution, not samples from it.
+The number density $n(\xi)$ of a dimensionless coordinate $\xi$ is the
+log-normal distribution `LogNormalDistribution{-0.2, 0.4}`, with logarithmic
+mean $-0.2$ and logarithmic standard deviation $0.4$, scaled to the number
+density $2.5$. The raw moments are $m_k = \int \xi^k\,n(\xi)\,\mathrm{d}\xi$,
+so $m_0 = 2.5$. A two-node quadrature needs $m_0, \dots, m_3$, so
+[main.cpp](./main.cpp) requests the moments through order
+$2 \cdot 2 - 1 = 3$.
 
-Build and run from this example directory:
+## Build and run
+
+Install QMOMKit first, as described in
+[Installation](../../docs/user/1_installation.md). From this directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../../install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=../../install
 cmake --build build
 cd build
 ./qmom_distribution_initialization_example
 ```
 
-The executable writes no files. It prints the generated raw moments, including
-$m_0$, followed by the reconstructed quadrature weights and abscissas.
+## Output
+
+The example prints the number density, the moments $m_0, \dots, m_3$, and the
+weight and abscissa of each node. It writes no files.
+
+## What to expect
+
+The moments are about 2.5, 2.22, 2.31 and 2.82. The quadrature has weights of
+about 1.94 and 0.56 at abscissas of about 0.69 and 1.57; the weights sum to
+$m_0 = 2.5$.

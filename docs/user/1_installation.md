@@ -13,8 +13,9 @@ cmake --build build
 cmake --install build
 ```
 
-This builds `Release` and installs into `install/` in the repository. Choose
-otherwise with `-DCMAKE_BUILD_TYPE=...` and `-DCMAKE_INSTALL_PREFIX=...`.
+With a single-configuration generator this builds `Release`; it installs into
+`install/` in the repository. Choose otherwise with `-DCMAKE_BUILD_TYPE=...` and
+`-DCMAKE_INSTALL_PREFIX=...`.
 
 ## Use the installed package
 

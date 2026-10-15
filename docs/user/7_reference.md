@@ -46,7 +46,7 @@ string.
 | Key | Meaning |
 | --- | --- |
 | `values` | QMOM: raw moments $m_0, m_1, \ldots$, at least $2N$. |
-| `extents`, `M[i,j,…]` | CQMOM: tensor extents, then one `M[i,j,…] = value` line for every entry within them. |
+| `extents`, `M[i,j,…]` | CQMOM: tensor extents, at least twice each coordinate's node count, then one `M[i,j,…] = value` line for every entry within them. |
 
 ### `[initial]`
 
@@ -95,7 +95,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 
 | Key | Default | Meaning | C++ |
 | --- | --- | --- | --- |
-| `[cqmom] diagnostic_level` | `none` | `basic` records branch structure, `detailed` adds the relative residual and condition estimate of each conditional system. Results are unchanged. | `CqmomCase::diagnostic_level` |
+| `[cqmom] diagnostic_level` | `none` | `basic` records branch structure, `detailed` adds the relative residual and condition estimate of each conditional system, in `CqmomResult::diagnostics`. Results are unchanged. | `CqmomCase::diagnostic_level` |
 | `[vandermonde] solver` | `automatic` | Solver of the conditional systems: `automatic` (Björck–Pereyra), `bjorck_pereyra`, `dense`, `pivoted_qr`, `svd`, `moore_penrose`. | `CqmomCase::vandermonde_solver` |
 | `[vandermonde] rcond` | `1e-14` | Singular values at or below `rcond` times the largest are discarded by `moore_penrose`; the other solvers ignore it. `0 <= rcond < 1`. | `ConditionalMomentOptions::moore_penrose_rcond` |
 
@@ -108,7 +108,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | `[time_integration.node_advection.adaptive]` `relative_tolerance`, `absolute_tolerance` | `1e-6`, `1e-9` | Error tolerances of `rk23` and `rk45`. | `node_options.adaptive_options` |
 | `initial_step` | `1e-6` | First step tried. | 〃 |
 | `max_step` | whole interval | Largest step. | 〃 |
-| `min_step` | automatic | Smallest step, at least ten double spacings of the time elapsed within the node-advection interval. A step at this floor is accepted even above the tolerance. | 〃 |
+| `min_step` | automatic | Smallest step, never below ten floating-point spacings of the elapsed time. A step at this floor is accepted even above the tolerance. | 〃 |
 | `max_steps` | `1000000000` | Most accepted steps per interval. | 〃 |
 | — | `0` | Source step: retries with half the step after a rejection. | `source_options.ssp_rk3_options.max_retries` |
 | — | `0` | Source step: shortest retried step. | `source_options.ssp_rk3_options.min_time_step` |
@@ -145,6 +145,7 @@ function.
 | --- | --- | --- |
 | Load a configuration | `config::load_qmom`, `load_cqmom_prepared`, `load_cqmom`, `load_*_options`, their `parse_*` forms, `with_initial_moments` | `configuration.hpp` |
 | Generate moments | `compute_raw_moments` | `distributions.hpp` |
+| Set up CQMOM moments | `create_cqmom_moment_layout`, `extract_cqmom_moments`, `create_cqmom_moment_data` | `cqmom.hpp` |
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
 | Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `active_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
@@ -153,6 +154,7 @@ function.
 | Derived moments | `evaluate_generalized_moment`, `reconstruct_raw_moments` | `moment_reconstruction.hpp` |
 | Write output | `MomentWriter`, `QuadratureWriter` | `output.hpp` |
 | Without a state | `advance_nodes`, `advance_qmom_moments_with_source`, `advance_cqmom_moments_with_source` | `node_advection.hpp`, `moment_source.hpp` |
+| Integrate an ODE | `ssp_rk3_step`, `integrate_embedded_rk` | `runge_kutta.hpp` |
 
 ## Callbacks
 
@@ -190,6 +192,15 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | | `realizability_rejected` | The policy rejected the moments. |
 | | `reconstruction_failed` | No quadrature from these moments. |
 | | `invalid_input` | Non-finite moments, too few, a wrong layout, or an invalid policy. |
+| `QmomNodeAdvectionResult`, `CqmomNodeAdvectionResult` | `invalid_input` | An invalid quadrature, time, callback, or options. |
+| | `velocity_failed` | The velocity threw, or returned the wrong size or a non-finite value. |
+| | `integration_failed` | The node integration failed. |
+| `QmomMomentSourceUpdateResult`, `CqmomMomentSourceUpdateResult` | `invalid_input` | Invalid moments, time, callbacks, or options. |
+| | `source_failed` | The source or boundary contribution failed. |
+| | `rejected_by_predicate`, `minimum_timestep_reached` | A rejected step could not be retried. |
+| `SspRk3Result` | `invalid_input`, `rejected_by_predicate`, `minimum_timestep_reached` | As for a moment-source update. |
+| `AdaptiveRkResult` | `invalid_input` | Invalid options or input. |
+| | `step_size_underflow`, `max_steps_exceeded` | A non-finite state at the minimum step, or more than `max_steps` steps. |
 | `RawMomentResult` and the other moment-generation results | `invalid_input` | Invalid distribution parameters or orders. |
 | | `overflow`, `underflow`, `non_finite` | A moment does not fit in a double. |
 | `RealizabilityResult` | `strictly_realizable`, `boundary` | Realizable; `realizable()` is true. |
@@ -197,11 +208,12 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | | `numerically_indeterminate` | The moments carry too few digits to decide. |
 | | `invalid_input` | Empty or non-finite moments, an invalid tolerance, or an invalid support or interval. |
 
-Every result type in this table other than `RealizabilityResult` also has a
-`success` status and `ok()`. An evolution result's `diagnostics.failed_stage`
-names the part of the step that failed: `first_advection_half_step`,
-`first_moment_reconstruction`, `moment_source_step`, `post_source_inversion`,
-`second_advection_half_step`, or `final_moment_reconstruction`.
+Every result type in this table also has a `success` status and `ok()`, except
+`RealizabilityResult`; `AdaptiveRkResult` has `success` but no `ok()`. An
+evolution result's `diagnostics.failed_stage` names the part of the step that
+failed: `first_advection_half_step`, `first_moment_reconstruction`,
+`moment_source_step`, `post_source_inversion`, `second_advection_half_step`, or
+`final_moment_reconstruction`.
 
 These throw instead of returning a status:
 
@@ -235,7 +247,9 @@ These throw instead of returning a status:
 | `Moment-source update was rejected by the acceptability predicate.`, `… reached the minimum timestep before an acceptable state was found.` | The source drives the moments out of the realizable set. Allow retries (`max_retries`), use a smaller step, or treat it as a physics problem. |
 | `… must match the source context size.`, `… must match the moment state size.`, `RHS returned a vector with the wrong size.`, `… must be finite.` | Return exactly `context.size()` finite values, in context order. |
 
-For more detail on a CQMOM failure, set `[cqmom] diagnostic_level = detailed`.
+For more detail on a CQMOM failure, set `[cqmom] diagnostic_level = detailed`
+and read `CqmomResult::diagnostics`, or
+`diagnostics.post_source_cqmom_diagnostics` of an evolution result.
 
 ## Output files
 
@@ -248,5 +262,5 @@ then columns separated by whitespace, in full double precision.
 | `QuadratureWriter`, QMOM | `time node_index weight x0`, one row per node. |
 | `QuadratureWriter`, CQMOM | `time node_index path_0 … weight x0 …`, one row per terminal node; `path_0 …` are the node's index at each conditioning level. |
 
-An adaptive quadrature can have a different number of rows at different times;
-group rows by `time`.
+`x0 …` are the node's abscissas, one per coordinate. An adaptive quadrature can
+have a different number of rows at different times; group rows by `time`.

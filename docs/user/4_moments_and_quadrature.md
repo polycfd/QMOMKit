@@ -11,7 +11,7 @@ options. Its moments can come from your own data, from distributions, or from a
 configuration file.
 
 Choose units in which the coordinates are of order one, for example droplet
-volumes in cubic micrometres rather than cubic metres. High powers of very large
+volumes in cubic micrometers rather than cubic meters. High powers of very large
 or very small values do not fit in a double.
 
 ### From your own moments
@@ -98,8 +98,7 @@ moments in `[moments]` or distributions in `[initial]`; the
 before preparing it.
 
 For example, this file, `qmom.qmom`, holds the one-dimensional case from
-[Getting started](2_getting_started.md) and, for its evolution, the splitting
-scheme:
+[Getting started](2_getting_started.md):
 
 ```ini
 [phase_space]
@@ -107,9 +106,6 @@ node_counts = 2
 
 [moments]
 values = 1.0, 0.8, 2.8, 4.4
-
-[time_integration]
-scheme = strang
 ```
 
 It is loaded with:
@@ -220,7 +216,8 @@ differ in numerical robustness.
 
 CQMOM solves a small linear system for each conditional reconstruction. The
 default solver suits most cases; `[vandermonde] solver` selects another, and
-`[cqmom] diagnostic_level` records more detail about each branch. See the
+`[cqmom] diagnostic_level` records more detail about each branch in
+`CqmomResult::diagnostics`. See the
 [Reference](7_reference.md#cqmom-and-vandermonde), and the
 [developer documentation](../developer/linear_algebra.md) for the solvers.
 

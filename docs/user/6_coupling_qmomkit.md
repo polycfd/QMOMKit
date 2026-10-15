@@ -40,10 +40,12 @@ for (std::vector<double>& moments : cell_moments)
     }
     const qmomkit::QmomPhaseSpaceEvolutionResult evolved =
         qmomkit::advance_qmom_phase_space(*candidate.state, time, time_step, velocity, source, options);
-    if (evolved.ok())
+    if (!evolved.ok())
     {
-        moments = evolved.state.moment_values();
+        std::cerr << evolved.message << '\n'; // your decision: retry with a smaller step, or stop
+        return 1;
     }
+    moments = evolved.state.moment_values();
 }
 ```
 
@@ -69,15 +71,23 @@ for (std::vector<double>& moments : cqmom_cells)
     moment_data.values = moments;
     qmomkit::CqmomStateCandidate candidate =
         prepared_case.state_candidate(moment_data, cqmom_options.source_options.coordinate_realizability_policies);
-    if (candidate.ok())
+    if (candidate.status == qmomkit::StateCandidateStatus::empty)
     {
-        const qmomkit::CqmomPhaseSpaceEvolutionResult evolved =
-            qmomkit::advance_cqmom_phase_space(*candidate.state, time, time_step, velocity, cqmom_source, cqmom_options);
-        if (evolved.ok())
-        {
-            moments = evolved.state.moment_values();
-        }
+        continue;
     }
+    if (!candidate.ok())
+    {
+        std::cerr << candidate.message << '\n';
+        return 1;
+    }
+    const qmomkit::CqmomPhaseSpaceEvolutionResult evolved =
+        qmomkit::advance_cqmom_phase_space(*candidate.state, time, time_step, velocity, cqmom_source, cqmom_options);
+    if (!evolved.ok())
+    {
+        std::cerr << evolved.message << '\n';
+        return 1;
+    }
+    moments = evolved.state.moment_values();
 }
 ```
 
@@ -90,7 +100,7 @@ moments of each state, and create the states again from them with
 `state_candidate(...)`.
 
 Keeping the moments realizable during transport is your code's part. A scheme
-whose new cell values are convex combinations of realizable neighbour values,
+whose new cell values are convex combinations of realizable neighbor values,
 such as first-order upwinding with a Courant number of at most one, keeps them
 realizable; higher-order schemes need a realizability-preserving reconstruction.
 Without a policy, an adaptive reconstruction quietly reduces non-realizable

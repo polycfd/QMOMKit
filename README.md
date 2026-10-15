@@ -7,7 +7,7 @@
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml/badge.svg" alt="CI-Consumers"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 
-**QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in phase space.**
+**QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number density functions in phase space.**
 
 QMOMKit reconstructs quadratures, sets of weighted nodes, from the raw moments of a number density and evolves them in phase space: it solves the phase-space part of a population balance equation at one location. Transport in physical space, the mesh, the time loop and the coupling to a host code belong to the host application. Examples of how to couple QMOMKit to host application codes are maintained separately in [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings). The library has **no third-party dependencies**.
 
@@ -55,7 +55,7 @@ int main()
 }
 ```
 
-[Getting started](docs/user/2_getting_started.md) builds on this to cover configuration, phase-space evolution, and output.
+[Getting started](docs/user/2_getting_started.md) builds on this to cover configuration and phase-space evolution.
 
 ## Installation
 
@@ -95,7 +95,7 @@ The test suite consists of:
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
 - verification tests against analytical, manufactured, convergence, or reconstruction references;
-- public-header checks and installed-package consumer checks.
+- public-header checks; the installed-package consumer check runs separately.
 
 Build and run it in a _Debug build_, because the unit tests use `assert()`:
 

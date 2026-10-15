@@ -45,8 +45,8 @@ realizable, and writes output.
 **Your code does everything else:** the physics, as callbacks that return
 $\dot{\boldsymbol{\xi}}$, the moment rates of $S$, and those of the exchange
 across phase-space boundaries; the meaning and units of the coordinates; the
-time loop and step size; what happens when a step fails; and everything in
-physical space, such as meshes, transport with $\mathbf{u}$, and parallelism.
+time loop and step size; what happens when a step fails; everything in
+physical space, such as meshes and transport with $\mathbf{u}$; and parallelism.
 [Coupling QMOMKit](6_coupling_qmomkit.md) shows how the two parts fit
 together.
 

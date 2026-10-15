@@ -110,7 +110,7 @@ Moments the state does not track, generalized moments, and nodes come from a
 quadrature reconstructed from the stage, at most once per stage. Within a
 source step, a branch of the state never gains a node.
 
-A rate is often easiest to write over the nodes. Here particles are removed at a
+A rate is often easiest to write over the nodes. Here elements are removed at a
 rate proportional to their size, $\mathrm{d}m_k/\mathrm{d}t = -\sum_i 0.1\,\xi_i\,w_i\,\xi_i^k$:
 
 ```cpp
@@ -158,7 +158,7 @@ velocity passes one that writes zeros, or calls
 
 Exchange across a phase-space boundary, such as nucleation or injection, is a
 boundary contribution: a callback shaped like a source, whose rates are added
-to it. Here particles are injected at size 0.1 at a rate of 0.02:
+to it. Here elements are injected at size 0.1 at a rate of 0.02:
 
 ```cpp
 const qmomkit::QmomMomentBoundaryContribution injection = [](double, const qmomkit::QmomSourceContext& context)
@@ -225,7 +225,7 @@ count of each branch.
 ```cpp
 if (!result.ok())
 {
-    std::cerr << result.message << " (stage " << static_cast<int>(result.diagnostics.failed_stage) << ")\n";
+    std::cerr << result.message << '\n';
     return 1;
 }
 state = result.state;
@@ -239,10 +239,7 @@ On failure, `result.state` is the state the step started from and
 negative tolerance, is reported as `invalid_input` before anything runs, so a
 step failure always concerns the numerics or your callbacks. Retrying with a
 smaller step, or stopping, is your decision. A failed CQMOM step may also
-return, for diagnosis only, a `diagnostic_quadrature`: the quadrature the
-failing stage produced or started from, such as a failed reconstruction's
-candidate, nodes whose moments do not fit in a double, or the input of a failed
-advection or source stage.
+return a `diagnostic_quadrature`, for diagnosis only.
 
 ## Writing output
 

@@ -70,7 +70,7 @@ says why, so always check it before using a result.
 
 ## 2. Evolve it in time
 
-Now let the population change. Its nodes drift towards zero at a rate
+Now let the population change. Its nodes drift toward zero at a rate
 proportional to their abscissa, and the population as a whole decays:
 
 ```math
@@ -94,7 +94,7 @@ int main()
     qmom_case.node_count = 2;
     qmomkit::QmomState state = qmom_case.initial_state();
 
-    // Nodes drift towards zero: dxi/dt = -0.5 xi.
+    // Nodes drift toward zero: dxi/dt = -0.5 xi.
     const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>& xi) { return std::vector<double>{-0.5 * xi[0]}; });
 

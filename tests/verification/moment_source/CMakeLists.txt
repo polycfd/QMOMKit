@@ -20,3 +20,6 @@ foreach(index RANGE 0 ${moment_source_last_index} 2)
     )
     set_tests_properties(verification_moment_source_${case_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()
+
+qmomkit_add_test_executable(test_moment_source_cqmom_update cqmom_source_update.cpp)
+qmomkit_register_source_logical_cases(test_moment_source_cqmom_update verification "${CMAKE_CURRENT_LIST_DIR}/cqmom_source_update.cpp")

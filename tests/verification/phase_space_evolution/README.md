@@ -11,9 +11,10 @@ exact split solution; source and boundary callbacks must see and return
 moments in the documented order and stage, and source callbacks the moments
 they request beyond the tracked ones from the quadrature of the current stage;
 adaptive QMOM node counts must change as documented; realizability policies
-and retries must govern the source step; states created from moments the host
-changed must hold the quadrature of those moments, after any realizability
-check; and failures must report their status and failed stage.
+and retries must govern the source step; abscissa bounds must apply wherever a
+quadrature is reconstructed from moments, and nowhere else; states created from
+moments the host changed must hold the quadrature of those moments, after any
+realizability check; and failures must report their status and failed stage.
 
 The error is
 $\max_\alpha |M_\alpha - M_\alpha^{\mathrm{ref}}| / \max(1, |M_\alpha^{\mathrm{ref}}|)$
@@ -67,9 +68,10 @@ $\xi_1 \in \{-1, 2\}$ (weights $0.25, 0.75$). The inversion-failure fixtures
 differ from their failure counterparts only in $m_0 = -1$ or $M_{0,0} = -1$.
 
 The cases of `time_dependent_splitting.cpp`, `adaptive_qmom_evolution.cpp`,
-`source_step_retries.cpp`, `state_candidate.cpp` and
-`source_context_moments.cpp` build their states in the test, without a
-fixture, and are listed in their sections below.
+`source_step_retries.cpp`, `state_candidate.cpp`,
+`source_context_moments.cpp` and `abscissa_bounds_evolution.cpp` build their
+states in the test, without a fixture, and are listed in their sections
+below.
 
 ## Commuting operators
 
@@ -275,6 +277,31 @@ reproduces the conditional moments of orders 0 to 3, and the rates need orders
 up to 2, so the moment equations are linear and nilpotent and SSP-RK3 equals
 the exact flow. Four steps of `0.125` must match the reference up to roundoff.
 
+## Abscissa bounds
+
+`abscissa_bounds_<case>` (`abscissa_bounds_evolution.cpp`) give $\xi$, or
+$\xi_0$ in CQMOM, the bounds $[0, 1]$. The source steps move weighted points
+at constant velocities with a source that returns the time derivative of their
+moments as a function of time. That rate is at most cubic in time, which
+SSP-RK3 integrates exactly, like Simpson's rule, so the reference is the moved
+points, or the one-node rule $(m_1/m_0,\ m_0)$.
+
+| Case | Setup | Required result |
+| --- | --- | --- |
+| `qmom_advection_leaves_the_bounds_without_clipping` | fixed, $0.4$ at $0.2$ and $0.6$ at $0.6$, advected by $0.5$ from $t = 0$ to $1$ | success, nodes $0.7$ and $1.1$ |
+| `qmom_fixed_source_step_inside_the_bounds_is_exact` | the same points moving at $0.1$ and $0.2$, a source step of `1` from $t = 0.5$ | nodes $0.3$ and $0.8$ |
+| `qmom_fixed_source_step_leaving_the_bounds_fails` | the same, a step of `2.5`, to $0.45$ and $1.1$ | `inversion_failed` at `post_source_inversion`, `not_realizable`, the input state and start time |
+| `qmom_adaptive_source_step_leaving_the_bounds_keeps_one_node` | the same, adaptive | one node at $0.84$ with weight $1$ |
+| `qmom_fixed_source_stage_rejects_nodes_outside_the_bounds` | the advected state; a zero-rate source visits the stage nodes from $t = 1$ | `moment_source_failed`, `source_failed`, the input state and start time |
+| `qmom_adaptive_source_stage_sees_one_node_inside_the_bounds` | the same, adaptive | the source sees one node at $0.94$ with weight $1$ in all three stages, and the step keeps it |
+| `cqmom_advection_leaves_the_bounds_without_clipping` | fixed `2 x 2`, $0.15$ at $(0.2, 0.05)$, $0.2$ at $(0.2, 0.95)$, $0.3$ at $(0.6, 0.1)$, $0.35$ at $(0.6, 0.8)$; advected by $(0.5, 0)$ | success, $\xi_0$ at $0.7$ and $1.1$ |
+| `cqmom_fixed_source_stage_rejects_nodes_outside_the_bounds` | the advected state; a zero-rate source visits the terminal nodes from the time the advection reached | `moment_source_failed`, `source_failed`, the input state and start time |
+| `cqmom_bounded_coordinate_rejects_a_node_outside` | a source moving $\xi_0$ the same way | `inversion_failed` at `post_source_inversion`, `qmom_failed`, the input state and start time |
+| `cqmom_unbounded_coordinate_accepts_nodes_outside` | a source moving the points by $(0.2, 0.3)$ | $\xi_0$ at $0.4$ and $0.8$; $\xi_1$ at $0.35$ and $1.25$, and at $0.4$ and $1.1$ |
+
+The CQMOM points start inside $[0, 1]$ in both coordinates, so that bounds
+applied to $\xi_1$ as well fail only the last case.
+
 ## Boundary contributions
 
 `qmom_boundary_contribution` uses zero velocity, `srcadv`, injection at
@@ -326,6 +353,7 @@ accessor.
 | time-dependent Strang order | order $\ge 1.75, 1.85$ on the two finest pairs | 2.07, 2.03 | the thresholds of `noncommuting_qmom` |
 | adaptive QMOM, source retries | nodes, weights and moments `1e-12` | below `1e-14`, `1e-16` | exact references; rounding of the step and the reconstruction |
 | state candidates | weights, positions and moments `1e-12` | below `1e-14` | exact references; rounding of the reconstruction |
+| abscissa bounds | nodes, weights and moments `1e-12` | below `4e-15` | exact references; rounding of the step and the reconstruction |
 | untracked source moments, QMOM | order $\ge 2.8$ on the two finest pairs; error `1e-5` at 160 steps | 2.94 to 3.00 on those pairs; `2e-6`, `2e-8` | the SSP-RK3 source error is third order; the bound leaves a factor of 6 and lies far below the `7e-3` and `6e-2` of the step-start quadrature, which gives order 1 |
 | untracked source moments, CQMOM | moments `1e-12` | below `1e-14` | exact reference; roundoff |
 | `direct_advection` | positions `2e-12`, moments `2e-11` | `1e-13`, `1e-12` | SSP-RK3 node error |

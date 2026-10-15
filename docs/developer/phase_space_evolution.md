@@ -373,11 +373,11 @@ noncommuting cases measure the splitting order under step refinement, about two
 for `strang` and one for `advsrc` and `srcadv`. A case with time-dependent
 callbacks also compares each scheme with its exact split solution, which detects
 a stage evaluated on the wrong time interval. Further cases cover adaptive QMOM
-node counts, source-step policies with retries, states created with
-`state_candidate(...)`, and moments a source requests beyond the tracked ones,
-which must come from the quadrature of the current stage. A new scheme adds its
-order there, and a new status or diagnostic a component-regression test of the
-failing path.
+node counts, source-step policies with retries, abscissa bounds, states created
+with `state_candidate(...)`, and moments a source requests beyond the tracked
+ones, which must come from the quadrature of the current stage. A new scheme adds
+its order there, and a new status or diagnostic a component-regression test of
+the failing path.
 
 ## Where the code lives
 

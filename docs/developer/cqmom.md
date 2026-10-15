@@ -18,11 +18,11 @@ A *branch* at level $l$ is identified by its parent path, the node indices
 chosen at levels $0,\ldots,l-1$. Each branch carries a *slice*: the moments it
 needs, indexed in conditioning order with $c_l$ first.
 
-1. **Root.** The root slice is the required moment data, reordered into
-   conditioning order. Its leading sequence $M_{k\,e_{c_0}}$, $k<2N_0$, is the
-   marginal of $c_0$, which the Wheeler algorithm
-   [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)] inverts as
-   in [QMOM](qmom.md). The root weights add up to $M_{0,\ldots,0}$.
+1. **Root.** The root slice is the required moment data, with each
+   multi-index permuted into conditioning order. Its leading sequence
+   $M_{k\,e_{c_0}}$, $k<2N_0$, is the marginal of $c_0$, which the Wheeler
+   algorithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]
+   inverts as in [QMOM](qmom.md). The root weights add up to $M_{0,\ldots,0}$.
 2. **Conditional moments.** For a nonterminal branch whose inversion accepted
    $n$ nodes $\xi_i$ with weights $w_i$, the slices of its $n$ children solve
    one weighted Vandermonde system with one column per trailing multi-index $q$:
@@ -45,12 +45,9 @@ needs, indexed in conditioning order with $c_l$ first.
    probabilities.
 3. **Next level.** Wheeler inverts the leading sequence of every child slice.
    Conditional moments carry the rounding of the solve that produced them,
-   which is relative to the scale of their coordinate, not to their own
-   magnitude. In adaptive mode each inversion therefore receives the scale $s$
-   of the coordinate it inverts, which sets the floor of its rounding bound
-   ([QMOM](qmom.md#rounding-bound-on-the-recurrence)); how $s$ is computed is
-   in [QMOM](qmom.md#coordinate-scales). The root inverts given moments and
-   uses $s=0$, as does every level in fixed mode.
+   relative to the scale of their coordinate rather than to their own
+   magnitude, so in adaptive mode each inversion receives that scale
+   ([QMOM](qmom.md#coordinate-scales)).
 4. **Terminal nodes.** At the last level, every accepted node becomes a
    terminal node. Its weight is the product of the local weights along its
    path, and its abscissas are collected in phase-space order.
@@ -192,12 +189,11 @@ successors. Both routes give the same quadrature.
 | `basic` | One record per reconstructed branch: level, parent path, dimension, `requested_node_count` and accepted count, `adaptive_node_count_reduced`, Wheeler status as `QmomStatus`, conditional-moment status, requested and selected Vandermonde solver, and bounds details. |
 | `detailed` | As `basic`, plus the relative residual and condition estimate of each conditional system and `conditioning_warning` when the estimate exceeds `ConditionalMomentOptions::conditioning_warning_threshold`. |
 
-The detailed quantities describe the scaled system the solvers decide on
-([Linear algebra](linear_algebra.md#diagnostics)), so they do not depend on
-the number density, and a change of unit moves the condition estimate by a
-bounded factor only. They need the explicit matrix and its full inverse, which
-is why they have their own level, and they never fail a solve. The level never
-changes a quadrature, a status or a node count.
+The detailed quantities describe the scaled system the solvers decide on,
+with the invariances given in [Linear algebra](linear_algebra.md#diagnostics).
+They need the explicit matrix and its full inverse, which is why they have
+their own level. The level never fails a solve or changes a quadrature, a
+status or a node count.
 
 `requested_node_count` is the branch's ceiling, raised by one when a growth
 trial is accepted; for a bounded coordinate it is the candidate count the bounds
@@ -250,7 +246,3 @@ the layout checks. Source contexts and output writers use the public functions.
 | `validate_active_branch_counts`, `recursive_branch_node_count_limit` | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Active counts and ceilings. |
 | `solve_conditional_vandermonde_system` | [`src/internal/vandermonde.cpp`](../../src/internal/vandermonde.cpp) | Conditional systems. |
 | `reconstruct_raw_moments`, `reconstruct_cqmom_moments`, `evaluate_generalized_moment` | [`src/moment_reconstruction.cpp`](../../src/moment_reconstruction.cpp) | Moments from a quadrature. |
-
-Coverage is in `tests/unit/recursive_quadrature.cpp`,
-`tests/unit/public_api.cpp`, `tests/unit/moment_reconstruction.cpp`,
-`tests/component_regression/` and `tests/verification/cqmom/`.

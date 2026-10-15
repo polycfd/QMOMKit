@@ -59,8 +59,9 @@ The scanned forms read the source with a regular expression and name each test
 leading `test_` or `component_regression_` (for a unit test, the file stem).
 The selector is `<case>`. So:
 
-- In a scanned file, adding a case takes a `void test_<case>()` function and a
-  `{"<case>", test_<case>}` entry in the dispatch table; no CMake file changes,
+- In a scanned file, adding a case takes a `void test_<case>()` function, or
+  `void verify_<case>()` in a file scanned for logical cases, and its entry in
+  the dispatch table; no CMake file changes,
   but the source is scanned when CMake configures, so re-run the configure step
   before `ctest`. A scanned function missing from the table fails with exit
   code 2.
@@ -103,16 +104,14 @@ ctest --test-dir build-tests -R '^verification_qmom_analytical_gaussian_n3$' --o
 ./build-tests/tests/unit/test_wheeler nonfinite_moment_reports_invalid_input
 ```
 
-The labels are `unit`, `component_regression`, `verification` and
-`public_headers`; each test has exactly one.
+Each test has exactly one of the labels in [The test tree](#the-test-tree).
 
 ## Building and running
 
 These commands are those of the CI workflows. The suite links the build-tree
 `qmomkit` target and needs no installation. Without `CMAKE_BUILD_TYPE`, a
 single-configuration generator builds `Release`, so always give `Debug` for
-tests; without an install prefix, the prefix is `install/` in the source
-directory.
+tests.
 
 ```bash
 cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
@@ -179,7 +178,8 @@ On pull requests, every workflow skips changes confined to `docs/**`; all but
 CI-Indentation also skip `examples/**`, and CI-Consumers skips `paper/**`.
 
 The library compiles with `-Wall -Wextra -Wpedantic`. Warnings depend on the
-GCC version, so a build that is clean with one `g++` can fail on the runner.
+GCC version, so a build that is clean with one `g++` can fail on the runner,
+whose version the workflow log shows.
 
 Formatting follows [`.clang-format`](../../.clang-format) and requires
 clang-format 22.1 exactly; the scripts check the version.
@@ -201,16 +201,8 @@ compatible with it.
 
 ## Verification evidence
 
-Verification checks that QMOMKit solves its mathematical problems correctly,
-against references that follow from the mathematics, and passes or fails
-against a stated tolerance, so the test suite automates it. Validation assesses
-whether a model represents a physical system for its intended use, against
-physical data and with a judgment of the accuracy that use needs; it belongs
-to the models built with QMOMKit, not to the test suite.
-
-A numerical change needs evidence beyond agreement with the implementation it
-replaces, and a verification case states its reference, assumptions, error
-metric, tolerance and reproduction. The references used here:
+[AGENTS.md](../../AGENTS.md#testing-and-verification) defines verification and
+the evidence a numerical change needs. The references used here:
 
 - analytical results: exact discrete quadratures, classical Gaussian rules,
   closed-form ODE, source and node trajectories;
@@ -219,14 +211,20 @@ metric, tolerance and reproduction. The references used here:
 - convergence: the observed order under step refinement, compared with the
   formal order only for fixed steps; adaptive steps test the controller;
 - independent references: separately constructed data or implementations;
+- invariances: the code under a change of its input whose effect is known,
+  such as scaling by a power of two, which must give identical results, or a
+  change of unit;
+- comparisons of two public APIs that must agree, such as configured and
+  directly generated moments;
 - Monte Carlo references, below: finite-sample solutions of the same
   mathematical problem, not physical data.
 
-Expected values come from the mathematical case, never from another call into
-the code under test. A relative error against a reference at or near zero, such
-as an odd moment of a symmetric distribution, needs an absolute floor, as
-`QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE` provides. Evidence that the suite enforces
-lives in `tests/verification/`.
+An expected value never comes from the call under test with the same input. A
+case that compares the code with itself under an invariance, or with another
+public API, names that comparison in its README. A relative error against a
+reference at or near zero, such as an odd moment of a symmetric distribution,
+needs an absolute floor, as `QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE` provides.
+Evidence that the suite enforces lives in `tests/verification/`.
 [`paper/verification/`](../../paper/verification) holds paper-specific studies
 outside CTest.
 

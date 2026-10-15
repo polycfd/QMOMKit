@@ -39,9 +39,10 @@ namespace
 // every entry of V^T lies in [-1, 1], so ||V^T||_inf <= n, and
 // Gautschi's bound ||V^-T||_inf <= max_i prod_{j != i} (1 + |x_j|) / |x_i - x_j|
 // (Numer. Math. 4, 117-123, 1962, Theorem 1; an equality when the nodes share
-// a sign) gives the condition number up to the factor n. The estimate does not
-// depend on the unit of the coordinate, covers several nodes that are close
-// together as well as a single close pair, and is infinite for coincident
+// a sign) gives the condition number up to the factor n. The estimate is
+// unchanged by a change of the coordinate's unit by a power of two and moves by
+// less than a factor 2^(n-1) under any other; it covers several nodes that are
+// close together as well as a single close pair, and is infinite for coincident
 // nodes.
 [[nodiscard]] bool is_singular(const std::vector<double>& nodes, const double singular_tolerance)
 {

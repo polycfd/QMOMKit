@@ -113,12 +113,12 @@ exactly the required moments of the layout and converts them with
 `create_cqmom_moment_data`; see [CQMOM](cqmom.md#required-moments) and
 [Configuration and output](configuration_and_output.md).
 
-## Validation and failure
+## Input checks and failure
 
 | `RawMomentStatus` | Cause |
 | --- | --- |
 | `invalid_input` | A parameter outside its range, a negative or non-finite weight or density, an invalid mixture, a product without marginals, a request or maximum orders of the wrong rank, a tensor too large to index, or an order equal to the largest `std::size_t`. |
-| `overflow` | A moment is infinite. |
+| `overflow` | A moment exceeds the range of a double. |
 | `underflow` | A moment whose exact value is nonzero rounds to zero; exact zeros, such as odd moments of a zero-mean normal, are not underflows. |
 | `non_finite` | Any other non-finite value. |
 
@@ -145,7 +145,7 @@ do not apply hold `invalid_component_index` and `invalid_dimension_index`.
    simple factors through `ScaledProduct`, otherwise a log form through
    `evaluate_log_expectation`, and give both paths the same arithmetic per
    order.
-3. Validate the parameters first and return `invalid_input` with a message.
+3. Check the parameters first and return `invalid_input` with a message.
 4. Add the family name to `parse_distribution` and its parameter names to
    `distribution_parameters` in
    [`src/configuration.cpp`](../../src/configuration.cpp), and document them
@@ -153,7 +153,7 @@ do not apply hold `invalid_component_index` and `invalid_dimension_index`.
 5. Add a sampler and a parameter check to the Monte Carlo companion in
    [`tools/monte_carlo/src/sampling.cpp`](../../tools/monte_carlo/src/sampling.cpp),
    which visits every family.
-6. Test validation, statuses and selected against full results in
+6. Test the input checks, statuses and selected against full results in
    `tests/unit/distributions.cpp`, parsing in `tests/unit/configuration.cpp`,
    and the moments against independent analytical references in
    `tests/verification/distributions/`.

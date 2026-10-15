@@ -38,8 +38,9 @@ weights. The moments are used as given, without centering or normalization,
 and $\sum_i w_i=m_0$.
 
 Since $\sigma_{k,k}=m_0\prod_{i=1}^{k-1}b_i$, a zero $\sigma_{k,k}$ means the
-moments are carried by at most $k-1$ points, and a negative one that they are
-not realizable with $k$ nodes. Both tests below act on $\sigma_{k,k}$.
+moments are carried by at most $k-1$ points, and a negative one after positive
+ones that $m_0,\ldots,m_{2k-2}$ are the moments of no non-negative density.
+Both tests below act on $\sigma_{k,k}$.
 
 ## Input checks and the cutoff
 
@@ -103,7 +104,7 @@ $n=N,N-1,\ldots,2$:
 If the usable count reaches 1, no rule passes, or every candidate count meets a
 negative $\sigma_{k,k}$, the result is the one-node rule $(m_1/m_0,\ m_0)$
 with `success`. A sequence with negative variance therefore succeeds with one
-node that matches $m_0$ and $m_1$ only (`tests/unit/wheeler.cpp`).
+node that matches $m_0$ and $m_1$ only.
 
 A rule with $n_1$ nodes is accepted when
 
@@ -154,11 +155,13 @@ t=10^{-12}\max(|\ell|,|u|).
 
 Rounding can move a node that lies on a bound slightly outside it. That error
 scales with the coordinate, so the margin is relative to the bounds and decides
-the same in any unit. A fixed reconstruction
-evaluates $c=N$ only; an adaptive one tries $c=N,\ldots,1$ and keeps the first
-accepted, and if $c=1$ also fails, returns its status and message. Bounds must
-be finite with $\ell<u$, and $2N$ finite moments are required whatever count
-is accepted.
+the same in any unit. A fixed reconstruction evaluates $c=N$ only; an adaptive
+one tries $c=N,\ldots,1$ and keeps the first accepted, and if $c=1$ also fails,
+returns its status and message. In evolution, an adaptive reconstruction starts
+from the state's active count instead of $N$, and the post-source one may then
+try one node more ([Phase-space evolution](phase_space_evolution.md#node-counts)).
+Bounds must be finite with $\ell<u$, and $2N$ finite moments are required
+whatever count is accepted.
 
 ## Cases, results and statuses
 
@@ -173,11 +176,9 @@ maps `QuadratureStatus` one to one onto `QmomStatus`:
 | `not_realizable` | $m_0<0$, $m_0<$ `cutoff`, a fixed count the moments do not support, negative $b_k$, non-finite recurrence or eigenpairs, an unconverged eigensolve, or nodes outside the bounds. |
 
 `ok()` is true only for `success`; the accepted node count is `weights.size()`.
-Data returned with a failure is diagnostic: the one-node rule $(m_1/m_0,\ m_0)$
-where finite, $(m_1/m_0,\ |m_0|)$ for negative $m_0$, the placeholder node 0
-with weight 1 below the cutoff, the rejected rule for a bounds failure (the full
-rule in fixed mode, the one-node candidate in adaptive mode), and nothing for
-invalid input. Callers test the status, never whether the vectors are empty.
+Data returned with a failure is diagnostic, such as a one-node rule or the
+rejected candidate, and empty for invalid input. Callers test the status, never
+whether the vectors are empty.
 
 ## Where the code lives
 
@@ -188,6 +189,3 @@ invalid input. Callers test the status, never whether the vectors are empty.
 | `compute_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Inversion of CQMOM conditional moments with scale $s$. |
 | `select_bounded_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Bounds acceptance for QMOM and CQMOM. |
 | `cqmom_coordinate_scales` | [`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp) | Coordinate scales $s$. |
-
-Coverage is in `tests/unit/wheeler.cpp`, `tests/unit/abscissa_bounds.cpp` and
-`tests/verification/qmom/`.

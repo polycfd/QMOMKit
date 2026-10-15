@@ -31,14 +31,10 @@ $K = 2n$ or $K = 2n + 1$, the check tests, in this order:
 | `nonnegative`, $a$ the image of 0 | $H_n$, $S_{n-1} = H_{n-1}(\ell^a)$; if $S_{n-1}$ is singular, range test | $H_n$, $S_n = H_n(\ell^a)$; if $H_n$ is singular, range test |
 | `bounded_interval` | $H_n$, $H_{n-1}(\ell^{ab})$ | $H_n(\ell^a)$, $H_n(\ell^b)$ |
 
-For $K = 0$ only $H_0$ is tested. `RealizabilityResult::failed_matrix` names
-them `H_n`, `S_n`, `L_interval_n`, `L_lower_n` and `L_upper_n`; a range test
-adds `_next_column` and a flat extension `_flat_extension` to the name of its
-matrix, and the checks before any matrix report `m0`, `zero_measure` or
-`bounded_interval`, or nothing for an invalid sequence or tolerance. On a
-bounded interval positive semidefiniteness is also sufficient. On the real line
-and the half-line a singular matrix needs a further test: its rank must not grow
-with the next moments
+For $K = 0$ only $H_0$ is tested. On a bounded interval positive
+semidefiniteness is also sufficient. On the real line and the half-line a
+singular matrix needs a further test: its rank must not grow with the next
+moments
 [[Curto & Fialkow, 1991](https://www.math.uh.edu/~hjm/v017n4/0603CURTO.pdf)].
 
 ## Standardization
@@ -52,7 +48,8 @@ with the next moments
 
 $2^{e_0}$ is the smallest power of two above $m_0$, and $2^{e_s}$ the smallest
 power of two above the spread: $(|\mu_k| / m_0)^{1/k}$ for the first even
-central moment $\mu_k$ that exceeds twice its uncertainty, otherwise $|c|$, or
+central moment $\mu_k$ that exceeds twice its uncertainty $u_k$
+([below](#input-uncertainty)), otherwise $|c|$, or
 one if $c = 0$, so that a point mass is not stretched. A bound $a$ becomes
 $(a - c)/2^{e_s}$.
 
@@ -61,8 +58,10 @@ and localizing matrices change by a congruence, which by Sylvester's law of
 inertia [[Sylvester, 1852](https://www.doi.org/10.1080/14786445208647087)] keeps
 the signs of their eigenvalues. The tolerance applies to the standardized
 matrices, so the classification depends neither on the location of the
-distribution, nor on the unit of its coordinate, nor on $m_0$. Scaling by powers
-of two is exact, so only the centring sum rounds.
+distribution, nor on $m_0$, nor on a change of the coordinate's unit by a power
+of two; another change of unit rescales $\nu_k$ by $\gamma^k$ with $\gamma$ in
+$(1/2, 2)$. Scaling by powers of two is exact, so only the centering sum
+rounds.
 
 ## Tolerance
 
@@ -77,7 +76,7 @@ $t \lVert A \rVert_\infty$.
 ### Input uncertainty
 
 Each input moment is taken as exact to its last digit, a relative error
-$\varepsilon$. Each term of the centring sum passes through at most $2k + 1$
+$\varepsilon$. Each term of the centering sum passes through at most $2k + 1$
 roundings of at most $\varepsilon/2$, less than $(k + 1)\varepsilon$ of the sum
 of the absolute terms. With the input error, the standardized moment $\nu_k$
 carries the uncertainty
@@ -173,15 +172,20 @@ has no interval. `realizable()` is true for `strictly_realizable` and
 
 `checked_order` is $K$. `failed_matrix` and `failed_matrix_order` name the
 matrix that decided a failure or, on success, the matrix closest to failing:
-the one with the smallest ratio of its smallest eigenvalue to its threshold.
+the one with the smallest ratio of the magnitude of its smallest eigenvalue to
+its threshold. The names are `H_n`, `S_n`, `L_interval_n`, `L_lower_n` and
+`L_upper_n`; a range test adds `_next_column` and a flat extension
+`_flat_extension` to the name of its matrix, and the checks before any matrix
+report `m0`, `zero_measure` or `bounded_interval`, or nothing for an invalid
+sequence or tolerance.
 `minimum_pivot` is that eigenvalue, or the kernel projection of a range test,
 and `tolerance_used` the threshold it was compared with, both for the
 standardized matrices.
 
 ## Precision limit
 
-For a distribution centred at $c$ with width $\sigma$, $u_k$ grows relative to
-$\nu_k$ like $\varepsilon (|c|/\sigma)^k$: the centring sum cancels the
+For a distribution centered at $c$ with width $\sigma$, $u_k$ grows relative to
+$\nu_k$ like $\varepsilon (2|c|/\sigma)^k$: the centering sum cancels the
 leading digits. Where it cancels all of them, the check reports `boundary` or
 `numerically_indeterminate` instead of the exact verdict, but never the
 opposite one: a realizable sequence is never rejected, and a non-realizable or
@@ -193,10 +197,9 @@ which reduces the node count in adaptive mode and may fail in fixed mode.
 
 `RealizabilityPolicy`, in
 [`include/qmomkit/realizability_policy.hpp`](../../include/qmomkit/realizability_policy.hpp),
-holds `check_mode` (`None`, the default, `FinalOnly` or `EveryStage`),
-`support` (default `real_line`), `interval` (required for `bounded_interval`),
-`options` (its tolerance), `accept_boundary` (default `true`) and
-`accept_indeterminate` (default `false`). The public
+holds the check mode, support, interval, tolerance and two acceptance flags;
+the [Reference](../user/7_reference.md#time_integrationrealizability) lists
+them with their defaults. The public
 `accepts_realizability_status(policy, status)` is the one acceptance rule: it
 accepts `strictly_realizable`, `boundary` if `accept_boundary` is set, and
 `numerically_indeterminate` if `accept_indeterminate` is set, and rejects the
@@ -243,10 +246,3 @@ The classification is `check_realizability` in
 [`realizability_policy.hpp`](../../include/qmomkit/realizability_policy.hpp)
 and `internal::realizability_policy_error` in
 [`src/internal/realizability.hpp`](../../src/internal/realizability.hpp).
-[`tests/unit/realizability.cpp`](../../tests/unit/realizability.cpp) covers
-the classification and
-[`tests/unit/realizability_policy.cpp`](../../tests/unit/realizability_policy.cpp)
-the policy predicates.
-[`tests/verification/realizability/`](../../tests/verification/realizability/)
-checks analytical sequences on every support, invariance under shift and
-scale, the precision limit, and sequences of exact weighted points.

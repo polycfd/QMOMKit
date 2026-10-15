@@ -19,13 +19,10 @@ Everything else is a standalone consumer, and the core never depends on one:
 
 | Consumer | Links against |
 | --- | --- |
-| `tests/` (unit, component regression, verification, public headers) | The build-tree target `qmomkit`, added by the root project with `QMOMKIT_BUILD_TESTS=ON`. The tests also have `src/` on their include path. |
+| `tests/` (unit, component regression, verification, public headers) | The build-tree target `qmomkit`, added by the root project with `QMOMKIT_BUILD_TESTS=ON`; configured on its own, `tests/` stops with an error. All tests but `tests/public_headers/`, which sees only `include/`, also have `src/` on their include path. |
 | `tests/package_consumer/` | The installed package, through `find_package(QMOMKit CONFIG REQUIRED)`. |
 | `examples/*` | The installed package, or `qmomkit::qmomkit` when the enclosing build already defines it; the Monte Carlo examples find `QMOMKitMonteCarlo` instead. |
 | `tools/monte_carlo/` | The installed package; it exports `qmomkit_monte_carlo::qmomkit_monte_carlo`, which links `qmomkit::qmomkit` publicly. |
-
-Configuring `tests/` on its own stops with an error; it is enabled from the
-root with `QMOMKIT_BUILD_TESTS=ON`.
 
 ## Data flow
 
@@ -52,7 +49,7 @@ path.
 
 | File | Owns | Implements |
 | --- | --- | --- |
-| [`src/public_api.cpp`](../../src/public_api.cpp) | `compute_qmom`, `compute_cqmom`, cases, states, state candidates, `CqmomQuadrature`, conversion of internal recursive results into `CqmomResult` | `qmom.hpp`, `cqmom.hpp` |
+| [`src/public_api.cpp`](../../src/public_api.cpp) | `compute_qmom`, `compute_cqmom`, cases, states, state candidates, `CqmomQuadrature`, conversion of internal recursive results into `CqmomResult` | `qmom.hpp`, `cqmom.hpp`, the non-inline part of `internal/cqmom_case.hpp` |
 | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Wheeler inversion, adaptive reduction, bounded-support selection | `wheeler.hpp`, `internal/bounded_quadrature.hpp` |
 | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Recursive CQMOM traversal, prepared branch structure, required-moment layout, `extract_cqmom_moments`, multi-index flattening, `PhaseSpaceHierarchy` | `internal/recursive_quadrature.hpp`, `multi_index.hpp`, `phase_space_hierarchy.hpp`, the layout functions of `cqmom.hpp` |
 | [`src/conditioning_path.cpp`](../../src/conditioning_path.cpp) | Conditioning paths, path tables, path-to-node-index conversion | `conditioning_path.hpp` |
@@ -72,8 +69,8 @@ path.
 | [`src/internal/bjorck_pereyra.cpp`](../../src/internal/bjorck_pereyra.cpp), [`householder_qr.cpp`](../../src/internal/householder_qr.cpp), [`jacobi_svd.cpp`](../../src/internal/jacobi_svd.cpp) | Björck–Pereyra, pivoted QR, and SVD kernels | their headers |
 | [`src/internal/embedded_runge_kutta.cpp`](../../src/internal/embedded_runge_kutta.cpp) | Embedded tableaus and step attempts | `internal/embedded_runge_kutta.hpp` |
 
-Header-only internals: `DenseMatrix` in `linear_algebra.hpp`, `cqmom_case.hpp`
-(case successors, marginal extraction, construction access),
+Header-only internals: `DenseMatrix` in `linear_algebra.hpp`, the inline helpers
+of `cqmom_case.hpp` (case successors, marginal extraction),
 `cqmom_validation.hpp` (layout and storage checks),
 `qmom_state_access.hpp`, `numeric_utils.hpp`, `checked_size.hpp`,
 `ode_rhs_validation.hpp`, `phase_space_velocity_validation.hpp`, and
@@ -102,23 +99,24 @@ Callers brace-initialize the input aggregates, such as cases, options and
 policies, and omit trailing members, so every member after the first has a
 default initializer, `{}` for a class type. In a Debug build,
 `tests/public_headers/brace_initialization.cpp` is compiled with
-`-Wmissing-field-initializers` and fails the `-Werror` build otherwise. A new
-public header follows the steps in
-[Testing](testing.md#public-headers), and a
-change to installed headers or exports also runs the package consumer.
+`-Wmissing-field-initializers`, so a missing initializer fails the
+CI-Warnings-GCC build. A new public header follows the steps in
+[Testing](testing.md#public-headers), and a change to installed headers or
+exports also runs the package consumer.
 [AGENTS.md](../../AGENTS.md#public-and-internal-apis) has the full rules for
 public API changes.
 
 ## Errors and statuses
 
-An operation whose failure is a possible outcome of valid use returns a result
-with a status, `ok()`, and a message: reconstruction, moment generation,
-realizability checks, state candidates, every evolution operator, and
-configuration loading. Internal helpers may throw; a function that promises a
-status catches what they throw and maps it to a status. The evolution operators
-map callback exceptions the same way
-([Phase-space evolution](phase_space_evolution.md#callbacks)); the generic
-integrators `ssp_rk3_step` and `integrate_embedded_rk` let them propagate.
+An operation whose failure is a possible outcome of valid use reports it in its
+result. Reconstruction, moment generation, realizability checks, state
+candidates and every evolution operator return a status and a message, with
+`ok()` on all but `RealizabilityResult`; configuration loading returns a
+`ConfigurationResult` with `ok()` and `error()`. Internal helpers may throw; a
+function that promises a status catches what they throw and maps it to a status.
+The evolution operators map callback exceptions the same way ([Phase-space
+evolution](phase_space_evolution.md#callbacks)); the generic integrators
+`ssp_rk3_step` and `integrate_embedded_rk` let them propagate.
 
 An exception means that the calling code broke a contract, that I/O failed, or
 that a setup cannot start: malformed structure while constructing objects,

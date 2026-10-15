@@ -9,10 +9,10 @@ row-major, with bounds asserted in Debug builds.
 
 Every kernel reports failure through a flag or status; a solution returned with
 a failure is diagnostic. Every rank, singularity and convergence test is
-relative to the matrix it is made on, so scaling the whole matrix does not
-change it. The conditional Vandermonde systems are also scaled by powers of
-two, which is exact, so that their decisions depend on neither the number
-density nor the unit of the coordinate.
+relative to the matrix it is made on, so scaling the whole matrix by a power of
+two changes no decision. The conditional Vandermonde systems are also scaled by
+powers of two, which is exact, so that their decisions depend neither on the
+number density nor on a change of the coordinate's unit by a power of two.
 
 ## Symmetric eigensolver
 
@@ -61,19 +61,20 @@ $\lVert A\rVert_\infty\lVert A^{-1}\rVert_\infty$, with $A^{-1}$ from
 
 `solve_bjorck_pereyra` solves the transposed Vandermonde system $V^TY=B$,
 $V_{i,p}=\xi_i^p$, for every column of $B$ in $O(n^2)$ operations per column
-without forming $V$ [[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)].
+without forming $V$ [[Björck & Pereyra, 1970](https://www.doi.org/10.2307/2004623)].
 Its singularity test divides the nodes by the power of two $2^e$ above
 $\max_i|\xi_i|$, so $\tilde\xi_i=\xi_i/2^e\in(-1,1)$ and
 $\lVert V^T\rVert_\infty\le n$, and bounds the inverse by
-[[Gautschi, 1962](https://doi.org/10.1007/BF01386302)]
+[[Gautschi, 1962](https://www.doi.org/10.1007/BF01386302)]
 
 ```math
 \lVert V^{-T}\rVert_\infty\le\beta=\max_i\prod_{j\ne i}\frac{1+|\tilde\xi_j|}{|\tilde\xi_i-\tilde\xi_j|},
 ```
 
 with equality when the nodes share a sign. The system is singular when the
-estimated condition number $n\beta$ reaches $1/\tau$. The estimate is
-independent of the unit, covers clusters of close nodes as well as a single
+estimated condition number $n\beta$ reaches $1/\tau$. The estimate is unchanged
+by a change of unit by a power of two and moves by less than a factor
+$2^{n-1}$ under any other; it covers clusters of close nodes as well as a single
 close pair, and is infinite for coincident nodes.
 
 ### Jacobi SVD
@@ -120,7 +121,8 @@ A=S\,\tilde V^T D,\qquad S=\operatorname{diag}(2^{ep}),\qquad D=\operatorname{di
 with $2^e$ the power of two above $\max_i|\xi_i|$ and $\tilde V$ the Vandermonde
 matrix of $\xi_i/2^e$. They solve $\tilde V^TY=S^{-1}M$ and return $C=D^{-1}Y$.
 $\tilde V^T$ has a first row of ones and entries in $[-1,1]$, so its pivot, rank
-and truncation decisions depend on neither the number density nor the unit.
+and truncation decisions depend neither on the number density nor on a change
+of unit by a power of two.
 Björck–Pereyra solves $V^TY=M$ on the unscaled nodes, since its singularity test
 scales them itself, and also returns $C=D^{-1}Y$. A non-finite $C$ is a failure.
 The Moore–Penrose solution is minimum-norm in $Y$, not in $C$.
@@ -176,8 +178,3 @@ the three changes the result. No solver checks its residual: a solve fails only
 by its own test in the table above. `make_conditional_vandermonde_matrix`,
 which forms $A$ explicitly as an independent reference, lives with the tests in
 [`tests/conditional_vandermonde_matrix.hpp`](../../tests/conditional_vandermonde_matrix.hpp).
-
-Coverage is in `tests/unit/linear_algebra.cpp`,
-`tests/unit/bjorck_pereyra.cpp`, `tests/unit/householder_qr.cpp`,
-`tests/unit/jacobi_svd.cpp`, `tests/unit/vandermonde.cpp` and
-`tests/verification/vandermonde/`.

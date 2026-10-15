@@ -11,15 +11,8 @@ QMOMKit works with raw moments of the number density, defined in
 [Concepts](../user/3_concepts.md#raw-moments). $m_0$ and $M_{0,\ldots,0}$
 are the total number density, and no algorithm divides by them implicitly.
 
-A moment generated from a distribution scales a normalized shape $p$ by a
-number density $n_0$:
-
-```math
-n(\xi) = n_0\, p(\xi), \qquad m_k = n_0 \int \xi^k p(\xi)\,\mathrm{d}\xi, \qquad m_0 = n_0 .
-```
-
-Mixtures and independent products follow from this rule; see
-[Distributions](distributions.md).
+Moments generated from a distribution are those of a normalized shape scaled
+by a number density $n_0$, so $m_0 = n_0$; see [Distributions](distributions.md).
 
 Moments have integer orders. Generalized moments with real exponents are
 derived from a quadrature, never an input to reconstruction or evolution.
@@ -46,9 +39,8 @@ Maximum orders are inclusive: a maximum order $K$ gives an extent $K + 1$.
 `PhaseSpaceHierarchy::moment_extents()` is $2N_d$ in dimension $d$. The
 required layout from `create_cqmom_moment_layout` is a subset of that box.
 Its entries are listed level by level of the conditioning order, and each is a
-multi-index in phase-space order. The layout depends only on the hierarchy, so
-a host creates it once and replaces the values. [CQMOM](cqmom.md) derives
-it.
+multi-index in phase-space order. The layout depends only on the hierarchy;
+[CQMOM](cqmom.md) derives it.
 
 `MultiIndexTable` and `ConditioningPathTable` store equal-length rows
 contiguously, row-major, in one allocation. A row is read as a
@@ -67,11 +59,13 @@ dimension reconstructed at level `l`. The default is the identity. The
 constructor rejects no node counts, a zero node count, a total node count
 beyond `std::size_t`, and an order that is not a permutation.
 
-The conditioning order changes the reconstruction, never a storage order or the
-meaning of a node count. Only two things are ordered by conditioning level:
-conditioning paths, whose entry `l` is a node index in dimension
-`conditioning_order[l]`, and the internal per-branch data of the recursion
-([CQMOM](cqmom.md)). Everything public is ordered by dimension.
+The conditioning order changes the reconstruction, never the meaning of an
+index or a node count: every per-coordinate index, from multi-index components
+to abscissa arrays, bounds and policies, is in phase-space order. The
+conditioning order sets only sequences: conditioning paths, whose entry `l` is
+a node index in dimension `conditioning_order[l]`; the internal per-branch data
+of the recursion ([CQMOM](cqmom.md)); the order of the required layout's
+entries; and the terminal order of an adaptive quadrature.
 
 ## Quadrature storage
 
@@ -98,12 +92,11 @@ every branch follows its parent. Code for both layouts iterates over
 
 ## Adaptive and fixed reconstruction
 
-Reconstruction is adaptive by default (`QmomOptions::adaptive = true`): node
-counts are maxima, and Wheeler returns fewer nodes where the moments do not
-support more. In CQMOM the one flag governs every marginal and conditional
-inversion and every branch count. A fixed reconstruction returns exactly the
-configured count in every inversion, or fails. Criteria:
-[QMOM](qmom.md); branches: [CQMOM](cqmom.md).
+One flag, `QmomOptions::adaptive` (default `true`), governs every inversion; in
+CQMOM, every marginal and conditional inversion and every branch count. Adaptive
+node counts are maxima; a fixed reconstruction returns exactly the configured
+count in every inversion, or fails. Criteria: [QMOM](qmom.md); branches:
+[CQMOM](cqmom.md).
 
 ## Tolerances
 
@@ -111,7 +104,9 @@ Numerical decisions use relative tolerances, so they depend neither on the
 unit of a coordinate nor on $m_0$: the Wheeler rounding bounds, `rmin` and
 `eabs` (relative despite its name), the realizability test on standardized
 moment matrices, the singularity tests of conditional solves, and the margin of
-abscissa bounds.
+abscissa bounds. The conditional solves scale their systems by powers of two,
+so their decisions are exactly unit-free only for a change of unit by a power of
+two ([Linear algebra](linear_algebra.md)).
 
 A few thresholds are absolute: `QmomOptions::cutoff` on $m_0$, in units of
 number density; the absolute tolerance of adaptive node advection, in units of
@@ -172,5 +167,5 @@ Terms the [user guide](../user/3_concepts.md#terms) does not define:
 | marginal moments | Moments with every order zero except one. |
 | parent path | Conditioning path of the node on which a branch is conditioned; its length is the level of the branch. |
 | prepared metadata | `internal::PreparedCqmomMetadata`: the immutable branch structure that a prepared case shares with its states and derived cases. |
-| required layout | `CqmomMomentLayout`: the moments a hierarchy's reconstruction reads, in a fixed order. |
+| required layout | The user guide's *layout*, `CqmomMomentLayout`: the moments a hierarchy's reconstruction reads, in a fixed order. |
 | slice | The moments one CQMOM branch reconstructs from, indexed in conditioning order. |

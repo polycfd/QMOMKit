@@ -138,18 +138,15 @@ the first of the next, and a rejected trial reuses the first derivative.
 
 `AdaptiveRkOptions` in
 [`include/qmomkit/runge_kutta.hpp`](../../include/qmomkit/runge_kutta.hpp)
-holds the controls. Step sizes are in the units of the time argument.
+holds the controls; the
+[Reference](../user/7_reference.md#evolution-options) lists their defaults.
+Step sizes are in the units of the time argument. The first trial step is never
+estimated from the problem, rejected trials do not count toward `max_steps`,
+and the step floor is the larger of `min_step` and ten spacings of the double
+at the integration time.
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `relative_tolerance`, `absolute_tolerance` | `1.0e-6`, `1.0e-9` | $r$ and $a$ |
-| `initial_step` | `default_adaptive_initial_step`, `1.0e-6` | first trial step; never estimated from the problem |
-| `max_step` | `0.0`, meaning the integration interval | largest step |
-| `min_step` | `0.0`, meaning automatic | smallest step; never below ten spacings of the double at the integration time |
-| `max_steps` | `1000000000` | most accepted steps; rejected trials do not count |
-
-The step floor takes precedence over the tolerances. A step at the effective
-lower bound, the smaller of `min_step` and the remaining interval, is accepted
+The floor takes precedence over the tolerances. A step at the effective lower
+bound, the smaller of the floor and the remaining interval, is accepted
 whenever its solution and error are finite, so `success` means the interval
 was covered, not that every step met the tolerance. `step_size_underflow`
 reports a step at that bound whose solution or error estimate is not finite;
@@ -250,9 +247,7 @@ Active node counts follow one policy:
   growth enabled: every branch follows the QMOM rule with its own active count;
   the mechanism, including the reset below a branch whose count changed, is in
   [CQMOM](cqmom.md#active-branch-counts).
-- **Created states**: `initial_state()` and `state_candidate(...)` start from
-  the configured maximum; a state rebuilt from moments keeps no earlier
-  counts.
+- **Created states** start from the configured maximum ([States](#states)).
 
 Counts therefore shrink readily and grow by at most one node per branch and
 source step. `diagnostics.cqmom_node_count_transitions` records each branch
@@ -296,10 +291,11 @@ report `MomentSourceUpdateStatus::invalid_input`.
 | `PhaseSpaceVelocity` | fills `velocities`, packed like `coordinates` | no resize; every entry written and finite |
 | `QmomMomentSource`, `CqmomMomentSource`, boundary contributions | return a rate | one finite value per context entry, in context order |
 
-The velocity and `OdeRhs` fill a buffer because they run at every stage of
-every node-advection step, and filling keeps those calls free of allocation. A
-source runs once per SSP-RK3 stage, so returning a vector costs little and
-keeps the most common callback simple.
+The velocity fills a buffer because it runs at every stage of every
+node-advection step, and filling keeps those calls free of allocation;
+`OdeRhs`, the integrators' interface, fills one for the same reason. A source
+runs once per SSP-RK3 stage, so returning a vector costs little and keeps the
+most common callback simple.
 
 Size and finiteness are checked after every call
 (`internal::validate_packed_phase_space_velocity_result` in
@@ -365,19 +361,12 @@ exception escaping a scalar call stops the loop.
 ## Verifying a change
 
 A change to a stage, a scheme or an integrator needs the evidence of
-[Testing](testing.md#verification-evidence), here
-from the exact solutions in
-[`tests/verification/phase_space_evolution/`](../../tests/verification/phase_space_evolution/).
-Commuting cases, whose split solution is exact, isolate the integrators;
-noncommuting cases measure the splitting order under step refinement, about two
-for `strang` and one for `advsrc` and `srcadv`. A case with time-dependent
-callbacks also compares each scheme with its exact split solution, which detects
-a stage evaluated on the wrong time interval. Further cases cover adaptive QMOM
-node counts, source-step policies with retries, abscissa bounds, states created
-with `state_candidate(...)`, and moments a source requests beyond the tracked
-ones, which must come from the quadrature of the current stage. A new scheme adds
-its order there, and a new status or diagnostic a component-regression test of
-the failing path.
+[Testing](testing.md#verification-evidence), here from the exact solutions in
+[`tests/verification/phase_space_evolution/`](../../tests/verification/phase_space_evolution/README.md):
+commuting cases, whose split solution is exact, isolate the integrators, and
+noncommuting cases measure the splitting order, about two for `strang` and one
+for `advsrc` and `srcadv`. A new scheme adds its order there, and a new status
+or diagnostic a component-regression test of the failing path.
 
 ## Where the code lives
 
@@ -391,12 +380,3 @@ the failing path.
 | `integrate_embedded_rk`, `ssp_rk3_step` | [`src/runge_kutta.cpp`](../../src/runge_kutta.cpp) | generic integrators |
 | `take_embedded_rk_step`, `embedded_rk_tableau` | [`src/internal/embedded_runge_kutta.cpp`](../../src/internal/embedded_runge_kutta.cpp) | embedded stage arithmetic |
 | `advance_qmom_moments_with_source`, `advance_cqmom_moments_with_source`, source contexts | [`src/moment_source.cpp`](../../src/moment_source.cpp) | source operator |
-
-Tests are `phase_space_evolution.cpp`, `phase_space_evolution_batch.cpp`,
-`node_advection.cpp`, `moment_source.cpp`, and `runge_kutta.cpp` in
-[`tests/unit/`](../../tests/unit/); `phase_space_evolution.cpp`,
-`node_advection.cpp`, and `moment_source.cpp` in
-[`tests/component_regression/`](../../tests/component_regression/); and the
-analytical cases in `phase_space_evolution/`, `node_advection/`,
-`moment_source/`, and `runge_kutta/` under
-[`tests/verification/`](../../tests/verification/).

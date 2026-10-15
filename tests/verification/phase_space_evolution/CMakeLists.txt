@@ -65,3 +65,6 @@ qmomkit_register_source_logical_cases(test_phase_space_evolution_state_candidate
 qmomkit_add_test_executable(test_phase_space_evolution_source_context_moments source_context_moments.cpp)
 qmomkit_register_source_logical_cases(test_phase_space_evolution_source_context_moments verification
                                       "${CMAKE_CURRENT_LIST_DIR}/source_context_moments.cpp")
+qmomkit_add_test_executable(test_phase_space_evolution_abscissa_bounds abscissa_bounds_evolution.cpp)
+qmomkit_register_source_logical_cases(test_phase_space_evolution_abscissa_bounds verification
+                                      "${CMAKE_CURRENT_LIST_DIR}/abscissa_bounds_evolution.cpp")

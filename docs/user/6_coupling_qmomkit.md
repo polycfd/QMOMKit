@@ -16,7 +16,8 @@ every step:
 1. transport the moments;
 2. create a state from them with `state_candidate(...)`;
 3. advance the state;
-4. store the moments of the advanced state.
+4. copy the moments of the advanced state, `evolved.state.moment_values()`,
+   back into your storage.
 
 A state lasts only as long as phase-space evolution alone changes its moments,
 so with transport in between it lives for one phase-space update. The moments
@@ -115,10 +116,22 @@ for (std::vector<double>& moments : cqmom_cells)
 }
 ```
 
-A new state stores the moments of its quadrature. They equal the given moments
-up to order $2N - 1$, or for CQMOM the required moments, unless an adaptive
-reconstruction dropped nodes the moments do not support; every other moment is
-that of the quadrature. Storing `moment_values()` back keeps each cell
+The last line of each loop is step 4. On success, `evolved.state` is the
+state advanced by `time_step`, and `evolved.state.moment_values()` are its
+moments, in the same order and number as the moments your code gave
+`state_candidate(...)`: $m_0, m_1, \ldots$ for QMOM, and for CQMOM the order of
+the layout's `required_indices`, which `evolved.state.moment_indices()` also
+lists. `moment_values()` returns a reference into the state, so copy the
+values into your storage, as the loops do; the state can then be discarded.
+`evolved.state.quadrature()` gives the advanced nodes, if your code needs them.
+On failure, `evolved.state` is the state the step started from: keep your own
+moments instead. An `empty` cell has no state, and your code keeps its moments
+as well.
+
+Every state stores the moments of its quadrature. For a state from
+`state_candidate(...)`, they equal the moments your code gave up to order
+$2N - 1$, or for CQMOM the required moments, unless an adaptive reconstruction dropped nodes the moments do not support;
+every other moment is that of the quadrature. Storing them back keeps each cell
 consistent with what was evolved. The same pattern restarts a run: store the
 moments of each state, and create the states again from them with
 `state_candidate(...)`.
@@ -139,7 +152,8 @@ example shows the outcomes.
 ## Many states at once
 
 The batch functions advance a vector of states with one time, time step, and set
-of options, and return one result per state, in order:
+of options, and return one result per state, in order, so the moments of the
+advanced state `i` are `results[i].state.moment_values()`:
 
 ```cpp
 std::vector<qmomkit::QmomState> states(3, qmom_case.initial_state());

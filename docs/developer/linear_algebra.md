@@ -97,7 +97,7 @@ the remaining coordinates at each parent node ([CQMOM](cqmom.md)):
 ```math
 M_{p,q}=\sum_{i=0}^{n-1}w_i\,\xi_i^p\,C_{i,q},
 \qquad\text{i.e.}\qquad
-AC=M,\quad A=V^T\operatorname{diag}(w),\quad A_{p,i}=w_i\,\xi_i^p .
+AC=M,\quad A=V^T\mathrm{diag}(w),\quad A_{p,i}=w_i\,\xi_i^p .
 ```
 
 Each column $q$ is one moment of the remaining coordinates; all columns are
@@ -115,7 +115,7 @@ to the largest weight and applies to every solver. The direct solvers
 (`dense`, `pivoted_qr`, `svd`, `moore_penrose`) use the factorization
 
 ```math
-A=S\,\tilde V^T D,\qquad S=\operatorname{diag}(2^{ep}),\qquad D=\operatorname{diag}(w),
+A=S\,\tilde V^T D,\qquad S=\mathrm{diag}(2^{ep}),\qquad D=\mathrm{diag}(w),
 ```
 
 with $2^e$ the power of two above $\max_i|\xi_i|$ and $\tilde V$ the Vandermonde

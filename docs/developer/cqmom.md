@@ -31,7 +31,7 @@ needs, indexed in conditioning order with $c_l$ first.
    \sum_{i=0}^{n-1} w_i\, \xi_i^{p}\, C_{i,q} = M_{p,q},
    \qquad p = 0,\ldots,n-1,
    \qquad\text{that is}\qquad
-   V^{\mathsf T}\operatorname{diag}(w)\, C = M,\quad V_{ip} = \xi_i^{p}.
+   V^{\mathsf T}\mathrm{diag}(w)\, C = M,\quad V_{ip} = \xi_i^{p}.
    ```
 
    $M_{p,q}$ is the slice moment of order $p$ in $c_l$ and $q$ in the later

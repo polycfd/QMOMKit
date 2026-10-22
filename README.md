@@ -7,7 +7,7 @@
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml/badge.svg" alt="CI-Consumers"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 
-**QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number density functions in phase space.**
+**QMOMKit is a C++ library implementing quadrature-based moment methods to represent and evolve number density functions in phase space.**
 
 QMOMKit reconstructs quadratures, sets of weighted nodes, from the raw moments of a number density and evolves them in phase space: it solves the phase-space part of a population balance equation at one location. Transport in physical space, the mesh, the time loop and the coupling to a host code belong to the host application. Examples of how to couple QMOMKit to host application codes are maintained separately in [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings). The library has **no third-party dependencies**.
 
@@ -16,11 +16,12 @@ QMOMKit reconstructs quadratures, sets of weighted nodes, from the raw moments o
 QMOMKit provides tools to:
 
 - reconstruct a quadrature from raw moments, with the quadrature method of moments (QMOM) [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] for one phase-space coordinate and the conditional quadrature method of moments (CQMOM) [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] for several;
-- choose the CQMOM conditioning order, bound the abscissas to an interval, and let node counts adapt to the moments, per branch in CQMOM;
-- set up a case in C++ or from a `.qmom` configuration file, with moments given explicitly or generated from analytical distributions, mixtures and independent products;
-- check whether moments are realizable on a given support;
+- let the quadrature reconstruction algorithm choose the number of nodes adaptively and bound the quadrature abscissas to an interval; 
+- choose the CQMOM conditioning order without changing the definition of the phase space;
 - advance a state in phase space by operator splitting (Strang or Lie) of node advection and moment sources, including exchange across phase-space boundaries;
+- check whether moments are realizable on a given support;
 - rebuild states from moments that the host has transported in physical space;
+- set up a case in C++ or from a `.qmom` configuration file, with moments given explicitly or generated from analytical distributions, mixtures and independent products;
 - write moment and quadrature histories;
 - compare with finite-sample Monte Carlo references from the optional companion package.
 
@@ -69,7 +70,7 @@ cmake --build build
 cmake --install build
 ```
 
-Unless `CMAKE_INSTALL_PREFIX` is set, this installs into `install/` inside the repository rather than a system-wide location. The examples assume this default.
+Unless `CMAKE_INSTALL_PREFIX` is set, this installs into `install/` inside the repository rather than a system-wide location. The [examples](examples/README.md) assume this default.
 
 Applications using QMOMKit can link to the installed CMake target:
 
@@ -82,7 +83,7 @@ Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your ap
 
 ## Examples and tools
 
-The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples index](examples/README.md) and the [list of examples in the user guide](docs/user/8_going_further.md#examples).
+The standalone [examples](examples/README.md) progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, demonstrations using multidimensional physical models, and matched Monte Carlo comparisons. See the [examples index](examples/README.md) and the [list of examples in the user guide](docs/user/8_going_further.md#examples).
 
 Two companion tools live under `tools/`:
 - `tools/monte_carlo/` samples populations, evolves the samples and estimates their moments, as a reference for QMOMKit; see its [README](tools/monte_carlo/README.md).
@@ -113,7 +114,7 @@ See the [testing guide](docs/developer/testing.md) for details.
 - **Examples:** the [examples index](examples/README.md) and the [list in the user guide](docs/user/8_going_further.md#examples).
 - **Optional Monte Carlo tooling:** the [Monte Carlo companion](tools/monte_carlo/README.md).
 - **Development:** the [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing](docs/developer/testing.md).
-- **Coupling to host codes:** [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings)
+- **Examples coupling QMOMKit to host codes:** [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings)
 
 ## Repository structure
 
@@ -153,14 +154,14 @@ QMOMKit therefore relies on a deliberately rigorous approach to testing, numeric
 
 If QMOMKit contributes to your academic work, please cite the QMOMKit paper:
 
-Fabian Denner, Bruna Campos, and Bruno Blais, *QMOMKit: A C++ library for quadrature methods of moments*, arXiv:2610.?????, 2026. doi: [10.48550/arXiv.2610.?????](https://www.doi.org/10.48550/arXiv.2610.?????)
+Fabian Denner, Bruna Campos, and Bruno Blais, *QMOMKit: A C++ library for quadrature-based moment methods*, arXiv:2610.?????, 2026. doi: [10.48550/arXiv.2610.?????](https://www.doi.org/10.48550/arXiv.2610.?????)
 
 ```bibtex
 @misc{qmomkit,
   author  = {Denner, Fabian and Campos, Bruna and Blais, Bruno},
-  title   = {QMOMKit: A C++ library for quadrature methods of moments},
-  eprint={2610.?????},
-  archivePrefix={arXiv},
+  title   = {QMOMKit: A C++ library for quadrature-based moment methods},
+  eprint  = {2610.?????},
+  archivePrefix = {arXiv},
   year    = {2026},
   doi     = {10.48550/arXiv.2610.?????},
 }
@@ -176,7 +177,7 @@ The studies behind the paper can be reproduced from this repository; see the [pa
 
 ## License
 
-QMOMKit is released under the **Apache License 2.0**. See [LICENSE](LICENSE) for details.
+QMOMKit is released under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 

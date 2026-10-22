@@ -126,13 +126,13 @@ def plot_adaptive(rows: list[dict[str, str]], output: Path) -> None:
     axes[0].set_ylim(0.7, 5.3)
     axes[0].set_yticks((1, 2, 3, 4, 5))
     axes[0].set_ylabel("Active velocity nodes")
-    axes[0].set_xlabel("Time [s]")
+    axes[0].set_xlabel("Time")
 
     axes[1].plot(times, [positive_or_nan(value) for value in number_density_error], color="#0072B2", label="$M_{0,0}$")
     axes[1].plot(times, [positive_or_nan(value) for value in mean_error], color="#D55E00", label="$M_{0,1}/M_{0,0}$")
     axes[1].set_yscale("log")
     axes[1].set_ylabel("Absolute error")
-    axes[1].set_xlabel("Time [s]")
+    axes[1].set_xlabel("Time")
     axes[1].legend(loc="lower left", frameon=False, fontsize=8)
 
     for axis in axes:

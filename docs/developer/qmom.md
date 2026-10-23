@@ -11,8 +11,8 @@ moment and ordering conventions are in
 
 ## Wheeler inversion
 
-`compute_recurrence` in [`src/wheeler.cpp`](../../src/wheeler.cpp) fills
-Wheeler's $\sigma$ table from $\sigma_{0,l}=0$, $\sigma_{1,l}=m_{l-1}$,
+`compute_recurrence` in [`src/wheeler.cpp`](../../src/wheeler.cpp) computes
+Wheeler's $\sigma$ table row by row from $\sigma_{0,l}=0$, $\sigma_{1,l}=m_{l-1}$,
 $a_0=m_1/m_0$, $b_0=0$, for $k=2,\ldots,N$:
 
 ```math
@@ -61,8 +61,9 @@ instead of a failure ([Realizability](realizability.md#policies)).
 
 ## Rounding bound on the recurrence
 
-`sigma_tolerances` reruns the $\sigma$ recurrence with every term in absolute
-value and takes a multiple of its diagonal as the rounding of $\sigma_{k,k}$:
+`compute_recurrence` also runs the $\sigma$ recurrence with every term in
+absolute value and takes a multiple of its diagonal as the rounding of
+$\sigma_{k,k}$:
 
 ```math
 \bar\sigma_{1,l}=|m_{l-1}|,\qquad
@@ -91,22 +92,20 @@ nodes; `rmin` and `eabs` are not applied.
 ## Adaptive reduction
 
 Adaptive inversion [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]
-(`adaptive = true`, the default) tries candidate counts
-$n=N,N-1,\ldots,2$:
+(`adaptive = true`, the default) selects its rule in two steps:
 
-1. Scan $k=n,\ldots,2$. $\sigma_{k,k}<-\tau_k$ rejects the candidate and the
-   next count is tried. $|\sigma_{k,k}|\le\tau_k$ lowers the usable count to
-   $k-1$; the scan goes on, so the lowest such $k$ decides.
-2. For $n_1$ from the usable count down to 2, form the $n_1$-node rule from the
-   leading coefficients and return the first that passes the two criteria
-   below.
+1. The usable count is $n=k-1$ for the first $k\in\{2,\ldots,N\}$ with
+   $\sigma_{k,k}\le\tau_k$, zero within its rounding or negative, and $n=N$
+   if there is none.
+2. For $n_1=n,n-1,\ldots,2$, form the $n_1$-node rule from the leading
+   coefficients and return the first that passes the two criteria below.
 
-If the usable count reaches 1, no rule passes, or every candidate count meets a
-negative $\sigma_{k,k}$, the result is the one-node rule $(m_1/m_0,\ m_0)$
-with `success`. A sequence with negative variance therefore succeeds with one
-node that matches $m_0$ and $m_1$ only.
+If $n=1$ or no rule passes, the result is the one-node rule
+$(m_1/m_0,\ m_0)$ with `success`. A sequence with negative variance therefore
+succeeds with one node that matches $m_0$ and $m_1$ only.
 
 A rule with $n_1$ nodes is accepted when
+[[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)]
 
 ```math
 \frac{\min_i w_i}{\max_i w_i}>r_{\min},
@@ -117,11 +116,12 @@ A rule with $n_1$ nodes is accepted when
 \end{cases}
 ```
 
-Two nodes have a single distance, whose ratio to the span is always one, so
-they use the larger abscissa magnitude instead; two nodes at zero fail. Both
-criteria are independent of the unit, but the two-node test depends on the
-origin: a pair whose gap is below `eabs` times its distance from zero collapses
-to one node. `rmin` and `eabs` default to `1e-10` in
+The abscissas are sorted, so the smallest distance is the smallest gap between
+neighbors and the largest is the span $\xi_{n_1-1}-\xi_0$. Two nodes have a
+single distance, whose ratio to the span is always one, so they use the larger
+abscissa magnitude instead; two nodes at zero fail. Both criteria are
+independent of the unit, but the two-node test depends on the origin: a pair
+whose gap is below `eabs` times its distance from zero collapses to one node. `rmin` and `eabs` default to `1e-10` in
 `QmomOptions` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp))
 and `WheelerOptions`
 ([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); only

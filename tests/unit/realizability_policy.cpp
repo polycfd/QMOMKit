@@ -76,22 +76,70 @@ void test_every_stage_policy_uses_stage_predicate()
     assert(predicate(qmomkit::SspRk3Stage::Stage2, {1.0, 0.0, 1.0}));
     assert(predicate(qmomkit::SspRk3Stage::Final, {1.0, 0.0, 1.0}));
     assert(converter_calls == 3);
+
+    // A state with negative variance is rejected at every stage, not only at
+    // the final one.
+    const std::vector<double> not_realizable{1.0, 0.0, -1.0};
+    assert(!predicate(qmomkit::SspRk3Stage::Stage1, not_realizable));
+    assert(!predicate(qmomkit::SspRk3Stage::Stage2, not_realizable));
+    assert(!predicate(qmomkit::SspRk3Stage::Final, not_realizable));
+    assert(converter_calls == 6);
 }
 
+// A FinalOnly policy adapted to the stage-aware callback accepts the
+// intermediate stages without converting them and checks the final candidate.
+void test_final_only_stage_predicate_checks_only_the_final_stage()
+{
+    qmomkit::RealizabilityPolicy policy;
+    policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+
+    int converter_calls = 0;
+    const qmomkit::StageAcceptancePredicate predicate = qmomkit::make_realizability_stage_acceptance_predicate(policy,
+                                                                                                               [&](const std::vector<double>& state)
+                                                                                                               {
+                                                                                                                   ++converter_calls;
+                                                                                                                   return qmomkit::MomentSet(state);
+                                                                                                               });
+
+    const std::vector<double> not_realizable{1.0, 0.0, -1.0};
+    assert(predicate);
+    assert(predicate(qmomkit::SspRk3Stage::Stage1, not_realizable));
+    assert(predicate(qmomkit::SspRk3Stage::Stage2, not_realizable));
+    assert(converter_calls == 0);
+    assert(!predicate(qmomkit::SspRk3Stage::Final, not_realizable));
+    assert(converter_calls == 1);
+    assert(predicate(qmomkit::SspRk3Stage::Final, {1.0, 0.0, 1.0}));
+    assert(converter_calls == 2);
+}
+
+// Each case gets the opposite verdict under another support or interval, so a
+// policy that lost its support or interval would fail it. The interval cases use
+// [2, 5] rather than the default [0, 1] of BoundedInterval.
 void test_support_and_interval_are_forwarded()
 {
+    // Mean -0.5 and variance 0.75: strictly realizable on the real line, not on
+    // [0, inf).
+    const std::vector<double> negative_mean{1.0, -0.5, 1.0};
+
     qmomkit::RealizabilityPolicy real_line_policy;
     real_line_policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
     real_line_policy.support = qmomkit::MomentSupport::real_line;
+    assert(qmomkit::accepts_realizability_policy(real_line_policy, negative_mean, identity_moments));
 
-    assert(qmomkit::accepts_realizability_policy(real_line_policy, {1.0, 2.0}, identity_moments));
+    qmomkit::RealizabilityPolicy nonnegative_policy;
+    nonnegative_policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    nonnegative_policy.support = qmomkit::MomentSupport::nonnegative;
+    assert(!qmomkit::accepts_realizability_policy(nonnegative_policy, negative_mean, identity_moments));
 
     qmomkit::RealizabilityPolicy interval_policy;
     interval_policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
     interval_policy.support = qmomkit::MomentSupport::bounded_interval;
-    interval_policy.interval = qmomkit::BoundedInterval{0.0, 1.0};
+    interval_policy.interval = qmomkit::BoundedInterval{2.0, 5.0};
 
-    assert(!qmomkit::accepts_realizability_policy(interval_policy, {1.0, 2.0}, identity_moments));
+    // Equal weights at 2.5 and 4: strictly realizable on [2, 5], outside [0, 1].
+    assert(qmomkit::accepts_realizability_policy(interval_policy, {1.0, 3.25, 11.125}, identity_moments));
+    // The uniform distribution on [0, 1]: realizable there, outside [2, 5].
+    assert(!qmomkit::accepts_realizability_policy(interval_policy, {1.0, 0.5, 1.0 / 3.0}, identity_moments));
 }
 
 void test_explicit_bounded_interval_policy_accepts_realizable_moments()
@@ -99,9 +147,10 @@ void test_explicit_bounded_interval_policy_accepts_realizable_moments()
     qmomkit::RealizabilityPolicy policy;
     policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
     policy.support = qmomkit::MomentSupport::bounded_interval;
-    policy.interval = qmomkit::BoundedInterval{0.0, 1.0};
+    policy.interval = qmomkit::BoundedInterval{2.0, 5.0};
 
-    assert(qmomkit::accepts_realizability_policy(policy, {1.0, 0.5, 1.0 / 3.0}, identity_moments));
+    // The uniform distribution on [2, 5]: m_1 = 7/2, m_2 = (5^3 - 2^3)/9 = 13.
+    assert(qmomkit::accepts_realizability_policy(policy, {1.0, 3.5, 13.0}, identity_moments));
 }
 
 void test_strict_boundary_and_failure_statuses()
@@ -261,6 +310,7 @@ int main(const int argc, char** argv)
             {"disabled_policy_does_not_invoke_converter", test_disabled_policy_does_not_invoke_converter},
             {"final_only_policy_invokes_converter_once", test_final_only_policy_invokes_converter_once},
             {"every_stage_policy_uses_stage_predicate", test_every_stage_policy_uses_stage_predicate},
+            {"final_only_stage_predicate_checks_only_the_final_stage", test_final_only_stage_predicate_checks_only_the_final_stage},
             {"support_and_interval_are_forwarded", test_support_and_interval_are_forwarded},
             {"explicit_bounded_interval_policy_accepts_realizable_moments", test_explicit_bounded_interval_policy_accepts_realizable_moments},
             {"strict_boundary_and_failure_statuses", test_strict_boundary_and_failure_statuses},

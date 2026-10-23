@@ -114,6 +114,7 @@ See the [testing guide](docs/developer/testing.md) for details.
 - **Examples:** the [examples index](examples/README.md) and the [list in the user guide](docs/user/8_going_further.md#examples).
 - **Optional Monte Carlo tooling:** the [Monte Carlo companion](tools/monte_carlo/README.md).
 - **Development:** the [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing](docs/developer/testing.md).
+- **Release history:** the [changelog](CHANGELOG.md).
 - **Examples coupling QMOMKit to host codes:** [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings)
 
 ## Repository structure
@@ -136,6 +137,7 @@ QMOMKit/
 │   ├── plotting/                     # Plotting scripts
 │   └── indent-all, ...               # Formatting helpers used by CI
 ├── AGENTS.md                         # Instructions for AI coding agents
+├── CHANGELOG.md                      # Release history
 ├── CMakeLists.txt
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md

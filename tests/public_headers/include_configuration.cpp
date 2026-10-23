@@ -1,6 +1,7 @@
 // Only the header under test is included. The pins below use std::filesystem,
-// std::string and std::string_view through it, so this file also checks that
-// the header provides the standard types its own declarations need.
+// std::optional, std::size_t, std::string and std::string_view through it, so
+// this file also checks that the header provides the standard types its own
+// declarations need.
 #include <qmomkit/configuration.hpp>
 
 namespace public_header_pins
@@ -12,6 +13,17 @@ namespace public_header_pins
 // when this test is linked. In an unnamed namespace the compiler may drop them,
 // as Clang does even without optimization, and the definitions would go
 // unchecked.
+
+using QmomInitialConditionParser = qmomkit::config::ConfigurationResult<qmomkit::config::InitialConditionSpecification> (*)(std::string_view,
+                                                                                                                            std::string);
+
+using QmomCaseFactory = qmomkit::config::ConfigurationResult<qmomkit::QmomCase> (*)(const qmomkit::config::InitialConditionSpecification&,
+                                                                                    std::size_t, const qmomkit::QmomOptions&, std::string,
+                                                                                    std::optional<qmomkit::AbscissaBounds>);
+
+using QmomCaseParser = qmomkit::config::ConfigurationResult<qmomkit::QmomCase> (*)(std::string_view, std::string);
+
+using QmomCaseLoader = qmomkit::config::ConfigurationResult<qmomkit::QmomCase> (*)(const std::filesystem::path&);
 
 using QmomMomentInitializer = qmomkit::config::ConfigurationResult<qmomkit::MomentSet> (*)(const qmomkit::config::InitialConditionSpecification&,
                                                                                            std::string);
@@ -46,6 +58,14 @@ using CqmomPreparedCaseMomentTensorReplacement =
 
 using CqmomPreparedCaseMomentDataReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&,
                                                                                                                     qmomkit::CqmomMomentData);
+
+QmomInitialConditionParser qmom_initial_condition_parser = qmomkit::config::parse_qmom_initial_condition;
+
+QmomCaseFactory qmom_case_factory = qmomkit::config::create_qmom_case;
+
+QmomCaseParser qmom_case_parser = qmomkit::config::parse_qmom;
+
+QmomCaseLoader qmom_case_loader = qmomkit::config::load_qmom;
 
 QmomMomentInitializer qmom_moment_initializer = qmomkit::config::initialize_qmom_moments;
 

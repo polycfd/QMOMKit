@@ -7,8 +7,9 @@
 //   moment, positions in increasing order - and still reproduces the moments
 //   its node count represents, whatever node count the adaptive path settles
 //   on; that compute_qmom and check_realizability agree on which side of the
-//   edge a sequence lies; and that a fixed node count is refused, not reduced,
-//   on the edge. The neighboring files cover only sequences that are
+//   edge a sequence lies; that a fixed node count is refused, not reduced, on
+//   the edge; and that a well-conditioned anchor recovers the chosen points.
+//   The neighboring files cover only sequences that are
 //   comfortably interior (classical rules) or exactly degenerate; these cover
 //   the approach itself, where the inversion is most sensitive to rounding.
 //
@@ -17,12 +18,16 @@
 //   moments are built from them: two positions placed a controlled distance
 //   apart, a middle weight made small, or the six moments of a two-point rule
 //   with m_4 moved up or down. Shrinking the distance or the weight walks the
-//   sequence towards the edge while keeping the exact answer known at every
-//   step.
+//   sequence towards the edge. The sweeps compare moments, not positions and
+//   weights: close to the edge those are ill-conditioned functions of the
+//   moments (see the pass criteria), so they are compared with the chosen
+//   points only at the anchor, two nodes 1e-2 apart.
 //
 // Error metric
 //   Maximum deviation of the rebuilt moments from the supplied moments,
-//   absolute or relative to |m_k| where that exceeds one.
+//   absolute or relative to |m_k| where that exceeds one. At the anchor, also
+//   the absolute deviation of each position and weight from the chosen point;
+//   the positions are of order one and the weights sum to m_0 = 1.
 //
 // Pass criteria
 //   Rebuilt moments and the sum of the weights within 1.0e-12, plus the
@@ -31,6 +36,16 @@
 //   pinned: that threshold depends on floating-point conditioning rather than
 //   on any documented contract, so asserting it would turn a numerical
 //   accident into a requirement.
+//
+//   At the anchor, positions within 100 eps / d^2 and weights within
+//   100 eps / d^3, with d = 1e-2 the separation of the close pair. Rounding the
+//   moments fixes the centroid of the close pair to about eps, but splits the
+//   pair into its two nodes only through the pair's third central moment, which
+//   is of order d^3. The split, and with it each weight, is therefore uncertain
+//   by about eps / d^3, and each position, which depends on the split through a
+//   factor d, by about eps / d^2. Measured from d = 1e-1 to 1e-4, the factors
+//   in front are 0.5 to 1.1 for positions and below 0.5 for weights, so the
+//   tolerances leave a margin of about a hundred.
 //
 // Reproduce
 //   ctest -R verification_qmom_.*(coalescing|adaptive_reduction|boundary)
@@ -47,6 +62,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -116,19 +132,39 @@ std::vector<double> two_node_boundary_moments()
 // A three-node rule whose upper two nodes are `separation` apart. The rule stays
 // exactly realizable for every positive separation and degenerates continuously
 // to a two-node rule as the separation vanishes.
+const std::vector<double> coalescing_weights{0.5, 0.3, 0.2};
+
+std::vector<double> coalescing_positions(const double separation)
+{
+    return {-1.0, 0.5, 0.5 + separation};
+}
+
 std::vector<double> coalescing_moments(const double separation)
 {
-    return raw_moments({0.5, 0.3, 0.2}, {-1.0, 0.5, 0.5 + separation}, 6);
+    return raw_moments(coalescing_weights, coalescing_positions(separation), 6);
 }
 
 void verify_coalescing_nodes_preserve_supplied_moments()
 {
     // Anchor: a separation this large is comfortably interior, so the requested
     // count must be delivered in full. The sweep below makes no such claim.
-    const std::vector<double> interior = coalescing_moments(1.0e-2);
+    const double anchor_separation = 1.0e-2;
+    const std::vector<double> interior = coalescing_moments(anchor_separation);
     const qmomkit::QmomResult anchored = qmomkit::compute_qmom(qmomkit::MomentSet(interior), 3, fixed_options);
     QMOMKIT_VERIFY_CHECK(anchored.weights.size() == 3);
     check_accepted_rule_invariants(anchored, interior, 3);
+
+    // The anchor recovers the chosen points, within the rounding the pair's
+    // conditioning allows (see the pass criteria in the file header).
+    const double epsilon = std::numeric_limits<double>::epsilon();
+    const double position_tolerance = 100.0 * epsilon / (anchor_separation * anchor_separation);
+    const double weight_tolerance = position_tolerance / anchor_separation;
+    const std::vector<double> chosen_positions = coalescing_positions(anchor_separation);
+    for (std::size_t node = 0; node < 3; ++node)
+    {
+        QMOMKIT_VERIFY_NEAR(anchored.abscissas[node], chosen_positions[node], position_tolerance);
+        QMOMKIT_VERIFY_NEAR(anchored.weights[node], coalescing_weights[node], weight_tolerance);
+    }
 
     for (const double separation : {1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6, 1.0e-7, 1.0e-8})
     {

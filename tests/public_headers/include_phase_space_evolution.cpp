@@ -98,6 +98,23 @@ using CqmomBatchBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPha
     const std::vector<qmomkit::CqmomState>&, double, double, const qmomkit::BatchPhaseSpaceVelocity&, const qmomkit::BatchCqmomMomentSource&,
     const qmomkit::BatchCqmomMomentBoundaryContribution&, const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
 
+using QmomPhaseSpaceEvolution = qmomkit::QmomPhaseSpaceEvolutionResult (*)(const qmomkit::QmomState&, double, double,
+                                                                           const qmomkit::PhaseSpaceVelocity&, const qmomkit::QmomMomentSource&,
+                                                                           const qmomkit::QmomPhaseSpaceEvolutionOptions&);
+using QmomBoundaryPhaseSpaceEvolution = qmomkit::QmomPhaseSpaceEvolutionResult (*)(const qmomkit::QmomState&, double, double,
+                                                                                   const qmomkit::PhaseSpaceVelocity&,
+                                                                                   const qmomkit::QmomMomentSource&,
+                                                                                   const qmomkit::QmomMomentBoundaryContribution&,
+                                                                                   const qmomkit::QmomPhaseSpaceEvolutionOptions&);
+using CqmomPhaseSpaceEvolution = qmomkit::CqmomPhaseSpaceEvolutionResult (*)(const qmomkit::CqmomState&, double, double,
+                                                                             const qmomkit::PhaseSpaceVelocity&, const qmomkit::CqmomMomentSource&,
+                                                                             const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
+using CqmomBoundaryPhaseSpaceEvolution = qmomkit::CqmomPhaseSpaceEvolutionResult (*)(const qmomkit::CqmomState&, double, double,
+                                                                                     const qmomkit::PhaseSpaceVelocity&,
+                                                                                     const qmomkit::CqmomMomentSource&,
+                                                                                     const qmomkit::CqmomMomentBoundaryContribution&,
+                                                                                     const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
+
 static_assert(std::is_same_v<qmomkit::BatchPhaseSpaceVelocity,
                              std::function<void(std::size_t, double, const std::vector<double>&, std::vector<double>&, std::size_t)>>);
 static_assert(
@@ -169,33 +186,45 @@ struct DualCqmomMomentSource
     (void)qmomkit::advance_cqmom_moment_source_batch_with_index(cqmom_states, 0.0, 0.1, DualCqmomMomentSource{});
 }
 
-[[maybe_unused]] QmomAdvectionStage qmom_advection_stage = qmomkit::advance_qmom_advection;
-[[maybe_unused]] QmomMomentSourceStage qmom_moment_source_stage = qmomkit::advance_qmom_moment_source;
-[[maybe_unused]] QmomBoundaryMomentSourceStage qmom_boundary_moment_source_stage = qmomkit::advance_qmom_moment_source;
-[[maybe_unused]] CqmomAdvectionStage cqmom_advection_stage = qmomkit::advance_cqmom_advection;
-[[maybe_unused]] CqmomMomentSourceStage cqmom_moment_source_stage = qmomkit::advance_cqmom_moment_source;
-[[maybe_unused]] CqmomBoundaryMomentSourceStage cqmom_boundary_moment_source_stage = qmomkit::advance_cqmom_moment_source;
-[[maybe_unused]] QmomAdvectionBatch qmom_advection_batch = qmomkit::advance_qmom_advection_batch;
-[[maybe_unused]] CqmomAdvectionBatch cqmom_advection_batch = qmomkit::advance_cqmom_advection_batch;
-[[maybe_unused]] QmomMomentSourceBatch qmom_moment_source_batch = qmomkit::advance_qmom_moment_source_batch;
-[[maybe_unused]] CqmomMomentSourceBatch cqmom_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch;
-[[maybe_unused]] QmomBoundaryMomentSourceBatch qmom_boundary_moment_source_batch = qmomkit::advance_qmom_moment_source_batch;
-[[maybe_unused]] CqmomBoundaryMomentSourceBatch cqmom_boundary_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch;
-[[maybe_unused]] QmomPhaseSpaceEvolutionBatch qmom_phase_space_evolution_batch = qmomkit::advance_qmom_phase_space_batch;
-[[maybe_unused]] CqmomPhaseSpaceEvolutionBatch cqmom_phase_space_evolution_batch = qmomkit::advance_cqmom_phase_space_batch;
-[[maybe_unused]] QmomBoundaryPhaseSpaceEvolutionBatch qmom_boundary_phase_space_evolution_batch = qmomkit::advance_qmom_phase_space_batch;
-[[maybe_unused]] CqmomBoundaryPhaseSpaceEvolutionBatch cqmom_boundary_phase_space_evolution_batch = qmomkit::advance_cqmom_phase_space_batch;
-[[maybe_unused]] QmomBatchAdvectionBatch qmom_batch_advection_batch = qmomkit::advance_qmom_advection_batch_with_index;
-[[maybe_unused]] CqmomBatchAdvectionBatch cqmom_batch_advection_batch = qmomkit::advance_cqmom_advection_batch_with_index;
-[[maybe_unused]] QmomBatchMomentSourceBatch qmom_batch_moment_source_batch = qmomkit::advance_qmom_moment_source_batch_with_index;
-[[maybe_unused]] CqmomBatchMomentSourceBatch cqmom_batch_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch_with_index;
-[[maybe_unused]] QmomBatchBoundaryMomentSourceBatch qmom_batch_boundary_moment_source_batch = qmomkit::advance_qmom_moment_source_batch_with_index;
-[[maybe_unused]] CqmomBatchBoundaryMomentSourceBatch cqmom_batch_boundary_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch_with_index;
-[[maybe_unused]] QmomBatchPhaseSpaceEvolutionBatch qmom_batch_phase_space_evolution_batch = qmomkit::advance_qmom_phase_space_batch_with_index;
-[[maybe_unused]] CqmomBatchPhaseSpaceEvolutionBatch cqmom_batch_phase_space_evolution_batch = qmomkit::advance_cqmom_phase_space_batch_with_index;
-[[maybe_unused]] QmomBatchBoundaryPhaseSpaceEvolutionBatch qmom_batch_boundary_phase_space_evolution_batch =
-    qmomkit::advance_qmom_phase_space_batch_with_index;
-[[maybe_unused]] CqmomBatchBoundaryPhaseSpaceEvolutionBatch cqmom_batch_boundary_phase_space_evolution_batch =
-    qmomkit::advance_cqmom_phase_space_batch_with_index;
-
 } // namespace
+
+namespace public_header_pins
+{
+
+// Each pin takes the address of one entry point through its exact signature, as
+// in include_cqmom.cpp: a changed parameter or return type fails to compile, and
+// because the pins have external linkage, a missing definition fails to link.
+// The function pointer types are declared in the unnamed namespace above.
+
+QmomAdvectionStage qmom_advection_stage = qmomkit::advance_qmom_advection;
+QmomMomentSourceStage qmom_moment_source_stage = qmomkit::advance_qmom_moment_source;
+QmomBoundaryMomentSourceStage qmom_boundary_moment_source_stage = qmomkit::advance_qmom_moment_source;
+CqmomAdvectionStage cqmom_advection_stage = qmomkit::advance_cqmom_advection;
+CqmomMomentSourceStage cqmom_moment_source_stage = qmomkit::advance_cqmom_moment_source;
+CqmomBoundaryMomentSourceStage cqmom_boundary_moment_source_stage = qmomkit::advance_cqmom_moment_source;
+QmomAdvectionBatch qmom_advection_batch = qmomkit::advance_qmom_advection_batch;
+CqmomAdvectionBatch cqmom_advection_batch = qmomkit::advance_cqmom_advection_batch;
+QmomMomentSourceBatch qmom_moment_source_batch = qmomkit::advance_qmom_moment_source_batch;
+CqmomMomentSourceBatch cqmom_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch;
+QmomBoundaryMomentSourceBatch qmom_boundary_moment_source_batch = qmomkit::advance_qmom_moment_source_batch;
+CqmomBoundaryMomentSourceBatch cqmom_boundary_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch;
+QmomPhaseSpaceEvolutionBatch qmom_phase_space_evolution_batch = qmomkit::advance_qmom_phase_space_batch;
+CqmomPhaseSpaceEvolutionBatch cqmom_phase_space_evolution_batch = qmomkit::advance_cqmom_phase_space_batch;
+QmomBoundaryPhaseSpaceEvolutionBatch qmom_boundary_phase_space_evolution_batch = qmomkit::advance_qmom_phase_space_batch;
+CqmomBoundaryPhaseSpaceEvolutionBatch cqmom_boundary_phase_space_evolution_batch = qmomkit::advance_cqmom_phase_space_batch;
+QmomBatchAdvectionBatch qmom_batch_advection_batch = qmomkit::advance_qmom_advection_batch_with_index;
+CqmomBatchAdvectionBatch cqmom_batch_advection_batch = qmomkit::advance_cqmom_advection_batch_with_index;
+QmomBatchMomentSourceBatch qmom_batch_moment_source_batch = qmomkit::advance_qmom_moment_source_batch_with_index;
+CqmomBatchMomentSourceBatch cqmom_batch_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch_with_index;
+QmomBatchBoundaryMomentSourceBatch qmom_batch_boundary_moment_source_batch = qmomkit::advance_qmom_moment_source_batch_with_index;
+CqmomBatchBoundaryMomentSourceBatch cqmom_batch_boundary_moment_source_batch = qmomkit::advance_cqmom_moment_source_batch_with_index;
+QmomBatchPhaseSpaceEvolutionBatch qmom_batch_phase_space_evolution_batch = qmomkit::advance_qmom_phase_space_batch_with_index;
+CqmomBatchPhaseSpaceEvolutionBatch cqmom_batch_phase_space_evolution_batch = qmomkit::advance_cqmom_phase_space_batch_with_index;
+QmomBatchBoundaryPhaseSpaceEvolutionBatch qmom_batch_boundary_phase_space_evolution_batch = qmomkit::advance_qmom_phase_space_batch_with_index;
+CqmomBatchBoundaryPhaseSpaceEvolutionBatch cqmom_batch_boundary_phase_space_evolution_batch = qmomkit::advance_cqmom_phase_space_batch_with_index;
+QmomPhaseSpaceEvolution qmom_phase_space_evolution = qmomkit::advance_qmom_phase_space;
+QmomBoundaryPhaseSpaceEvolution qmom_boundary_phase_space_evolution = qmomkit::advance_qmom_phase_space;
+CqmomPhaseSpaceEvolution cqmom_phase_space_evolution = qmomkit::advance_cqmom_phase_space;
+CqmomBoundaryPhaseSpaceEvolution cqmom_boundary_phase_space_evolution = qmomkit::advance_cqmom_phase_space;
+
+} // namespace public_header_pins

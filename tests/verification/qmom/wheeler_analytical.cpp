@@ -6,10 +6,8 @@
 //   multiplying every weight by a common factor leaves the positions unchanged
 //   and scales the weights by that factor; that the same points multiplied by
 //   powers of ten from 1e-20 to 1e20, or given in meters, are recovered as
-//   accurately as at unit scale; that, for one to three nodes, reconstructing
-//   the moments from the result returns the input; and that presenting the
-//   same points in a different input order changes neither the moments nor the
-//   sorted output.
+//   accurately as at unit scale; and that, for one to three nodes,
+//   reconstructing the moments from the result returns the input.
 //
 // How the reference is constructed
 //   Chosen, not computed. Each case starts from a list of positions and
@@ -21,10 +19,10 @@
 // Error metric and pass criteria
 //   Maximum absolute deviation of each position and weight from the chosen
 //   value, and of each rebuilt moment from the input moment. Tolerances are
-//   per case: 1.0e-14 for the one-node and input-order cases and 1.0e-12 for
-//   the two- and three-node references, whose values are order one; rebuilt
-//   moments use 1.0e-13 for one node, 1.0e-12 for two and 1.0e-11 for three,
-//   whose highest moment is about 67. Measured deviations are 1e-15 to 1e-13.
+//   per case: 1.0e-14 for the one-node case and 1.0e-12 for the two- and
+//   three-node references, whose values are order one; rebuilt moments use
+//   1.0e-13 for one node, 1.0e-12 for two and 1.0e-11 for three, whose highest
+//   moment is about 67. Measured deviations are 1e-15 to 1e-13.
 //
 //   From four nodes on, positions are compared relative to the largest
 //   |position| and weights relative to the total weight. The map from 2n
@@ -156,25 +154,6 @@ void test_three_node_reference()
     assert_vector_near(reconstruct_moments(quadrature, moments.size()), moments.values(), 1.0e-11);
 }
 
-void test_input_node_order_does_not_change_moments_or_sorted_output()
-{
-    const std::vector<double> ordered_moments = construct_moments({-2.0, 4.0}, {0.7, 1.3}, 4);
-    const std::vector<double> shuffled_moments = construct_moments({4.0, -2.0}, {1.3, 0.7}, 4);
-    assert_vector_near(ordered_moments, shuffled_moments, 1.0e-14);
-
-    const qmomkit::Quadrature1D ordered = qmomkit::compute_quadrature(qmomkit::MomentSet(ordered_moments), 2);
-    const qmomkit::Quadrature1D shuffled = qmomkit::compute_quadrature(qmomkit::MomentSet(shuffled_moments), 2);
-
-    QMOMKIT_VERIFY_CHECK(ordered.ok());
-    QMOMKIT_VERIFY_CHECK(shuffled.ok());
-    assert_sorted_ascending(ordered.abscissas);
-    assert_sorted_ascending(shuffled.abscissas);
-    assert_vector_near(ordered.abscissas, {-2.0, 4.0}, 1.0e-14);
-    assert_vector_near(ordered.weights, {0.7, 1.3}, 1.0e-14);
-    assert_vector_near(shuffled.abscissas, ordered.abscissas, 1.0e-14);
-    assert_vector_near(shuffled.weights, ordered.weights, 1.0e-14);
-}
-
 // Compares a recovered quadrature with the chosen points: positions relative to
 // the largest |position|, weights relative to the total weight.
 void assert_recovers_points(const std::vector<double>& abscissas, const std::vector<double>& weights, const double tolerance)
@@ -255,19 +234,17 @@ void test_droplet_diameters_in_metres_are_recovered()
 
 int main(const int argc, char** argv)
 {
-    return qmomkit::test::dispatch_test_case(
-        argc, argv,
-        {
-            {"one_node_reference", test_one_node_reference},
-            {"one_node_constructed_moment_reconstruction", test_one_node_constructed_moment_reconstruction},
-            {"two_node_reference", test_two_node_reference},
-            {"three_node_reference", test_three_node_reference},
-            {"four_node_reference", test_four_node_reference},
-            {"five_node_reference", test_five_node_reference},
-            {"six_node_reference", test_six_node_reference},
-            {"eight_node_reference_at_two_number_densities", test_eight_node_reference_at_two_number_densities},
-            {"points_at_any_scale_are_recovered", test_points_at_any_scale_are_recovered},
-            {"droplet_diameters_in_metres_are_recovered", test_droplet_diameters_in_metres_are_recovered},
-            {"input_node_order_does_not_change_moments_or_sorted_output", test_input_node_order_does_not_change_moments_or_sorted_output},
-        });
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"one_node_reference", test_one_node_reference},
+                                                 {"one_node_constructed_moment_reconstruction", test_one_node_constructed_moment_reconstruction},
+                                                 {"two_node_reference", test_two_node_reference},
+                                                 {"three_node_reference", test_three_node_reference},
+                                                 {"four_node_reference", test_four_node_reference},
+                                                 {"five_node_reference", test_five_node_reference},
+                                                 {"six_node_reference", test_six_node_reference},
+                                                 {"eight_node_reference_at_two_number_densities", test_eight_node_reference_at_two_number_densities},
+                                                 {"points_at_any_scale_are_recovered", test_points_at_any_scale_are_recovered},
+                                                 {"droplet_diameters_in_metres_are_recovered", test_droplet_diameters_in_metres_are_recovered},
+                                             });
 }

@@ -23,6 +23,19 @@ using QmomCheckedStateCandidateCreation = qmomkit::QmomStateCandidate (qmomkit::
 
 using QmomCaseInitialState = qmomkit::QmomState (qmomkit::QmomCase::*)() const;
 
+using QmomInversion = qmomkit::QmomResult (*)(const qmomkit::MomentSet&, std::size_t, const qmomkit::QmomOptions&);
+
+using QmomBoundedInversion = qmomkit::QmomResult (*)(const qmomkit::MomentSet&, std::size_t, const qmomkit::QmomOptions&,
+                                                     std::optional<qmomkit::AbscissaBounds>);
+
+using QmomCaseInversion = qmomkit::QmomResult (*)(const qmomkit::QmomCase&);
+
+QmomInversion qmom_inversion = qmomkit::compute_qmom;
+
+QmomBoundedInversion qmom_bounded_inversion = qmomkit::compute_qmom;
+
+QmomCaseInversion qmom_case_inversion = qmomkit::compute_qmom;
+
 QmomStateCandidateCreation qmom_state_candidate_creation = &qmomkit::QmomCase::state_candidate;
 
 QmomCheckedStateCandidateCreation qmom_checked_state_candidate_creation = &qmomkit::QmomCase::state_candidate;

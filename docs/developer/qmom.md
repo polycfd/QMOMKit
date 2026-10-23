@@ -12,15 +12,15 @@ moment and ordering conventions are in
 ## Wheeler inversion
 
 `compute_recurrence` in [`src/wheeler.cpp`](../../src/wheeler.cpp) computes
-Wheeler's $\sigma$ table row by row from $\sigma_{0,l}=0$,
-$\sigma_{1,l}=m_{l-1}$, $a_0=m_1/m_0$, $b_0=0$, for $k=2,\ldots,N$:
+Wheeler's $\sigma$ table row by row from $\sigma_{-1,l}=0$, $\sigma_{0,l}=m_l$,
+$a_0=m_1/m_0$, $b_0=0$, for $k=1,\ldots,N-1$:
 
 ```math
-\sigma_{k,l}=\sigma_{k-1,l+1}-a_{k-2}\,\sigma_{k-1,l}-b_{k-2}\,\sigma_{k-2,l},
+\sigma_{k,l}=\sigma_{k-1,l+1}-a_{k-1}\,\sigma_{k-1,l}-b_{k-1}\,\sigma_{k-2,l},
 \qquad
-a_{k-1}=\frac{\sigma_{k,k+1}}{\sigma_{k,k}}-\frac{\sigma_{k-1,k}}{\sigma_{k-1,k-1}},
+a_k=\frac{\sigma_{k,k+1}}{\sigma_{k,k}}-\frac{\sigma_{k-1,k}}{\sigma_{k-1,k-1}},
 \qquad
-b_{k-1}=\frac{\sigma_{k,k}}{\sigma_{k-1,k-1}} .
+b_k=\frac{\sigma_{k,k}}{\sigma_{k-1,k-1}} .
 ```
 
 $a_k$ and $b_k$ are the three-term recurrence coefficients of the polynomials
@@ -37,9 +37,9 @@ eigenvalues in ascending order, so abscissas come out sorted with their
 weights. The moments are used as given, without centering or normalization,
 and $\sum_i w_i=m_0$.
 
-Since $\sigma_{k,k}=m_0\prod_{i=1}^{k-1}b_i$, a zero $\sigma_{k,k}$ means the
-moments are carried by at most $k-1$ points, and a negative one after positive
-ones that $m_0,\ldots,m_{2k-2}$ are the moments of no non-negative density.
+Since $\sigma_{k,k}=m_0\prod_{i=1}^{k}b_i$, a zero $\sigma_{k,k}$ means the
+moments are carried by at most $k$ points, and a negative one after positive
+ones that $m_0,\ldots,m_{2k}$ are the moments of no non-negative density.
 Both tests below act on $\sigma_{k,k}$.
 
 ## Input checks and the cutoff
@@ -66,23 +66,23 @@ absolute value and takes a multiple of its diagonal as the rounding of
 $\sigma_{k,k}$:
 
 ```math
-\bar\sigma_{1,l}=|m_{l-1}|,\qquad
-\bar\sigma_{k,l}=\bar\sigma_{k-1,l+1}+|a_{k-2}|\,\bar\sigma_{k-1,l}+|b_{k-2}|\,\bar\sigma_{k-2,l},
+\bar\sigma_{0,l}=|m_l|,\qquad
+\bar\sigma_{k,l}=\bar\sigma_{k-1,l+1}+|a_{k-1}|\,\bar\sigma_{k-1,l}+|b_{k-1}|\,\bar\sigma_{k-2,l},
 \qquad
-\tau_k=100\,\varepsilon\,\max\!\left(\bar\sigma_{k,k},\ |m_0|\,s^{2(k-1)}\right),
+\tau_k=100\,\varepsilon\,\max\!\left(\bar\sigma_{k,k},\ |m_0|\,s^{2k}\right),
 ```
 
 with $\varepsilon$ the double epsilon and $s$ the coordinate scale below
-($s=0$ drops the floor for $k\ge2$). Both $\sigma_{k,k}$ and $\tau_k$ scale
-as $m_0$ times the coordinate to the power $2(k-1)$, so the test depends on
-neither unit nor number density. $\tau_k$ also grows with the cancellation of
+($s=0$ drops the floor). Both $\sigma_{k,k}$ and $\tau_k$ scale as $m_0$
+times the coordinate to the power $2k$, so the test depends on neither unit
+nor number density. $\tau_k$ also grows with the cancellation of
 a distribution far from the origin.
 
 ## Fixed node count
 
-With `adaptive = false`, the first $k\in\{2,\ldots,N\}$ with
+With `adaptive = false`, the first $k\in\{1,\ldots,N-1\}$ with
 $|\sigma_{k,k}|\le\tau_k$ ends the inversion with `not_realizable` and the
-message `Moment sequence supports at most k-1 nodes: …`, with $k-1$ filled in.
+message `Moment sequence supports at most k nodes: …`, with $k$ filled in.
 Without this test, rounding would decide whether a sequence on the boundary
 passes, and that changes with unit and number density; an accepted rule would
 also carry nodes made only of rounding. A non-finite recurrence or a
@@ -94,7 +94,7 @@ nodes; `rmin` and `eabs` are not applied.
 Adaptive inversion [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]
 (`adaptive = true`, the default) selects its rule in two steps:
 
-1. The usable count is $n=k-1$ for the first $k\in\{2,\ldots,N\}$ with
+1. The usable count is $n=k$ for the first $k\in\{1,\ldots,N-1\}$ with
    $\sigma_{k,k}\le\tau_k$, zero within its rounding or negative, and $n=N$
    if there is none.
 2. For $n_1=n,n-1,\ldots,2$, form the $n_1$-node rule from the leading

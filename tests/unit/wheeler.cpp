@@ -281,7 +281,7 @@ void test_adaptive_roundoff_positive_degenerate_sequence_reduces()
 void test_adaptive_node_count_does_not_depend_on_units_or_number_density()
 {
     // sigma(k, k) and the roundoff bound it is compared with both scale as m0
-    // times the coordinate to the power 2(k - 1), so neither the unit of the
+    // times the coordinate to the power 2k, so neither the unit of the
     // coordinate nor the number density may change the adaptive node count.
     // The conditioning of the cluster limits the nodes to about 1e-5, in fixed
     // mode as well, far below their separation of 0.03.
@@ -525,39 +525,40 @@ void test_fixed_count_refuses_sequences_supporting_fewer_nodes()
     }
 }
 
-// The rounding bound tau_n of docs/developer/qmom.md for the moments m_0, ...,
-// m_{2n-1} at coordinate scale zero, from the full sigma table and its
-// absolute-value counterpart.
-double documented_rounding_bound(const std::vector<double>& moments, const std::size_t n)
+// The rounding bound tau_k of docs/developer/qmom.md at coordinate scale zero,
+// from the full sigma table of the moments and its absolute-value counterpart.
+// Row j of both is stored at index j + 1, so that row -1 is the zero row 0.
+double documented_rounding_bound(const std::vector<double>& moments, const std::size_t k)
 {
-    std::vector<std::vector<double>> sigma(n + 1, std::vector<double>(2 * n + 1, 0.0));
+    const std::size_t count = moments.size();
+    std::vector<std::vector<double>> sigma(k + 2, std::vector<double>(count, 0.0));
     std::vector<std::vector<double>> bound = sigma;
-    std::vector<double> a(n, 0.0);
-    std::vector<double> b(n, 0.0);
-    for (std::size_t l = 1; l <= 2 * n; ++l)
+    std::vector<double> a(k + 1, 0.0);
+    std::vector<double> b(k + 1, 0.0);
+    for (std::size_t l = 0; l < count; ++l)
     {
-        sigma[1][l] = moments[l - 1];
-        bound[1][l] = std::abs(moments[l - 1]);
+        sigma[1][l] = moments[l];
+        bound[1][l] = std::abs(moments[l]);
     }
     a[0] = moments[1] / moments[0];
-    for (std::size_t k = 2; k <= n; ++k)
+    for (std::size_t j = 1; j <= k; ++j)
     {
-        for (std::size_t l = k; l <= 2 * n - k + 1; ++l)
+        for (std::size_t l = j; l + j < count; ++l)
         {
-            sigma[k][l] = sigma[k - 1][l + 1] - a[k - 2] * sigma[k - 1][l] - b[k - 2] * sigma[k - 2][l];
-            bound[k][l] = bound[k - 1][l + 1] + std::abs(a[k - 2]) * bound[k - 1][l] + std::abs(b[k - 2]) * bound[k - 2][l];
+            sigma[j + 1][l] = sigma[j][l + 1] - a[j - 1] * sigma[j][l] - b[j - 1] * sigma[j - 1][l];
+            bound[j + 1][l] = bound[j][l + 1] + std::abs(a[j - 1]) * bound[j][l] + std::abs(b[j - 1]) * bound[j - 1][l];
         }
-        a[k - 1] = sigma[k][k + 1] / sigma[k][k] - sigma[k - 1][k] / sigma[k - 1][k - 1];
-        b[k - 1] = sigma[k][k] / sigma[k - 1][k - 1];
+        a[j] = sigma[j + 1][j + 1] / sigma[j + 1][j] - sigma[j][j] / sigma[j][j - 1];
+        b[j] = sigma[j + 1][j] / sigma[j][j - 1];
     }
-    return 100.0 * std::numeric_limits<double>::epsilon() * bound[n][n];
+    return 100.0 * std::numeric_limits<double>::epsilon() * bound[k + 1][k];
 }
 
 void test_fixed_count_reports_the_documented_rounding_bound()
 {
-    // Three weighted points requested as four nodes are refused at sigma(4, 4),
-    // whose bound tau_4 takes every term of the bound recurrence, b_2 included,
-    // from rows 2 and 3. The refusal prints tau_4, which must be the documented
+    // Three weighted points requested as four nodes are refused at sigma(3, 3),
+    // whose bound tau_3 takes every term of the bound recurrence, b_2 included,
+    // from rows 1 and 2. The refusal prints tau_3, which must be the documented
     // bound, near the origin and at 10, where it carries the cancellation.
     qmomkit::WheelerOptions fixed;
     fixed.adaptive = false;
@@ -567,13 +568,13 @@ void test_fixed_count_reports_the_documented_rounding_bound()
         const std::vector<double> moments = reconstruct_moments(points, 8);
         const qmomkit::Quadrature1D result = qmomkit::compute_quadrature(qmomkit::MomentSet(moments), 4, fixed);
         assert(result.status == qmomkit::QuadratureStatus::not_realizable);
-        assert(result.message.find("supports at most 3 nodes: sigma(4, 4) = ") != std::string::npos);
+        assert(result.message.find("supports at most 3 nodes: sigma(3, 3) = ") != std::string::npos);
 
         const std::string marker = "within the tolerance ";
         const std::size_t position = result.message.find(marker);
         assert(position != std::string::npos);
         const double printed = std::stod(result.message.substr(position + marker.size()));
-        const double expected = documented_rounding_bound(moments, 4);
+        const double expected = documented_rounding_bound(moments, 3);
         assert(std::abs(printed - expected) <= 1.0e-12 * expected);
     }
 }

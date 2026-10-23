@@ -34,8 +34,8 @@ struct SigmaDiagonal
 
 // Wheeler's recurrence for the moments m_0, ..., m_{2N-1}, indexed as in
 // docs/developer/qmom.md: a_0, ..., a_{N-1}, b_0 = 0, b_1, ..., b_{N-1}, and for
-// k = 2, ..., N the diagonal sigma(k, k) with its rounding bound tau_k. Entries
-// 0 and 1 of the diagonal are unused.
+// k = 1, ..., N - 1 the diagonal sigma(k, k) with its rounding bound tau_k.
+// Entry 0 of the diagonal is unused.
 struct Recurrence
 {
     std::vector<double> a;
@@ -64,25 +64,25 @@ struct Recurrence
         {moments[1] / moments[0]}, {std::abs(moments[0])}, QuadratureStatus::not_realizable, "Moment sequence is not realizable: m0 < 0."};
 }
 
-// Row k of the sigma table, sigma(k, l) for l = k, ..., 2N - k + 1, depends only
+// Row k of the sigma table, sigma(k, l) for l = k, ..., 2N - k - 1, depends only
 // on rows k - 1 and k - 2, so the rows are computed one at a time from
-// sigma(0, l) = 0 and sigma(1, l) = m_{l-1}. The same pass runs the recurrence
+// sigma(-1, l) = 0 and sigma(0, l) = m_l. The same pass runs the recurrence
 // with every term in absolute value, whose diagonal bounds the rounding of
 // sigma(k, k). sigma(k, k) and the bound both scale as m0 times the coordinate
-// to the power 2(k - 1), so the tests on them depend neither on the unit of the
+// to the power 2k, so the tests on them depend neither on the unit of the
 // coordinate nor on m0, and the bound grows with the cancellation of a
 // distribution far from the origin. Conditional moments are not data: the
 // solve that produced them leaves rounding relative to the scale of their
 // coordinate, not to their own magnitudes, so a positive coordinate_scale s
-// adds the floor m0 s^(2(k - 1)).
+// adds the floor m0 s^(2k).
 [[nodiscard]] Recurrence compute_recurrence(const MomentSet& moments, const std::size_t n, const double coordinate_scale)
 {
     constexpr double roundoff_multiplier = 100.0;
-    Recurrence recurrence{std::vector<double>(n, 0.0), std::vector<double>(n, 0.0), std::vector<SigmaDiagonal>(n + 1)};
+    Recurrence recurrence{std::vector<double>(n, 0.0), std::vector<double>(n, 0.0), std::vector<SigmaDiagonal>(n)};
 
     // Rows k - 2, k - 1 and k of sigma and of its absolute-value bound,
     // indexed by l, in one workspace.
-    const std::size_t width = 2 * n + 1;
+    const std::size_t width = 2 * n;
     std::vector<double> rows(6 * width, 0.0);
     double* sigma_second_previous = rows.data();
     double* sigma_previous = sigma_second_previous + width;
@@ -90,28 +90,28 @@ struct Recurrence
     double* bound_second_previous = sigma_current + width;
     double* bound_previous = bound_second_previous + width;
     double* bound_current = bound_previous + width;
-    for (std::size_t l = 1; l <= 2 * n; ++l)
+    for (std::size_t l = 0; l < 2 * n; ++l)
     {
-        sigma_previous[l] = moments[l - 1];
-        bound_previous[l] = std::abs(moments[l - 1]);
+        sigma_previous[l] = moments[l];
+        bound_previous[l] = std::abs(moments[l]);
     }
 
     recurrence.a[0] = moments[1] / moments[0];
     recurrence.b[0] = 0.0;
     double noise_floor = std::abs(moments[0]);
 
-    for (std::size_t k = 2; k <= n; ++k)
+    for (std::size_t k = 1; k < n; ++k)
     {
-        const double a = recurrence.a[k - 2];
-        const double b = recurrence.b[k - 2];
-        for (std::size_t l = k; l <= 2 * n - k + 1; ++l)
+        const double a = recurrence.a[k - 1];
+        const double b = recurrence.b[k - 1];
+        for (std::size_t l = k; l < 2 * n - k; ++l)
         {
             sigma_current[l] = sigma_previous[l + 1] - a * sigma_previous[l] - b * sigma_second_previous[l];
             bound_current[l] = bound_previous[l + 1] + std::abs(a) * bound_previous[l] + std::abs(b) * bound_second_previous[l];
         }
 
-        recurrence.a[k - 1] = sigma_current[k + 1] / sigma_current[k] - sigma_previous[k] / sigma_previous[k - 1];
-        recurrence.b[k - 1] = sigma_current[k] / sigma_previous[k - 1];
+        recurrence.a[k] = sigma_current[k + 1] / sigma_current[k] - sigma_previous[k] / sigma_previous[k - 1];
+        recurrence.b[k] = sigma_current[k] / sigma_previous[k - 1];
         noise_floor *= coordinate_scale * coordinate_scale;
         recurrence.diagonal[k] = {sigma_current[k],
                                   roundoff_multiplier * std::numeric_limits<double>::epsilon() * std::max(bound_current[k], noise_floor)};
@@ -248,10 +248,10 @@ struct Recurrence
     return true;
 }
 
-// sigma(k, k) = m0 b_1 ... b_{k-1} is positive while m_0, ..., m_{2k-2} are
-// the moments of at least k points, zero when k - 1 points carry them, and
+// sigma(k, k) = m0 b_1 ... b_k is positive while m_0, ..., m_{2k} are the
+// moments of at least k + 1 points, zero when k points carry them, and
 // negative when no non-negative density has them. The first k with sigma(k, k)
-// at or below its rounding bound therefore caps the usable count at k - 1.
+// at or below its rounding bound therefore caps the usable count at k.
 // From that count down, the first Gauss rule that passes the acceptance tests
 // is returned, and the one-node rule if none does.
 [[nodiscard]] Quadrature1D adaptive_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
@@ -259,11 +259,11 @@ struct Recurrence
 {
     const Recurrence recurrence = compute_recurrence(moments, max_nodes, coordinate_scale);
     std::size_t usable_count = max_nodes;
-    for (std::size_t k = 2; k <= max_nodes; ++k)
+    for (std::size_t k = 1; k < max_nodes; ++k)
     {
         if (recurrence.diagonal[k].sigma <= recurrence.diagonal[k].tolerance)
         {
-            usable_count = k - 1;
+            usable_count = k;
             break;
         }
     }
@@ -294,21 +294,21 @@ struct Recurrence
 }
 
 // A fixed count must be supported by the moments. A sigma(k, k) that is zero
-// within its rounding bound puts the sequence on the boundary at k - 1 nodes,
+// within its rounding bound puts the sequence on the boundary at k nodes,
 // and any larger rule would carry nodes made of rounding. The first such k is
 // reached while the coefficients before it are finite; a recurrence that
 // overflows instead is reported as non-finite.
 [[nodiscard]] Quadrature1D fixed_quadrature(const MomentSet& moments, const std::size_t node_count, const double coordinate_scale)
 {
     const Recurrence recurrence = compute_recurrence(moments, node_count, coordinate_scale);
-    for (std::size_t k = 2; k <= node_count; ++k)
+    for (std::size_t k = 1; k < node_count; ++k)
     {
         const double sigma = recurrence.diagonal[k].sigma;
         const double tolerance = recurrence.diagonal[k].tolerance;
         if (std::isfinite(tolerance) && std::abs(sigma) <= tolerance)
         {
             std::ostringstream message;
-            message << std::scientific << std::setprecision(17) << "Moment sequence supports at most " << k - 1 << (k == 2 ? " node" : " nodes")
+            message << std::scientific << std::setprecision(17) << "Moment sequence supports at most " << k << (k == 1 ? " node" : " nodes")
                     << ": sigma(" << k << ", " << k << ") = " << sigma << " is zero within the tolerance " << tolerance << '.';
             return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
         }

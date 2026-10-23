@@ -12,7 +12,7 @@ through callbacks. Everything else belongs to the host application, as the
 
 The root CMake project builds and installs one target, `qmomkit::qmomkit`,
 together with the public headers, `QMOMKitConfig.cmake`, its version file
-(`SameMinorVersion` compatibility), and the exported targets. The package has no
+(`SameMajorVersion` compatibility), and the exported targets. The package has no
 dependencies.
 
 Everything else is a standalone consumer, and the core never depends on one:

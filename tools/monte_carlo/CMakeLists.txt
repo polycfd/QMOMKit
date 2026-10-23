@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(
     QMOMKitMonteCarlo
-    VERSION 0.1.0
+    VERSION 1.0.0
     LANGUAGES CXX
 )
 
@@ -114,7 +114,7 @@ configure_package_config_file(
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/QMOMKitMonteCarloConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMinorVersion
+    COMPATIBILITY SameMajorVersion
 )
 
 install(

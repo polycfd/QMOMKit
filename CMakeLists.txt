@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(QMOMKit VERSION 0.1.0 LANGUAGES CXX)
+project(QMOMKit VERSION 1.0.0 LANGUAGES CXX)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the build type." FORCE)
@@ -114,7 +114,7 @@ configure_package_config_file(
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/QMOMKitConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMinorVersion
+    COMPATIBILITY SameMajorVersion
 )
 
 install(

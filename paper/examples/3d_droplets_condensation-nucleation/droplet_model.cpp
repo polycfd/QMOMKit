@@ -123,7 +123,7 @@ struct MoistAirProperties
     const double criterion = std::sqrt(reynolds) * std::cbrt(transport_property_ratio);
     if (criterion < 1.4)
     {
-        return 2.0 + 0.316 * reynolds * std::pow(transport_property_ratio, 2.0 / 3.0);
+        return 2.0 + 0.216 * reynolds * std::pow(transport_property_ratio, 2.0 / 3.0);
     }
     return 1.56 + 0.616 * std::sqrt(reynolds) * std::cbrt(transport_property_ratio);
 }

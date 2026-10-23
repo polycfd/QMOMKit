@@ -124,6 +124,8 @@ install(
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QMOMKit
 )
 
+install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DOCDIR})
+
 if(QMOMKIT_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

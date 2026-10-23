@@ -3,8 +3,12 @@
 #include <utility>
 #include <vector>
 
-namespace
+namespace package_consumer_pins
 {
+
+// Each pin takes the address of one installed entry point through its exact
+// signature. The pins have external linkage, so each one is emitted and must be
+// resolved against the installed library when this consumer is linked.
 
 using CqmomAdvectionStage = qmomkit::CqmomPhaseSpaceEvolutionResult (*)(const qmomkit::CqmomState&, double, double,
                                                                         const qmomkit::PhaseSpaceVelocity&,
@@ -17,11 +21,11 @@ using CqmomBoundaryMomentSourceStage = qmomkit::CqmomPhaseSpaceEvolutionResult (
                                                                                    const qmomkit::CqmomMomentBoundaryContribution&,
                                                                                    const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
 
-[[maybe_unused]] CqmomAdvectionStage cqmom_advection_stage = qmomkit::advance_cqmom_advection;
-[[maybe_unused]] CqmomMomentSourceStage cqmom_moment_source_stage = qmomkit::advance_cqmom_moment_source;
-[[maybe_unused]] CqmomBoundaryMomentSourceStage cqmom_boundary_moment_source_stage = qmomkit::advance_cqmom_moment_source;
+CqmomAdvectionStage cqmom_advection_stage = qmomkit::advance_cqmom_advection;
+CqmomMomentSourceStage cqmom_moment_source_stage = qmomkit::advance_cqmom_moment_source;
+CqmomBoundaryMomentSourceStage cqmom_boundary_moment_source_stage = qmomkit::advance_cqmom_moment_source;
 
-} // namespace
+} // namespace package_consumer_pins
 
 int main()
 {

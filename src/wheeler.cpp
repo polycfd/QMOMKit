@@ -34,8 +34,8 @@ struct SigmaDiagonal
 
 // Wheeler's recurrence for the moments m_0, ..., m_{2N-1}, indexed as in
 // docs/developer/qmom.md: a_0, ..., a_{N-1}, b_0 = 0, b_1, ..., b_{N-1}, and for
-// k = 1, ..., N the diagonal sigma(k, k) with its rounding bound tau_k. Entry
-// 0 of the diagonal is unused.
+// k = 2, ..., N the diagonal sigma(k, k) with its rounding bound tau_k. Entries
+// 0 and 1 of the diagonal are unused.
 struct Recurrence
 {
     std::vector<double> a;
@@ -84,22 +84,21 @@ struct Recurrence
     // indexed by l, in one workspace.
     const std::size_t width = 2 * n + 1;
     std::vector<double> rows(6 * width, 0.0);
-    double* sigma_before = rows.data();
-    double* sigma_last = sigma_before + width;
-    double* sigma_row = sigma_last + width;
-    double* bound_before = sigma_row + width;
-    double* bound_last = bound_before + width;
-    double* bound_row = bound_last + width;
+    double* sigma_second_previous = rows.data();
+    double* sigma_previous = sigma_second_previous + width;
+    double* sigma_current = sigma_previous + width;
+    double* bound_second_previous = sigma_current + width;
+    double* bound_previous = bound_second_previous + width;
+    double* bound_current = bound_previous + width;
     for (std::size_t l = 1; l <= 2 * n; ++l)
     {
-        sigma_last[l] = moments[l - 1];
-        bound_last[l] = std::abs(moments[l - 1]);
+        sigma_previous[l] = moments[l - 1];
+        bound_previous[l] = std::abs(moments[l - 1]);
     }
 
     recurrence.a[0] = moments[1] / moments[0];
     recurrence.b[0] = 0.0;
     double noise_floor = std::abs(moments[0]);
-    recurrence.diagonal[1] = {sigma_last[1], roundoff_multiplier * std::numeric_limits<double>::epsilon() * std::max(bound_last[1], noise_floor)};
 
     for (std::size_t k = 2; k <= n; ++k)
     {
@@ -107,19 +106,20 @@ struct Recurrence
         const double b = recurrence.b[k - 2];
         for (std::size_t l = k; l <= 2 * n - k + 1; ++l)
         {
-            sigma_row[l] = sigma_last[l + 1] - a * sigma_last[l] - b * sigma_before[l];
-            bound_row[l] = bound_last[l + 1] + std::abs(a) * bound_last[l] + std::abs(b) * bound_before[l];
+            sigma_current[l] = sigma_previous[l + 1] - a * sigma_previous[l] - b * sigma_second_previous[l];
+            bound_current[l] = bound_previous[l + 1] + std::abs(a) * bound_previous[l] + std::abs(b) * bound_second_previous[l];
         }
 
-        recurrence.a[k - 1] = sigma_row[k + 1] / sigma_row[k] - sigma_last[k] / sigma_last[k - 1];
-        recurrence.b[k - 1] = sigma_row[k] / sigma_last[k - 1];
+        recurrence.a[k - 1] = sigma_current[k + 1] / sigma_current[k] - sigma_previous[k] / sigma_previous[k - 1];
+        recurrence.b[k - 1] = sigma_current[k] / sigma_previous[k - 1];
         noise_floor *= coordinate_scale * coordinate_scale;
-        recurrence.diagonal[k] = {sigma_row[k], roundoff_multiplier * std::numeric_limits<double>::epsilon() * std::max(bound_row[k], noise_floor)};
+        recurrence.diagonal[k] = {sigma_current[k],
+                                  roundoff_multiplier * std::numeric_limits<double>::epsilon() * std::max(bound_current[k], noise_floor)};
 
-        std::swap(sigma_before, sigma_last);
-        std::swap(sigma_last, sigma_row);
-        std::swap(bound_before, bound_last);
-        std::swap(bound_last, bound_row);
+        std::swap(sigma_second_previous, sigma_previous);
+        std::swap(sigma_previous, sigma_current);
+        std::swap(bound_second_previous, bound_previous);
+        std::swap(bound_previous, bound_current);
     }
 
     return recurrence;
@@ -274,7 +274,7 @@ struct Recurrence
 
     if (!recurrence_is_finite(recurrence, usable_count))
     {
-        return one_node_result(moments, QuadratureStatus::not_realizable, "Reduced Wheeler recurrence produced non-finite values.");
+        return one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values.");
     }
     const double smallest_b = minimum_b(recurrence, usable_count);
     if (smallest_b < 0.0)

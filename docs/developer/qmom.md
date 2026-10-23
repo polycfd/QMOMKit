@@ -12,8 +12,8 @@ moment and ordering conventions are in
 ## Wheeler inversion
 
 `compute_recurrence` in [`src/wheeler.cpp`](../../src/wheeler.cpp) computes
-Wheeler's $\sigma$ table row by row from $\sigma_{0,l}=0$, $\sigma_{1,l}=m_{l-1}$,
-$a_0=m_1/m_0$, $b_0=0$, for $k=2,\ldots,N$:
+Wheeler's $\sigma$ table row by row from $\sigma_{0,l}=0$,
+$\sigma_{1,l}=m_{l-1}$, $a_0=m_1/m_0$, $b_0=0$, for $k=2,\ldots,N$:
 
 ```math
 \sigma_{k,l}=\sigma_{k-1,l+1}-a_{k-2}\,\sigma_{k-1,l}-b_{k-2}\,\sigma_{k-2,l},
@@ -105,7 +105,6 @@ $(m_1/m_0,\ m_0)$ with `success`. A sequence with negative variance therefore
 succeeds with one node that matches $m_0$ and $m_1$ only.
 
 A rule with $n_1$ nodes is accepted when
-[[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)]
 
 ```math
 \frac{\min_i w_i}{\max_i w_i}>r_{\min},
@@ -116,12 +115,16 @@ A rule with $n_1$ nodes is accepted when
 \end{cases}
 ```
 
-The abscissas are sorted, so the smallest distance is the smallest gap between
+The weight ratio and, for $n_1>2$, the separation ratio are the criteria of
+[[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)]. The
+abscissas are sorted, so the smallest distance is the smallest gap between
 neighbors and the largest is the span $\xi_{n_1-1}-\xi_0$. Two nodes have a
-single distance, whose ratio to the span is always one, so they use the larger
-abscissa magnitude instead; two nodes at zero fail. Both criteria are
-independent of the unit, but the two-node test depends on the origin: a pair
-whose gap is below `eabs` times its distance from zero collapses to one node. `rmin` and `eabs` default to `1e-10` in
+single distance, whose ratio to the span is always one. Yuan & Fox compare that
+distance itself with `eabs`, which depends on the unit; QMOMKit divides it by
+the larger abscissa magnitude instead, and two nodes at zero fail. Both
+criteria are then independent of the unit, but the two-node test depends on the
+origin: a pair whose gap is below `eabs` times its distance from zero collapses
+to one node. `rmin` and `eabs` default to `1e-10` in
 `QmomOptions` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp))
 and `WheelerOptions`
 ([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); only

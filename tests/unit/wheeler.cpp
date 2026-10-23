@@ -359,7 +359,7 @@ void test_adaptive_requested_two_node_negative_variance_recovers_one_node()
     options.adaptive = true;
 
     // For a two-node request, the failing sigma diagonal is the variance
-    // numerator m0*m2 - m1*m1. The adaptive retry uses the lower-order prefix
+    // numerator m0*m2 - m1*m1. The adaptive reduction keeps the one-node rule
     // and is not expected to reproduce the discarded inconsistent m2.
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
@@ -429,7 +429,7 @@ void test_adaptive_scaled_requested_two_node_negative_variance_recovers_one_node
     options.adaptive = true;
 
     // The variance numerator is materially negative at large abscissa scale.
-    // The one-node adaptive retry still reproduces only m0 and m1.
+    // The one-node rule of the adaptive reduction reproduces only m0 and m1.
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
     assert(quadrature.ok());
@@ -525,6 +525,59 @@ void test_fixed_count_refuses_sequences_supporting_fewer_nodes()
     }
 }
 
+// The rounding bound tau_n of docs/developer/qmom.md for the moments m_0, ...,
+// m_{2n-1} at coordinate scale zero, from the full sigma table and its
+// absolute-value counterpart.
+double documented_rounding_bound(const std::vector<double>& moments, const std::size_t n)
+{
+    std::vector<std::vector<double>> sigma(n + 1, std::vector<double>(2 * n + 1, 0.0));
+    std::vector<std::vector<double>> bound = sigma;
+    std::vector<double> a(n, 0.0);
+    std::vector<double> b(n, 0.0);
+    for (std::size_t l = 1; l <= 2 * n; ++l)
+    {
+        sigma[1][l] = moments[l - 1];
+        bound[1][l] = std::abs(moments[l - 1]);
+    }
+    a[0] = moments[1] / moments[0];
+    for (std::size_t k = 2; k <= n; ++k)
+    {
+        for (std::size_t l = k; l <= 2 * n - k + 1; ++l)
+        {
+            sigma[k][l] = sigma[k - 1][l + 1] - a[k - 2] * sigma[k - 1][l] - b[k - 2] * sigma[k - 2][l];
+            bound[k][l] = bound[k - 1][l + 1] + std::abs(a[k - 2]) * bound[k - 1][l] + std::abs(b[k - 2]) * bound[k - 2][l];
+        }
+        a[k - 1] = sigma[k][k + 1] / sigma[k][k] - sigma[k - 1][k] / sigma[k - 1][k - 1];
+        b[k - 1] = sigma[k][k] / sigma[k - 1][k - 1];
+    }
+    return 100.0 * std::numeric_limits<double>::epsilon() * bound[n][n];
+}
+
+void test_fixed_count_reports_the_documented_rounding_bound()
+{
+    // Three weighted points requested as four nodes are refused at sigma(4, 4),
+    // whose bound tau_4 takes every term of the bound recurrence, b_2 included,
+    // from rows 2 and 3. The refusal prints tau_4, which must be the documented
+    // bound, near the origin and at 10, where it carries the cancellation.
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (const double location : {0.0, 10.0})
+    {
+        const qmomkit::Quadrature1D points{{location - 0.75, location + 0.25, location + 1.25}, {0.3, 0.3, 0.4}};
+        const std::vector<double> moments = reconstruct_moments(points, 8);
+        const qmomkit::Quadrature1D result = qmomkit::compute_quadrature(qmomkit::MomentSet(moments), 4, fixed);
+        assert(result.status == qmomkit::QuadratureStatus::not_realizable);
+        assert(result.message.find("supports at most 3 nodes: sigma(4, 4) = ") != std::string::npos);
+
+        const std::string marker = "within the tolerance ";
+        const std::size_t position = result.message.find(marker);
+        assert(position != std::string::npos);
+        const double printed = std::stod(result.message.substr(position + marker.size()));
+        const double expected = documented_rounding_bound(moments, 4);
+        assert(std::abs(printed - expected) <= 1.0e-12 * expected);
+    }
+}
+
 void test_invalid_wheeler_options_fail_before_inversion()
 {
     qmomkit::WheelerOptions options;
@@ -593,6 +646,7 @@ int main(const int argc, char** argv)
             {"zero_requested_nodes_reports_invalid_input", test_zero_requested_nodes_reports_invalid_input},
             {"nonfinite_moment_reports_invalid_input", test_nonfinite_moment_reports_invalid_input},
             {"fixed_count_refuses_sequences_supporting_fewer_nodes", test_fixed_count_refuses_sequences_supporting_fewer_nodes},
+            {"fixed_count_reports_the_documented_rounding_bound", test_fixed_count_reports_the_documented_rounding_bound},
             {"invalid_wheeler_options_fail_before_inversion", test_invalid_wheeler_options_fail_before_inversion},
         });
 }

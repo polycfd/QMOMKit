@@ -26,17 +26,21 @@ namespace
 using internal::DenseMatrix;
 using internal::EigenDecomposition;
 
-struct RecurrenceCoefficients
+struct SigmaDiagonal
+{
+    double sigma = 0.0;
+    double tolerance = 0.0;
+};
+
+// Wheeler's recurrence for the moments m_0, ..., m_{2N-1}, indexed as in
+// docs/developer/qmom.md: a_0, ..., a_{N-1}, b_0 = 0, b_1, ..., b_{N-1}, and for
+// k = 1, ..., N - 1 the diagonal sigma(k, k) with its rounding bound tau_k.
+// Entry 0 of the diagonal is unused.
+struct Recurrence
 {
     std::vector<double> a;
     std::vector<double> b;
-    DenseMatrix sigma;
-};
-
-struct WheelerAttemptResult
-{
-    Quadrature1D quadrature;
-    bool negative_sigma_diagonal = false;
+    std::vector<SigmaDiagonal> diagonal;
 };
 
 [[nodiscard]] Quadrature1D one_node_result(const MomentSet& moments, const QuadratureStatus status, std::string message)
@@ -60,34 +64,85 @@ struct WheelerAttemptResult
         {moments[1] / moments[0]}, {std::abs(moments[0])}, QuadratureStatus::not_realizable, "Moment sequence is not realizable: m0 < 0."};
 }
 
-[[nodiscard]] RecurrenceCoefficients compute_recurrence(const MomentSet& moments, const std::size_t n)
+// Row k of the sigma table, sigma(k, l) for l = k, ..., 2N - k - 1, depends only
+// on rows k - 1 and k - 2, so the rows are computed one at a time from
+// sigma(-1, l) = 0 and sigma(0, l) = m_l. The same pass runs the recurrence
+// with every term in absolute value, whose diagonal bounds the rounding of
+// sigma(k, k). sigma(k, k) and the bound both scale as m0 times the coordinate
+// to the power 2k, so the tests on them depend neither on the unit of the
+// coordinate nor on m0, and the bound grows with the cancellation of a
+// distribution far from the origin. Conditional moments are not data: the
+// solve that produced them leaves rounding relative to the scale of their
+// coordinate, not to their own magnitudes, so a positive coordinate_scale s
+// adds the floor m0 s^(2k).
+[[nodiscard]] Recurrence compute_recurrence(const MomentSet& moments, const std::size_t n, const double coordinate_scale)
 {
-    RecurrenceCoefficients coefficients{std::vector<double>(n, 0.0), std::vector<double>(n, 0.0), DenseMatrix(2 * n + 1, 2 * n + 1)};
+    constexpr double roundoff_multiplier = 100.0;
+    Recurrence recurrence{std::vector<double>(n, 0.0), std::vector<double>(n, 0.0), std::vector<SigmaDiagonal>(n)};
 
-    // Wheeler's sigma table converts raw moments into the three-term
-    // recurrence coefficients of the orthogonal polynomial sequence.
-    for (std::size_t i = 1; i <= 2 * n; ++i)
+    // Rows k - 2, k - 1 and k of sigma and of its absolute-value bound,
+    // indexed by l, in one workspace.
+    const std::size_t width = 2 * n;
+    std::vector<double> rows(6 * width, 0.0);
+    double* sigma_second_previous = rows.data();
+    double* sigma_previous = sigma_second_previous + width;
+    double* sigma_current = sigma_previous + width;
+    double* bound_second_previous = sigma_current + width;
+    double* bound_previous = bound_second_previous + width;
+    double* bound_current = bound_previous + width;
+    for (std::size_t l = 0; l < 2 * n; ++l)
     {
-        coefficients.sigma(1, i) = moments[i - 1];
+        sigma_previous[l] = moments[l];
+        bound_previous[l] = std::abs(moments[l]);
     }
 
-    coefficients.a[0] = moments[1] / moments[0];
-    coefficients.b[0] = 0.0;
+    recurrence.a[0] = moments[1] / moments[0];
+    recurrence.b[0] = 0.0;
+    double noise_floor = std::abs(moments[0]);
 
-    for (std::size_t k = 2; k <= n; ++k)
+    for (std::size_t k = 1; k < n; ++k)
     {
-        for (std::size_t l = k; l <= 2 * n - k + 1; ++l)
+        const double a = recurrence.a[k - 1];
+        const double b = recurrence.b[k - 1];
+        for (std::size_t l = k; l < 2 * n - k; ++l)
         {
-            coefficients.sigma(k, l) = coefficients.sigma(k - 1, l + 1) - coefficients.a[k - 2] * coefficients.sigma(k - 1, l) -
-                                       coefficients.b[k - 2] * coefficients.sigma(k - 2, l);
+            sigma_current[l] = sigma_previous[l + 1] - a * sigma_previous[l] - b * sigma_second_previous[l];
+            bound_current[l] = bound_previous[l + 1] + std::abs(a) * bound_previous[l] + std::abs(b) * bound_second_previous[l];
         }
 
-        coefficients.a[k - 1] =
-            coefficients.sigma(k, k + 1) / coefficients.sigma(k, k) - coefficients.sigma(k - 1, k) / coefficients.sigma(k - 1, k - 1);
-        coefficients.b[k - 1] = coefficients.sigma(k, k) / coefficients.sigma(k - 1, k - 1);
+        recurrence.a[k] = sigma_current[k + 1] / sigma_current[k] - sigma_previous[k] / sigma_previous[k - 1];
+        recurrence.b[k] = sigma_current[k] / sigma_previous[k - 1];
+        noise_floor *= coordinate_scale * coordinate_scale;
+        recurrence.diagonal[k] = {sigma_current[k],
+                                  roundoff_multiplier * std::numeric_limits<double>::epsilon() * std::max(bound_current[k], noise_floor)};
+
+        std::swap(sigma_second_previous, sigma_previous);
+        std::swap(sigma_previous, sigma_current);
+        std::swap(bound_second_previous, bound_previous);
+        std::swap(bound_previous, bound_current);
     }
 
-    return coefficients;
+    return recurrence;
+}
+
+[[nodiscard]] bool recurrence_is_finite(const Recurrence& recurrence, const std::size_t n)
+{
+    const auto finite = [](const double value) { return std::isfinite(value); };
+    const auto end = static_cast<std::ptrdiff_t>(n);
+    return std::all_of(recurrence.a.begin(), recurrence.a.begin() + end, finite) &&
+           std::all_of(recurrence.b.begin(), recurrence.b.begin() + end, finite);
+}
+
+[[nodiscard]] double minimum_b(const Recurrence& recurrence, const std::size_t n)
+{
+    return *std::min_element(recurrence.b.begin(), recurrence.b.begin() + static_cast<std::ptrdiff_t>(n));
+}
+
+[[nodiscard]] Quadrature1D negative_b_result(const MomentSet& moments, const double minimum)
+{
+    std::ostringstream message;
+    message << std::scientific << std::setprecision(17) << "Moment sequence has negative recurrence b = " << minimum << '.';
+    return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
 }
 
 [[nodiscard]] DenseMatrix make_jacobi_matrix(const std::vector<double>& a, const std::vector<double>& b, const std::size_t n)
@@ -111,53 +166,6 @@ struct WheelerAttemptResult
     return jacobi;
 }
 
-[[nodiscard]] bool recurrence_is_finite(const RecurrenceCoefficients& coefficients)
-{
-    return internal::all_finite(coefficients.a) && internal::all_finite(coefficients.b);
-}
-
-[[nodiscard]] bool has_negative_recurrence_b(const std::vector<double>& b)
-{
-    return *std::min_element(b.begin(), b.end()) < 0.0;
-}
-
-// The tolerance below which Wheeler treats sigma(k, k) as zero, for each k: a
-// running bound on its roundoff, the sigma recurrence summed in absolute
-// values. sigma(k, k) and the bound both scale as m0 times the coordinate to
-// the power 2(k - 1), so the test depends neither on the unit of the
-// coordinate nor on m0, and the bound grows with the cancellation of a
-// distribution far from the origin. Conditional moments are not data: the
-// solve that produced them leaves rounding relative to the scale of their
-// coordinate, not to their own magnitudes, so a positive coordinate_scale s
-// adds the floor m0 s^(2(k - 1)).
-[[nodiscard]] std::vector<double> sigma_tolerances(const MomentSet& moments, const RecurrenceCoefficients& coefficients, const std::size_t n,
-                                                   const double coordinate_scale)
-{
-    constexpr double roundoff_multiplier = 100.0;
-    DenseMatrix magnitude(2 * n + 1, 2 * n + 1);
-    for (std::size_t i = 1; i <= 2 * n; ++i)
-    {
-        magnitude(1, i) = std::abs(moments[i - 1]);
-    }
-    for (std::size_t k = 2; k <= n; ++k)
-    {
-        for (std::size_t l = k; l <= 2 * n - k + 1; ++l)
-        {
-            magnitude(k, l) = magnitude(k - 1, l + 1) + std::abs(coefficients.a[k - 2]) * magnitude(k - 1, l) +
-                              std::abs(coefficients.b[k - 2]) * magnitude(k - 2, l);
-        }
-    }
-
-    std::vector<double> tolerances(n + 1, 0.0);
-    double noise_floor = std::abs(moments[0]);
-    for (std::size_t k = 1; k <= n; ++k)
-    {
-        tolerances[k] = roundoff_multiplier * std::numeric_limits<double>::epsilon() * std::max(magnitude(k, k), noise_floor);
-        noise_floor *= coordinate_scale * coordinate_scale;
-    }
-    return tolerances;
-}
-
 [[nodiscard]] std::vector<double> compute_weights(const double zeroth_moment, const DenseMatrix& eigenvectors)
 {
     // Gaussian quadrature weights are m0 times the squared first component of
@@ -170,10 +178,29 @@ struct WheelerAttemptResult
     return weights;
 }
 
-[[nodiscard]] bool adaptive_accepts(const std::vector<double>& abscissas, const std::vector<double>& weights, const WheelerOptions& options)
+// The n-node Gauss rule of the leading n recurrence coefficients, with its
+// abscissas in ascending order.
+[[nodiscard]] Quadrature1D gauss_rule(const MomentSet& moments, const Recurrence& recurrence, const std::size_t n)
 {
-    // Adaptive Wheeler keeps a reduced quadrature only when node weights remain
-    // significant and abscissas remain separated at the requested tolerances.
+    EigenDecomposition eigen = internal::symmetric_jacobi_eigen(make_jacobi_matrix(recurrence.a, recurrence.b, n), {});
+    if (!eigen.converged)
+    {
+        return one_node_result(moments, QuadratureStatus::not_realizable, "Jacobi matrix eigen solve did not converge.");
+    }
+    std::vector<double> weights = compute_weights(moments[0], eigen.eigenvectors);
+    if (!internal::all_finite(eigen.eigenvalues) || !internal::all_finite(weights))
+    {
+        return one_node_result(moments, QuadratureStatus::not_realizable, "Jacobi matrix diagonalization produced non-finite values.");
+    }
+    return Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""};
+}
+
+// Adaptive inversion keeps a rule only when its weights remain significant and
+// its abscissas remain separated at the requested tolerances.
+[[nodiscard]] bool adaptive_accepts(const Quadrature1D& rule, const WheelerOptions& options)
+{
+    const std::vector<double>& abscissas = rule.abscissas;
+    const std::vector<double>& weights = rule.weights;
     const auto minmax_weight = std::minmax_element(weights.begin(), weights.end());
     if (*minmax_weight.first / *minmax_weight.second <= options.rmin)
     {
@@ -182,11 +209,8 @@ struct WheelerAttemptResult
 
     if (abscissas.size() == 2)
     {
-        // A two-node candidate has only one pairwise distance, so normalizing it
-        // by the maximum pairwise distance (as done below for three or more
-        // nodes) is always exactly 1.0 and cannot discriminate separation.
-        // Normalize by the larger abscissa magnitude instead, per the documented
-        // two-node contract.
+        // A single distance has ratio one to the span, so a two-node rule
+        // normalizes it by the larger abscissa magnitude instead.
         const double distance = std::abs(abscissas[0] - abscissas[1]);
         const double magnitude = std::max(std::abs(abscissas[0]), std::abs(abscissas[1]));
         if (!std::isfinite(distance) || !std::isfinite(magnitude) || magnitude <= 0.0)
@@ -196,31 +220,20 @@ struct WheelerAttemptResult
         return distance / magnitude > options.eabs;
     }
 
-    std::vector<double> nearest_distances(abscissas.size(), 0.0);
-    std::vector<double> farthest_distances(abscissas.size(), 0.0);
-
-    for (std::size_t i = abscissas.size() - 1; i > 0; --i)
+    // The abscissas are sorted and rounded subtraction is monotone, so the
+    // smallest computed distance between two abscissas is one between
+    // neighbors and the largest is the span.
+    double smallest_gap = std::numeric_limits<double>::infinity();
+    for (std::size_t i = 1; i < abscissas.size(); ++i)
     {
-        double nearest = std::numeric_limits<double>::infinity();
-        double farthest = 0.0;
-        for (std::size_t j = 0; j < i; ++j)
-        {
-            const double distance = std::abs(abscissas[i] - abscissas[j]);
-            nearest = std::min(nearest, distance);
-            farthest = std::max(farthest, distance);
-        }
-        nearest_distances[i] = nearest;
-        farthest_distances[i] = farthest;
+        smallest_gap = std::min(smallest_gap, abscissas[i] - abscissas[i - 1]);
     }
-
-    const double min_nearest = *std::min_element(nearest_distances.begin() + 1, nearest_distances.end());
-    const double max_farthest = *std::max_element(farthest_distances.begin() + 1, farthest_distances.end());
-    if (!std::isfinite(min_nearest) || !std::isfinite(max_farthest) || max_farthest <= 0.0)
+    const double span = abscissas.back() - abscissas.front();
+    if (!std::isfinite(smallest_gap) || !std::isfinite(span) || span <= 0.0)
     {
         return false;
     }
-
-    return min_nearest / max_farthest > options.eabs;
+    return smallest_gap / span > options.eabs;
 }
 
 [[nodiscard]] bool required_moments_are_finite(const MomentSet& moments, const std::size_t moment_count)
@@ -235,111 +248,82 @@ struct WheelerAttemptResult
     return true;
 }
 
-[[nodiscard]] WheelerAttemptResult attempt_quadrature_count(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
-                                                            const double coordinate_scale)
+// sigma(k, k) = m0 b_1 ... b_k is positive while m_0, ..., m_{2k} are the
+// moments of at least k + 1 points, zero when k points carry them, and
+// negative when no non-negative density has them. The first k with sigma(k, k)
+// at or below its rounding bound therefore caps the usable count at k.
+// From that count down, the first Gauss rule that passes the acceptance tests
+// is returned, and the one-node rule if none does.
+[[nodiscard]] Quadrature1D adaptive_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
+                                               const double coordinate_scale)
 {
-    std::size_t n = max_nodes;
-    RecurrenceCoefficients coefficients = compute_recurrence(moments, n);
-
-    if (options.adaptive)
+    const Recurrence recurrence = compute_recurrence(moments, max_nodes, coordinate_scale);
+    std::size_t usable_count = max_nodes;
+    for (std::size_t k = 1; k < max_nodes; ++k)
     {
-        const std::vector<double> tolerances = sigma_tolerances(moments, coefficients, max_nodes, coordinate_scale);
-        for (std::size_t k = max_nodes; k > 1; --k)
+        if (recurrence.diagonal[k].sigma <= recurrence.diagonal[k].tolerance)
         {
-            const double sigma_tolerance = tolerances[k];
-            if (coefficients.sigma(k, k) < -sigma_tolerance)
-            {
-                std::ostringstream message;
-                message << std::scientific << std::setprecision(17) << "Adaptive Wheeler recurrence has a negative sigma diagonal: "
-                        << "sigma(" << k << ", " << k << ") = " << coefficients.sigma(k, k) << ", tolerance = " << sigma_tolerance << '.';
-
-                return {one_node_result(moments, QuadratureStatus::not_realizable, message.str()), true};
-            }
-            if (std::abs(coefficients.sigma(k, k)) <= sigma_tolerance)
-            {
-                n = k - 1;
-                if (n == 1)
-                {
-                    return {one_node_result(moments, QuadratureStatus::success, ""), false};
-                }
-            }
-        }
-
-        // The sigma recursion reads only the moments, so the coefficients for a
-        // reduced count are an exact prefix of the ones already computed at
-        // max_nodes. Recompute only when the scan above actually reduced n.
-        if (n != max_nodes)
-        {
-            coefficients = compute_recurrence(moments, n);
-        }
-        if (!recurrence_is_finite(coefficients))
-        {
-            return {one_node_result(moments, QuadratureStatus::not_realizable, "Reduced Wheeler recurrence produced non-finite values."), false};
+            usable_count = k;
+            break;
         }
     }
-    else
+    if (usable_count == 1)
     {
-        // A fixed count must be supported by the moments. A sigma(k, k) that is
-        // zero within its roundoff puts the sequence on the boundary at k - 1
-        // nodes, and any larger rule would carry nodes made of roundoff. The
-        // first such k is reached while the coefficients before it are finite;
-        // a recurrence that overflows instead is reported as non-finite below.
-        const std::vector<double> tolerances = sigma_tolerances(moments, coefficients, max_nodes, coordinate_scale);
-        for (std::size_t k = 2; k <= max_nodes; ++k)
+        return one_node_result(moments, QuadratureStatus::success, "");
+    }
+
+    if (!recurrence_is_finite(recurrence, usable_count))
+    {
+        return one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values.");
+    }
+    const double smallest_b = minimum_b(recurrence, usable_count);
+    if (smallest_b < 0.0)
+    {
+        return negative_b_result(moments, smallest_b);
+    }
+
+    for (std::size_t node_count = usable_count; node_count > 1; --node_count)
+    {
+        Quadrature1D rule = gauss_rule(moments, recurrence, node_count);
+        if (!rule.ok() || adaptive_accepts(rule, options))
         {
-            if (std::isfinite(tolerances[k]) && std::abs(coefficients.sigma(k, k)) <= tolerances[k])
-            {
-                std::ostringstream message;
-                message << std::scientific << std::setprecision(17) << "Moment sequence supports at most " << k - 1 << (k == 2 ? " node" : " nodes")
-                        << ": sigma(" << k << ", " << k << ") = " << coefficients.sigma(k, k) << " is zero within the tolerance " << tolerances[k]
-                        << '.';
-                return {one_node_result(moments, QuadratureStatus::not_realizable, message.str()), false};
-            }
+            return rule;
         }
-        if (!recurrence_is_finite(coefficients))
+    }
+    return one_node_result(moments, QuadratureStatus::success, "");
+}
+
+// A fixed count must be supported by the moments. A sigma(k, k) that is zero
+// within its rounding bound puts the sequence on the boundary at k nodes,
+// and any larger rule would carry nodes made of rounding. The first such k is
+// reached while the coefficients before it are finite; a recurrence that
+// overflows instead is reported as non-finite.
+[[nodiscard]] Quadrature1D fixed_quadrature(const MomentSet& moments, const std::size_t node_count, const double coordinate_scale)
+{
+    const Recurrence recurrence = compute_recurrence(moments, node_count, coordinate_scale);
+    for (std::size_t k = 1; k < node_count; ++k)
+    {
+        const double sigma = recurrence.diagonal[k].sigma;
+        const double tolerance = recurrence.diagonal[k].tolerance;
+        if (std::isfinite(tolerance) && std::abs(sigma) <= tolerance)
         {
-            return {one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values."), false};
+            std::ostringstream message;
+            message << std::scientific << std::setprecision(17) << "Moment sequence supports at most " << k << (k == 1 ? " node" : " nodes")
+                    << ": sigma(" << k << ", " << k << ") = " << sigma << " is zero within the tolerance " << tolerance << '.';
+            return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
         }
     }
 
-    if (has_negative_recurrence_b(coefficients.b))
+    if (!recurrence_is_finite(recurrence, node_count))
     {
-        const double minimum_b = *std::min_element(coefficients.b.begin(), coefficients.b.end());
-
-        std::ostringstream message;
-        message << std::scientific << std::setprecision(17) << "Moment sequence has negative recurrence b = " << minimum_b << '.';
-
-        return {one_node_result(moments, QuadratureStatus::not_realizable, message.str()), false};
+        return one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values.");
     }
-
-    for (std::size_t n1 = n; n1 > 1; --n1)
+    const double smallest_b = minimum_b(recurrence, node_count);
+    if (smallest_b < 0.0)
     {
-        EigenDecomposition eigen = internal::symmetric_jacobi_eigen(make_jacobi_matrix(coefficients.a, coefficients.b, n1), {});
-        if (!eigen.converged)
-        {
-            return {one_node_result(moments, QuadratureStatus::not_realizable, "Jacobi matrix eigen solve did not converge."), false};
-        }
-        std::vector<double> weights = compute_weights(moments[0], eigen.eigenvectors);
-
-        if (!internal::all_finite(eigen.eigenvalues) || !internal::all_finite(weights))
-        {
-            return {one_node_result(moments, QuadratureStatus::not_realizable, "Jacobi matrix diagonalization produced non-finite values."), false};
-        }
-
-        if (options.adaptive)
-        {
-            if (adaptive_accepts(eigen.eigenvalues, weights, options))
-            {
-                return {Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""}, false};
-            }
-        }
-        else
-        {
-            return {Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""}, false};
-        }
+        return negative_b_result(moments, smallest_b);
     }
-
-    return {one_node_result(moments, QuadratureStatus::success, ""), false};
+    return gauss_rule(moments, recurrence, node_count);
 }
 
 [[nodiscard]] Quadrature1D compute_quadrature_at_scale(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
@@ -387,25 +371,8 @@ struct WheelerAttemptResult
         return one_node_result(moments, QuadratureStatus::success, "");
     }
 
-    if (options.adaptive)
-    {
-        for (std::size_t candidate_count = max_nodes; candidate_count > 1; --candidate_count)
-        {
-            WheelerAttemptResult attempt = attempt_quadrature_count(moments, candidate_count, options, coordinate_scale);
-            if (attempt.quadrature.ok())
-            {
-                return std::move(attempt.quadrature);
-            }
-            if (!attempt.negative_sigma_diagonal)
-            {
-                return std::move(attempt.quadrature);
-            }
-        }
-
-        return one_node_result(moments, QuadratureStatus::success, "");
-    }
-
-    return attempt_quadrature_count(moments, max_nodes, options, coordinate_scale).quadrature;
+    return options.adaptive ? adaptive_quadrature(moments, max_nodes, options, coordinate_scale)
+                            : fixed_quadrature(moments, max_nodes, coordinate_scale);
 }
 
 } // namespace

@@ -11,16 +11,16 @@ moment and ordering conventions are in
 
 ## Wheeler inversion
 
-`compute_recurrence` in [`src/wheeler.cpp`](../../src/wheeler.cpp) fills
-Wheeler's $\sigma$ table from $\sigma_{0,l}=0$, $\sigma_{1,l}=m_{l-1}$,
-$a_0=m_1/m_0$, $b_0=0$, for $k=2,\ldots,N$:
+`compute_recurrence` in [`src/wheeler.cpp`](../../src/wheeler.cpp) computes
+Wheeler's $\sigma$ table row by row from $\sigma_{-1,l}=0$, $\sigma_{0,l}=m_l$,
+$a_0=m_1/m_0$, $b_0=0$, for $k=1,\ldots,N-1$:
 
 ```math
-\sigma_{k,l}=\sigma_{k-1,l+1}-a_{k-2}\,\sigma_{k-1,l}-b_{k-2}\,\sigma_{k-2,l},
+\sigma_{k,l}=\sigma_{k-1,l+1}-a_{k-1}\,\sigma_{k-1,l}-b_{k-1}\,\sigma_{k-2,l},
 \qquad
-a_{k-1}=\frac{\sigma_{k,k+1}}{\sigma_{k,k}}-\frac{\sigma_{k-1,k}}{\sigma_{k-1,k-1}},
+a_k=\frac{\sigma_{k,k+1}}{\sigma_{k,k}}-\frac{\sigma_{k-1,k}}{\sigma_{k-1,k-1}},
 \qquad
-b_{k-1}=\frac{\sigma_{k,k}}{\sigma_{k-1,k-1}} .
+b_k=\frac{\sigma_{k,k}}{\sigma_{k-1,k-1}} .
 ```
 
 $a_k$ and $b_k$ are the three-term recurrence coefficients of the polynomials
@@ -37,9 +37,9 @@ eigenvalues in ascending order, so abscissas come out sorted with their
 weights. The moments are used as given, without centering or normalization,
 and $\sum_i w_i=m_0$.
 
-Since $\sigma_{k,k}=m_0\prod_{i=1}^{k-1}b_i$, a zero $\sigma_{k,k}$ means the
-moments are carried by at most $k-1$ points, and a negative one after positive
-ones that $m_0,\ldots,m_{2k-2}$ are the moments of no non-negative density.
+Since $\sigma_{k,k}=m_0\prod_{i=1}^{k}b_i$, a zero $\sigma_{k,k}$ means the
+moments are carried by at most $k$ points, and a negative one after positive
+ones that $m_0,\ldots,m_{2k}$ are the moments of no non-negative density.
 Both tests below act on $\sigma_{k,k}$.
 
 ## Input checks and the cutoff
@@ -61,27 +61,28 @@ instead of a failure ([Realizability](realizability.md#policies)).
 
 ## Rounding bound on the recurrence
 
-`sigma_tolerances` reruns the $\sigma$ recurrence with every term in absolute
-value and takes a multiple of its diagonal as the rounding of $\sigma_{k,k}$:
+`compute_recurrence` also runs the $\sigma$ recurrence with every term in
+absolute value and takes a multiple of its diagonal as the rounding of
+$\sigma_{k,k}$:
 
 ```math
-\bar\sigma_{1,l}=|m_{l-1}|,\qquad
-\bar\sigma_{k,l}=\bar\sigma_{k-1,l+1}+|a_{k-2}|\,\bar\sigma_{k-1,l}+|b_{k-2}|\,\bar\sigma_{k-2,l},
+\bar\sigma_{0,l}=|m_l|,\qquad
+\bar\sigma_{k,l}=\bar\sigma_{k-1,l+1}+|a_{k-1}|\,\bar\sigma_{k-1,l}+|b_{k-1}|\,\bar\sigma_{k-2,l},
 \qquad
-\tau_k=100\,\varepsilon\,\max\!\left(\bar\sigma_{k,k},\ |m_0|\,s^{2(k-1)}\right),
+\tau_k=100\,\varepsilon\,\max\!\left(\bar\sigma_{k,k},\ |m_0|\,s^{2k}\right),
 ```
 
 with $\varepsilon$ the double epsilon and $s$ the coordinate scale below
-($s=0$ drops the floor for $k\ge2$). Both $\sigma_{k,k}$ and $\tau_k$ scale
-as $m_0$ times the coordinate to the power $2(k-1)$, so the test depends on
-neither unit nor number density. $\tau_k$ also grows with the cancellation of
+($s=0$ drops the floor). Both $\sigma_{k,k}$ and $\tau_k$ scale as $m_0$
+times the coordinate to the power $2k$, so the test depends on neither unit
+nor number density. $\tau_k$ also grows with the cancellation of
 a distribution far from the origin.
 
 ## Fixed node count
 
-With `adaptive = false`, the first $k\in\{2,\ldots,N\}$ with
+With `adaptive = false`, the first $k\in\{1,\ldots,N-1\}$ with
 $|\sigma_{k,k}|\le\tau_k$ ends the inversion with `not_realizable` and the
-message `Moment sequence supports at most k-1 nodes: …`, with $k-1$ filled in.
+message `Moment sequence supports at most k nodes: …`, with $k$ filled in.
 Without this test, rounding would decide whether a sequence on the boundary
 passes, and that changes with unit and number density; an accepted rule would
 also carry nodes made only of rounding. A non-finite recurrence or a
@@ -91,20 +92,17 @@ nodes; `rmin` and `eabs` are not applied.
 ## Adaptive reduction
 
 Adaptive inversion [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]
-(`adaptive = true`, the default) tries candidate counts
-$n=N,N-1,\ldots,2$:
+(`adaptive = true`, the default) selects its rule in two steps:
 
-1. Scan $k=n,\ldots,2$. $\sigma_{k,k}<-\tau_k$ rejects the candidate and the
-   next count is tried. $|\sigma_{k,k}|\le\tau_k$ lowers the usable count to
-   $k-1$; the scan goes on, so the lowest such $k$ decides.
-2. For $n_1$ from the usable count down to 2, form the $n_1$-node rule from the
-   leading coefficients and return the first that passes the two criteria
-   below.
+1. The usable count is $n=k$ for the first $k\in\{1,\ldots,N-1\}$ with
+   $\sigma_{k,k}\le\tau_k$, zero within its rounding or negative, and $n=N$
+   if there is none.
+2. For $n_1=n,n-1,\ldots,2$, form the $n_1$-node rule from the leading
+   coefficients and return the first that passes the two criteria below.
 
-If the usable count reaches 1, no rule passes, or every candidate count meets a
-negative $\sigma_{k,k}$, the result is the one-node rule $(m_1/m_0,\ m_0)$
-with `success`. A sequence with negative variance therefore succeeds with one
-node that matches $m_0$ and $m_1$ only.
+If $n=1$ or no rule passes, the result is the one-node rule
+$(m_1/m_0,\ m_0)$ with `success`. A sequence with negative variance therefore
+succeeds with one node that matches $m_0$ and $m_1$ only.
 
 A rule with $n_1$ nodes is accepted when
 
@@ -117,9 +115,14 @@ A rule with $n_1$ nodes is accepted when
 \end{cases}
 ```
 
-Two nodes have a single distance, whose ratio to the span is always one, so
-they use the larger abscissa magnitude instead; two nodes at zero fail. Both
-criteria are independent of the unit, but the two-node test depends on the
+The weight ratio and, for $n_1>2$, the separation ratio are the criteria of
+[[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)]. The
+abscissas are sorted, so the smallest distance is the smallest gap between
+neighbors and the largest is the span $\xi_{n_1-1}-\xi_0$. Two nodes have a
+single distance, whose ratio to the span is always one. Yuan & Fox compare that
+distance itself with `eabs`, which depends on the unit; QMOMKit divides it by
+the larger abscissa magnitude instead, and two nodes at zero fail. Both
+criteria are then independent of the unit, but the two-node test depends on the
 origin: a pair whose gap is below `eabs` times its distance from zero collapses
 to one node. `rmin` and `eabs` default to `1e-10` in
 `QmomOptions` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp))

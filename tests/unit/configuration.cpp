@@ -411,20 +411,43 @@ scale = 3.0
     assert_near(qmom_case_result.value().moments[0], 4.0);
 }
 
+// Every family name the parser accepts, including the documented aliases, must
+// give exactly the moments of that family built directly in C++. Both sides call
+// compute_raw_moments with the same arguments, so any difference means the
+// parser chose the wrong family or put a parameter in the wrong place. The
+// parameters make each of those mistakes visible by order 3: swapping the two
+// parameters of a family changes the moments (gamma only from m_2 on) or, for
+// the log-normal, makes them invalid, and chi and chi-squared share
+// degrees_of_freedom = 4 but differ from m_1 on.
 void test_all_supported_distribution_families_parse()
 {
-    const std::vector<std::string> texts{"family=normal\nmaximum_order=1\nmean=1\nstandard_deviation=2\n",
-                                         "family=beta\nmaximum_order=1\nalpha=2\nbeta=5\n", "family=chi\nmaximum_order=1\ndegrees_of_freedom=3\n",
-                                         "family=chi-squared\nmaximum_order=1\ndegrees_of_freedom=4\n",
-                                         "family=weibull\nmaximum_order=1\nshape=2\nscale=3\n"};
-
-    for (const std::string& fields : texts)
+    struct FamilyCase
     {
-        const auto configured =
-            qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nnumber_density=2\n" + fields);
+        std::string fields;
+        qmomkit::DistributionSpecification distribution;
+    };
+    const std::vector<FamilyCase> cases{
+        {"family=normal\nmean=1\nstandard_deviation=2\n", qmomkit::NormalDistribution{1.0, 2.0}},
+        {"family=lognormal\nmu_log=-0.25\nsigma_log=0.5\n", qmomkit::LogNormalDistribution{-0.25, 0.5}},
+        {"family=log-normal\nmu_log=-0.25\nsigma_log=0.5\n", qmomkit::LogNormalDistribution{-0.25, 0.5}},
+        {"family=log_normal\nmu_log=-0.25\nsigma_log=0.5\n", qmomkit::LogNormalDistribution{-0.25, 0.5}},
+        {"family=beta\nalpha=2\nbeta=5\n", qmomkit::BetaDistribution{2.0, 5.0}},
+        {"family=gamma\nshape=2\nscale=3\n", qmomkit::GammaDistribution{2.0, 3.0}},
+        {"family=chi\ndegrees_of_freedom=4\n", qmomkit::ChiDistribution{4.0}},
+        {"family=chi-squared\ndegrees_of_freedom=4\n", qmomkit::ChiSquaredDistribution{4.0}},
+        {"family=chi_squared\ndegrees_of_freedom=4\n", qmomkit::ChiSquaredDistribution{4.0}},
+        {"family=chisquared\ndegrees_of_freedom=4\n", qmomkit::ChiSquaredDistribution{4.0}},
+        {"family=weibull\nshape=2\nscale=3\n", qmomkit::WeibullDistribution{2.0, 3.0}},
+    };
+
+    for (const FamilyCase& family_case : cases)
+    {
+        const auto configured = qmomkit::config::parse_qmom(
+            "[phase_space]\nnode_counts=2\n[initial]\ntype=distribution\nnumber_density=2\nmaximum_order=3\n" + family_case.fields);
         assert(configured.ok());
-        assert(configured.value().moments.size() == 2);
-        assert_near(configured.value().moments[0], 2.0);
+        const qmomkit::RawMomentResult expected = qmomkit::compute_raw_moments(family_case.distribution, 3, 2.0);
+        assert(expected.ok());
+        assert(configured.value().moments.values() == expected.moments.values());
     }
 }
 

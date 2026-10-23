@@ -38,8 +38,7 @@ one to six and of eight chosen weighted points must be recovered from their
 moments, including the eight-point rule at number density 2500, three points
 scaled by every fourth power of ten from $10^{-20}$ to $10^{20}$, and droplet
 diameters of 20 to 200 micrometers given in meters
-(`droplet_diameters_in_metres_are_recovered`). Reordering the input points must
-change neither the moments nor the sorted output.
+(`droplet_diameters_in_metres_are_recovered`).
 
 ### Moment-space boundary
 
@@ -51,8 +50,9 @@ $10^{-14}$); the six moments of a two-point rule lie on the boundary for three
 nodes.
 
 - `coalescing_nodes_preserve_supplied_moments`: a fixed three-node request is
-  accepted or `not_realizable`, and returns three nodes at separation
-  $10^{-2}$.
+  accepted or `not_realizable`. At separation $d = 10^{-2}$ it returns the
+  three chosen points, positions within $100\varepsilon/d^2$ and weights within
+  $100\varepsilon/d^3$, the rounding the close pair's conditioning allows.
 - `adaptive_reduction_preserves_represented_moments`,
   `accepted_reduction_respects_weight_ratio`: adaptive inversion accepts both
   sweeps; in the weight sweep, rules of two or more nodes have

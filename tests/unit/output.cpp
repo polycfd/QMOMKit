@@ -78,11 +78,19 @@ void assert_text_ignore_whitespaces(const std::string& actual, const std::string
     std::string actual_line;
     std::string expected_line;
 
-    while (std::getline(actual_stream, actual_line) && std::getline(expected_stream, expected_line))
+    // One line is read from each text per pass, so the texts must also end
+    // together: a line that only one of them has fails the first assertion.
+    while (true)
+    {
+        const bool has_actual_line = static_cast<bool>(std::getline(actual_stream, actual_line));
+        const bool has_expected_line = static_cast<bool>(std::getline(expected_stream, expected_line));
+        assert(has_actual_line == has_expected_line);
+        if (!has_actual_line)
+        {
+            return;
+        }
         assert(normalize_line(actual_line) == normalize_line(expected_line));
-
-    assert(!std::getline(actual_stream, actual_line));
-    assert(!std::getline(expected_stream, expected_line));
+    }
 }
 
 [[nodiscard]] std::string cqmom_label(const qmomkit::MultiIndex& index)

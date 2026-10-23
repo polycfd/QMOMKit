@@ -177,6 +177,8 @@ The studies behind the paper can be reproduced from this repository; see the [pa
 
 ## License
 
+Copyright 2026 The QMOMKit developers.
+
 QMOMKit is released under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ## Contributing

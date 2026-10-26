@@ -163,8 +163,8 @@ package the same way, from the same prefix.
 
 ## CI gates
 
-All workflows run on a self-hosted runner, on every push to `main` and on pull
-requests.
+All workflows run on GitHub-hosted `ubuntu-24.04` runners, on every push to
+`main` and on pull requests.
 
 | Workflow | File | Runs | Reproduce locally |
 | --- | --- | --- | --- |
@@ -178,8 +178,10 @@ On pull requests, every workflow skips changes confined to `docs/**`; all but
 CI-Indentation also skip `examples/**`, and CI-Consumers skips `paper/**`.
 
 The library compiles with `-Wall -Wextra -Wpedantic`. Warnings depend on the
-GCC version, so a build that is clean with one `g++` can fail on the runner,
-whose version the workflow log shows.
+GCC version, so a build that is clean with one `g++` can fail on the runner.
+The runner's `g++` is the GCC of the `ubuntu-24.04` image, whose version the
+workflow log shows; its major version changes only when the workflows move to
+another image.
 
 Formatting follows [`.clang-format`](../../.clang-format) and requires
 clang-format 22.1 exactly; the scripts check the version.

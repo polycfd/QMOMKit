@@ -18,12 +18,12 @@ concurrency:
 
 
 env:
-  COMPILE_JOBS: 8
+  COMPILE_JOBS: 4
 
 jobs:
   build:
     name: Build
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false

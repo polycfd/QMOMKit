@@ -1206,7 +1206,7 @@ void verify_large_total_density_is_not_normalized()
 
 void verify_mixture_accumulation_overflow()
 {
-    const double large_mean = 0.75 * std::numeric_limits<double>::max();
+    constexpr double large_mean = 0.75 * std::numeric_limits<double>::max();
     const qmomkit::DistributionMixture mixture{
         {{qmomkit::NormalDistribution{large_mean, 1.0}, 1.0}, {qmomkit::NormalDistribution{large_mean, 1.0}, 1.0}}};
     const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(mixture, 1);
@@ -1337,7 +1337,7 @@ void verify_independent_product_zero_density()
 
 void verify_independent_product_tensor_overflow()
 {
-    const double large_mean = 0.75 * std::numeric_limits<double>::max();
+    constexpr double large_mean = 0.75 * std::numeric_limits<double>::max();
     const qmomkit::TensorMomentResult result = qmomkit::compute_raw_moments(
         qmomkit::IndependentProductDistribution{{qmomkit::NormalDistribution{large_mean, 1.0}, qmomkit::NormalDistribution{large_mean, 1.0}}, 1.0},
         {1, 1});

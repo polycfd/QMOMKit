@@ -21,7 +21,7 @@ permissions:
 jobs:
   indent:
     name: Indent
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
 
     steps:
 
@@ -29,13 +29,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Installs clang-format 22.1 into tools/programs/, unless a previous
-      # run on this self-hosted runner already did so
+      # Installs clang-format 22.1 into tools/programs/
       - name: Install clang-format
         run: |
-          if [ ! -x tools/programs/clang-22.1/bin/clang-format ]; then
-            ./tools/download_clang_format
-          fi
+          ./tools/download_clang_format
 
       - name: Check indentation
         run: |

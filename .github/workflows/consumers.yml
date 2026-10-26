@@ -20,14 +20,14 @@ permissions:
   contents: read
 
 env:
-  COMPILE_JOBS: 8
-  TEST_JOBS: 8
+  COMPILE_JOBS: 4
+  TEST_JOBS: 4
   INSTALL_PREFIX: ${{ github.workspace }}/install-consumers
 
 jobs:
   build:
     name: Build
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false

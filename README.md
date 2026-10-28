@@ -5,7 +5,7 @@
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/warnings_gcc.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/warnings_gcc.yml/badge.svg" alt="CI-Warnings-GCC"></a>
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml/badge.svg" alt="CI-Indentation"></a>
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml/badge.svg" alt="CI-Consumers"></a>
-<a href="http://arxiv.org/abs/2610.36189"><img src="https://img.shields.io/badge/Paper-arXiv 2610.36189-red.svg" alt="Paper: arXiv 2610.36189"></a>
+<a href="https://www.doi.org/10.48550/arXiv.2610.36189"><img src="https://img.shields.io/badge/Paper-arXiv 2610.36189-red.svg" alt="Paper: arXiv 2610.36189"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 
 **QMOMKit is a C++ library implementing quadrature-based moment methods to represent and evolve number density functions in phase space.**
@@ -157,7 +157,7 @@ QMOMKit therefore relies on a deliberately rigorous approach to testing, numeric
 
 If QMOMKit contributes to your academic work, please cite the QMOMKit paper:
 
-Fabian Denner, Bruna Campos, and Bruno Blais, *QMOMKit: A C++ library for quadrature-based moment methods*, arXiv:2610.36189, 2026. doi: [10.48550/arXiv.2610.36189](http://arxiv.org/abs/2610.36189)
+Fabian Denner, Bruna Campos, and Bruno Blais, *QMOMKit: A C++ library for quadrature-based moment methods*, arXiv:2610.36189, 2026. doi: [10.48550/arXiv.2610.36189](https://www.doi.org/10.48550/arXiv.2610.36189)
 
 ```bibtex
 @misc{qmomkit,
@@ -189,7 +189,7 @@ QMOMKit is released under the Apache License 2.0. See [LICENSE](LICENSE) for det
 The authors gratefully acknowledge funding from:
 - Natural Sciences and Engineering Research Council of Canada (NSERC), funding reference numbers RGPIN-2020-04510 and RGPIN-2024-04805.
 - Canada Research Chair CRC-2022-00340.
-- Deutsche Forschungsgemeinschaft (DFG, German Research Foundation), grant number 458610925
+- Deutsche Forschungsgemeinschaft (DFG, German Research Foundation), grant number 458610925.
 
 ## Contributing
 

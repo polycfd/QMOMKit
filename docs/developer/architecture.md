@@ -50,7 +50,7 @@ path.
 | File | Owns | Implements |
 | --- | --- | --- |
 | [`src/public_api.cpp`](../../src/public_api.cpp) | `compute_qmom`, `compute_cqmom`, cases, states, state candidates, `CqmomQuadrature`, conversion of internal recursive results into `CqmomResult` | `qmom.hpp`, `cqmom.hpp`, the non-inline part of `internal/cqmom_case.hpp` |
-| [`src/wheeler.cpp`](../../src/wheeler.cpp) | Wheeler inversion, adaptive reduction, bounded-support selection | `wheeler.hpp`, `internal/bounded_quadrature.hpp` |
+| [`src/wheeler.cpp`](../../src/wheeler.cpp) | Wheeler inversion, adaptive reduction, bounded-support selection, HyQMOM reconstruction | `wheeler.hpp`, `internal/bounded_quadrature.hpp`, `internal/hyperbolic_quadrature.hpp` |
 | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Recursive CQMOM traversal, prepared branch structure, required-moment layout, `extract_cqmom_moments`, multi-index flattening, `PhaseSpaceHierarchy` | `internal/recursive_quadrature.hpp`, `multi_index.hpp`, `phase_space_hierarchy.hpp`, the layout functions of `cqmom.hpp` |
 | [`src/conditioning_path.cpp`](../../src/conditioning_path.cpp) | Conditioning paths, path tables, path-to-node-index conversion | `conditioning_path.hpp` |
 | [`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp) | Coordinate scales for adaptive conditional inversions | `internal/coordinate_scales.hpp` |

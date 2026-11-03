@@ -175,6 +175,71 @@ try one node more ([Phase-space evolution](phase_space_evolution.md#node-counts)
 Bounds must be finite with $\ell<u$, and $2N$ finite moments are required
 whatever count is accepted.
 
+## Hyperbolic family
+
+HyQMOM [[Fox & Laurent, 2022](https://www.doi.org/10.1137/21M1406143)] closes
+$m_{2n+1}$ from $m_0,\ldots,m_{2n}$ on the real line so that the moment
+system of free transport is globally hyperbolic, as shown for $n\le9$ (Fox &
+Laurent, 2022, Theorems 4.6 and 4.8). The internal
+`compute_hyperbolic_quadrature`
+([`src/internal/hyperbolic_quadrature.hpp`](../../src/internal/hyperbolic_quadrature.hpp))
+returns the $(n+1)$-node rule of that closure, which reproduces
+$m_0,\ldots,m_{2n}$ and the closed $m_{2n+1}$. It uses $s=0$, as
+`compute_quadrature(...)` does.
+
+`compute_recurrence` runs the table of [Wheeler inversion](#wheeler-inversion)
+on $2n+1$ moments: one more column in every row $k<n$, and row $n$, whose only
+entry is $\sigma_{n,n}$, with $b_n=\sigma_{n,n}/\sigma_{n-1,n-1}$ and $\tau_n$.
+The entries for $k<n$ are those of the $2n$-moment table. $a_n$ would need
+$m_{2n+1}$; the closure (Fox & Laurent, 2022, eq. 4.16, or eq. 4.13 in
+standardized moments) sets it:
+
+```math
+a_n=\frac{1}{n}\sum_{k=0}^{n-1}a_k .
+```
+
+The rule is the Gauss rule of $J_{n+1}$, with diagonal $a_0,\ldots,a_n$ and
+off-diagonal $\sqrt{b_1},\ldots,\sqrt{b_n}$, the matrix associated with the
+closure (Fox & Laurent, 2022, Section 7). For moments symmetric about their
+mean, every $a_k$ is the mean, the closure is exact, and the rule is the
+classical $(n+1)$-node Gauss rule of $m_0,\ldots,m_{2n}$ and the symmetric
+$m_{2n+1}$. As $b_n\to0$, $J_{n+1}$ splits into $J_n$ and the entry $a_n$: the
+rule tends to the classical $n$-node rule and a node at $a_n$ of vanishing
+weight. On the boundary the moments determine the distribution, a sum of at
+most $n$ weighted points (Fox & Laurent, 2022, Section 2.4), and the classical
+rule is that distribution.
+
+The input checks are those of
+[Input checks and the cutoff](#input-checks-and-the-cutoff) with $2n+1$
+moments, messages naming `node_count`, the message
+`Moment sequence has fewer than 2*n+1 entries.`, and no one-node shortcut:
+$n=1$ gives the two nodes of $J_2$. The rounding test runs to $k=n$:
+
+| Moments | Adaptive | Fixed |
+| --- | --- | --- |
+| Interior: $\sigma_{k,k}>\tau_k$ for $k=1,\ldots,n$ | Rule of $J_{n+1}$, without `rmin` and `eabs` | Rule of $J_{n+1}$ |
+| On or below the boundary: first $k$ with $\sigma_{k,k}\le\tau_k$ | The classical selection from $k$, exactly what `compute_quadrature(moments, n, options)` returns | `supports at most k nodes` or the negative $b$ |
+
+Before the rule of $J_{n+1}$, both modes check $a_0,\ldots,a_n$ and
+$b_1,\ldots,b_n$ as in [Fixed node count](#fixed-node-count), and a failed
+eigensolve is the result. If $\sigma_{n,n}$ overflows, so does $\tau_n$.
+Adaptive mode then takes the classical selection, since
+$\sigma_{n,n}\le\tau_n$ holds; fixed mode skips the non-finite $\tau_n$ and
+reports a non-finite recurrence, even where
+`compute_quadrature(moments, n, options)`, which does not read $m_{2n}$, would
+succeed.
+
+Adaptive mode applies `rmin` and `eabs` only to the classical rules. Applied to
+the rule of $J_{n+1}$, they would reduce interior moments to a rule outside the
+closure: the classical $n$-node rule does not reproduce $m_{2n}$, and its
+closure is QMOM's, which is only weakly hyperbolic (Fox & Laurent, 2022,
+Theorem 4.3). They are not needed either. The rounding test already excludes
+nodes made of rounding, as in fixed mode, and near the boundary the node of
+small weight tends to $a_n$, a mean of well-determined coefficients, with a
+weight that vanishes continuously. So every interior result is the HyQMOM rule,
+and every boundary result its limit. A reduced result is always a classical
+rule of at most $n$ nodes, and only on or below the boundary.
+
 ## Cases, results and statuses
 
 `QmomCase` holds `moments`, `node_count`, `qmom_options` and
@@ -200,5 +265,6 @@ whether the vectors are empty.
 | `compute_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public low-level Wheeler inversion, $s=0$. |
 | `compute_wheeler_recurrence` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public Wheeler recurrence and rounding bounds, $s=0$. |
 | `compute_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Inversion of CQMOM conditional moments with scale $s$. |
+| `compute_hyperbolic_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal HyQMOM reconstruction, $s=0$. |
 | `select_bounded_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Bounds acceptance for QMOM and CQMOM. |
 | `cqmom_coordinate_scales` | [`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp) | Coordinate scales $s$. |

@@ -5,8 +5,10 @@
 These cases verify the inversion of raw moments into a one-dimensional
 quadrature, through `load_qmom` and `compute_qmom` and through the low-level
 Wheeler inversion `compute_quadrature`, whose recurrence
-`compute_wheeler_recurrence` reports. A rule of $n$ weighted points is
-determined by its first $2n$ moments, so each reference has one correct answer.
+`compute_wheeler_recurrence` reports, and the internal HyQMOM reconstruction
+`compute_hyperbolic_quadrature`. A rule of $n$ weighted points is determined by
+its first $2n$ moments, and a HyQMOM rule of $n + 1$ nodes by $m_0, \ldots,
+m_{2n}$ and its closure, so each reference has one correct answer.
 They also check the contracts of [QMOM](../../../docs/developer/qmom.md): $m_0$
 is the number density and is not normalized, a fixed node count is delivered or
 refused, adaptive reduction returns only accepted rules, and abscissa bounds
@@ -57,6 +59,21 @@ coefficients of the two-point and symmetric rules are exact in double, those of
 the other rules are not. Entry 0 must hold $a_0 = m_1/m_0$, $b_0 = 0$,
 $\sigma_{0,0} = m_0$ and tolerance 0, and every $\tau_k$ must be finite, positive
 and below $\sigma_{k,k}$, so that all $n$ points are supported.
+
+### HyQMOM
+
+`verification_hyperbolic_quadrature_exact_<case>` (`hyperbolic_quadrature_exact.cpp`).
+`compute_hyperbolic_quadrature` must return the Gauss rule of $J_{n+1}$ with the
+closure of [QMOM](../../../docs/developer/qmom.md#hyperbolic-family), for
+$n = 1$ to 10 and three shapes: a symmetric binomial rule (`symmetric`), a
+skewed geometric one at number density 2500 (`skewed`), and two binomial
+clusters of masses 3/4 and 1/4 shifted off the origin (`bimodal`). Each shape
+has more than $n + 1$ weighted points, so its moments are interior; the script
+in the test source asserts that every $\sigma_{k,k}$ exceeds $\tau_k$ at least
+a thousandfold. The moments $m_0, \ldots, m_{2n}$ are rounded to double, and
+the references are computed from those doubles: the recurrence and the closure
+with Python's `fractions`, the eigenpairs of $J_{n+1}$ with mpmath at 60 digits.
+Fixed mode must return $n + 1$ nodes, and adaptive mode the identical rule.
 
 ### Moment-space boundary
 
@@ -143,6 +160,7 @@ one node.
 | Wheeler, up to three points | $10^{-14}$ to $10^{-11}$ per case | absolute | observed $10^{-15}$ to $10^{-13}$ |
 | Wheeler, from four points and the scaled points | $10^{-12}$; $10^{-10}$ for eight points, $2 \times 10^{-12}$ for the droplets | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight |
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
+| HyQMOM | $10^{-12}$ up to $n = 7$, $10^{-11}$ for $n = 8$, $5 \times 10^{-10}$ for $n = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$; observed $3.8 \times 10^{-15}$ up to $n = 5$ to $9.6 \times 10^{-12}$ at $n = 9$ and 10, a margin of 34 or more |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
 | Failure statuses | none | exact status and message fragment | |
@@ -150,7 +168,7 @@ one node.
 ## Reproduce
 
 ```bash
-ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|adaptive_qmom)_' --output-on-failure
+ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|hyperbolic_quadrature_exact|adaptive_qmom)_' --output-on-failure
 ```
 
 See [Building and running](../../../docs/developer/testing.md#building-and-running).

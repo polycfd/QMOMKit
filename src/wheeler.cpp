@@ -2,6 +2,7 @@
 
 #include "internal/bounded_quadrature.hpp"
 #include "internal/checked_size.hpp"
+#include "internal/hyperbolic_quadrature.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
@@ -36,7 +37,9 @@ struct SigmaDiagonal
 // Wheeler's recurrence for the moments m_0, ..., m_{2N-1}, indexed as in
 // docs/developer/qmom.md: a_0, ..., a_{N-1}, b_0 = 0, b_1, ..., b_{N-1}, and for
 // k = 1, ..., N - 1 the diagonal sigma(k, k) with its rounding bound tau_k.
-// Entry 0 of the diagonal is unused.
+// Entry 0 of the diagonal is unused. The moments m_0, ..., m_{2N} give one
+// entry more: b_N and sigma(N, N) with tau_N, and a_N, which they do not
+// determine, left zero.
 struct Recurrence
 {
     std::vector<double> a;
@@ -65,25 +68,31 @@ struct Recurrence
         {moments[1] / moments[0]}, {std::abs(moments[0])}, QuadratureStatus::not_realizable, "Moment sequence is not realizable: m0 < 0."};
 }
 
-// Row k of the sigma table, sigma(k, l) for l = k, ..., 2N - k - 1, depends only
-// on rows k - 1 and k - 2, so the rows are computed one at a time from
-// sigma(-1, l) = 0 and sigma(0, l) = m_l. The same pass runs the recurrence
-// with every term in absolute value, whose diagonal bounds the rounding of
-// sigma(k, k). sigma(k, k) and the bound both scale as m0 times the coordinate
-// to the power 2k, so the tests on them depend neither on the unit of the
-// coordinate nor on m0, and the bound grows with the cancellation of a
-// distribution far from the origin. Conditional moments are not data: the
-// solve that produced them leaves rounding relative to the scale of their
-// coordinate, not to their own magnitudes, so a positive coordinate_scale s
-// adds the floor m0 s^(2k).
-[[nodiscard]] Recurrence compute_recurrence(const MomentSet& moments, const std::size_t n, const double coordinate_scale)
+// Row k of the sigma table of M = moment_count moments, sigma(k, l) for
+// l = k, ..., M - k - 1, depends only on rows k - 1 and k - 2, so the rows are
+// computed one at a time from sigma(-1, l) = 0 and sigma(0, l) = m_l. The same
+// pass runs the recurrence with every term in absolute value, whose diagonal
+// bounds the rounding of sigma(k, k). sigma(k, k) and the bound both scale as
+// m0 times the coordinate to the power 2k, so the tests on them depend neither
+// on the unit of the coordinate nor on m0, and the bound grows with the
+// cancellation of a distribution far from the origin. Conditional moments are
+// not data: the solve that produced them leaves rounding relative to the scale
+// of their coordinate, not to their own magnitudes, so a positive
+// coordinate_scale s adds the floor m0 s^(2k).
+//
+// a_k needs the entry l = k + 1 of row k. From M = 2N moments that gives rows
+// and coefficients up to k = N - 1; from M = 2N + 1 also row N, whose only
+// entry is sigma(N, N), with b_N and tau_N. The entries for k < N do not
+// depend on m_{2N}.
+[[nodiscard]] Recurrence compute_recurrence(const MomentSet& moments, const std::size_t moment_count, const double coordinate_scale)
 {
     constexpr double roundoff_multiplier = 100.0;
-    Recurrence recurrence{std::vector<double>(n, 0.0), std::vector<double>(n, 0.0), std::vector<SigmaDiagonal>(n)};
+    const std::size_t size = (moment_count + 1) / 2;
+    Recurrence recurrence{std::vector<double>(size, 0.0), std::vector<double>(size, 0.0), std::vector<SigmaDiagonal>(size)};
 
     // Rows k - 2, k - 1 and k of sigma and of its absolute-value bound,
     // indexed by l, in one workspace.
-    const std::size_t width = 2 * n;
+    const std::size_t width = moment_count;
     std::vector<double> rows(6 * width, 0.0);
     double* sigma_second_previous = rows.data();
     double* sigma_previous = sigma_second_previous + width;
@@ -91,7 +100,7 @@ struct Recurrence
     double* bound_second_previous = sigma_current + width;
     double* bound_previous = bound_second_previous + width;
     double* bound_current = bound_previous + width;
-    for (std::size_t l = 0; l < 2 * n; ++l)
+    for (std::size_t l = 0; l < width; ++l)
     {
         sigma_previous[l] = moments[l];
         bound_previous[l] = std::abs(moments[l]);
@@ -101,17 +110,20 @@ struct Recurrence
     recurrence.b[0] = 0.0;
     double noise_floor = std::abs(moments[0]);
 
-    for (std::size_t k = 1; k < n; ++k)
+    for (std::size_t k = 1; k < size; ++k)
     {
         const double a = recurrence.a[k - 1];
         const double b = recurrence.b[k - 1];
-        for (std::size_t l = k; l < 2 * n - k; ++l)
+        for (std::size_t l = k; l < width - k; ++l)
         {
             sigma_current[l] = sigma_previous[l + 1] - a * sigma_previous[l] - b * sigma_second_previous[l];
             bound_current[l] = bound_previous[l + 1] + std::abs(a) * bound_previous[l] + std::abs(b) * bound_second_previous[l];
         }
 
-        recurrence.a[k] = sigma_current[k + 1] / sigma_current[k] - sigma_previous[k] / sigma_previous[k - 1];
+        if (k + 1 < width - k)
+        {
+            recurrence.a[k] = sigma_current[k + 1] / sigma_current[k] - sigma_previous[k] / sigma_previous[k - 1];
+        }
         recurrence.b[k] = sigma_current[k] / sigma_previous[k - 1];
         noise_floor *= coordinate_scale * coordinate_scale;
         recurrence.diagonal[k] = {sigma_current[k],
@@ -249,38 +261,80 @@ struct Recurrence
     return true;
 }
 
+[[nodiscard]] std::optional<Quadrature1D> option_failure(const WheelerOptions& options)
+{
+    if (!std::isfinite(options.rmin) || !std::isfinite(options.eabs) || !std::isfinite(options.cutoff) || options.rmin < 0.0 || options.eabs < 0.0 ||
+        options.cutoff <= 0.0)
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Invalid Wheeler numerical option."};
+    }
+    return std::nullopt;
+}
+
+// The checks on the first moment_count moments, after those on the node count:
+// all finite, m0 >= 0 and m0 >= cutoff.
+[[nodiscard]] std::optional<Quadrature1D> moment_failure(const MomentSet& moments, const std::size_t moment_count, const WheelerOptions& options)
+{
+    if (!required_moments_are_finite(moments, moment_count))
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence contains non-finite values."};
+    }
+    if (moments[0] < 0.0)
+    {
+        return negative_mass_result(moments);
+    }
+    if (moments[0] < options.cutoff)
+    {
+        return Quadrature1D{{0.0}, {1.0}, QuadratureStatus::not_realizable, "Moment sequence has m0 < cutoff."};
+    }
+    return std::nullopt;
+}
+
+// The checks before a Gauss rule of node_count nodes: a non-finite recurrence
+// or a negative b is not_realizable.
+[[nodiscard]] std::optional<Quadrature1D> recurrence_failure(const MomentSet& moments, const Recurrence& recurrence, const std::size_t node_count)
+{
+    if (!recurrence_is_finite(recurrence, node_count))
+    {
+        return one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values.");
+    }
+    const double smallest_b = minimum_b(recurrence, node_count);
+    if (smallest_b < 0.0)
+    {
+        return negative_b_result(moments, smallest_b);
+    }
+    return std::nullopt;
+}
+
 // sigma(k, k) = m0 b_1 ... b_k is positive while m_0, ..., m_{2k} are the
 // moments of at least k + 1 points, zero when k points carry them, and
 // negative when no non-negative density has them. The first k with sigma(k, k)
-// at or below its rounding bound therefore caps the usable count at k.
-// From that count down, the first Gauss rule that passes the acceptance tests
-// is returned, and the one-node rule if none does.
-[[nodiscard]] Quadrature1D adaptive_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
-                                               const double coordinate_scale)
+// at or below its rounding bound therefore caps the usable count at k; without
+// one, every entry of the recurrence is usable.
+[[nodiscard]] std::size_t supported_count(const Recurrence& recurrence)
 {
-    const Recurrence recurrence = compute_recurrence(moments, max_nodes, coordinate_scale);
-    std::size_t usable_count = max_nodes;
-    for (std::size_t k = 1; k < max_nodes; ++k)
+    for (std::size_t k = 1; k < recurrence.diagonal.size(); ++k)
     {
         if (recurrence.diagonal[k].sigma <= recurrence.diagonal[k].tolerance)
         {
-            usable_count = k;
-            break;
+            return k;
         }
     }
+    return recurrence.diagonal.size();
+}
+
+// From usable_count down, the first Gauss rule that passes the acceptance tests
+// is returned, and the one-node rule if none does.
+[[nodiscard]] Quadrature1D adaptive_selection(const MomentSet& moments, const Recurrence& recurrence, const std::size_t usable_count,
+                                              const WheelerOptions& options)
+{
     if (usable_count == 1)
     {
         return one_node_result(moments, QuadratureStatus::success, "");
     }
-
-    if (!recurrence_is_finite(recurrence, usable_count))
+    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, recurrence, usable_count))
     {
-        return one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values.");
-    }
-    const double smallest_b = minimum_b(recurrence, usable_count);
-    if (smallest_b < 0.0)
-    {
-        return negative_b_result(moments, smallest_b);
+        return *failure;
     }
 
     for (std::size_t node_count = usable_count; node_count > 1; --node_count)
@@ -294,14 +348,14 @@ struct Recurrence
     return one_node_result(moments, QuadratureStatus::success, "");
 }
 
-// A fixed count must be supported by the moments. A sigma(k, k) that is zero
-// within its rounding bound puts the sequence on the boundary at k nodes,
-// and any larger rule would carry nodes made of rounding. The first such k is
-// reached while the coefficients before it are finite; a recurrence that
-// overflows instead is reported as non-finite.
-[[nodiscard]] Quadrature1D fixed_quadrature(const MomentSet& moments, const std::size_t node_count, const double coordinate_scale)
+// A fixed count, one node per entry of the recurrence, must be supported by
+// the moments. A sigma(k, k) that is zero within its rounding bound puts the
+// sequence on the boundary at k nodes, and any larger rule would carry nodes
+// made of rounding. The first such k is reached while the coefficients before
+// it are finite; a recurrence that overflows instead is reported as non-finite.
+[[nodiscard]] Quadrature1D fixed_quadrature(const MomentSet& moments, const Recurrence& recurrence)
 {
-    const Recurrence recurrence = compute_recurrence(moments, node_count, coordinate_scale);
+    const std::size_t node_count = recurrence.diagonal.size();
     for (std::size_t k = 1; k < node_count; ++k)
     {
         const double sigma = recurrence.diagonal[k].sigma;
@@ -315,14 +369,9 @@ struct Recurrence
         }
     }
 
-    if (!recurrence_is_finite(recurrence, node_count))
+    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, recurrence, node_count))
     {
-        return one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values.");
-    }
-    const double smallest_b = minimum_b(recurrence, node_count);
-    if (smallest_b < 0.0)
-    {
-        return negative_b_result(moments, smallest_b);
+        return *failure;
     }
     return gauss_rule(moments, recurrence, node_count);
 }
@@ -334,10 +383,9 @@ struct Recurrence
     // Wheeler inversion path:
     // raw moments -> recurrence coefficients -> Jacobi matrix -> eigenproblem
     // -> quadrature abscissas and weights.
-    if (!std::isfinite(options.rmin) || !std::isfinite(options.eabs) || !std::isfinite(options.cutoff) || options.rmin < 0.0 || options.eabs < 0.0 ||
-        options.cutoff <= 0.0)
+    if (const std::optional<Quadrature1D> failure = option_failure(options))
     {
-        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Invalid Wheeler numerical option."};
+        return *failure;
     }
     if (max_nodes == 0)
     {
@@ -352,19 +400,9 @@ struct Recurrence
     {
         return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n entries."};
     }
-    if (!required_moments_are_finite(moments, *required_moment_count))
+    if (const std::optional<Quadrature1D> failure = moment_failure(moments, *required_moment_count, options))
     {
-        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence contains non-finite values."};
-    }
-
-    if (moments[0] < 0.0)
-    {
-        return negative_mass_result(moments);
-    }
-
-    if (moments[0] < options.cutoff)
-    {
-        return Quadrature1D{{0.0}, {1.0}, QuadratureStatus::not_realizable, "Moment sequence has m0 < cutoff."};
+        return *failure;
     }
 
     if (max_nodes == 1)
@@ -372,8 +410,8 @@ struct Recurrence
         return one_node_result(moments, QuadratureStatus::success, "");
     }
 
-    return options.adaptive ? adaptive_quadrature(moments, max_nodes, options, coordinate_scale)
-                            : fixed_quadrature(moments, max_nodes, coordinate_scale);
+    const Recurrence recurrence = compute_recurrence(moments, *required_moment_count, coordinate_scale);
+    return options.adaptive ? adaptive_selection(moments, recurrence, supported_count(recurrence), options) : fixed_quadrature(moments, recurrence);
 }
 
 } // namespace
@@ -428,7 +466,7 @@ WheelerRecurrence compute_wheeler_recurrence(const MomentSet& moments, const std
     // compute_recurrence leaves diagonal entry 0 unused, since no test is made
     // at k = 0; sigma(0, 0) is m0. No record_wheeler_call(): the counter
     // counts inversions, and this function inverts nothing.
-    const Recurrence recurrence = compute_recurrence(moments, node_count, 0.0);
+    const Recurrence recurrence = compute_recurrence(moments, *required_moment_count, 0.0);
     WheelerRecurrence result;
     result.a = recurrence.a;
     result.b = recurrence.b;
@@ -450,6 +488,67 @@ Quadrature1D compute_conditional_quadrature(const MomentSet& moments, const std:
                                             const double coordinate_scale)
 {
     return compute_quadrature_at_scale(moments, max_nodes, options, coordinate_scale);
+}
+
+Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options)
+{
+    performance::record_wheeler_call();
+    // The input checks of compute_quadrature_at_scale for m_0, ..., m_{2n},
+    // with messages naming node_count and no one-node shortcut: n = 1 gives
+    // the two nodes of J_2. A change to these checks belongs in
+    // compute_quadrature_at_scale as well.
+    if (const std::optional<Quadrature1D> failure = option_failure(options))
+    {
+        return *failure;
+    }
+    if (node_count == 0)
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count must be positive."};
+    }
+    const std::optional<std::size_t> even_moment_count = checked_size_multiply(2, node_count);
+    if (!even_moment_count.has_value())
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count is too large to derive the required moment count."};
+    }
+    // 2n is even, so 2n + 1 cannot overflow once 2n does not.
+    const std::size_t moment_count = *even_moment_count + 1;
+    if (moments.size() < moment_count)
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n+1 entries."};
+    }
+    if (const std::optional<Quadrature1D> failure = moment_failure(moments, moment_count, options))
+    {
+        return *failure;
+    }
+
+    // The recurrence of m_0, ..., m_{2n} at coordinate scale zero, with the
+    // HyQMOM closure for a_n, the mean of a_0, ..., a_{n-1} (Fox & Laurent
+    // 2022, eq. 4.16, eq. 4.13 in standardized moments). Its n + 1 entries give
+    // the Jacobi matrix J_{n+1}.
+    Recurrence recurrence = compute_recurrence(moments, moment_count, 0.0);
+    const auto end = static_cast<std::ptrdiff_t>(node_count);
+    recurrence.a[node_count] = std::accumulate(recurrence.a.begin(), recurrence.a.begin() + end, 0.0) / static_cast<double>(node_count);
+    if (!options.adaptive)
+    {
+        return fixed_quadrature(moments, recurrence);
+    }
+
+    // Moments on or below the boundary take the classical selection from the
+    // first k with sigma(k, k) <= tau_k, which is HyQMOM's own limit there.
+    // Interior moments give the rule of J_{n+1} without the acceptance tests:
+    // the rounding test already excludes nodes made of rounding, and near the
+    // boundary the extra node tends to a_n, with a weight that vanishes on the
+    // boundary.
+    const std::size_t usable_count = supported_count(recurrence);
+    if (usable_count <= node_count)
+    {
+        return adaptive_selection(moments, recurrence, usable_count, options);
+    }
+    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, recurrence, node_count + 1))
+    {
+        return *failure;
+    }
+    return gauss_rule(moments, recurrence, node_count + 1);
 }
 
 BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& moment_sequence, const BoundedQuadratureSelectionRequest& request,

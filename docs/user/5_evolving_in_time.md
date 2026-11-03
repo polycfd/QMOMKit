@@ -197,13 +197,15 @@ source step does. There a branch may lose nodes, or gain one if the moments
 support it. In CQMOM, when a branch's node count changes, the branches below it
 condition on other nodes and start from their configured maximum. Node counts
 therefore shrink readily, and a branch that keeps its parent grows by at most
-one node per step.
+one node per step. A hyperbolic QMOM state grows the same way through the
+classical counts to $N$, and from $N$ to the $N + 1$ nodes of HyQMOM.
 
 ## Reading a state
 
 A QMOM state gives its moments $m_0, m_1, \ldots$ with `moment_values()` and its
 quadrature with `quadrature()`; `active_node_count()` and `maximum_node_count()`
-give the current and the configured number of nodes. A CQMOM state lists its
+give the current and the largest number of nodes, $N$, or $N + 1$ for the
+hyperbolic family. A CQMOM state lists its
 moments in the order of `moment_indices()`, and `moment(index)` returns one of
 them if the state holds it:
 

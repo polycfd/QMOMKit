@@ -20,10 +20,23 @@ enum class QmomStatus
 };
 
 /**
+ * The quadrature family of a QMOM reconstruction with node count n.
+ * `classical` is QMOM: up to n nodes from m_0, ..., m_{2n-1}. `hyperbolic` is
+ * HyQMOM (Fox & Laurent 2022): up to n + 1 nodes from m_0, ..., m_{2n}, on
+ * the real line only.
+ */
+enum class QmomFamily
+{
+    classical,
+    hyperbolic
+};
+
+/**
  * Numerical controls for one-dimensional QMOM quadrature construction.
  *
  * Adaptive node reduction is on by default; set `adaptive = false` to require
- * the requested node count.
+ * the requested node count. `family` selects the quadrature family; CQMOM
+ * supports only `classical`.
  */
 struct QmomOptions
 {
@@ -31,6 +44,7 @@ struct QmomOptions
     double rmin = 1.0e-10;
     double eabs = 1.0e-10;
     double cutoff = 1.0e-30;
+    QmomFamily family = QmomFamily::classical;
 };
 
 struct QmomResult
@@ -86,9 +100,20 @@ public:
         return quadrature_.weights.size();
     }
 
+    /**
+     * The maximum node count of the state's quadrature: n for `classical`,
+     * n + 1 for `hyperbolic`, with n the node count of its case.
+     */
     [[nodiscard]] std::size_t maximum_node_count() const noexcept
     {
-        return maximum_node_count_;
+        switch (qmom_options_.family)
+        {
+        case QmomFamily::classical:
+            return node_count_;
+        case QmomFamily::hyperbolic:
+            return node_count_ + 1;
+        }
+        return node_count_;
     }
 
     [[nodiscard]] const QmomOptions& qmom_options() const noexcept
@@ -102,13 +127,13 @@ public:
     }
 
 private:
-    QmomState(std::vector<double> moments, QmomResult quadrature, std::size_t maximum_node_count, QmomOptions qmom_options,
+    QmomState(std::vector<double> moments, QmomResult quadrature, std::size_t node_count, QmomOptions qmom_options,
               std::optional<AbscissaBounds> abscissa_bounds);
     friend class internal::QmomStateAccess;
 
     std::vector<double> moments_;
     QmomResult quadrature_;
-    std::size_t maximum_node_count_ = 0;
+    std::size_t node_count_ = 0;
     QmomOptions qmom_options_;
     std::optional<AbscissaBounds> abscissa_bounds_;
 };
@@ -163,7 +188,7 @@ struct QmomStateCandidate
  *
  * `moments` stores unnormalized raw moments in ascending order:
  * `moments[k] == m_k`. A case with `node_count == n` requires at least
- * `2 * n` moments.
+ * `2 * n` moments, or `2 * n + 1` for the `hyperbolic` family.
  */
 struct QmomCase
 {
@@ -177,10 +202,10 @@ struct QmomCase
      * options and abscissa bounds of this case; the moments of the case are
      * not used. This is how a host rebuilds the state of moments it changed
      * itself, for example by transport in physical space. All moments must be
-     * finite, including those above order 2n - 1, which the reconstruction
-     * does not use. The quadrature is reconstructed once, the stored moments
-     * are those of the accepted quadrature, and a failure is reported in the
-     * result rather than thrown.
+     * finite, including those the reconstruction does not use, above order
+     * 2n - 1, or 2n for `hyperbolic`. The quadrature is reconstructed once,
+     * the stored moments are those of the accepted quadrature, and a failure
+     * is reported in the result rather than thrown.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments) const;
 
@@ -201,7 +226,7 @@ struct QmomCase
      * Construct the accepted initial phase-space evolution state from the
      * moments of this case, throwing `std::runtime_error` when they cannot be
      * reconstructed. As for `state_candidate`, all moments must be finite,
-     * including those above order 2n - 1.
+     * including those the reconstruction does not use.
      */
     [[nodiscard]] QmomState initial_state() const;
 };

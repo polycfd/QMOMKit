@@ -4,7 +4,8 @@ QMOM turns the raw moments $m_0,\ldots,m_{2N-1}$ of a one-dimensional number
 density into an $N$-node Gauss quadrature with the Wheeler algorithm
 [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. The same
 inversion reconstructs every one-dimensional sequence of recursive
-[CQMOM](cqmom.md). Public usage is in
+[CQMOM](cqmom.md). The hyperbolic family reads $m_{2N}$ as well and returns up
+to $N+1$ nodes ([Hyperbolic family](#hyperbolic-family)). Public usage is in
 [Moments and quadrature](../user/4_moments_and_quadrature.md#reconstruct);
 moment and ordering conventions are in
 [Numerical conventions](numerical_conventions.md).
@@ -187,6 +188,20 @@ returns the $(n+1)$-node rule of that closure, which reproduces
 $m_0,\ldots,m_{2n}$ and the closed $m_{2n+1}$. It uses $s=0$, as
 `compute_quadrature(...)` does.
 
+`compute_qmom(...)` dispatches on `QmomOptions::family` in
+`compute_qmom_from_moments`
+([`src/public_api.cpp`](../../src/public_api.cpp)): `classical` takes the
+paths above, and `hyperbolic` calls `compute_hyperbolic_quadrature` with
+`node_count` as $n$. HyQMOM is defined on the real line, so abscissa bounds
+with `hyperbolic` are `invalid_input`, with the message
+`The hyperbolic QMOM family takes no abscissa bounds.`, before any
+reconstruction. CQMOM refuses the family ([CQMOM](cqmom.md)), and states
+and their evolution follow the count rule of
+[Phase-space evolution](phase_space_evolution.md#node-counts). The moments a
+family reads, $2n$ or $2n+1$, have one definition,
+`internal::qmom_required_moment_count`
+([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)).
+
 `compute_recurrence` runs the table of [Wheeler inversion](#wheeler-inversion)
 on $2n+1$ moments: one more column in every row $k<n$, and row $n$, whose only
 entry is $\sigma_{n,n}$, with $b_n=\sigma_{n,n}/\sigma_{n-1,n-1}$ and $\tau_n$.
@@ -249,7 +264,7 @@ maps `QuadratureStatus` one to one onto `QmomStatus`:
 | Status | Cause |
 | --- | --- |
 | `success` | A rule was accepted, in adaptive mode possibly with fewer nodes than requested. |
-| `invalid_input` | Invalid options or bounds, no nodes, too few or non-finite moments. |
+| `invalid_input` | Invalid options or bounds, bounds with the hyperbolic family, no nodes, too few or non-finite moments. |
 | `not_realizable` | $m_0<0$, $m_0<$ `cutoff`, a fixed count the moments do not support, negative $b_k$, non-finite recurrence or eigenpairs, an unconverged eigensolve, or nodes outside the bounds. |
 
 `ok()` is true only for `success`; the accepted node count is `weights.size()`.
@@ -261,7 +276,7 @@ whether the vectors are empty.
 
 | Function | File | Role |
 | --- | --- | --- |
-| `compute_qmom` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public entry; bounds dispatch, status mapping. |
+| `compute_qmom` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public entry; family and bounds dispatch, status mapping. |
 | `compute_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public low-level Wheeler inversion, $s=0$. |
 | `compute_wheeler_recurrence` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public Wheeler recurrence and rounding bounds, $s=0$. |
 | `compute_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Inversion of CQMOM conditional moments with scale $s$. |

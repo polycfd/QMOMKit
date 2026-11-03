@@ -90,6 +90,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | — | `1e-10` | Adaptive: smallest accepted ratio of the smallest to the largest weight. | `QmomOptions::rmin` |
 | — | `1e-10` | Adaptive: smallest accepted relative node separation. | `QmomOptions::eabs` |
 | — | `1e-30` | Smallest $m_0$ that is reconstructed. | `QmomOptions::cutoff` |
+| — | `classical` | Quadrature family: `classical` or `hyperbolic` (HyQMOM, up to $N + 1$ nodes from $2N + 1$ moments). | `QmomOptions::family` |
 
 ### `[cqmom]` and `[vandermonde]`
 
@@ -236,6 +237,9 @@ These throw instead of returning a status:
 | Message | Cause and remedy |
 | --- | --- |
 | `Moment sequence has fewer than 2*n entries.` | $N$ nodes need $2N$ moments. Supply more, request fewer nodes, or raise `maximum_order`. |
+| `Moment sequence has fewer than 2*n+1 entries.` | The hyperbolic family with node count $N$ needs $2N + 1$ moments. |
+| `The hyperbolic QMOM family takes no abscissa bounds.` | HyQMOM is defined on the real line. Remove the bounds or use the classical family. |
+| `CQMOM supports only the classical QMOM family.` | Set `qmom_options.family` of the CQMOM case to `classical`. |
 | `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |
 | `Moment sequence has m0 < cutoff.` | There is no population left; stop evolving it. |

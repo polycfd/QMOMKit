@@ -72,7 +72,8 @@ path.
 Header-only internals: `DenseMatrix` in `linear_algebra.hpp`, the inline helpers
 of `cqmom_case.hpp` (case successors, marginal extraction),
 `cqmom_validation.hpp` (layout and storage checks),
-`qmom_state_access.hpp`, `numeric_utils.hpp`, `checked_size.hpp`,
+`qmom_state_access.hpp`, `qmom_family.hpp` (what each QMOM family reads),
+`numeric_utils.hpp`, `checked_size.hpp`,
 `ode_rhs_validation.hpp`, `phase_space_velocity_validation.hpp`, and
 `performance.hpp`. The public `realizability_policy.hpp` is header-only.
 

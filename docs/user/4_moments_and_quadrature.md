@@ -199,6 +199,23 @@ coordinate on the `CqmomCase` before preparing it, for example
 file, `[phase_space] support_lower` and `support_upper` set the bounds; they
 are unrelated to the `support` of a realizability check.
 
+### QMOM families
+
+```cpp
+qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
+```
+
+selects HyQMOM [[Fox & Laurent, 2022](https://www.doi.org/10.1137/21M1406143)].
+With node count $N$ it reads $m_0, \ldots, m_{2N}$, so give the case $2N + 1$
+moments, and returns up to $N + 1$ nodes, whose closure for $m_{2N+1}$ makes
+the moment system of free transport hyperbolic (shown for $N \le 9$). For
+moments in the interior of moment space it returns $N + 1$ nodes, without
+`rmin` and `eabs`. On the boundary, where at most $N$ points carry the
+moments, or below it, it returns the classical rule of the first $2N$
+moments, adaptive as usual, and a fixed reconstruction fails. HyQMOM is
+defined on the real line, so it takes no bounds, and CQMOM supports only the
+classical family.
+
 ### Conditioning order
 
 The second argument of `PhaseSpaceHierarchy` sets the CQMOM conditioning order;

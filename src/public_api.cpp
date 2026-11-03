@@ -1,9 +1,11 @@
 #include "internal/bounded_quadrature.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/hyperbolic_quadrature.hpp"
 #include "internal/moment_reconstruction.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
+#include "internal/qmom_family.hpp"
 #include "internal/qmom_state_access.hpp"
 #include "internal/realizability.hpp"
 #include "internal/recursive_quadrature.hpp"
@@ -15,7 +17,6 @@
 
 #include <algorithm>
 #include <exception>
-#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -34,10 +35,9 @@ namespace
 
 [[nodiscard]] QmomStatus to_qmom_status(QuadratureStatus status);
 
-[[nodiscard]] QmomResult compute_qmom_from_moments(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
-                                                   const std::optional<AbscissaBounds> abscissa_bounds)
+[[nodiscard]] QmomResult classical_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                                        const std::optional<AbscissaBounds> abscissa_bounds)
 {
-    internal::performance::record_qmom_reconstruction();
     if (!abscissa_bounds.has_value())
     {
         const Quadrature1D result = compute_quadrature(moments, node_count, to_wheeler_options(options));
@@ -49,6 +49,33 @@ namespace
         internal::select_bounded_quadrature(moments.values(), request, *abscissa_bounds, to_wheeler_options(options));
     return QmomResult{selection.quadrature.abscissas, selection.quadrature.weights, to_qmom_status(selection.quadrature.status),
                       selection.quadrature.message};
+}
+
+// HyQMOM is defined on the real line, so abscissa bounds are refused before
+// any reconstruction.
+[[nodiscard]] QmomResult hyperbolic_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                                         const std::optional<AbscissaBounds> abscissa_bounds)
+{
+    if (abscissa_bounds.has_value())
+    {
+        return QmomResult{{}, {}, QmomStatus::invalid_input, "The hyperbolic QMOM family takes no abscissa bounds."};
+    }
+    const Quadrature1D result = internal::compute_hyperbolic_quadrature(moments, node_count, to_wheeler_options(options));
+    return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message};
+}
+
+[[nodiscard]] QmomResult compute_qmom_from_moments(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                                                   const std::optional<AbscissaBounds> abscissa_bounds)
+{
+    internal::performance::record_qmom_reconstruction();
+    switch (options.family)
+    {
+    case QmomFamily::classical:
+        return classical_qmom(moments, node_count, options, abscissa_bounds);
+    case QmomFamily::hyperbolic:
+        return hyperbolic_qmom(moments, node_count, options, abscissa_bounds);
+    }
+    return QmomResult{{}, {}, QmomStatus::invalid_input, "Unsupported QMOM family."};
 }
 
 [[nodiscard]] QmomStatus to_qmom_status(const QuadratureStatus status)
@@ -149,10 +176,10 @@ QmomResult compute_qmom(const QmomCase& qmom_case)
     return compute_qmom(qmom_case.moments, qmom_case.node_count, qmom_case.qmom_options, qmom_case.abscissa_bounds);
 }
 
-QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const std::size_t maximum_node_count, QmomOptions qmom_options,
+QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const std::size_t node_count, QmomOptions qmom_options,
                      std::optional<AbscissaBounds> abscissa_bounds)
-    : moments_(std::move(moments)), quadrature_(std::move(quadrature)), maximum_node_count_(maximum_node_count),
-      qmom_options_(std::move(qmom_options)), abscissa_bounds_(std::move(abscissa_bounds))
+    : moments_(std::move(moments)), quadrature_(std::move(quadrature)), node_count_(node_count), qmom_options_(std::move(qmom_options)),
+      abscissa_bounds_(std::move(abscissa_bounds))
 {
 }
 
@@ -196,7 +223,8 @@ namespace
         }
     }
     const std::size_t node_count = qmom_case.node_count;
-    const bool enough_moments = node_count > 0 && node_count <= std::numeric_limits<std::size_t>::max() / 2 && moments.size() >= 2 * node_count;
+    const std::optional<std::size_t> required_moment_count = internal::qmom_required_moment_count(node_count, qmom_case.qmom_options.family);
+    const bool enough_moments = node_count > 0 && required_moment_count.has_value() && moments.size() >= *required_moment_count;
     if (policy != nullptr && policy->check_mode != RealizabilityCheckMode::None && enough_moments)
     {
         RealizabilityResult realizability = policy_verdict(moments, *policy);
@@ -244,9 +272,9 @@ namespace
     return candidate;
 }
 
-// The given moments must be finite throughout, including those above order
-// 2n - 1, which the reconstruction does not read and the state replaces with
-// the moments of its quadrature.
+// The given moments must be finite throughout, including those the
+// reconstruction does not read, above order 2n - 1, or 2n for the hyperbolic
+// family, which the state replaces with the moments of its quadrature.
 [[nodiscard]] QmomStateCandidate checked_qmom_state_candidate(const QmomCase& qmom_case, const MomentSet& moments,
                                                               const RealizabilityPolicy* const policy)
 {
@@ -793,22 +821,41 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
                        failed_phase_space_dimension(result, hierarchy)};
 }
 
-[[nodiscard]] CqmomResult invalid_cqmom_hierarchy_result(const PhaseSpaceHierarchy& hierarchy, const bool adaptive)
+[[nodiscard]] CqmomResult invalid_cqmom_result(const PhaseSpaceHierarchy& hierarchy, const bool adaptive, std::string message)
 {
     return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(hierarchy, {}, {}, adaptive, !adaptive, {}),
                        CqmomStatus::invalid_input,
-                       "CQMOM node count is too large to derive the required moment extent.",
+                       std::move(message),
                        {},
                        0};
+}
+
+// The conditional inversions of CQMOM are classical; the other families are
+// refused rather than dropped by to_wheeler_options.
+[[nodiscard]] bool cqmom_supports(const QmomFamily family)
+{
+    switch (family)
+    {
+    case QmomFamily::classical:
+        return true;
+    case QmomFamily::hyperbolic:
+        return false;
+    }
+    return false;
 }
 } // namespace
 
 CqmomResult compute_cqmom(const CqmomCase& cqmom_case)
 {
     const PhaseSpaceHierarchy& hierarchy = cqmom_case.moments.layout.hierarchy;
+    if (!cqmom_supports(cqmom_case.qmom_options.family))
+    {
+        return invalid_cqmom_result(hierarchy, cqmom_case.qmom_options.adaptive, "CQMOM supports only the classical QMOM family.");
+    }
     if (!internal::cqmom_required_moment_extents_representable(hierarchy))
     {
-        return invalid_cqmom_hierarchy_result(hierarchy, cqmom_case.qmom_options.adaptive);
+        return invalid_cqmom_result(hierarchy, cqmom_case.qmom_options.adaptive,
+                                    "CQMOM node count is too large to derive the required moment extent.");
     }
     const internal::RecursiveQuadratureResult result =
         internal::compute_recursive_quadrature_from_moment_data({hierarchy,
@@ -832,9 +879,14 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, const PreparedCq
                                    std::vector<CqmomActiveBranchCount>* const accepted_active_branch_counts)
 {
     const PhaseSpaceHierarchy& hierarchy = cqmom_case.moments.layout.hierarchy;
+    if (!cqmom_supports(cqmom_case.qmom_options.family))
+    {
+        return invalid_cqmom_result(hierarchy, cqmom_case.qmom_options.adaptive, "CQMOM supports only the classical QMOM family.");
+    }
     if (!cqmom_required_moment_extents_representable(hierarchy))
     {
-        return invalid_cqmom_hierarchy_result(hierarchy, cqmom_case.qmom_options.adaptive);
+        return invalid_cqmom_result(hierarchy, cqmom_case.qmom_options.adaptive,
+                                    "CQMOM node count is too large to derive the required moment extent.");
     }
     // The traversal already knows the node count it accepts for each branch,
     // so a state takes its active counts from the reconstruction.

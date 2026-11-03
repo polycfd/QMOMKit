@@ -10,6 +10,9 @@ namespace public_header_brace_initialization
 [[maybe_unused]] void initialize_with_trailing_members_omitted()
 {
     [[maybe_unused]] const qmomkit::QmomCase qmom_case{qmomkit::MomentSet{1.0, 0.0}, 1};
+    // The family follows the four older options, which keep their positions.
+    [[maybe_unused]] const qmomkit::QmomOptions fixed{false};
+    [[maybe_unused]] const qmomkit::QmomOptions hyperbolic{true, 1.0e-10, 1.0e-10, 1.0e-30, qmomkit::QmomFamily::hyperbolic};
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({1, 1}));
     [[maybe_unused]] const qmomkit::CqmomCase cqmom_case{qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size(), 1.0)}};
     [[maybe_unused]] const qmomkit::RealizabilityPolicy policy{qmomkit::RealizabilityCheckMode::FinalOnly};

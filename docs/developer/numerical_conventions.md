@@ -21,7 +21,7 @@ derived from a quadrature, never an input to reconstruction or evolution.
 
 | Container | Indexed by | Storage |
 | --- | --- | --- |
-| `MomentSet` | order $k$ | `values()[k]` is $m_k$; $N$ nodes need $m_0, \ldots, m_{2N-1}$. |
+| `MomentSet` | order $k$ | `values()[k]` is $m_k$; $N$ nodes need $m_0, \ldots, m_{2N-1}$, and the hyperbolic family with node count $N$ needs $m_0, \ldots, m_{2N}$. |
 | `MultiIndex` | phase-space dimension | `std::vector<std::size_t>`, one order or node index per dimension. |
 | `RawMomentTensor` | multi-index $\alpha$ | `values[flatten_multi_index(alpha, extents)]`. |
 | `CqmomMomentData` | position in its layout | `values[i]` is the moment of `layout.required_indices` row `i`. |
@@ -153,14 +153,14 @@ Terms the [user guide](../user/3_concepts.md#terms) does not define:
 
 | Term | Meaning |
 | --- | --- |
-| active node count | Nodes that a branch or a QMOM state uses; at most the configured count. |
+| active node count | Nodes that a branch or a QMOM state uses; at most the configured count, or for a hyperbolic QMOM state the maximum count $N+1$. |
 | canonical moments | Moments recomputed from an accepted quadrature; a state stores these, not the moments it was given. |
 | ceiling | The largest node count a branch may return in one reconstruction, apart from the growth trial: its recorded active count when a state's counts are passed in, otherwise its configured count. |
 | child case | Internal layout data for the children of a branch with a given node count ([CQMOM](cqmom.md#branch-layouts)). |
 | conditional moments | Moments of later coordinates conditioned on a node of earlier ones, from a conditional Vandermonde solve. |
 | conditioning level | Position `l` in the conditioning order. |
 | conditioning path | `ConditioningPath`: the node index chosen at each level from the root to a node. |
-| configured node count | Node count of a dimension in the hierarchy: the maximum of every branch. |
+| configured node count | Node count of a dimension in the hierarchy: the maximum of every branch. For QMOM, the case's `node_count` $N$; `maximum_node_count()` is $N$, or $N+1$ for the hyperbolic family. |
 | full tensor | `RawMomentTensor`: every moment in a rectangular box; an input or output format that cases and states never hold. |
 | growth | A branch trying one more node than its active count, allowed only in the post-source reconstruction. |
 | local weight | Weight from one branch inversion; terminal weights are products of local weights. |

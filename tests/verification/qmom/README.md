@@ -118,6 +118,12 @@ reductions occur.
   count, the abscissas times $2^p$ and the weights times $2^q$ must match bit
   for bit, in fixed and adaptive inversion. No decision may depend on the unit
   or the number density, except the absolute cutoff on $m_0$.
+- `hyperbolic_power_of_two_scaling_is_exact`: the same for the hyperbolic
+  family, whose recurrence coefficients, closure (their mean) and rounding
+  bounds scale exactly. Rules of two to eight points are given a node count
+  $n$ from 1 to the point count less one and $m_0, \ldots, m_{2n}$, so that
+  most lie in the interior; rules of $n + 1$ nodes and classical fallbacks must
+  both occur, and no rule may have more nodes than points.
 - `no_more_nodes_than_weighted_points`: a fixed request for more nodes than
   points is `not_realizable`, and adaptive inversion returns at most as many
   nodes as points. No node may be made of rounding.

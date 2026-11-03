@@ -12,7 +12,8 @@ namespace qmomkit
  * Stores a one-dimensional raw moment sequence.
  *
  * moments[k] is the raw moment of order k, m_k = sum_i w_i x_i^k. A
- * quadrature with n nodes requires moments 0 through 2*n - 1.
+ * classical quadrature with n nodes requires moments 0 through 2*n - 1; a
+ * hyperbolic one with node count n, moments 0 through 2*n (`QmomFamily`).
  */
 class MomentSet
 {

@@ -12,6 +12,12 @@ order is a separate permutation that only sets the traversal; see
 [Numerical conventions](numerical_conventions.md). Below, $c_l$ is the
 coordinate at conditioning level $l$ and $N_l$ its configured node count.
 
+Every inversion of CQMOM is classical: `compute_cqmom(const CqmomCase&)` and
+`internal::compute_cqmom_internal`, through which every CQMOM reconstruction
+passes, refuse a `QmomOptions::family` other than `classical` as
+`invalid_input`, so cases, prepared cases, state candidates and the evolution
+all refuse it.
+
 ## The recursion
 
 A *branch* at level $l$ is identified by its parent path, the node indices
@@ -206,7 +212,7 @@ nothing there.
 
 | `CqmomStatus` | Cause |
 | --- | --- |
-| `invalid_input` | Invalid conditional options or diagnostic level, a layout or values that do not fit the hierarchy, non-finite moments, invalid bounds or active counts, node counts whose $2N$ overflows. |
+| `invalid_input` | Invalid conditional options or diagnostic level, a layout or values that do not fit the hierarchy, non-finite moments, invalid bounds or active counts, node counts whose $2N$ overflows, a QMOM family other than `classical`. |
 | `qmom_failed` | A branch's Wheeler inversion failed, or a fixed branch returned another count. |
 | `conditional_moment_failed` | A branch's conditional system could not be solved or had non-finite inputs. |
 

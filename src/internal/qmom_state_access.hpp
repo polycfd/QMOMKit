@@ -17,7 +17,9 @@ namespace qmomkit::internal
 class QmomStateAccess
 {
 public:
-    [[nodiscard]] static QmomState from_quadrature(QmomResult quadrature, const std::size_t moment_count, const std::size_t maximum_node_count,
+    // node_count is the n of the case: the state's maximum node count is n
+    // for the classical family and n + 1 for the hyperbolic one.
+    [[nodiscard]] static QmomState from_quadrature(QmomResult quadrature, const std::size_t moment_count, const std::size_t node_count,
                                                    QmomOptions qmom_options, std::optional<AbscissaBounds> abscissa_bounds = {})
     {
         if (moment_count == 0)
@@ -43,7 +45,13 @@ public:
 
         const std::vector<double> moments =
             reconstruct_raw_moments(Quadrature1D{quadrature.abscissas, quadrature.weights, QuadratureStatus::success, ""}, moment_count);
-        return QmomState{std::move(moments), std::move(quadrature), maximum_node_count, std::move(qmom_options), std::move(abscissa_bounds)};
+        return QmomState{std::move(moments), std::move(quadrature), node_count, std::move(qmom_options), std::move(abscissa_bounds)};
+    }
+
+    // The n of the state's case.
+    [[nodiscard]] static std::size_t node_count(const QmomState& state) noexcept
+    {
+        return state.node_count_;
     }
 };
 

@@ -5,6 +5,11 @@
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().maximum_node_count()), std::size_t>);
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().qmom_options()), const qmomkit::QmomOptions&>);
 
+// The quadrature family is an option of its own, with the classical family as
+// its default.
+static_assert(std::is_same_v<decltype(qmomkit::QmomOptions::family), qmomkit::QmomFamily>);
+static_assert(qmomkit::QmomOptions{}.family == qmomkit::QmomFamily::classical);
+
 // The status of a state candidate distinguishes success from failure.
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomStateCandidate&>().ok()), bool>);
 static_assert(std::is_same_v<decltype(qmomkit::QmomStateCandidate::status), qmomkit::StateCandidateStatus>);

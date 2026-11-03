@@ -7,7 +7,10 @@
 //      density; only the absolute cutoff on m_0 does. Scaling the coordinate
 //      by 2^p and the number density by 2^q scales every moment exactly, so
 //      the result must scale exactly as well: the same status and node count,
-//      the abscissas times 2^p and the weights times 2^q, bit for bit.
+//      the abscissas times 2^p and the weights times 2^q, bit for bit. This
+//      holds for the classical and the hyperbolic family: the recurrence
+//      coefficients, their mean, which is the HyQMOM closure, and the rounding
+//      bounds tau_k scale exactly.
 //   2. The inversion never returns more nodes than the weighted points the
 //      moments are built from: a fixed request for more nodes is refused, and
 //      adaptive inversion returns at most as many nodes as there are points.
@@ -23,7 +26,12 @@
 //   weights span six decades. Up to two nodes more than the points are
 //   requested, so many sequences lie on the boundary of moment space, and both
 //   fixed-count refusals and adaptive reductions occur; the cases check that
-//   they do, so the verification cannot pass vacuously.
+//   they do, so the verification cannot pass vacuously. The hyperbolic family
+//   is given n from 1 to the point count less one and m_0, ..., m_{2n}, so
+//   that the moments lie in the interior unless the points cluster below the
+//   rounding of the recurrence; its case checks that rules of n + 1 nodes and
+//   classical fallbacks both occur, and that no rule has more nodes than
+//   points.
 //
 // Error metric and pass criteria
 //   Exact equality, no tolerance. Scalings that would take a moment out of the
@@ -47,7 +55,8 @@
 namespace
 {
 
-// Both cases draw the same rules from the same seed.
+// The two classical cases draw the same rules from the same seed; the
+// hyperbolic case draws its own from it.
 constexpr int rule_count = 2000;
 constexpr unsigned long long seed = 2026;
 
@@ -63,6 +72,31 @@ double uniform(std::mt19937_64& generator)
     return static_cast<double>(generator() >> 11U) * 0x1.0p-53;
 }
 
+// The first moment_count moments of point_count clustered weighted points.
+std::vector<double> draw_moments(std::mt19937_64& generator, const std::size_t point_count, const std::size_t moment_count)
+{
+    const double center = 8.0 * (uniform(generator) - 0.5);
+    const double spread = std::pow(10.0, -3.0 * uniform(generator));
+    std::vector<double> abscissas(point_count);
+    std::vector<double> weights(point_count);
+    for (std::size_t point = 0; point < point_count; ++point)
+    {
+        abscissas[point] = center + spread * (uniform(generator) - 0.5);
+        weights[point] = std::pow(10.0, -6.0 * uniform(generator));
+    }
+    std::vector<double> moments(moment_count, 0.0);
+    for (std::size_t point = 0; point < point_count; ++point)
+    {
+        double power = 1.0;
+        for (double& moment : moments)
+        {
+            moment += weights[point] * power;
+            power *= abscissas[point];
+        }
+    }
+    return moments;
+}
+
 // A clustered rule of one to eight weighted points and the 2N moments of a
 // request for N nodes, N between the point count and two more.
 Rule draw_rule(std::mt19937_64& generator)
@@ -70,26 +104,53 @@ Rule draw_rule(std::mt19937_64& generator)
     Rule rule;
     rule.point_count = 1 + static_cast<std::size_t>(generator() % 8U);
     rule.requested_node_count = rule.point_count + static_cast<std::size_t>(generator() % 3U);
-    const double center = 8.0 * (uniform(generator) - 0.5);
-    const double spread = std::pow(10.0, -3.0 * uniform(generator));
-    std::vector<double> abscissas(rule.point_count);
-    std::vector<double> weights(rule.point_count);
-    for (std::size_t point = 0; point < rule.point_count; ++point)
+    rule.moments = draw_moments(generator, rule.point_count, 2 * rule.requested_node_count);
+    return rule;
+}
+
+// A clustered rule of two to eight weighted points and the 2n + 1 moments of a
+// hyperbolic request with node count n, n from 1 to the point count less one.
+Rule draw_hyperbolic_rule(std::mt19937_64& generator)
+{
+    Rule rule;
+    rule.point_count = 2 + static_cast<std::size_t>(generator() % 7U);
+    rule.requested_node_count = 1 + static_cast<std::size_t>(generator() % (rule.point_count - 1));
+    rule.moments = draw_moments(generator, rule.point_count, 2 * rule.requested_node_count + 1);
+    return rule;
+}
+
+// Inverts the rule at every representable power-of-two scaling and requires
+// the result of base, scaled exactly; returns the number of scaled inversions.
+std::size_t verify_scaled_inversions(const Rule& rule, const qmomkit::QmomOptions& options, const qmomkit::QmomResult& base)
+{
+    std::size_t scaled_inversions = 0;
+    for (const int coordinate_exponent : {-40, -7, 13, 60})
     {
-        abscissas[point] = center + spread * (uniform(generator) - 0.5);
-        weights[point] = std::pow(10.0, -6.0 * uniform(generator));
-    }
-    rule.moments.assign(2 * rule.requested_node_count, 0.0);
-    for (std::size_t point = 0; point < rule.point_count; ++point)
-    {
-        double power = 1.0;
-        for (double& moment : rule.moments)
+        for (const int density_exponent : {-50, 0, 30})
         {
-            moment += weights[point] * power;
-            power *= abscissas[point];
+            std::vector<double> scaled(rule.moments.size());
+            bool exact = true;
+            for (std::size_t order = 0; order < scaled.size(); ++order)
+            {
+                scaled[order] = std::ldexp(rule.moments[order], density_exponent + coordinate_exponent * static_cast<int>(order));
+                exact = exact && (rule.moments[order] == 0.0 || std::fpclassify(scaled[order]) == FP_NORMAL);
+            }
+            if (!exact)
+            {
+                continue;
+            }
+            const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet{scaled}, rule.requested_node_count, options);
+            ++scaled_inversions;
+            QMOMKIT_VERIFY_CHECK(result.status == base.status);
+            QMOMKIT_VERIFY_CHECK(result.weights.size() == base.weights.size());
+            for (std::size_t node = 0; node < base.weights.size(); ++node)
+            {
+                QMOMKIT_VERIFY_CHECK(result.abscissas[node] == std::ldexp(base.abscissas[node], coordinate_exponent));
+                QMOMKIT_VERIFY_CHECK(result.weights[node] == std::ldexp(base.weights[node], density_exponent));
+            }
         }
     }
-    return rule;
+    return scaled_inversions;
 }
 
 void verify_power_of_two_scaling_is_exact()
@@ -108,37 +169,38 @@ void verify_power_of_two_scaling_is_exact()
             const qmomkit::QmomResult base = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, options);
             refusals += !adaptive && !base.ok();
             reductions += base.ok() && base.weights.size() < rule.requested_node_count;
-            for (const int coordinate_exponent : {-40, -7, 13, 60})
-            {
-                for (const int density_exponent : {-50, 0, 30})
-                {
-                    std::vector<double> scaled(rule.moments.size());
-                    bool exact = true;
-                    for (std::size_t order = 0; order < scaled.size(); ++order)
-                    {
-                        scaled[order] = std::ldexp(rule.moments[order], density_exponent + coordinate_exponent * static_cast<int>(order));
-                        exact = exact && (rule.moments[order] == 0.0 || std::fpclassify(scaled[order]) == FP_NORMAL);
-                    }
-                    if (!exact)
-                    {
-                        continue;
-                    }
-                    const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet{scaled}, rule.requested_node_count, options);
-                    ++scaled_inversions;
-                    QMOMKIT_VERIFY_CHECK(result.status == base.status);
-                    QMOMKIT_VERIFY_CHECK(result.weights.size() == base.weights.size());
-                    for (std::size_t node = 0; node < base.weights.size(); ++node)
-                    {
-                        QMOMKIT_VERIFY_CHECK(result.abscissas[node] == std::ldexp(base.abscissas[node], coordinate_exponent));
-                        QMOMKIT_VERIFY_CHECK(result.weights[node] == std::ldexp(base.weights[node], density_exponent));
-                    }
-                }
-            }
+            scaled_inversions += verify_scaled_inversions(rule, options, base);
         }
     }
     QMOMKIT_VERIFY_CHECK(scaled_inversions > 0);
     QMOMKIT_VERIFY_CHECK(refusals > 0);
     QMOMKIT_VERIFY_CHECK(reductions > 0);
+}
+
+void verify_hyperbolic_power_of_two_scaling_is_exact()
+{
+    std::mt19937_64 generator(seed);
+    std::size_t scaled_inversions = 0;
+    std::size_t hyperbolic_rules = 0;
+    std::size_t classical_fallbacks = 0;
+    for (int trial = 0; trial < rule_count; ++trial)
+    {
+        const Rule rule = draw_hyperbolic_rule(generator);
+        for (const bool adaptive : {false, true})
+        {
+            qmomkit::QmomOptions options;
+            options.adaptive = adaptive;
+            options.family = qmomkit::QmomFamily::hyperbolic;
+            const qmomkit::QmomResult base = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, options);
+            QMOMKIT_VERIFY_CHECK(base.weights.size() <= rule.point_count);
+            hyperbolic_rules += base.ok() && base.weights.size() == rule.requested_node_count + 1;
+            classical_fallbacks += base.ok() && base.weights.size() <= rule.requested_node_count;
+            scaled_inversions += verify_scaled_inversions(rule, options, base);
+        }
+    }
+    QMOMKIT_VERIFY_CHECK(scaled_inversions > 0);
+    QMOMKIT_VERIFY_CHECK(hyperbolic_rules > 0);
+    QMOMKIT_VERIFY_CHECK(classical_fallbacks > 0);
 }
 
 void verify_no_more_nodes_than_weighted_points()
@@ -173,6 +235,7 @@ int main(const int argc, char** argv)
     return qmomkit::test::dispatch_test_case(argc, argv,
                                              {
                                                  {"power_of_two_scaling_is_exact", verify_power_of_two_scaling_is_exact},
+                                                 {"hyperbolic_power_of_two_scaling_is_exact", verify_hyperbolic_power_of_two_scaling_is_exact},
                                                  {"no_more_nodes_than_weighted_points", verify_no_more_nodes_than_weighted_points},
                                              });
 }

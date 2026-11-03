@@ -21,8 +21,10 @@ away.
 
 A quadrature replaces $n$ by $N$ nodes; node $i$ has a weight $w_i$ and an
 abscissa $\xi_i$, its position in phase space, chosen so that
-$m_k = \sum_i w_i \xi_i^k$. $N$ nodes need the moments $m_0, \ldots, m_{2N-1}$.
-The weights add up to $m_0$.
+$m_k = \sum_i w_i \xi_i^k$. $N$ nodes need the moments $m_0, \ldots, m_{2N-1}$;
+the hyperbolic family takes $m_{2N}$ as well and returns up to $N + 1$ nodes
+([QMOM families](4_moments_and_quadrature.md#qmom-families)). The weights add
+up to $m_0$.
 
 ## Phase space
 

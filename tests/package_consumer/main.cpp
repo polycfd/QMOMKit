@@ -10,6 +10,7 @@ namespace package_consumer_pins
 // signature. The pins have external linkage, so each one is emitted and must be
 // resolved against the installed library when this consumer is linked.
 
+using WheelerRecurrenceEvaluation = qmomkit::WheelerRecurrence (*)(const qmomkit::MomentSet&, std::size_t);
 using CqmomAdvectionStage = qmomkit::CqmomPhaseSpaceEvolutionResult (*)(const qmomkit::CqmomState&, double, double,
                                                                         const qmomkit::PhaseSpaceVelocity&,
                                                                         const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
@@ -24,6 +25,7 @@ using CqmomBoundaryMomentSourceStage = qmomkit::CqmomPhaseSpaceEvolutionResult (
 CqmomAdvectionStage cqmom_advection_stage = qmomkit::advance_cqmom_advection;
 CqmomMomentSourceStage cqmom_moment_source_stage = qmomkit::advance_cqmom_moment_source;
 CqmomBoundaryMomentSourceStage cqmom_boundary_moment_source_stage = qmomkit::advance_cqmom_moment_source;
+WheelerRecurrenceEvaluation wheeler_recurrence_evaluation = qmomkit::compute_wheeler_recurrence;
 
 } // namespace package_consumer_pins
 
@@ -37,6 +39,11 @@ int main()
         return 1;
     }
     if (result.weights.size() != 2 || result.abscissas.size() != 2)
+    {
+        return 1;
+    }
+    const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(moments, 2);
+    if (!recurrence.ok() || recurrence.sigma.size() != 2 || recurrence.sigma[1] <= recurrence.tolerance[1])
     {
         return 1;
     }

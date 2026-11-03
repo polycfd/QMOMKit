@@ -4,7 +4,8 @@
 
 These cases verify the inversion of raw moments into a one-dimensional
 quadrature, through `load_qmom` and `compute_qmom` and through the low-level
-Wheeler inversion `compute_quadrature`. A rule of $n$ weighted points is
+Wheeler inversion `compute_quadrature`, whose recurrence
+`compute_wheeler_recurrence` reports. A rule of $n$ weighted points is
 determined by its first $2n$ moments, so each reference has one correct answer.
 They also check the contracts of [QMOM](../../../docs/developer/qmom.md): $m_0$
 is the number density and is not normalized, a fixed node count is delivered or
@@ -39,6 +40,23 @@ moments, including the eight-point rule at number density 2500, three points
 scaled by every fourth power of ten from $10^{-20}$ to $10^{20}$, and droplet
 diameters of 20 to 200 micrometers given in meters
 (`droplet_diameters_in_metres_are_recovered`).
+
+### Wheeler recurrence
+
+`verification_wheeler_recurrence_exact_<case>` (`wheeler_recurrence_exact.cpp`).
+`compute_wheeler_recurrence` must return the recurrence of
+[QMOM](../../../docs/developer/qmom.md#wheeler-inversion) as exact rational
+arithmetic gives it, for rules of two to five weighted points
+(`two_points` to `five_points`), a symmetric rule with $a_k = 0$
+(`symmetric_three_points`) and a rule at number density 1024
+(`three_points_at_number_density_1024`). Nodes and weights are short binary
+fractions, so the moments are exact in double. The references for $a_k$, $b_k$
+and $\sigma_{k,k}$ were computed from those moments with Python's `fractions`,
+by the script in the test source, and are stored to 17 significant digits; the
+coefficients of the two-point and symmetric rules are exact in double, those of
+the other rules are not. Entry 0 must hold $a_0 = m_1/m_0$, $b_0 = 0$,
+$\sigma_{0,0} = m_0$ and tolerance 0, and every $\tau_k$ must be finite, positive
+and below $\sigma_{k,k}$, so that all $n$ points are supported.
 
 ### Moment-space boundary
 
@@ -124,6 +142,7 @@ one node.
 | Classical rules | $10^{-12}$ | both absolute and relative to $\max(\lvert\text{reference}\rvert, 1)$ | observed $10^{-16}$ to $10^{-14}$ |
 | Wheeler, up to three points | $10^{-14}$ to $10^{-11}$ per case | absolute | observed $10^{-15}$ to $10^{-13}$ |
 | Wheeler, from four points and the scaled points | $10^{-12}$; $10^{-10}$ for eight points, $2 \times 10^{-12}$ for the droplets | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight |
+| Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
 | Failure statuses | none | exact status and message fragment | |
@@ -131,7 +150,7 @@ one node.
 ## Reproduce
 
 ```bash
-ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|adaptive_qmom)_' --output-on-failure
+ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|adaptive_qmom)_' --output-on-failure
 ```
 
 See [Building and running](../../../docs/developer/testing.md#building-and-running).

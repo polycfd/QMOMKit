@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <limits>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -380,6 +381,66 @@ struct Recurrence
 Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options)
 {
     return compute_quadrature_at_scale(moments, max_nodes, options, 0.0);
+}
+
+WheelerRecurrence compute_wheeler_recurrence(const MomentSet& moments, const std::size_t node_count)
+{
+    const auto failure = [](const QuadratureStatus status, std::string message)
+    {
+        WheelerRecurrence result;
+        result.status = status;
+        result.message = std::move(message);
+        return result;
+    };
+
+    // The input checks of compute_quadrature_at_scale, in its order and with
+    // its messages, except that these name node_count; a change to one set of
+    // checks belongs in the other. The option and cutoff checks have no
+    // counterpart here, and since the recurrence divides by m0, m0 = 0 is
+    // refused instead.
+    if (node_count == 0)
+    {
+        return failure(QuadratureStatus::invalid_input, "node_count must be positive.");
+    }
+    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, node_count);
+    if (!required_moment_count.has_value())
+    {
+        return failure(QuadratureStatus::invalid_input, "node_count is too large to derive the required moment count.");
+    }
+    if (moments.size() < *required_moment_count)
+    {
+        return failure(QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n entries.");
+    }
+    if (!required_moments_are_finite(moments, *required_moment_count))
+    {
+        return failure(QuadratureStatus::invalid_input, "Moment sequence contains non-finite values.");
+    }
+    if (moments[0] < 0.0)
+    {
+        return failure(QuadratureStatus::not_realizable, "Moment sequence is not realizable: m0 < 0.");
+    }
+    if (moments[0] == 0.0)
+    {
+        return failure(QuadratureStatus::not_realizable, "Moment sequence has m0 = 0.");
+    }
+
+    // The recurrence of the QMOM path, which passes coordinate scale zero.
+    // compute_recurrence leaves diagonal entry 0 unused, since no test is made
+    // at k = 0; sigma(0, 0) is m0. No record_wheeler_call(): the counter
+    // counts inversions, and this function inverts nothing.
+    const Recurrence recurrence = compute_recurrence(moments, node_count, 0.0);
+    WheelerRecurrence result;
+    result.a = recurrence.a;
+    result.b = recurrence.b;
+    result.sigma.assign(node_count, 0.0);
+    result.tolerance.assign(node_count, 0.0);
+    result.sigma[0] = moments[0];
+    for (std::size_t k = 1; k < node_count; ++k)
+    {
+        result.sigma[k] = recurrence.diagonal[k].sigma;
+        result.tolerance[k] = recurrence.diagonal[k].tolerance;
+    }
+    return result;
 }
 
 namespace internal

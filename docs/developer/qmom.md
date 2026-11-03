@@ -78,6 +78,15 @@ times the coordinate to the power $2k$, so the test depends on neither unit
 nor number density. $\tau_k$ also grows with the cancellation of
 a distribution far from the origin.
 
+`compute_wheeler_recurrence` returns $a_k$, $b_k$, $\sigma_{k,k}$ and $\tau_k$
+for $k=0,\ldots,N-1$ as `compute_recurrence` computes them for the
+reconstruction, with $s=0$; entry 0 holds $\sigma_{0,0}=m_0$ and $\tau_0=0$,
+since no test is made at $k=0$. The test of
+[Fixed node count](#fixed-node-count) and step 1 of
+[Adaptive reduction](#adaptive-reduction) act on these values. Its input
+checks are those of `compute_quadrature_at_scale`, without the option and
+`cutoff` tests, and $m_0=0$ is `not_realizable`.
+
 ## Fixed node count
 
 With `adaptive = false`, the first $k\in\{1,\ldots,N-1\}$ with
@@ -189,6 +198,7 @@ whether the vectors are empty.
 | --- | --- | --- |
 | `compute_qmom` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public entry; bounds dispatch, status mapping. |
 | `compute_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public low-level Wheeler inversion, $s=0$. |
+| `compute_wheeler_recurrence` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public Wheeler recurrence and rounding bounds, $s=0$. |
 | `compute_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Inversion of CQMOM conditional moments with scale $s$. |
 | `select_bounded_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Bounds acceptance for QMOM and CQMOM. |
 | `cqmom_coordinate_scales` | [`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp) | Coordinate scales $s$. |

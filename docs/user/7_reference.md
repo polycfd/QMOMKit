@@ -151,6 +151,7 @@ function.
 | Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `active_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
 | Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` and `_batch_with_index` forms | `phase_space_evolution.hpp` |
 | Check realizability | `check_realizability` | `realizability.hpp` |
+| Inspect the Wheeler recurrence | `compute_wheeler_recurrence` | `wheeler.hpp` |
 | Derived moments | `evaluate_generalized_moment`, `reconstruct_raw_moments` | `moment_reconstruction.hpp` |
 | Write output | `MomentWriter`, `QuadratureWriter` | `output.hpp` |
 | Without a state | `advance_nodes`, `advance_qmom_moments_with_source`, `advance_cqmom_moments_with_source` | `node_advection.hpp`, `moment_source.hpp` |

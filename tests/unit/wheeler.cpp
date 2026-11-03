@@ -8,6 +8,7 @@
 #include <limits>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace
@@ -608,6 +609,191 @@ void test_invalid_wheeler_options_fail_before_inversion()
     assert(!quadrature.message.empty());
 }
 
+void assert_failed_recurrence(const qmomkit::WheelerRecurrence& recurrence, const qmomkit::QuadratureStatus status, const std::string& message)
+{
+    assert(!recurrence.ok());
+    assert(recurrence.status == status);
+    assert(recurrence.message == message);
+    assert(recurrence.a.empty());
+    assert(recurrence.b.empty());
+    assert(recurrence.sigma.empty());
+    assert(recurrence.tolerance.empty());
+}
+
+void test_recurrence_reports_input_failures()
+{
+    using qmomkit::QuadratureStatus;
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const qmomkit::MomentSet two_points = moments_from_nodes({-1.0, 2.0}, {0.4, 0.6});
+
+    assert_failed_recurrence(qmomkit::compute_wheeler_recurrence(two_points, 0), QuadratureStatus::invalid_input, "node_count must be positive.");
+    assert_failed_recurrence(qmomkit::compute_wheeler_recurrence(two_points, std::numeric_limits<std::size_t>::max()),
+                             QuadratureStatus::invalid_input, "node_count is too large to derive the required moment count.");
+    assert_failed_recurrence(qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{1.0, 0.8, 2.8}, 2), QuadratureStatus::invalid_input,
+                             "Moment sequence has fewer than 2*n entries.");
+    assert_failed_recurrence(qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{1.0, 0.8, nan, 4.4}, 2), QuadratureStatus::invalid_input,
+                             "Moment sequence contains non-finite values.");
+    assert_failed_recurrence(qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{-1.0, 0.8, 2.8, 4.4}, 2), QuadratureStatus::not_realizable,
+                             "Moment sequence is not realizable: m0 < 0.");
+    for (const double zero : {0.0, -0.0})
+    {
+        assert_failed_recurrence(qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{zero, 0.8, 2.8, 4.4}, 2), QuadratureStatus::not_realizable,
+                                 "Moment sequence has m0 = 0.");
+    }
+
+    // Moments beyond m_{2n-1} are not read.
+    assert(qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{1.0, 0.8, 2.8, 4.4, nan}, 2).ok());
+}
+
+void test_recurrence_entry_zero_and_lengths()
+{
+    const std::vector<double> points{-1.25, 0.5, 1.0, 2.75};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25};
+    const qmomkit::MomentSet moments = moments_from_nodes(points, weights);
+    for (std::size_t n = 1; n <= points.size(); ++n)
+    {
+        const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(moments, n);
+        assert(recurrence.ok());
+        assert(recurrence.message.empty());
+        assert(recurrence.a.size() == n);
+        assert(recurrence.b.size() == n);
+        assert(recurrence.sigma.size() == n);
+        assert(recurrence.tolerance.size() == n);
+        assert(recurrence.a[0] == moments[1] / moments[0]);
+        assert(recurrence.b[0] == 0.0);
+        assert(recurrence.sigma[0] == moments[0]);
+        assert(recurrence.tolerance[0] == 0.0);
+    }
+}
+
+void test_recurrence_sigma_is_m0_times_the_product_of_b()
+{
+    // sigma(k, k) = m0 b_1 ... b_k, up to the rounding of the product.
+    const qmomkit::MomentSet moments = moments_from_nodes({-1.25, 0.5, 1.0, 2.75}, {0.25, 0.375, 0.125, 0.25});
+    const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(moments, 4);
+    assert(recurrence.ok());
+    double product = moments[0];
+    for (std::size_t k = 1; k < 4; ++k)
+    {
+        product *= recurrence.b[k];
+        assert(recurrence.sigma[k] > 0.0);
+        assert(std::abs(recurrence.sigma[k] - product) <= 1.0e-14 * std::abs(product));
+    }
+}
+
+void test_recurrence_tolerance_is_the_documented_bound()
+{
+    // tau_k = 100 epsilon sigma-bar(k, k) at coordinate scale zero, as the
+    // documented formula evaluates it independently. At scale 1e-3 the bound
+    // lies far below m0, so a floor m0 s^(2k) with s of order one would show.
+    const std::vector<double> points{-1.25, 0.5, 1.0, 2.75};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25};
+    for (const double scale : {1.0e-3, 1.0, 1.0e3})
+    {
+        std::vector<double> scaled = points;
+        for (double& point : scaled)
+        {
+            point *= scale;
+        }
+        const qmomkit::MomentSet moments = moments_from_nodes(scaled, weights);
+        const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(moments, points.size());
+        assert(recurrence.ok());
+        for (std::size_t k = 1; k < points.size(); ++k)
+        {
+            const double expected = documented_rounding_bound(moments.values(), k);
+            assert(std::abs(recurrence.tolerance[k] - expected) <= 1.0e-12 * expected);
+        }
+    }
+}
+
+// The usable count of adaptive inversion: the first k >= 1 with
+// sigma(k, k) <= tau_k, or n if there is none. For distinct points of positive
+// weight and rmin = eabs = 0, it is the count returned.
+std::size_t count_from_recurrence(const qmomkit::WheelerRecurrence& recurrence)
+{
+    for (std::size_t k = 1; k < recurrence.sigma.size(); ++k)
+    {
+        if (recurrence.sigma[k] <= recurrence.tolerance[k])
+        {
+            return k;
+        }
+    }
+    return recurrence.sigma.size();
+}
+
+// The k of a fixed-count refusal: the first k >= 1 with a finite tau_k and
+// |sigma(k, k)| <= tau_k, or zero if there is none.
+std::size_t refusal_from_recurrence(const qmomkit::WheelerRecurrence& recurrence)
+{
+    for (std::size_t k = 1; k < recurrence.sigma.size(); ++k)
+    {
+        if (std::isfinite(recurrence.tolerance[k]) && std::abs(recurrence.sigma[k]) <= recurrence.tolerance[k])
+        {
+            return k;
+        }
+    }
+    return 0;
+}
+
+void test_recurrence_decides_the_node_count()
+{
+    // Two nodes merge, alone (two requested, sigma(1, 1) crosses tau_1) or
+    // beside a third (three requested, sigma(2, 2) crosses tau_2), with the
+    // separation shrinking through the threshold. The adaptive count and the
+    // fixed-count refusal must follow the recurrence on both sides of it, for
+    // each configuration.
+    qmomkit::WheelerOptions adaptive;
+    adaptive.rmin = 0.0;
+    adaptive.eabs = 0.0;
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+
+    for (const auto& [base_points, weights] : {std::pair<std::vector<double>, std::vector<double>>{{1.0, 1.0}, {0.4, 0.6}},
+                                               std::pair<std::vector<double>, std::vector<double>>{{-1.0, 1.0, 1.0}, {0.3, 0.3, 0.4}}})
+    {
+        bool merged = false;
+        bool separated = false;
+        for (int exponent = 1; exponent <= 12; ++exponent)
+        {
+            std::vector<double> points = base_points;
+            points.back() += std::pow(10.0, -exponent);
+            const std::size_t n = points.size();
+            const qmomkit::MomentSet moments = moments_from_nodes(points, weights);
+            const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(moments, n);
+            assert(recurrence.ok());
+
+            const std::size_t count = count_from_recurrence(recurrence);
+            if (count < n)
+            {
+                merged = true;
+            }
+            else
+            {
+                separated = true;
+            }
+            const qmomkit::Quadrature1D adaptive_rule = qmomkit::compute_quadrature(moments, n, adaptive);
+            assert(adaptive_rule.ok());
+            assert(adaptive_rule.weights.size() == count);
+
+            const std::size_t refusal = refusal_from_recurrence(recurrence);
+            const qmomkit::Quadrature1D fixed_rule = qmomkit::compute_quadrature(moments, n, fixed);
+            if (refusal == 0)
+            {
+                assert(fixed_rule.ok());
+                assert(fixed_rule.weights.size() == n);
+            }
+            else
+            {
+                const std::string expected = "Moment sequence supports at most " + std::to_string(refusal) + (refusal == 1 ? " node:" : " nodes:");
+                assert(fixed_rule.status == qmomkit::QuadratureStatus::not_realizable);
+                assert(fixed_rule.message.rfind(expected, 0) == 0);
+            }
+        }
+        assert(merged);
+        assert(separated);
+    }
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -649,5 +835,10 @@ int main(const int argc, char** argv)
             {"fixed_count_refuses_sequences_supporting_fewer_nodes", test_fixed_count_refuses_sequences_supporting_fewer_nodes},
             {"fixed_count_reports_the_documented_rounding_bound", test_fixed_count_reports_the_documented_rounding_bound},
             {"invalid_wheeler_options_fail_before_inversion", test_invalid_wheeler_options_fail_before_inversion},
+            {"recurrence_reports_input_failures", test_recurrence_reports_input_failures},
+            {"recurrence_entry_zero_and_lengths", test_recurrence_entry_zero_and_lengths},
+            {"recurrence_sigma_is_m0_times_the_product_of_b", test_recurrence_sigma_is_m0_times_the_product_of_b},
+            {"recurrence_tolerance_is_the_documented_bound", test_recurrence_tolerance_is_the_documented_bound},
+            {"recurrence_decides_the_node_count", test_recurrence_decides_the_node_count},
         });
 }

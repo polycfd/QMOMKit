@@ -9,6 +9,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `compute_wheeler_recurrence`, which returns the Wheeler recurrence
+  coefficients, the diagonal of the Wheeler table and its rounding bounds as
+  every QMOM reconstruction computes them.
+
 ## [1.0.0] - 2026-10-28
 
 First public release.

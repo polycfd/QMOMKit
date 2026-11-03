@@ -344,6 +344,113 @@ values = 1.0, 0.5
     rejected("support_lower = 1.0\nsupport_upper = 1.0\n");
 }
 
+// A QMOM file for n = 2 with the given [phase_space] lines before its moments
+// or initialization.
+std::string qmom_file(const std::string& phase_space_lines, const std::string& rest)
+{
+    return "[phase_space]\nnode_counts = 2\n" + phase_space_lines + rest;
+}
+
+const std::string normal_initialization = "[initial]\ntype = distribution\nfamily = normal\nmean = 0\nstandard_deviation = 1\n";
+
+void test_qmom_family_key_selects_the_quadrature_family()
+{
+    // [phase_space] qmom_family sets QmomOptions::family, with explicit
+    // moments and with [initial]; without the key the family is classical.
+    const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
+    for (const std::string& rest : {five_moments, normal_initialization})
+    {
+        const auto hyperbolic = qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", rest));
+        assert(hyperbolic.ok());
+        assert(hyperbolic.value().qmom_options.family == qmomkit::QmomFamily::hyperbolic);
+        assert(hyperbolic.value().node_count == 2);
+
+        const auto classical = qmomkit::config::parse_qmom(qmom_file("qmom_family = classical\n", rest));
+        assert(classical.ok());
+        assert(classical.value().qmom_options.family == qmomkit::QmomFamily::classical);
+    }
+    const auto without_key = qmomkit::config::parse_qmom(qmom_text, "qmom-test");
+    assert(without_key.ok());
+    assert(without_key.value().qmom_options.family == qmomkit::QmomFamily::classical);
+}
+
+void test_qmom_family_rejects_other_values()
+{
+    // Another value or a list is invalid at the key's line, also where the
+    // initial condition alone is parsed and no order is inferred.
+    const std::string message = "f.qmom:3: phase_space.qmom_family must be classical or hyperbolic.";
+    for (const char* value : {"qmom_family = bogus\n", "qmom_family = hyperbolic, classical\n"})
+    {
+        const std::string text = qmom_file(value, "[moments]\nvalues = 1, 0, 1, 0, 3\n");
+        assert(qmomkit::config::parse_qmom(text, "f.qmom").error() == message);
+        assert(qmomkit::config::parse_qmom_initial_condition(text, "f.qmom").error() == message);
+        assert(qmomkit::config::parse_qmom_initial_condition(qmom_file(value, normal_initialization + "maximum_order = 4\n"), "f.qmom").error() ==
+               message);
+    }
+}
+
+void test_qmom_family_sets_the_inferred_maximum_order()
+{
+    // Without initial.maximum_order, the order is the highest the family
+    // reads: 2n = 4 for the hyperbolic family, 2n - 1 = 3 for the classical one.
+    for (const auto& [family_line, order] :
+         {std::pair<std::string, std::size_t>{"qmom_family = hyperbolic\n", 4}, std::pair<std::string, std::size_t>{"", 3}})
+    {
+        const std::string text = qmom_file(family_line, normal_initialization);
+        const auto initial_condition = qmomkit::config::parse_qmom_initial_condition(text);
+        assert(initial_condition.ok());
+        assert(std::get<qmomkit::config::DistributionInitialization>(initial_condition.value()).maximum_order == order);
+
+        const auto configured = qmomkit::config::parse_qmom(text);
+        assert(configured.ok());
+        assert(configured.value().moments.size() == order + 1);
+
+        // A mixture infers its order the same way.
+        const std::string mixture = qmom_file(family_line, "[initial]\ntype = mixture\n[initial.mixture.component.0]\nfamily = normal\n"
+                                                           "number_density = 1.0\nmean = 0\nstandard_deviation = 1\n");
+        const auto mixture_condition = qmomkit::config::parse_qmom_initial_condition(mixture);
+        assert(mixture_condition.ok());
+        assert(std::get<qmomkit::config::MixtureInitialization>(mixture_condition.value()).maximum_order == order);
+    }
+}
+
+void test_qmom_family_needs_two_n_plus_one_moments()
+{
+    // Four moments, given or generated, are too few for the hyperbolic family
+    // with n = 2.
+    const std::string message = "f.qmom: QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.";
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", "[moments]\nvalues = 1, 0, 1, 0\n"), "f.qmom").error() == message);
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", normal_initialization + "maximum_order = 3\n"), "f.qmom").error() ==
+           message);
+    assert(qmomkit::config::parse_qmom(qmom_file("", "[moments]\nvalues = 1, 0, 1, 0\n")).ok());
+}
+
+void test_qmom_family_takes_no_abscissa_bounds()
+{
+    // Bounds with the hyperbolic family are refused, from a file and from a
+    // C++ call of create_qmom_case; the classical family keeps them.
+    const std::string message = "The hyperbolic QMOM family takes no abscissa bounds.";
+    const std::string bounds = "support_lower = -5\nsupport_upper = 5\n";
+    const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, five_moments), "f.qmom").error() == "f.qmom: " + message);
+    assert(qmomkit::config::parse_qmom(qmom_file(bounds, five_moments)).ok());
+
+    const qmomkit::config::InitialConditionSpecification initial_condition{
+        qmomkit::config::ExplicitMomentInitialization{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 3.0}}};
+    qmomkit::QmomOptions hyperbolic;
+    hyperbolic.family = qmomkit::QmomFamily::hyperbolic;
+    const auto refused = qmomkit::config::create_qmom_case(initial_condition, 2, hyperbolic, "c++", qmomkit::AbscissaBounds{-5.0, 5.0});
+    assert(refused.error() == "c++: " + message);
+    assert(qmomkit::config::create_qmom_case(initial_condition, 2, hyperbolic, "c++").ok());
+}
+
+void test_cqmom_rejects_the_qmom_family_key()
+{
+    const auto configured =
+        qmomkit::config::parse_cqmom("[phase_space]\nnode_counts = 2, 2\nqmom_family = hyperbolic\n[moments]\nextents = 4, 4\n", "c.qmom");
+    assert(configured.error() == "c.qmom:3: Unknown key 'phase_space.qmom_family'.");
+}
+
 void test_qmom_distribution_initialization_matches_direct_api()
 {
     const std::string omitted_order_text = R"(
@@ -4575,6 +4682,12 @@ int main(const int argc, char** argv)
             {"configuration_result_api", test_configuration_result_api},
             {"valid_qmom_matches_programmatic_case", test_valid_qmom_matches_programmatic_case},
             {"qmom_case_parses_abscissa_bounds", test_qmom_case_parses_abscissa_bounds},
+            {"qmom_family_key_selects_the_quadrature_family", test_qmom_family_key_selects_the_quadrature_family},
+            {"qmom_family_rejects_other_values", test_qmom_family_rejects_other_values},
+            {"qmom_family_sets_the_inferred_maximum_order", test_qmom_family_sets_the_inferred_maximum_order},
+            {"qmom_family_needs_two_n_plus_one_moments", test_qmom_family_needs_two_n_plus_one_moments},
+            {"qmom_family_takes_no_abscissa_bounds", test_qmom_family_takes_no_abscissa_bounds},
+            {"cqmom_rejects_the_qmom_family_key", test_cqmom_rejects_the_qmom_family_key},
             {"qmom_distribution_initialization_matches_direct_api", test_qmom_distribution_initialization_matches_direct_api},
             {"all_supported_distribution_families_parse", test_all_supported_distribution_families_parse},
             {"qmom_mixture_initialization_matches_direct_api", test_qmom_mixture_initialization_matches_direct_api},

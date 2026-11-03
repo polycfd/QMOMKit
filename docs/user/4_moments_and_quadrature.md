@@ -205,8 +205,9 @@ are unrelated to the `support` of a realizability check.
 qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
 ```
 
-selects HyQMOM [[Fox & Laurent, 2022](https://www.doi.org/10.1137/21M1406143)].
-With node count $N$ it reads $m_0, \ldots, m_{2N}$, so give the case $2N + 1$
+or, in a file, `[phase_space] qmom_family = hyperbolic` selects HyQMOM
+[[Fox & Laurent, 2022](https://www.doi.org/10.1137/21M1406143)]. With node
+count $N$ it reads $m_0, \ldots, m_{2N}$, so give the case $2N + 1$
 moments, and returns up to $N + 1$ nodes, whose closure for $m_{2N+1}$ makes
 the moment system of free transport hyperbolic (shown for $N \le 9$). For
 moments in the interior of moment space it returns $N + 1$ nodes, without

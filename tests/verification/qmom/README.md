@@ -28,11 +28,17 @@ independently in `expected.hpp`:
 | `uniform_n2`, `uniform_n3` | Gauss-Legendre mapped to $[0, 1]$ |
 | `exponential_n2`, `exponential_n3` | Gauss-Laguerre, $\alpha = 0$ |
 | `gaussian_n2`, `gaussian_n3` | Gauss-Hermite for the weight $e^{-\xi^2/2}/\sqrt{2\pi}$ |
+| `hyperbolic_gaussian_n1`, `hyperbolic_gaussian_n2`, `hyperbolic_normal_distribution_n2` | the 2- and 3-point Gauss-Hermite rules, from `qmom_family = hyperbolic` with node count 1 and 2 |
 
 The sorted nodes and the weights must match the rule; the weights must be
 positive, sum to $m_0$ and rebuild every moment. Uniform nodes must lie in
 $[0, 1]$, exponential nodes must be positive, uniform and Gaussian rules must
-be symmetric, and Gaussian odd moments must vanish.
+be symmetric, and Gaussian odd moments must vanish. The hyperbolic fixtures
+give the standard normal moments $m_0, \ldots, m_{2n}$, explicitly or, in
+`hyperbolic_normal_distribution_n2`, through `[initial]` without
+`maximum_order`, so that the inferred order $2n$ is checked as well. For
+moments symmetric about their mean the closure is exact, and the HyQMOM rule
+with node count $n$ is the $(n+1)$-point Gauss rule.
 
 ### Wheeler inversion
 
@@ -162,7 +168,7 @@ one node.
 
 | Cases | Tolerance | Metric | Why |
 | --- | --- | --- | --- |
-| Classical rules | $10^{-12}$ | both absolute and relative to $\max(\lvert\text{reference}\rvert, 1)$ | observed $10^{-16}$ to $10^{-14}$ |
+| Gauss and manufactured rules, the hyperbolic fixtures included | $10^{-12}$ | both absolute and relative to $\max(\lvert\text{reference}\rvert, 1)$ | observed $10^{-16}$ to $10^{-14}$ |
 | Wheeler, up to three points | $10^{-14}$ to $10^{-11}$ per case | absolute | observed $10^{-15}$ to $10^{-13}$ |
 | Wheeler, from four points and the scaled points | $10^{-12}$; $10^{-10}$ for eight points, $2 \times 10^{-12}$ for the droplets | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight |
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |

@@ -92,7 +92,16 @@ inline const QmomAnalyticalCase* find_qmom_analytical_case(const std::string& id
          {0.41577455678347908331, 2.2942803602790417198, 6.2899450829374791969},
          QmomAnalyticalCase::Family::exponential},
         {"gaussian_n2", {0.5, 0.5}, {-1.0, 1.0}, QmomAnalyticalCase::Family::gaussian},
-        {"gaussian_n3", {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0}, {-std::sqrt(3.0), 0.0, std::sqrt(3.0)}, QmomAnalyticalCase::Family::gaussian}};
+        {"gaussian_n3", {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0}, {-std::sqrt(3.0), 0.0, std::sqrt(3.0)}, QmomAnalyticalCase::Family::gaussian},
+        // The hyperbolic family with node count n reads m_0, ..., m_{2n}. For
+        // moments symmetric about their mean the closure is exact, so the
+        // standard normal moments give the (n + 1)-point Gauss-Hermite rule.
+        {"hyperbolic_gaussian_n1", {0.5, 0.5}, {-1.0, 1.0}, QmomAnalyticalCase::Family::gaussian},
+        {"hyperbolic_gaussian_n2", {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0}, {-std::sqrt(3.0), 0.0, std::sqrt(3.0)}, QmomAnalyticalCase::Family::gaussian},
+        {"hyperbolic_normal_distribution_n2",
+         {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0},
+         {-std::sqrt(3.0), 0.0, std::sqrt(3.0)},
+         QmomAnalyticalCase::Family::gaussian}};
     for (const QmomAnalyticalCase& test_case : cases)
     {
         if (test_case.name == identifier)
@@ -181,6 +190,20 @@ inline void verify_distribution_properties(const QmomAnalyticalCase& test_case, 
     }
 }
 
+// The most nodes a case's reconstruction returns: n, or n + 1 for the
+// hyperbolic family.
+inline std::size_t maximum_node_count(const QmomCase& qmom_case)
+{
+    switch (qmom_case.qmom_options.family)
+    {
+    case QmomFamily::classical:
+        return qmom_case.node_count;
+    case QmomFamily::hyperbolic:
+        return qmom_case.node_count + 1;
+    }
+    return qmom_case.node_count;
+}
+
 inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_case, const QmomCase& qmom_case)
 {
     // Verify a complete public QMOM analytical workflow. The reference is the
@@ -189,7 +212,7 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
     // recovered quadrature as the user-visible mathematical guarantee.
     QmomVerificationResult verification;
     verification.name = test_case.name;
-    if (qmom_case.node_count != test_case.weights.size() || qmom_case.moments.empty())
+    if (maximum_node_count(qmom_case) != test_case.weights.size() || qmom_case.moments.empty())
     {
         verification.message = "Configured node count or moment sequence does not match the analytical case.";
         return verification;

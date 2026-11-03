@@ -40,12 +40,13 @@ string.
 | `names` | none | One label per coordinate, for the reader; QMOMKit does not use them. | — |
 | `conditioning_order` | `0, 1, …` | CQMOM conditioning order. | `PhaseSpaceHierarchy` |
 | `support_lower`, `support_upper` | none | Interval the nodes must lie in, per coordinate; `none` for no bound. Both or neither, finite, `lower < upper`. | `abscissa_bounds` |
+| `qmom_family` | `classical` | QMOM only: `classical` or `hyperbolic` ([QMOM families](4_moments_and_quadrature.md#qmom-families)). The hyperbolic family takes no `support_lower` or `support_upper`. | `QmomOptions::family` |
 
 ### `[moments]`
 
 | Key | Meaning |
 | --- | --- |
-| `values` | QMOM: raw moments $m_0, m_1, \ldots$, at least $2N$. |
+| `values` | QMOM: raw moments $m_0, m_1, \ldots$, at least $2N$, or $2N + 1$ for `qmom_family = hyperbolic`. |
 | `extents`, `M[i,j,…]` | CQMOM: tensor extents, at least twice each coordinate's node count, then one `M[i,j,…] = value` line for every entry within them. |
 
 ### `[initial]`
@@ -55,7 +56,7 @@ string.
 | `type` | required | `distribution` or `mixture` for QMOM, `independent_product` for CQMOM. |
 | `family`, parameters | — | `type = distribution`: the family and its parameters, below. |
 | `number_density` | `1.0` | `type = distribution`: the total, $m_0$. Required for `independent_product`. |
-| `maximum_order` | $2N - 1$ | QMOM: highest moment order generated. |
+| `maximum_order` | $2N - 1$, or $2N$ for `qmom_family = hyperbolic` | QMOM: highest moment order generated. |
 | `maximum_orders` | — | CQMOM: highest order per coordinate, only for code that builds a full tensor with `initialize_cqmom_moment_tensor(...)`. |
 
 - **Mixture:** sections `[initial.mixture.component.0]`, `[...1]`, …, each with
@@ -90,7 +91,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | — | `1e-10` | Adaptive: smallest accepted ratio of the smallest to the largest weight. | `QmomOptions::rmin` |
 | — | `1e-10` | Adaptive: smallest accepted relative node separation. | `QmomOptions::eabs` |
 | — | `1e-30` | Smallest $m_0$ that is reconstructed. | `QmomOptions::cutoff` |
-| — | `classical` | Quadrature family: `classical` or `hyperbolic` (HyQMOM, up to $N + 1$ nodes from $2N + 1$ moments). | `QmomOptions::family` |
+| `[phase_space] qmom_family` | `classical` | Quadrature family: `classical` or `hyperbolic` (HyQMOM, up to $N + 1$ nodes from $2N + 1$ moments). | `QmomOptions::family` |
 
 ### `[cqmom]` and `[vandermonde]`
 
@@ -238,7 +239,9 @@ These throw instead of returning a status:
 | --- | --- |
 | `Moment sequence has fewer than 2*n entries.` | $N$ nodes need $2N$ moments. Supply more, request fewer nodes, or raise `maximum_order`. |
 | `Moment sequence has fewer than 2*n+1 entries.` | The hyperbolic family with node count $N$ needs $2N + 1$ moments. |
-| `The hyperbolic QMOM family takes no abscissa bounds.` | HyQMOM is defined on the real line. Remove the bounds or use the classical family. |
+| `The hyperbolic QMOM family takes no abscissa bounds.` | HyQMOM is defined on the real line. Remove the bounds, or `support_lower` and `support_upper` from the file, or use the classical family. |
+| `phase_space.qmom_family must be classical or hyperbolic.` | Set one of the two families; `[phase_space] qmom_family` takes a single value. |
+| `QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.` | Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
 | `CQMOM supports only the classical QMOM family.` | Set `qmom_options.family` of the CQMOM case to `classical`. |
 | `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |

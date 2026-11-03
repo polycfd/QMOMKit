@@ -137,8 +137,8 @@ origin: a pair whose gap is below `eabs` times its distance from zero collapses
 to one node. `rmin` and `eabs` default to `1e-10` in
 `QmomOptions` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp))
 and `WheelerOptions`
-([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); only
-`adaptive` is a `.qmom` key
+([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); neither
+has a `.qmom` key
 ([Reference](../user/7_reference.md#reconstruction-options)).
 
 ## Coordinate scales
@@ -188,6 +188,8 @@ returns the $(n+1)$-node rule of that closure, which reproduces
 $m_0,\ldots,m_{2n}$ and the closed $m_{2n+1}$. It uses $s=0$, as
 `compute_quadrature(...)` does.
 
+In `.qmom` files, `[phase_space] qmom_family` sets the family
+([Configuration and output](configuration_and_output.md#mapping-to-objects)).
 `compute_qmom(...)` dispatches on `QmomOptions::family` in
 `compute_qmom_from_moments`
 ([`src/public_api.cpp`](../../src/public_api.cpp)): `classical` takes the

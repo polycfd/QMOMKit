@@ -21,7 +21,7 @@ endforeach()
 add_executable(qmom_analytical_verification qmom_analytical.cpp)
 target_link_libraries(qmom_analytical_verification PRIVATE qmomkit)
 foreach(case_name IN ITEMS single_dirac two_node_discrete three_node_discrete uniform_n2 uniform_n3 exponential_n2 exponential_n3
-                           gaussian_n2 gaussian_n3)
+                           gaussian_n2 gaussian_n3 hyperbolic_gaussian_n1 hyperbolic_gaussian_n2 hyperbolic_normal_distribution_n2)
     add_test(
         NAME verification_qmom_analytical_${case_name}
         COMMAND

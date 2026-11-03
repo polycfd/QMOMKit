@@ -17,6 +17,11 @@ deliberate fault:
 - `qmom_missing_moments`: neither `[moments]` nor an `[initial]` distribution
   or mixture;
 - `qmom_insufficient_moments`: three moments for two nodes;
+- `qmom_invalid_family`\*: `qmom_family = hyperbolical`, a misspelling;
+- `qmom_hyperbolic_insufficient_moments`: four moments for the hyperbolic
+  family with node count two, which reads five;
+- `qmom_hyperbolic_abscissa_bounds`: `support_lower` and `support_upper` with
+  the hyperbolic family;
 - `cqmom_invalid_vandermonde_solver`\*: `solver = structured`;
 - `cqmom_missing_phase_space`: no `[phase_space]` section;
 - `cqmom_invalid_conditioning_order`\*: `conditioning_order = 0, 0`;

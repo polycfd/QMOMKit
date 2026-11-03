@@ -1,0 +1,10 @@
+[phase_space]
+names = xi
+node_counts = 1
+qmom_family = hyperbolic
+
+[qmom]
+adaptive = false
+
+[moments]
+values = 1.0, 0.0, 1.0

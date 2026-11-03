@@ -5,6 +5,9 @@ set(configuration_failure_cases
     qmom_invalid_adaptive.qmom
     qmom_missing_moments.qmom
     qmom_insufficient_moments.qmom
+    qmom_invalid_family.qmom
+    qmom_hyperbolic_insufficient_moments.qmom
+    qmom_hyperbolic_abscissa_bounds.qmom
     cqmom_invalid_vandermonde_solver.qmom
     cqmom_missing_phase_space.qmom
     cqmom_invalid_conditioning_order.qmom

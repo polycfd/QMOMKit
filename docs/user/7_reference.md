@@ -151,6 +151,7 @@ function.
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
 | Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `active_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
+| HyQMOM characteristic speeds | `compute_hyqmom_characteristic_speeds` | `qmom.hpp` |
 | Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` and `_batch_with_index` forms | `phase_space_evolution.hpp` |
 | Check realizability | `check_realizability` | `realizability.hpp` |
 | Inspect the Wheeler recurrence | `compute_wheeler_recurrence` | `wheeler.hpp` |
@@ -183,6 +184,8 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | --- | --- | --- |
 | `QmomResult` | `invalid_input` | Too few or non-finite moments, no nodes, or invalid options or bounds. |
 | | `not_realizable` | The moments give no quadrature with the requested nodes. |
+| `HyqmomCharacteristicSpeeds` | `invalid_input` | The state is not of the hyperbolic family. |
+| | `not_realizable` | The recurrence of the $N + 1$ nodes vanished or overflowed, or an eigensolve failed. |
 | `CqmomResult` | `invalid_input` | The moments do not fit the hierarchy, or invalid options. |
 | | `qmom_failed` | A one-dimensional reconstruction of a branch failed. |
 | | `conditional_moment_failed` | A conditional system could not be solved. |
@@ -243,6 +246,8 @@ These throw instead of returning a status:
 | `phase_space.qmom_family must be classical or hyperbolic.` | Set one of the two families; `[phase_space] qmom_family` takes a single value. |
 | `QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.` | Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
 | `CQMOM supports only the classical QMOM family.` | Set `qmom_options.family` of the CQMOM case to `classical`. |
+| `Characteristic speeds require the hyperbolic QMOM family.` | Only a state of the hyperbolic family has HyQMOM characteristic speeds. |
+| `Characteristic speed recurrence of the nodes vanished.`, `Characteristic speed recurrence produced non-finite values.` | The nodes all lie at zero, or their coordinates are near the range of a double. Use units that keep coordinates near unity. |
 | `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |
 | `Moment sequence has m0 < cutoff.` | There is no population left; stop evolving it. |

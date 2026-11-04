@@ -215,7 +215,8 @@ moments in the interior of moment space it returns $N + 1$ nodes, without
 moments, or below it, it returns the classical rule of the first $2N$
 moments, adaptive as usual, and a fixed reconstruction fails. HyQMOM is
 defined on the real line, so it takes no bounds, and CQMOM supports only the
-classical family.
+classical family. A hyperbolic state gives the characteristic speeds of the
+closed system ([Reading a state](5_evolving_in_time.md#reading-a-state)).
 
 ### Conditioning order
 

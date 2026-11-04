@@ -1092,6 +1092,50 @@ void test_hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state()
     }
 }
 
+void test_hyperbolic_speeds_are_covariant_for_a_narrow_distribution_far_from_the_origin()
+{
+    // The speeds of the points shift + scale y are shift + scale times those of
+    // the points y. Six points of spread 2^-10 around 4 make every Lanczos step
+    // cancel most of diag(x) q_k; removing the projections twice keeps the
+    // speeds accurate to the rounding of the shift, 1e-12 of the spread, where
+    // removing them once loses the spread entirely.
+    const std::vector<double> points{-1.5, -0.5, 0.0, 0.5, 1.0, 2.0};
+    const std::vector<double> weights{0.125, 0.25, 0.125, 0.25, 0.125, 0.125};
+    const double shift = 4.0;
+    const double scale = std::ldexp(1.0, -10);
+    std::vector<double> narrow;
+    for (const double point : points)
+    {
+        narrow.push_back(shift + (scale * point));
+    }
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds reference = qmomkit::internal::compute_hyperbolic_characteristic_speeds(points, weights);
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds speeds = qmomkit::internal::compute_hyperbolic_characteristic_speeds(narrow, weights);
+    assert(reference.status == qmomkit::QuadratureStatus::success && speeds.status == qmomkit::QuadratureStatus::success);
+    assert(speeds.speeds.size() == 11 && reference.speeds.size() == 11);
+    for (std::size_t i = 0; i < speeds.speeds.size(); ++i)
+    {
+        assert_near(speeds.speeds[i], shift + (scale * reference.speeds[i]), 1.0e-10 * scale);
+    }
+}
+
+void test_hyperbolic_speeds_report_a_recurrence_that_vanishes_or_overflows()
+{
+    // Three points at zero give b_1 = 0 exactly at the first Lanczos step,
+    // before the recurrence of n = 2 is complete; points near 1e200 overflow
+    // b_1.
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds vanishing =
+        qmomkit::internal::compute_hyperbolic_characteristic_speeds({0.0, 0.0, 0.0}, {0.25, 0.5, 0.25});
+    assert(vanishing.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(vanishing.message == "Characteristic speed recurrence of the nodes vanished.");
+    assert(vanishing.speeds.empty());
+
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds overflowing =
+        qmomkit::internal::compute_hyperbolic_characteristic_speeds({1.0e200, 2.0e200}, {0.5, 0.5});
+    assert(overflowing.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(overflowing.message == "Characteristic speed recurrence produced non-finite values.");
+    assert(overflowing.speeds.empty());
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -1146,5 +1190,9 @@ int main(const int argc, char** argv)
             {"hyperbolic_does_not_apply_rmin_or_eabs", test_hyperbolic_does_not_apply_rmin_or_eabs},
             {"hyperbolic_n_equal_one_gives_two_nodes_or_refuses_zero_variance", test_hyperbolic_n_equal_one_gives_two_nodes_or_refuses_zero_variance},
             {"hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state", test_hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state},
+            {"hyperbolic_speeds_are_covariant_for_a_narrow_distribution_far_from_the_origin",
+             test_hyperbolic_speeds_are_covariant_for_a_narrow_distribution_far_from_the_origin},
+            {"hyperbolic_speeds_report_a_recurrence_that_vanishes_or_overflows",
+             test_hyperbolic_speeds_report_a_recurrence_that_vanishes_or_overflows},
         });
 }

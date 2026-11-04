@@ -222,6 +222,26 @@ const std::optional<double> m10 = state.moment(qmomkit::MultiIndex{1, 0});
 `quadrature()` gives its nodes, and `active_branch_counts()` the current node
 count of each branch.
 
+A hyperbolic QMOM state also gives the characteristic speeds of the moment
+system of free transport closed by HyQMOM, the eigenvalues of its Jacobian
+(shown for $N \le 9$ by Fox & Laurent, 2022, and verified to $N = 10$), for
+example for the fluxes of a host's transport in physical space:
+
+```cpp
+const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+if (result.ok())
+{
+    const double slowest = result.speeds.front();
+    const double fastest = result.speeds.back();
+}
+```
+
+The speeds are ascending and follow the state's rule: $2N + 1$ speeds of its
+stored moments for $N + 1$ nodes, and for a classical rule of
+$k \le N$ nodes $2k + 1$, its abscissas, each twice, and their mean. After
+changing the moments of a state, rebuild it with `state_candidate(...)`, as for
+the evolution.
+
 ## Checking the result
 
 ```cpp

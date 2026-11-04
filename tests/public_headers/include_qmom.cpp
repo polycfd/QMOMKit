@@ -1,6 +1,7 @@
 #include <qmomkit/qmom.hpp>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().maximum_node_count()), std::size_t>);
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().qmom_options()), const qmomkit::QmomOptions&>);
@@ -13,6 +14,11 @@ static_assert(qmomkit::QmomOptions{}.family == qmomkit::QmomFamily::classical);
 // The status of a state candidate distinguishes success from failure.
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomStateCandidate&>().ok()), bool>);
 static_assert(std::is_same_v<decltype(qmomkit::QmomStateCandidate::status), qmomkit::StateCandidateStatus>);
+
+// The characteristic speeds carry a QMOM status.
+static_assert(std::is_same_v<decltype(std::declval<const qmomkit::HyqmomCharacteristicSpeeds&>().ok()), bool>);
+static_assert(std::is_same_v<decltype(qmomkit::HyqmomCharacteristicSpeeds::speeds), std::vector<double>>);
+static_assert(std::is_same_v<decltype(qmomkit::HyqmomCharacteristicSpeeds::status), qmomkit::QmomStatus>);
 
 namespace public_header_pins
 {
@@ -35,6 +41,8 @@ using QmomBoundedInversion = qmomkit::QmomResult (*)(const qmomkit::MomentSet&, 
 
 using QmomCaseInversion = qmomkit::QmomResult (*)(const qmomkit::QmomCase&);
 
+using HyqmomCharacteristicSpeedsOfState = qmomkit::HyqmomCharacteristicSpeeds (*)(const qmomkit::QmomState&);
+
 QmomInversion qmom_inversion = qmomkit::compute_qmom;
 
 QmomBoundedInversion qmom_bounded_inversion = qmomkit::compute_qmom;
@@ -46,5 +54,7 @@ QmomStateCandidateCreation qmom_state_candidate_creation = &qmomkit::QmomCase::s
 QmomCheckedStateCandidateCreation qmom_checked_state_candidate_creation = &qmomkit::QmomCase::state_candidate;
 
 QmomCaseInitialState qmom_case_initial_state = &qmomkit::QmomCase::initial_state;
+
+HyqmomCharacteristicSpeedsOfState hyqmom_characteristic_speeds_of_state = qmomkit::compute_hyqmom_characteristic_speeds;
 
 } // namespace public_header_pins

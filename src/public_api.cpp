@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <numeric>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -181,6 +182,50 @@ QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const s
     : moments_(std::move(moments)), quadrature_(std::move(quadrature)), node_count_(node_count), qmom_options_(std::move(qmom_options)),
       abscissa_bounds_(std::move(abscissa_bounds))
 {
+}
+
+namespace
+{
+// A classical rule of k nodes in a hyperbolic state lies on the boundary of
+// the k-node system, beta_k = 0, where R_{k+1} = (x - a_k) Q_k (Fox & Laurent
+// 2022, Remark 4.9): its speeds are the roots of Q_k, the k abscissas, each
+// twice, and the closure a_k, the mean of a_0, ..., a_{k-1}, which is the
+// trace of J_k over k and so the mean of the abscissas.
+[[nodiscard]] HyqmomCharacteristicSpeeds boundary_characteristic_speeds(const std::vector<double>& abscissas)
+{
+    std::vector<double> speeds;
+    speeds.reserve((2 * abscissas.size()) + 1);
+    speeds.insert(speeds.end(), abscissas.begin(), abscissas.end());
+    speeds.insert(speeds.end(), abscissas.begin(), abscissas.end());
+    speeds.push_back(std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / static_cast<double>(abscissas.size()));
+    std::sort(speeds.begin(), speeds.end());
+    return HyqmomCharacteristicSpeeds{std::move(speeds), QmomStatus::success, ""};
+}
+} // namespace
+
+HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState& state)
+{
+    switch (state.qmom_options().family)
+    {
+    case QmomFamily::classical:
+        return HyqmomCharacteristicSpeeds{{}, QmomStatus::invalid_input, "Characteristic speeds require the hyperbolic QMOM family."};
+    case QmomFamily::hyperbolic:
+    {
+        // The speeds of the rule of n + 1 nodes are those of the stored
+        // moments m_0, ..., m_{2n}, the moments of its nodes, also after
+        // advection has moved them. They are computed from the nodes, which
+        // determine the recurrence more accurately than the moments do.
+        const QmomResult& quadrature = state.quadrature();
+        if (state.active_node_count() < state.maximum_node_count())
+        {
+            return boundary_characteristic_speeds(quadrature.abscissas);
+        }
+        internal::HyperbolicCharacteristicSpeeds result =
+            internal::compute_hyperbolic_characteristic_speeds(quadrature.abscissas, quadrature.weights);
+        return HyqmomCharacteristicSpeeds{std::move(result.speeds), to_qmom_status(result.status), std::move(result.message)};
+    }
+    }
+    return HyqmomCharacteristicSpeeds{{}, QmomStatus::invalid_input, "Unsupported QMOM family."};
 }
 
 namespace

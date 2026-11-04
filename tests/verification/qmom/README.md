@@ -5,10 +5,11 @@
 These cases verify the inversion of raw moments into a one-dimensional
 quadrature, through `load_qmom` and `compute_qmom` and through the low-level
 Wheeler inversion `compute_quadrature`, whose recurrence
-`compute_wheeler_recurrence` reports, and the internal HyQMOM reconstruction
-`compute_hyperbolic_quadrature`. A rule of $n$ weighted points is determined by
-its first $2n$ moments, and a HyQMOM rule of $n + 1$ nodes by $m_0, \ldots,
-m_{2n}$ and its closure, so each reference has one correct answer.
+`compute_wheeler_recurrence` reports, the internal HyQMOM reconstruction
+`compute_hyperbolic_quadrature`, and the HyQMOM characteristic speeds. A rule
+of $n$ weighted points is determined by its first $2n$ moments, and a HyQMOM
+rule of $n + 1$ nodes and its speeds by $m_0, \ldots, m_{2n}$ and its closure,
+so each reference has one correct answer.
 They also check the contracts of [QMOM](../../../docs/developer/qmom.md): $m_0$
 is the number density and is not normalized, a fixed node count is delivered or
 refused, adaptive reduction returns only accepted rules, and abscissa bounds
@@ -80,6 +81,26 @@ a thousandfold. The moments $m_0, \ldots, m_{2n}$ are rounded to double, and
 the references are computed from those doubles: the recurrence and the closure
 with Python's `fractions`, the eigenpairs of $J_{n+1}$ with mpmath at 60 digits.
 Fixed mode must return $n + 1$ nodes, and adaptive mode the identical rule.
+
+`verification_hyperbolic_characteristic_speeds_exact_<case>`
+(`hyperbolic_characteristic_speeds_exact.cpp`). The characteristic speeds of
+the closed system, from
+[QMOM](../../../docs/developer/qmom.md#characteristic-speeds), against three
+references:
+
+- `normal`: states of normal moments with dyadic mean $\mu$ and standard
+  deviation $\sigma$, $n = 1$ to 3, whose speeds are $\mu + \sigma s$ for the
+  roots $s$ of $He_n$ and of $R_{n+1}$ of the standard normal distribution.
+- `boundary`: states of $k \le n$ dyadic weighted points, whose speeds are the
+  points, each twice, and their mean.
+- `skewed`, `bimodal`: states of the moments of the HyQMOM cases above,
+  $n = 1$ to 10, against the eigenvalues of the Jacobian of the closed
+  system. The script in the test source closes $m_{2n+1}$ in exact rational
+  arithmetic with the reverse step of Fox & Laurent (2022, Algorithm 2),
+  differentiates it exactly with dual numbers, and finds the roots of the
+  characteristic polynomial with mpmath at 60 digits. It asserts that they
+  agree with the eigenvalues of $J_n$ and $K_{n+1}$ and interlace; the test
+  asserts that the speeds strictly increase.
 
 ### Moment-space boundary
 
@@ -173,6 +194,7 @@ one node.
 | Wheeler, from four points and the scaled points | $10^{-12}$; $10^{-10}$ for eight points, $2 \times 10^{-12}$ for the droplets | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight |
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
 | HyQMOM | $10^{-12}$ up to $n = 7$, $10^{-11}$ for $n = 8$, $5 \times 10^{-10}$ for $n = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$; observed $3.8 \times 10^{-15}$ up to $n = 5$ to $9.6 \times 10^{-12}$ at $n = 9$ and 10, a margin of 34 or more |
+| HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $n$; observed $5.4 \times 10^{-15}$ up to $n = 5$ to $1.3 \times 10^{-11}$ at $n = 9$ and 10, a margin of 27 or more; $2.1 \times 10^{-16}$ for `normal` and $1.6 \times 10^{-16}$ for `boundary` |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
 | Failure statuses | none | exact status and message fragment | |
@@ -180,7 +202,7 @@ one node.
 ## Reproduce
 
 ```bash
-ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|hyperbolic_quadrature_exact|adaptive_qmom)_' --output-on-failure
+ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|hyperbolic_quadrature_exact|hyperbolic_characteristic_speeds_exact|adaptive_qmom)_' --output-on-failure
 ```
 
 See [Building and running](../../../docs/developer/testing.md#building-and-running).

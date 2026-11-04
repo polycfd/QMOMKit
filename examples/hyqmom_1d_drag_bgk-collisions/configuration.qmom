@@ -1,0 +1,37 @@
+# One-dimensional HyQMOM case: the velocity distribution of two particle beams,
+# slowed by drag and relaxed by BGK collisions in the callbacks of physics.cpp.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
+[phase_space]
+names = u
+# The hyperbolic family with node count n reads the moments m0..m(2n) and
+# returns up to n + 1 nodes, here three nodes from m0..m4.
+node_counts = 2
+qmom_family = hyperbolic
+
+[initial]
+# Component densities are absolute, not fractions: m0 is their sum, in
+# particles per cubic meter; means and standard deviations are in m/s.
+type = mixture
+
+[initial.mixture.component.0]
+family = normal
+number_density = 2.0e4
+mean = 20.0
+standard_deviation = 2.0
+
+[initial.mixture.component.1]
+family = normal
+number_density = 1.0e4
+mean = -10.0
+standard_deviation = 4.0
+
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
+[output]
+directory = output
+write_moments = true
+write_quadrature = true
+# Simulated-time interval between writes, in seconds, not a step count.
+interval = 0.05

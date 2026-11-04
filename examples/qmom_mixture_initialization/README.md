@@ -18,7 +18,7 @@ The number density $n(\xi)$ of a dimensionless coordinate $\xi$ is the sum of
 densities are absolute, not fractions, so each component's moments are scaled
 by its number density and added, and $m_0 = 1.5 + 0.8 = 2.3$. Three nodes
 (`node_counts = 3`) need $m_0, \dots, m_5$; `maximum_order = 5` requests
-them. See the [Reference](../../docs/user/7_reference.md#initial) for the
+them. See the [Reference](../../docs/user/8_reference.md#initial) for the
 keys.
 
 ## Build and run

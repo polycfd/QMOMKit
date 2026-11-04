@@ -65,7 +65,7 @@ The example prints three lines: that the run is complete, and the names of the
 two files it wrote. `MomentWriter` and `QuadratureWriter` write the moments and
 the quadrature every $0.1$ to `build/output/moment_history.txt` and
 `build/output/quadrature_history.txt`; see
-[Output files](../../docs/user/7_reference.md#output-files). The moment history
+[Output files](../../docs/user/8_reference.md#output-files). The moment history
 holds the ten moments the state carries; `reconstruct_raw_moments(...)`
 recovers any other moment from `state.quadrature()`.
 

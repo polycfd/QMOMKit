@@ -84,7 +84,7 @@ Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your ap
 
 ## Examples and tools
 
-The standalone [examples](examples/README.md) progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, demonstrations using multidimensional physical models, and matched Monte Carlo comparisons. See the [examples index](examples/README.md) and the [list of examples in the user guide](docs/user/8_going_further.md#examples).
+The standalone [examples](examples/README.md) progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, demonstrations using multidimensional physical models, and matched Monte Carlo comparisons. See the [examples index](examples/README.md) and the [list of examples in the user guide](docs/user/9_going_further.md#examples).
 
 Two companion tools live under `tools/`:
 - `tools/monte_carlo/` samples populations, evolves the samples and estimates their moments, as a reference for QMOMKit; see its [README](tools/monte_carlo/README.md).
@@ -111,8 +111,8 @@ See the [testing guide](docs/developer/testing.md) for details.
 ## Documentation
 
 - **Getting started:** the [user guide](docs/user/README.md), [installation](docs/user/1_installation.md), and [getting started](docs/user/2_getting_started.md).
-- **Using QMOMKit:** [concepts](docs/user/3_concepts.md), [moments and quadrature](docs/user/4_moments_and_quadrature.md), [evolving in time](docs/user/5_evolving_in_time.md), [coupling QMOMKit](docs/user/6_coupling_qmomkit.md), and the [reference](docs/user/7_reference.md).
-- **Examples:** the [examples index](examples/README.md) and the [list in the user guide](docs/user/8_going_further.md#examples).
+- **Using QMOMKit:** [concepts](docs/user/3_concepts.md), [moments and quadrature](docs/user/4_moments_and_quadrature.md), [evolving in time](docs/user/5_evolving_in_time.md), [coupling QMOMKit](docs/user/6_coupling_qmomkit.md), [QMOM families](docs/user/7_qmom_families.md), and the [reference](docs/user/8_reference.md).
+- **Examples:** the [examples index](examples/README.md) and the [list in the user guide](docs/user/9_going_further.md#examples).
 - **Optional Monte Carlo tooling:** the [Monte Carlo companion](tools/monte_carlo/README.md).
 - **Development:** the [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), and [testing](docs/developer/testing.md).
 - **Release history:** the [changelog](CHANGELOG.md).

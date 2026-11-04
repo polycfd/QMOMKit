@@ -6,7 +6,7 @@ into the same public cases and options a C++ caller builds, in namespace
 quadrature histories as text tables. Neither owns physics or a schedule:
 callbacks, the time loop and the choice of when to write are the host's. Every
 key and file format is listed in the user
-[Reference](../user/7_reference.md#configuration-file); this page explains
+[Reference](../user/8_reference.md#configuration-file); this page explains
 the rules behind them.
 
 ## Parser structure
@@ -32,7 +32,7 @@ value or one error string, the first recorded error formatted as
 ## Syntax
 
 The rules a user sees, such as comments, plain decimals and canonical indices,
-are in the [Reference](../user/7_reference.md#configuration-file). The
+are in the [Reference](../user/8_reference.md#configuration-file). The
 parser also fixes these, which are equally part of the file format:
 
 - `[name]` opens a section. A mixture-component or product-dimension section,
@@ -169,7 +169,7 @@ Then:
    ineffective.
 2. Write it to the C++ field, leaving the field's default when the key is
    absent, so the file and the API share one default.
-3. Add it to the [Reference](../user/7_reference.md).
+3. Add it to the [Reference](../user/8_reference.md).
 4. Test the value, the default, an invalid value and an ineffective use in
    [`tests/unit/configuration.cpp`](../../tests/unit/configuration.cpp); a
    failure seen through a file belongs in
@@ -230,7 +230,7 @@ the host, which decides where, what and when to write.
 Existing columns keep their order and labels, since readers of the files rely
 on them; a new quantity becomes a new column after them or a new factory. A new
 writer documents its format here and in the
-[Reference](../user/7_reference.md#output-files) before it becomes public API;
+[Reference](../user/8_reference.md#output-files) before it becomes public API;
 a format needed by only one example or test stays local to it.
 
 [`tests/unit/output.cpp`](../../tests/unit/output.cpp) covers the formats,

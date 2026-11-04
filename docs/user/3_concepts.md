@@ -21,10 +21,8 @@ away.
 
 A quadrature replaces $n$ by $N$ nodes; node $i$ has a weight $w_i$ and an
 abscissa $\xi_i$, its position in phase space, chosen so that
-$m_k = \sum_i w_i \xi_i^k$. $N$ nodes need the moments $m_0, \ldots, m_{2N-1}$;
-the hyperbolic family takes $m_{2N}$ as well and returns up to $N + 1$ nodes
-([QMOM families](4_moments_and_quadrature.md#qmom-families)). The weights add
-up to $m_0$.
+$m_k = \sum_i w_i \xi_i^k$. $N$ nodes need the moments $m_0, \ldots, m_{2N-1}$.
+The weights add up to $m_0$.
 
 ## Phase space
 
@@ -48,6 +46,10 @@ reconstruction, never the order of the coordinates. Each resulting *terminal
 node* has one weight and one value per coordinate. CQMOM needs only some of the
 moments; QMOMKit derives which ones from the node counts and the conditioning
 order.
+
+How the moments of a coordinate become quadrature nodes is the *QMOM family*.
+This guide describes the default, `classical`;
+[QMOM families](7_qmom_families.md) describes the others.
 
 ## Case and state
 
@@ -85,7 +87,7 @@ Loading a configuration is checked separately:
 `if (!configured)`, then `configured.error()`. A few functions throw instead,
 notably `initial_state()`, when the moments of a case cannot be reconstructed,
 and output writers, when a file cannot be written. The
-[Reference](7_reference.md) lists all statuses.
+[Reference](8_reference.md) lists all statuses.
 
 ## Terms
 
@@ -99,6 +101,7 @@ and output writers, when a file cannot be written. The
 | callback | A function you supply with the physics: a velocity, a source, or a boundary contribution. |
 | case | The fixed setup of a reconstruction: moments, node counts, options. |
 | conditioning order | The order in which CQMOM reconstructs the coordinates. |
+| family | How the moments of a coordinate become nodes, `QmomOptions::family`; `classical` by default. |
 | hierarchy | The node counts of a CQMOM case and its conditioning order, `PhaseSpaceHierarchy`. |
 | layout | The moments a CQMOM hierarchy requires, in a fixed order, `CqmomMomentLayout`. |
 | node | A weighted point of a quadrature. |

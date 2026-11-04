@@ -148,7 +148,7 @@ the first of the next, and a rejected trial reuses the first derivative.
 `AdaptiveRkOptions` in
 [`include/qmomkit/runge_kutta.hpp`](../../include/qmomkit/runge_kutta.hpp)
 holds the controls; the
-[Reference](../user/7_reference.md#evolution-options) lists their defaults.
+[Reference](../user/8_reference.md#evolution-options) lists their defaults.
 Step sizes are in the units of the time argument. The first trial step is never
 estimated from the problem, rejected trials do not count toward `max_steps`,
 and the step floor is the larger of `min_step` and ten spacings of the double

@@ -139,7 +139,7 @@ to one node. `rmin` and `eabs` default to `1e-10` in
 and `WheelerOptions`
 ([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); neither
 has a `.qmom` key
-([Reference](../user/7_reference.md#reconstruction-options)).
+([Reference](../user/8_reference.md#reconstruction-options)).
 
 ## Coordinate scales
 

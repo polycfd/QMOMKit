@@ -54,7 +54,7 @@ options.source_options.ssp_rk3_options.max_retries = 4;
 The evolution options describe only the step. How quadratures are
 reconstructed, adaptivity and bounds included, belongs to the case, and every
 state carries it forward. The adaptive schemes take tolerances and step limits;
-the [Reference](7_reference.md#evolution-options) lists them with their
+the [Reference](8_reference.md#evolution-options) lists them with their
 defaults.
 
 A source step that a realizability policy rejects is retried with half the
@@ -65,7 +65,7 @@ rest of the interval, so a whole step can retry more often than `max_retries`.
 ## Callbacks
 
 Your physics enters through three kinds of callback. Supply the ones your model
-has; the [Reference](7_reference.md#callbacks) lists their signatures.
+has; the [Reference](8_reference.md#callbacks) lists their signatures.
 
 ### Velocity
 
@@ -197,15 +197,13 @@ source step does. There a branch may lose nodes, or gain one if the moments
 support it. In CQMOM, when a branch's node count changes, the branches below it
 condition on other nodes and start from their configured maximum. Node counts
 therefore shrink readily, and a branch that keeps its parent grows by at most
-one node per step. A hyperbolic QMOM state grows the same way through the
-classical counts to $N$, and from $N$ to the $N + 1$ nodes of HyQMOM.
+one node per step.
 
 ## Reading a state
 
 A QMOM state gives its moments $m_0, m_1, \ldots$ with `moment_values()` and its
 quadrature with `quadrature()`; `active_node_count()` and `maximum_node_count()`
-give the current and the largest number of nodes, $N$, or $N + 1$ for the
-hyperbolic family. A CQMOM state lists its
+give the current and the configured number of nodes. A CQMOM state lists its
 moments in the order of `moment_indices()`, and `moment(index)` returns one of
 them if the state holds it:
 
@@ -222,26 +220,6 @@ const std::optional<double> m10 = state.moment(qmomkit::MultiIndex{1, 0});
 `quadrature()` gives its nodes, and `active_branch_counts()` the current node
 count of each branch.
 
-A hyperbolic QMOM state also gives the characteristic speeds of the moment
-system of free transport closed by HyQMOM, the eigenvalues of its Jacobian
-(shown for $N \le 9$ by Fox & Laurent, 2022, and verified to $N = 10$), for
-example for the fluxes of a host's transport in physical space:
-
-```cpp
-const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
-if (result.ok())
-{
-    const double slowest = result.speeds.front();
-    const double fastest = result.speeds.back();
-}
-```
-
-The speeds are ascending and follow the state's rule: $2N + 1$ speeds of its
-stored moments for $N + 1$ nodes, and for a classical rule of
-$k \le N$ nodes $2k + 1$, its abscissas, each twice, and their mean. After
-changing the moments of a state, rebuild it with `state_candidate(...)`, as for
-the evolution.
-
 ## Checking the result
 
 ```cpp
@@ -257,7 +235,7 @@ time = result.final_time;
 On failure, `result.state` is the state the step started from and
 `result.final_time` its time. `status` says what failed and
 `diagnostics.failed_stage` in which part of the step; the
-[Reference](7_reference.md#statuses) lists both. An invalid option, such as a
+[Reference](8_reference.md#statuses) lists both. An invalid option, such as a
 negative tolerance, is reported as `invalid_input` before anything runs, so a
 step failure always concerns the numerics or your callbacks. Retrying with a
 smaller step, or stopping, is your decision. A failed CQMOM step may also
@@ -283,5 +261,5 @@ and `QuadratureWriter::for_cqmom("nodes.txt", state.hierarchy().number_of_dimens
 `[output] generalized_moments` adds columns of generalized moments to the
 moment file. When to write is up to your loop; `[output] interval` and
 `directory` only carry your choice from the file to it. A writer throws if a
-file cannot be written. The [Reference](7_reference.md#output-files) shows the
+file cannot be written. The [Reference](8_reference.md#output-files) shows the
 file formats.

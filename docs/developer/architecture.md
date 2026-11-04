@@ -125,7 +125,7 @@ that a setup cannot start: malformed structure while constructing objects,
 reconstruction helpers given malformed input or a value beyond the range of a
 double, rectangular accessors on ragged storage, output writers, and the generic
 integrators when `rhs` breaks its contract. The
-[user Reference](../user/7_reference.md#statuses) lists the workflow functions
+[user Reference](../user/8_reference.md#statuses) lists the workflow functions
 that throw, with their exception types, and a new one is added there; accessors
 given an index out of range also throw and are not listed.
 

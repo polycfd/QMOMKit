@@ -132,7 +132,7 @@ The Moore–Penrose solution is minimum-norm in $Y$, not in $C$.
 `VandermondeSolver`
 ([`include/qmomkit/vandermonde_solver.hpp`](../../include/qmomkit/vandermonde_solver.hpp))
 is set by `CqmomCase::vandermonde_solver` or `[vandermonde] solver`
-([Reference](../user/7_reference.md#cqmom-and-vandermonde)). `automatic`,
+([Reference](../user/8_reference.md#cqmom-and-vandermonde)). `automatic`,
 the default, always selects `bjorck_pereyra`, the only solver that uses the
 Vandermonde structure. Every
 explicit choice runs that solver alone. The requested and selected solvers are

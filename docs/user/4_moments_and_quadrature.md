@@ -85,7 +85,7 @@ const qmomkit::CqmomCase cqmom_case{qmomkit::create_cqmom_moment_data(layout, ge
 
 A coordinate may also follow a mixture. Correlated distributions cannot be
 expressed this way; supply their moments yourself. The
-[Reference](7_reference.md#distribution-families) lists the families and
+[Reference](8_reference.md#distribution-families) lists the families and
 their parameters.
 
 ### From a configuration file
@@ -93,7 +93,7 @@ their parameters.
 `load_qmom(...)` and `load_cqmom_prepared(...)` read a case from a `.qmom` file,
 as in [Getting started](2_getting_started.md). The file gives either explicit
 moments in `[moments]` or distributions in `[initial]`; the
-[Reference](7_reference.md#configuration-file) lists every key.
+[Reference](8_reference.md#configuration-file) lists every key.
 `load_cqmom(...)` returns an editable `CqmomCase` instead, to change in code
 before preparing it.
 
@@ -140,8 +140,8 @@ the new moments to `qmom_case.moments`.
 
 ## Reconstruct
 
-`compute_qmom(...)` returns the weights and abscissas, in ascending order of
-abscissa:
+`compute_qmom(...)` returns the weights and abscissas of the case's
+[QMOM family](7_qmom_families.md), in ascending order of abscissa:
 
 ```cpp
 const qmomkit::QmomResult result = qmomkit::compute_qmom(qmom_case);
@@ -199,25 +199,6 @@ coordinate on the `CqmomCase` before preparing it, for example
 file, `[phase_space] support_lower` and `support_upper` set the bounds; they
 are unrelated to the `support` of a realizability check.
 
-### QMOM families
-
-```cpp
-qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
-```
-
-or, in a file, `[phase_space] qmom_family = hyperbolic` selects HyQMOM
-[[Fox & Laurent, 2022](https://www.doi.org/10.1137/21M1406143)]. With node
-count $N$ it reads $m_0, \ldots, m_{2N}$, so give the case $2N + 1$
-moments, and returns up to $N + 1$ nodes, whose closure for $m_{2N+1}$ makes
-the moment system of free transport hyperbolic (shown for $N \le 9$). For
-moments in the interior of moment space it returns $N + 1$ nodes, without
-`rmin` and `eabs`. On the boundary, where at most $N$ points carry the
-moments, or below it, it returns the classical rule of the first $2N$
-moments, adaptive as usual, and a fixed reconstruction fails. HyQMOM is
-defined on the real line, so it takes no bounds, and CQMOM supports only the
-classical family. A hyperbolic state gives the characteristic speeds of the
-closed system ([Reading a state](5_evolving_in_time.md#reading-a-state)).
-
 ### Conditioning order
 
 The second argument of `PhaseSpaceHierarchy` sets the CQMOM conditioning order;
@@ -237,7 +218,7 @@ CQMOM solves a small linear system for each conditional reconstruction. The
 default solver suits most cases; `[vandermonde] solver` selects another, and
 `[cqmom] diagnostic_level` records more detail about each branch in
 `CqmomResult::diagnostics`. See the
-[Reference](7_reference.md#cqmom-and-vandermonde), and the
+[Reference](8_reference.md#cqmom-and-vandermonde), and the
 [developer documentation](../developer/linear_algebra.md) for the solvers.
 
 ### Derived quantities

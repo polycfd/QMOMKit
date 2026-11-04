@@ -140,9 +140,9 @@ private:
 
 /**
  * Characteristic speeds of the moment system of free transport closed by
- * HyQMOM (Fox & Laurent 2022), for the rule of a hyperbolic state with node
- * count n: ascending, 2n + 1 values for its n + 1 nodes, 2k + 1 for a
- * classical rule of k <= n nodes, none on failure.
+ * HyQMOM (Fox & Laurent 2022), for the quadrature of a hyperbolic state with
+ * node count n: ascending, 2n + 1 values for its n + 1 nodes, 2k + 1 for a
+ * classical quadrature of k <= n nodes, none on failure.
  */
 struct HyqmomCharacteristicSpeeds
 {
@@ -157,11 +157,11 @@ struct HyqmomCharacteristicSpeeds
 };
 
 /**
- * The characteristic speeds of the rule `state` holds. With n + 1 nodes they
- * are those of the stored moments, the eigenvalues of J_n and K_{n+1}, which
- * are those of the Jacobian of the closed system (shown for n <= 9 by Fox &
- * Laurent 2022, verified by QMOMKit to n = 10); with a classical rule of
- * k <= n nodes, its k abscissas, each twice, and their mean. Nodes that come
+ * The characteristic speeds of the quadrature `state` holds. With n + 1 nodes
+ * they are those of the stored moments, the eigenvalues of J_n and K_{n+1},
+ * which are those of the Jacobian of the closed system (shown for n <= 9 by
+ * Fox & Laurent 2022, verified by QMOMKit to n = 10); with a classical
+ * quadrature of k <= n nodes, its k abscissas, each twice, and their mean. Nodes that come
  * together give the speeds of the boundary, to rounding when they coincide.
  * `invalid_input` for a family other than `hyperbolic`; `not_realizable` when
  * the recurrence of the nodes vanishes, as for nodes all at zero or

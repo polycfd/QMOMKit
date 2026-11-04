@@ -34,10 +34,10 @@ struct BoundedQuadratureSelectionRequest
 /**
  * Outcome of a bounded-support quadrature selection.
  *
- * `quadrature.status` is the single record of whether a rule was selected: an
- * unsuccessful selection carries a non-success status and a message describing
- * why. The remaining fields are diagnostic and describe how the selection was
- * reached; they do not restate the outcome.
+ * `quadrature.status` is the single record of whether a quadrature was
+ * selected: an unsuccessful selection carries a non-success status and a
+ * message describing why. The remaining fields are diagnostic and describe how
+ * the selection was reached; they do not restate the outcome.
  */
 struct BoundedQuadratureSelection
 {

@@ -14,7 +14,7 @@ enum class QuadratureStatus
 };
 
 /**
- * One-dimensional quadrature rule produced by Wheeler inversion.
+ * One-dimensional quadrature produced by Wheeler inversion.
  *
  * Abscissas are sorted in ascending order and weights use the same ordering.
  * On failure, the result contains fallback one-node values only where that

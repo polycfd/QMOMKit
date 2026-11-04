@@ -16,7 +16,7 @@ Every inversion of CQMOM is classical: `compute_cqmom(const CqmomCase&)` and
 `internal::compute_cqmom_internal`, through which every CQMOM reconstruction
 passes, refuse a `QmomOptions::family` other than `classical` as
 `invalid_input`, so cases, prepared cases, state candidates and the evolution
-all refuse it.
+all refuse it ([QMOM families](qmom_families.md)).
 
 ## The recursion
 
@@ -132,8 +132,8 @@ in another order are sorted into a copy first, and a malformed set is
 `recursive_branch_node_count_limit` makes each branch's recorded count its
 ceiling. If growth is allowed, which only the post-source reconstruction does, a
 branch that returns exactly its recorded count, below its configured maximum,
-also tries one more node. It keeps that rule only if Wheeler returns all of its
-nodes.
+also tries one more node. It keeps that quadrature only if Wheeler returns all
+of its nodes.
 
 A branch whose accepted count differs from its record has different children:
 they condition on other nodes, so the records below it do not describe them.

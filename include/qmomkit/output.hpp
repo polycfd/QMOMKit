@@ -112,7 +112,7 @@ public:
     /** Append selected one-dimensional moments followed by supplied generalized-moment values. */
     void write(double time, const MomentSet& moments, const std::vector<double>& generalized_values);
 
-    /** Append raw moments followed by configured generalized moments from a quadrature rule. */
+    /** Append raw moments followed by configured generalized moments from a quadrature. */
     void write(double time, const MomentSet& moments, const Quadrature1D& quadrature);
 
     /** Append state moments followed by configured generalized moments from the current quadrature. */
@@ -205,7 +205,7 @@ public:
     /** Write terminal multidimensional nodes as one row per active terminal node. */
     [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count, const std::size_t precision = 17);
 
-    /** Append one row for a one-dimensional quadrature rule. */
+    /** Append one row for a one-dimensional quadrature. */
     void write(double time, const Quadrature1D& quadrature);
 
     /** Append one row for a public QMOM result. */

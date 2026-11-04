@@ -206,8 +206,8 @@ compatible with it.
 [AGENTS.md](../../AGENTS.md#testing-and-verification) defines verification and
 the evidence a numerical change needs. The references used here:
 
-- analytical results: exact discrete quadratures, classical Gaussian rules,
-  closed-form ODE, source and node trajectories;
+- analytical results: exact discrete quadratures, classical Gaussian
+  quadratures, closed-form ODE, source and node trajectories;
 - manufactured cases: moments generated from prescribed nodes, weights or
   conditional quadratures, which the method must recover;
 - convergence: the observed order under step refinement, compared with the

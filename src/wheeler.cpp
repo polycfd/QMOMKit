@@ -391,18 +391,20 @@ struct Recurrence
 
 // The recurrence a_0, ..., a_{N-1}, b_1, ..., b_{N-1} of N weighted points,
 // that of their moments m_0, ..., m_{2N-1}, by Lanczos on diag(x) from the unit
-// vector q_0 with components sqrt(w_i / m_0). Its vector q_k holds
-// p_k(x_i) sqrt(w_i / m_0) for the orthonormal polynomials p_k of the points,
-// so a_k = q_k^T diag(x) q_k and b_{k+1} is the squared norm of diag(x) q_k
-// after its projections onto q_0, ..., q_k are removed. Removing them twice
-// keeps the vectors orthogonal in floating point; once is not enough where the
-// projections cancel most of diag(x) q_k, as for points of small spread far
-// from the origin. Orthogonal transformations avoid the cancellation of the
-// moment table near the boundary of moment space. A b_{k+1} that is zero, as
-// for points all at zero or coordinates that underflow, or not finite ends the
-// recurrence, with the later entries zero; points that coincide elsewhere
-// leave a b_{k+1} of rounding size. The diagonal of the Wheeler table is left
-// empty.
+// vector q_0 with components sqrt(w_i / m_0) (Lanczos 1950, Section VII;
+// Gautschi 2005, Section 2.3). Its vector q_k holds p_k(x_i) sqrt(w_i / m_0)
+// for the orthonormal polynomials p_k of the points, so a_k = q_k^T diag(x) q_k
+// and b_{k+1} is the squared norm of diag(x) q_k after its projections onto
+// q_0, ..., q_k are removed. Lanczos's algorithm is unstable as such (Gautschi
+// 2005, Section 2.3); removing the projections twice keeps the vectors
+// orthogonal to rounding while they are numerically independent (Giraud et al.
+// 2005, Theorem 2). Once is not enough where the projections cancel most of
+// diag(x) q_k, as for points of small spread far from the origin. Orthogonal
+// transformations avoid the cancellation of the moment table near the boundary
+// of the realizable set. A b_{k+1} that is zero, as for points all at zero or
+// coordinates that underflow, or not finite ends the recurrence, with the later
+// entries zero; points that coincide elsewhere leave a b_{k+1} of rounding
+// size. The diagonal of the Wheeler table is left empty.
 [[nodiscard]] Recurrence weighted_point_recurrence(const std::vector<double>& abscissas, const std::vector<double>& weights)
 {
     const std::size_t count = abscissas.size();

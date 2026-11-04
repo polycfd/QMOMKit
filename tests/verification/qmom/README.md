@@ -69,24 +69,25 @@ and below $\sigma_{k,k}$, so that all $n$ points are supported.
 
 ### HyQMOM
 
-`verification_hyperbolic_quadrature_exact_<case>` (`hyperbolic_quadrature_exact.cpp`).
-`compute_hyperbolic_quadrature` must return the Gauss rule of $J_{n+1}$ with the
-closure of [QMOM](../../../docs/developer/qmom.md#hyperbolic-family), for
+`verification_hyperbolic_quadrature_exact_<case>`
+(`hyperbolic_quadrature_exact.cpp`). `compute_hyperbolic_quadrature` must return
+the Gauss rule of $J_{n+1}$ with the closure of
+[QMOM families](../../../docs/developer/qmom_families.md#hyperbolic), for
 $n = 1$ to 10 and three shapes: a symmetric binomial rule (`symmetric`), a
 skewed geometric one at number density 2500 (`skewed`), and two binomial
 clusters of masses 3/4 and 1/4 shifted off the origin (`bimodal`). Each shape
 has more than $n + 1$ weighted points, so its moments are interior; the script
-in the test source asserts that every $\sigma_{k,k}$ exceeds $\tau_k$ at least
-a thousandfold. The moments $m_0, \ldots, m_{2n}$ are rounded to double, and
-the references are computed from those doubles: the recurrence and the closure
-with Python's `fractions`, the eigenpairs of $J_{n+1}$ with mpmath at 60 digits.
+in the test source asserts that every $\sigma_{k,k}$ exceeds $\tau_k$ at least a
+thousandfold. The moments $m_0, \ldots, m_{2n}$ are rounded to double, and the
+references are computed from those doubles: the recurrence and the closure with
+Python's `fractions`, the eigenpairs of $J_{n+1}$ with mpmath at 60 digits.
 Fixed mode must return $n + 1$ nodes, and adaptive mode the identical rule.
 
 `verification_hyperbolic_characteristic_speeds_exact_<case>`
-(`hyperbolic_characteristic_speeds_exact.cpp`). The characteristic speeds of
-the closed system, from
-[QMOM](../../../docs/developer/qmom.md#characteristic-speeds), against three
-references:
+(`hyperbolic_characteristic_speeds_exact.cpp`). The characteristic speeds of the
+closed system, from
+[QMOM families](../../../docs/developer/qmom_families.md#characteristic-speeds),
+against three references:
 
 - `normal`: states of normal moments with dyadic mean $\mu$ and standard
   deviation $\sigma$, $n = 1$ to 3, whose speeds are $\mu + \sigma s$ for the

@@ -114,23 +114,23 @@ other formulation.
 The case parsers go through the same steps a caller can take separately:
 `initialize_qmom_moments(...)` or `initialize_cqmom_moments(...)` turn an
 `InitialConditionSpecification` into moments, and `create_qmom_case(...)` or
-`create_cqmom_case(...)` build the case. A QMOM case needs at least $2N$
-moments for $N$ nodes at this point, or $2N+1$ for the hyperbolic family, the
-count `internal::qmom_required_moment_count` gives, and a hyperbolic case takes
-no abscissa bounds. A CQMOM explicit tensor must be complete
-within its `extents`, and the case keeps only the moments its layout requires
-([CQMOM](cqmom.md)). Options without a key, such as `QmomOptions::cutoff` or
-the source-step retries, keep their C++ defaults.
+`create_cqmom_case(...)` build the case. A QMOM case needs at least $2N$ moments
+for $N$ nodes at this point, or as many as its family reads, the count
+`internal::qmom_required_moment_count` gives, and a family may refuse abscissa
+bounds ([QMOM families](qmom_families.md)). A CQMOM explicit tensor must be
+complete within its `extents`, and the case keeps only the moments its layout
+requires ([CQMOM](cqmom.md)). Options without a key, such as
+`QmomOptions::cutoff` or the source-step retries, keep their C++ defaults.
 
 The QMOM family, `[phase_space] qmom_family`, is read by one helper,
 `parse_qmom_family`, which gives `classical` when the key is absent:
 `parse_qmom` sets it in the options of the case, and
 `parse_qmom_initial_condition` validates it whatever its path and infers the
-default `initial.maximum_order` from it, $2N-1$ or $2N$. It is a
-`[phase_space]` key because it describes the coordinate, including how many
+default `initial.maximum_order` from it, one less than the family's count. It is
+a `[phase_space]` key because it describes the coordinate, including how many
 moments it needs; `[qmom]` keeps the options that apply to every coordinate
-alike, which `parse_qmom_options_from_parsed` reads for the case, the CQMOM
-case settings and the evolution options. CQMOM files do not accept the key.
+alike, which `parse_qmom_options_from_parsed` reads for the case, the CQMOM case
+settings and the evolution options. CQMOM files do not accept the key.
 
 `with_initial_moments(...)` replaces the moments of a `CqmomCase` or
 `CqmomPreparedCase`, given as a `RawMomentTensor` or as `CqmomMomentData`. It

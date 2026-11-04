@@ -84,8 +84,8 @@ and the quadrature every $0.05\,\mathrm{s}$ to `build/output/moments.txt` and
 ## What to expect
 
 The number density stays at $3 \times 10^4\,\mathrm{m^{-3}}$ and the
-quadrature keeps three nodes. The drag lowers the mean velocity from 10 to
-$2.41\,\mathrm{m/s}$ and the standard deviation from 14.4 to
+quadrature keeps three nodes. The drag lowers the mean velocity from $10$ to
+$2.41\,\mathrm{m/s}$ and the standard deviation from $14.4$ to
 $2.53\,\mathrm{m/s}$; the collisions change neither. The initial speeds, from
 $-14.09$ to $21.86\,\mathrm{m/s}$, are those of the two beams. The collisions
 merge the beams within a few $\theta$, and the five speeds then approach

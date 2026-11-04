@@ -130,8 +130,8 @@ that throw, with their exception types, and a new one is added there; accessors
 given an index out of range also throw and are not listed.
 
 Data returned with a non-success status is diagnostic. A failed Wheeler
-inversion can carry a one-node rule, and a failed step returns its input state;
-neither is a result.
+inversion can carry a one-node quadrature, and a failed step returns its input
+state; neither is a result.
 
 ## Thread safety
 

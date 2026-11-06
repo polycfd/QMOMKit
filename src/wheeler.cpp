@@ -464,6 +464,8 @@ struct HyperbolicRecurrence
     // Wheeler inversion path:
     // raw moments -> recurrence coefficients -> Jacobi matrix -> eigenproblem
     // -> quadrature abscissas and weights.
+    // compute_wheeler_recurrence and hyperbolic_recurrence repeat these input
+    // checks; a change to them belongs there as well.
     if (const std::optional<Quadrature1D> failure = option_failure(options))
     {
         return *failure;

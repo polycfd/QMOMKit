@@ -284,10 +284,9 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
 // The node count and options passed to compute_qmom for a reconstruction of a
 // state's moments with count nodes. The maximum count, n + 1 for the
 // hyperbolic family, is the family's rule, from node count n; a count below
-// the maximum is a classical rule, since the family's reconstruction would
-// continue from that count and return a rule the count does not name. For the
-// classical family the maximum is n, so this is the count with the state's
-// options.
+// the maximum is a classical rule, since HyQMOM with node count k would return
+// k + 1 nodes, not the k the count names. For the classical family the maximum
+// is n, so this is the count with the state's options.
 struct QmomReconstructionRequest
 {
     std::size_t node_count = 0;

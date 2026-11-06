@@ -1295,45 +1295,54 @@ void test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count()
     // A constant rate towards the moments of five points makes the later stage
     // moments interior. A state at n + 1 nodes visits the HyQMOM rule of each
     // stage; one at a classical count c, the classical rule of at most c nodes,
-    // where HyQMOM with node count c would return c + 1.
+    // where HyQMOM with node count c would return c + 1. Both overloads of
+    // advance_qmom_moment_source build the stage context, the second with a
+    // zero boundary contribution.
     const qmomkit::QmomOptions options = hyperbolic_qmom_options(true);
+    const qmomkit::QmomMomentBoundaryContribution no_boundary = [](double, const qmomkit::QmomSourceContext& context)
+    { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 5);
     for (const qmomkit::QmomState& state : {qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, options),
                                             qmom_state_from_moments(raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5), 2, options),
                                             qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 5), 2, options)})
     {
-        const qmomkit::QmomMomentSource toward_five_points = qmom_source_from_to(state.moment_values(), five_points);
-        std::vector<std::vector<double>> stage_moments;
-        std::vector<qmomkit::QmomResult> visited;
-        const auto source = [&](const double time, const qmomkit::QmomSourceContext& context)
+        for (const bool with_boundary : {false, true})
         {
-            qmomkit::QmomResult nodes;
-            context.for_each_node(
-                [&nodes](const double weight, const double abscissa)
-                {
-                    nodes.weights.push_back(weight);
-                    nodes.abscissas.push_back(abscissa);
-                });
-            stage_moments.push_back(context.values());
-            visited.push_back(std::move(nodes));
-            return toward_five_points(time, context);
-        };
-        const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, source);
-        assert(result.ok());
-        assert(visited.size() == 3);
+            const qmomkit::QmomMomentSource toward_five_points = qmom_source_from_to(state.moment_values(), five_points);
+            std::vector<std::vector<double>> stage_moments;
+            std::vector<qmomkit::QmomResult> visited;
+            const auto source = [&](const double time, const qmomkit::QmomSourceContext& context)
+            {
+                qmomkit::QmomResult nodes;
+                context.for_each_node(
+                    [&nodes](const double weight, const double abscissa)
+                    {
+                        nodes.weights.push_back(weight);
+                        nodes.abscissas.push_back(abscissa);
+                    });
+                stage_moments.push_back(context.values());
+                visited.push_back(std::move(nodes));
+                return toward_five_points(time, context);
+            };
+            const qmomkit::QmomPhaseSpaceEvolutionResult result = with_boundary
+                                                                      ? qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, source, no_boundary, {})
+                                                                      : qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, source);
+            assert(result.ok());
+            assert(visited.size() == 3);
 
-        const std::size_t active = state.active_node_count();
-        const bool at_maximum = active == state.maximum_node_count();
-        bool classical_distinguished = at_maximum;
-        for (std::size_t stage = 0; stage < visited.size(); ++stage)
-        {
-            const qmomkit::MomentSet moments(stage_moments[stage]);
-            const qmomkit::QmomResult expected = at_maximum ? qmomkit::compute_qmom(moments, 2, options) : qmomkit::compute_qmom(moments, active);
-            assert(visited[stage].weights.size() <= active);
-            assert_qmom_quadrature_near(visited[stage], expected, 1.0e-12);
-            classical_distinguished = classical_distinguished || qmomkit::compute_qmom(moments, active, options).weights.size() == active + 1;
+            const std::size_t active = state.active_node_count();
+            const bool at_maximum = active == state.maximum_node_count();
+            bool classical_distinguished = at_maximum;
+            for (std::size_t stage = 0; stage < visited.size(); ++stage)
+            {
+                const qmomkit::MomentSet moments(stage_moments[stage]);
+                const qmomkit::QmomResult expected = at_maximum ? qmomkit::compute_qmom(moments, 2, options) : qmomkit::compute_qmom(moments, active);
+                assert(visited[stage].weights.size() <= active);
+                assert_qmom_quadrature_near(visited[stage], expected, 1.0e-12);
+                classical_distinguished = classical_distinguished || qmomkit::compute_qmom(moments, active, options).weights.size() == active + 1;
+            }
+            assert(classical_distinguished);
         }
-        assert(classical_distinguished);
     }
 }
 

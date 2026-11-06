@@ -943,6 +943,28 @@ void test_hyperbolic_overflow_of_the_extra_row()
     const qmomkit::Quadrature1D refused = qmomkit::internal::compute_hyperbolic_quadrature(moments, 1, fixed);
     assert(refused.status == qmomkit::QuadratureStatus::not_realizable);
     assert(refused.message == "Wheeler recurrence produced non-finite values.");
+
+    // With finite moments {1, 1e120, 2e240, -1e300, 1} at n = 2, sigma(2, 2) is
+    // NaN and tau_2 inf. A NaN fails sigma(2, 2) <= tau_2, so adaptive mode
+    // does not take the classical selection either, and in both modes the
+    // reconstruction and the speeds report the non-finite recurrence.
+    const qmomkit::MomentSet nan_row{1.0, 1.0e120, 2.0e240, -1.0e300, 1.0};
+    const qmomkit::WheelerRecurrence nan_recurrence =
+        qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{1.0, 1.0e120, 2.0e240, -1.0e300, 1.0, 0.0}, 3);
+    assert(std::isnan(nan_recurrence.sigma[2]) && std::isinf(nan_recurrence.tolerance[2]));
+    for (const bool adaptive : {true, false})
+    {
+        qmomkit::WheelerOptions options;
+        options.adaptive = adaptive;
+        const qmomkit::Quadrature1D failed = qmomkit::internal::compute_hyperbolic_quadrature(nan_row, 2, options);
+        assert(failed.status == qmomkit::QuadratureStatus::not_realizable);
+        assert(failed.message == "Wheeler recurrence produced non-finite values.");
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds speeds =
+            qmomkit::internal::compute_hyperbolic_characteristic_speeds(nan_row, 2, options);
+        assert(speeds.status == qmomkit::QuadratureStatus::not_realizable);
+        assert(speeds.message == failed.message);
+        assert(speeds.speeds.empty());
+    }
 }
 
 void test_hyperbolic_keeps_a_small_weight_in_the_interior()

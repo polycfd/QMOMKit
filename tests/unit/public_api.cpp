@@ -13,6 +13,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -1370,6 +1371,48 @@ void test_qmom_hyperbolic_state_holds_up_to_n_plus_one_nodes()
     assert(qmomkit::internal::QmomStateAccess::node_count(classical) == 2);
 }
 
+void test_qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature()
+{
+    // A hyperbolic state from given moments holds the quadrature of those
+    // moments, n + 1 nodes in the interior and the classical quadrature on the
+    // boundary, and the moments of that quadrature, as many as were given:
+    // m_0, ..., m_{2n} (n + 1 nodes) or m_0, ..., m_{2k-1} (k classical nodes)
+    // reproduce the given moments to rounding, and every higher one is that of
+    // the quadrature.
+    const qmomkit::QmomOptions options = hyperbolic_options(true);
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5)), 2, options};
+    const qmomkit::MomentSet interior(raw_moments_1d({-1.5, -0.25, 0.75, 2.5}, {0.125, 0.375, 0.25, 0.25}, 7));
+    const qmomkit::MomentSet boundary(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 7));
+    for (const auto& [moments, active_node_count, reproduced_count] :
+         {std::tuple{interior, std::size_t{3}, std::size_t{5}}, std::tuple{boundary, std::size_t{2}, std::size_t{4}}})
+    {
+        const qmomkit::QmomStateCandidate candidate = qmom_case.state_candidate(moments);
+        assert(candidate.ok());
+        const qmomkit::QmomState& state = *candidate.state;
+        assert(state.active_node_count() == active_node_count);
+        assert(state.maximum_node_count() == 3);
+
+        const qmomkit::QmomResult quadrature = qmomkit::compute_qmom(moments, 2, options);
+        assert(state.quadrature().abscissas == quadrature.abscissas);
+        assert(state.quadrature().weights == quadrature.weights);
+        const std::vector<double> quadrature_moments = qmomkit::reconstruct_raw_moments(
+            qmomkit::Quadrature1D{quadrature.abscissas, quadrature.weights, qmomkit::QuadratureStatus::success, ""}, moments.size());
+        assert(state.moment_values() == quadrature_moments);
+        for (std::size_t order = 0; order < reproduced_count; ++order)
+        {
+            assert_relative_near(state.moment_values()[order], moments[order], 1.0e-13);
+        }
+    }
+
+    // Four points have more moments than three nodes reproduce: m_5 and m_6
+    // of the state are those of the quadrature, not the given ones.
+    const qmomkit::QmomStateCandidate replaced = qmom_case.state_candidate(interior);
+    for (const std::size_t order : {std::size_t{5}, std::size_t{6}})
+    {
+        assert(std::abs(replaced.state->moment_values()[order] - interior[order]) > 1.0e-3 * std::abs(interior[order]));
+    }
+}
+
 void test_qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments()
 {
     // Four moments are too few for n = 2 in the hyperbolic family, so the
@@ -2223,6 +2266,8 @@ int main(const int argc, char** argv)
             {"qmom_hyperbolic_family_is_the_hyperbolic_reconstruction", test_qmom_hyperbolic_family_is_the_hyperbolic_reconstruction},
             {"qmom_hyperbolic_family_takes_no_abscissa_bounds", test_qmom_hyperbolic_family_takes_no_abscissa_bounds},
             {"qmom_hyperbolic_state_holds_up_to_n_plus_one_nodes", test_qmom_hyperbolic_state_holds_up_to_n_plus_one_nodes},
+            {"qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature",
+             test_qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature},
             {"qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments", test_qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments},
             {"hyqmom_characteristic_speeds_refuse_the_classical_family", test_hyqmom_characteristic_speeds_refuse_the_classical_family},
             {"hyqmom_characteristic_speeds_are_those_of_the_stored_moments", test_hyqmom_characteristic_speeds_are_those_of_the_stored_moments},

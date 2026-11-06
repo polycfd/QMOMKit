@@ -14,6 +14,8 @@
 //   2. The inversion never returns more nodes than the weighted points the
 //      moments are built from: a fixed request for more nodes is refused, and
 //      adaptive inversion returns at most as many nodes as there are points.
+//      This holds for both families; the hyperbolic one requests n + 1 nodes
+//      for node count n.
 //
 // How the reference is constructed
 //   No reference rule is needed. Case 1 compares the inversion with itself,
@@ -30,8 +32,10 @@
 //   is given n from 1 to the point count less one and m_0, ..., m_{2n}, so
 //   that the moments lie in the interior unless the points cluster below the
 //   rounding of the recurrence; its case checks that rules of n + 1 nodes and
-//   classical fallbacks both occur, and that no rule has more nodes than
-//   points.
+//   classical fallbacks both occur. For case 2, the hyperbolic family is given
+//   rules of one to eight points and n from 1 to the point count plus one, so
+//   that it requests up to two nodes more than the points, as the classical
+//   family does.
 //
 // Error metric and pass criteria
 //   Exact equality, no tolerance. Scalings that would take a moment out of the
@@ -55,8 +59,8 @@
 namespace
 {
 
-// The two classical cases draw the same rules from the same seed; the
-// hyperbolic case draws its own from it.
+// The two classical cases draw the same rules from the same seed; the two
+// hyperbolic cases draw their own from it.
 constexpr int rule_count = 2000;
 constexpr unsigned long long seed = 2026;
 
@@ -115,6 +119,18 @@ Rule draw_hyperbolic_rule(std::mt19937_64& generator)
     Rule rule;
     rule.point_count = 2 + static_cast<std::size_t>(generator() % 7U);
     rule.requested_node_count = 1 + static_cast<std::size_t>(generator() % (rule.point_count - 1));
+    rule.moments = draw_moments(generator, rule.point_count, 2 * rule.requested_node_count + 1);
+    return rule;
+}
+
+// A clustered rule of one to eight weighted points and the 2n + 1 moments of a
+// hyperbolic request with node count n, n from 1 to the point count plus one,
+// so that the n + 1 requested nodes exceed the points by up to two.
+Rule draw_hyperbolic_boundary_rule(std::mt19937_64& generator)
+{
+    Rule rule;
+    rule.point_count = 1 + static_cast<std::size_t>(generator() % 8U);
+    rule.requested_node_count = 1 + static_cast<std::size_t>(generator() % (rule.point_count + 1));
     rule.moments = draw_moments(generator, rule.point_count, 2 * rule.requested_node_count + 1);
     return rule;
 }
@@ -192,7 +208,6 @@ void verify_hyperbolic_power_of_two_scaling_is_exact()
             options.adaptive = adaptive;
             options.family = qmomkit::QmomFamily::hyperbolic;
             const qmomkit::QmomResult base = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, options);
-            QMOMKIT_VERIFY_CHECK(base.weights.size() <= rule.point_count);
             hyperbolic_rules += base.ok() && base.weights.size() == rule.requested_node_count + 1;
             classical_fallbacks += base.ok() && base.weights.size() <= rule.requested_node_count;
             scaled_inversions += verify_scaled_inversions(rule, options, base);
@@ -228,14 +243,44 @@ void verify_no_more_nodes_than_weighted_points()
     QMOMKIT_VERIFY_CHECK(boundary_requests > 0);
 }
 
+void verify_hyperbolic_no_more_nodes_than_weighted_points()
+{
+    std::mt19937_64 generator(seed);
+    std::size_t boundary_requests = 0;
+    for (int trial = 0; trial < rule_count; ++trial)
+    {
+        const Rule rule = draw_hyperbolic_boundary_rule(generator);
+        const bool beyond_points = rule.requested_node_count + 1 > rule.point_count;
+        boundary_requests += beyond_points;
+
+        qmomkit::QmomOptions fixed_options;
+        fixed_options.adaptive = false;
+        fixed_options.family = qmomkit::QmomFamily::hyperbolic;
+        const qmomkit::QmomResult fixed = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, fixed_options);
+        if (beyond_points)
+        {
+            QMOMKIT_VERIFY_CHECK(fixed.status == qmomkit::QmomStatus::not_realizable);
+        }
+
+        qmomkit::QmomOptions adaptive_options;
+        adaptive_options.family = qmomkit::QmomFamily::hyperbolic;
+        const qmomkit::QmomResult adaptive = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, adaptive_options);
+        QMOMKIT_VERIFY_CHECK(adaptive.ok());
+        QMOMKIT_VERIFY_CHECK(adaptive.weights.size() <= rule.point_count);
+    }
+    QMOMKIT_VERIFY_CHECK(boundary_requests > 0);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
 {
-    return qmomkit::test::dispatch_test_case(argc, argv,
-                                             {
-                                                 {"power_of_two_scaling_is_exact", verify_power_of_two_scaling_is_exact},
-                                                 {"hyperbolic_power_of_two_scaling_is_exact", verify_hyperbolic_power_of_two_scaling_is_exact},
-                                                 {"no_more_nodes_than_weighted_points", verify_no_more_nodes_than_weighted_points},
-                                             });
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"power_of_two_scaling_is_exact", verify_power_of_two_scaling_is_exact},
+            {"hyperbolic_power_of_two_scaling_is_exact", verify_hyperbolic_power_of_two_scaling_is_exact},
+            {"no_more_nodes_than_weighted_points", verify_no_more_nodes_than_weighted_points},
+            {"hyperbolic_no_more_nodes_than_weighted_points", verify_hyperbolic_no_more_nodes_than_weighted_points},
+        });
 }

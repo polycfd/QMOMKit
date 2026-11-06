@@ -851,9 +851,6 @@ void test_hyperbolic_reports_input_failures()
         assert(result.status == QuadratureStatus::not_realizable);
         assert_identical(result, qmomkit::compute_quadrature(failing, 2, options));
     }
-
-    // m_{2n+1} is not read.
-    assert(compute_hyperbolic_quadrature(qmomkit::MomentSet{1.0, 0.25, 1.0, 0.5, 2.0, nan}, 2, options).ok());
 }
 
 void test_hyperbolic_reads_no_moments_beyond_m2n()
@@ -878,6 +875,13 @@ void test_hyperbolic_reads_no_moments_beyond_m2n()
         assert(speeds.status == QuadratureStatus::success);
         assert(speeds.speeds == expected_speeds);
     }
+
+    // A NaN beyond m_{2n} changes nothing either.
+    const qmomkit::WheelerOptions adaptive;
+    const qmomkit::MomentSet five{1.0, 0.25, 1.0, 0.5, 2.0};
+    const qmomkit::MomentSet with_nan{1.0, 0.25, 1.0, 0.5, 2.0, std::numeric_limits<double>::quiet_NaN()};
+    assert(compute_hyperbolic_quadrature(five, 2, adaptive).ok());
+    assert_identical(compute_hyperbolic_quadrature(with_nan, 2, adaptive), compute_hyperbolic_quadrature(five, 2, adaptive));
 }
 
 void test_hyperbolic_on_the_boundary_returns_the_classical_rule()

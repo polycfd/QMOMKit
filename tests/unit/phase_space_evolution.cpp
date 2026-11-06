@@ -1946,6 +1946,42 @@ void test_public_qmom_stage_composition_matches_lie_phase_space_evolution()
     assert_qmom_phase_space_evolution_results_match(srcadv_explicit, srcadv_high, 5.0e-10);
 }
 
+void test_hyperbolic_qmom_stage_composition_matches_strang_phase_space_evolution()
+{
+    // A Strang step of a hyperbolic state, n = 2 with the three nodes of J_3,
+    // is its half advection, source and half advection. The source contracts
+    // the moments, m_k(t) = m_k(0) exp(-0.2 k t) at a constant velocity, so
+    // they stay in the interior and every stage keeps the three nodes.
+    const qmomkit::QmomState state =
+        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
+    assert_hyperbolic_counts(state, 3, 2);
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](const double time, const std::vector<double>& xi) { return std::vector<double>{0.35 + 0.1 * time - 0.05 * xi[0]}; });
+    const auto source = [](const double, const qmomkit::QmomSourceContext& moments)
+    {
+        std::vector<double> rhs(moments.size(), 0.0);
+        for (std::size_t order = 1; order < moments.size(); ++order)
+        {
+            rhs[order] = -0.2 * static_cast<double>(order) * moments.value(order);
+        }
+        return qmomkit::QmomMomentRate{std::move(rhs)};
+    };
+    qmomkit::QmomPhaseSpaceEvolutionOptions options;
+    options.node_options = tight_node_options();
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
+    constexpr double dt = 0.2;
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult high_level = qmomkit::advance_qmom_phase_space(state, 0.0, dt, velocity, source, options);
+    assert(high_level.ok());
+    assert_hyperbolic_counts(high_level.state, 3, 2);
+    const qmomkit::QmomPhaseSpaceEvolutionResult first = qmomkit::advance_qmom_advection(state, 0.0, 0.5 * dt, velocity, options);
+    assert(first.ok());
+    const qmomkit::QmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_qmom_moment_source(first.state, 0.0, dt, source, options);
+    assert(moment_source.ok());
+    const qmomkit::QmomPhaseSpaceEvolutionResult second = qmomkit::advance_qmom_advection(moment_source.state, 0.5 * dt, 0.5 * dt, velocity, options);
+    assert_qmom_phase_space_evolution_results_match(second, high_level, 5.0e-10);
+}
+
 void test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input()
 {
     const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4), 2);
@@ -5001,6 +5037,8 @@ int main(const int argc, char** argv)
             {"public_qmom_stage_composition_matches_strang_phase_space_evolution",
              test_public_qmom_stage_composition_matches_strang_phase_space_evolution},
             {"public_qmom_stage_composition_matches_lie_phase_space_evolution", test_public_qmom_stage_composition_matches_lie_phase_space_evolution},
+            {"hyperbolic_qmom_stage_composition_matches_strang_phase_space_evolution",
+             test_hyperbolic_qmom_stage_composition_matches_strang_phase_space_evolution},
             {"qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input",
              test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input},
             {"qmom_macro_rollbacks_preserve_the_original_state_after_later_successes",

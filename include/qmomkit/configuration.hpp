@@ -145,7 +145,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  *
  * There must be at least 2n moments for node count n, or 2n + 1 for the
  * hyperbolic family. The hyperbolic family takes no abscissa bounds; with
- * bounds the result is `invalid_configuration`.
+ * bounds the result fails, and its error ends with "The hyperbolic QMOM family
+ * takes no abscissa bounds."
  */
 [[nodiscard]] ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, std::size_t node_count,
                                                              const QmomOptions& options = {}, std::string source_name = "<initialization>",

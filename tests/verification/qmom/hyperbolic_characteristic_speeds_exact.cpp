@@ -58,7 +58,8 @@
 // Reproduce
 //   ctest -R verification_hyperbolic_characteristic_speeds_exact
 //   The references: python3 hyperbolic_characteristic_speeds_exact.py, with
-//   mpmath, prints the arrays stored below.
+//   mpmath, prints the arrays stored below, with the smallest gap between two
+//   speeds of each skewed and bimodal case as a comment.
 //
 // Build modes
 //   Both. QMOMKIT_VERIFY_CHECK and QMOMKIT_VERIFY_NEAR report and exit rather

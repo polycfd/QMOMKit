@@ -157,10 +157,13 @@ reductions occur.
   bounds scale exactly. Rules of two to eight points are given a node count
   $n$ from 1 to the point count less one and $m_0, \ldots, m_{2n}$, so that
   most lie in the interior; rules of $n + 1$ nodes and classical fallbacks must
-  both occur, and no rule may have more nodes than points.
+  both occur.
 - `no_more_nodes_than_weighted_points`: a fixed request for more nodes than
   points is `not_realizable`, and adaptive inversion returns at most as many
   nodes as points. No node may be made of rounding.
+- `hyperbolic_no_more_nodes_than_weighted_points`: the same for the hyperbolic
+  family, which requests $n + 1$ nodes for node count $n$. Rules of one to eight
+  points are given $n$ from 1 to the point count plus one.
 
 ### Abscissa bounds
 

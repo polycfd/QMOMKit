@@ -28,7 +28,7 @@ moments from it (`qmom_state_candidate` and `cqmom_state_candidate` in
 case's node count; CQMOM starts every branch from its configured maximum. With
 $n$ active classical QMOM nodes, the stored $m_0, \ldots, m_{2n-1}$ reproduce
 the given moments to rounding and every higher one is that of the quadrature;
-$n$ is below the case's node count when an adaptive reconstruction dropped
+$n$ is below `maximum_node_count()` when an adaptive reconstruction dropped
 nodes. At the maximum count of a family that reads more moments, the stored
 moments reproduce those it reads, and every higher one is that of the
 quadrature. For CQMOM, an adaptive reduction likewise replaces the given

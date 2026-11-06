@@ -30,7 +30,7 @@ Theorem 4.3). HyQMOM chooses the moment that closes them so that they are
 hyperbolic, with real speeds that are distinct inside the realizable set, and it
 uses one moment and one node more for the same node count. Fox & Laurent also
 expect its nodes to evaluate phase-space terms, such as drag, at least as well
-as classical QMOM with as many nodes (section 7). For a coordinate on a
+as classical QMOM with $N + 1$ nodes (section 7). For a coordinate on a
 half-line or an interval, such as a size, they see no obvious advantage, and the
 family takes no bounds.
 
@@ -39,8 +39,8 @@ family takes no bounds.
 From $m_0, \ldots, m_{2N}$, so $2N + 1$ moments, HyQMOM reconstructs $N + 1$
 nodes that reproduce them; in a file, `[initial] maximum_order` defaults to
 $2N$. Their $m_{2N+1}$ is the moment that closes the transport equations. Fox &
-Laurent show that it makes them hyperbolic for $N \le 9$; QMOMKit verifies it to
-$N = 10$.
+Laurent show that it makes them hyperbolic for $N \le 9$; QMOMKit's tests check
+it for sample moments up to $N = 10$.
 
 Inside the realizable set, the reconstruction returns the $N + 1$ nodes without
 the `rmin` and `eabs` tests. On its boundary, where at most $N$ nodes carry the
@@ -67,10 +67,12 @@ if (result.ok())
 }
 ```
 
-The speeds are ascending: $2N + 1$ for $N + 1$ nodes, and for a classical
+The speeds are ascending and belong to the quadrature that the state's moments
+reconstruct to with its options: $2N + 1$ for $N + 1$ nodes, and for a classical
 quadrature of $k \le N$ nodes $2k + 1$, its abscissas, each twice, and their
-mean. They belong to the state's moments; for moments your code changed, create
-a new state with `state_candidate(...)`
+mean. Where advection has brought nodes closer than the moments resolve, they
+are the speeds of fewer nodes than the state holds, and in fixed mode they fail.
+For moments your code changed, create a new state with `state_candidate(...)`
 ([Coupling QMOMKit](6_coupling_qmomkit.md#moments-changed-by-your-code)). The
 [Reference](8_reference.md#statuses) lists the statuses and messages.
 

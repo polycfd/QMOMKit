@@ -27,10 +27,9 @@
 //   Positions relative to the largest |position| of the reference, weights
 //   relative to the total weight, as for the classical rules in
 //   wheeler_analytical.cpp. The map from 2n + 1 moments to the rule worsens in
-//   conditioning with n: the largest observed deviation is 3.8e-15 up to
-//   n = 5, 2.9e-14 for n = 6 and 7, 2.5e-13 for n = 8 and 9.6e-12 for n = 9
-//   and 10. The tolerances, 1e-12 up to n = 7, 1e-11 for n = 8 and 5e-10 for
-//   n = 9 and 10, leave a margin of 34 or more over those deviations.
+//   conditioning with n, and the tolerances grow with it: 1e-12 up to n = 7,
+//   1e-11 for n = 8 and 5e-10 for n = 9 and 10. The deviations depend on the
+//   build, for example on whether it fuses multiply-adds.
 //
 // Reproduce
 //   ctest -R verification_hyperbolic_quadrature_exact

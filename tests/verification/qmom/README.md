@@ -37,9 +37,10 @@ $[0, 1]$, exponential nodes must be positive, uniform and Gaussian rules must
 be symmetric, and Gaussian odd moments must vanish. The hyperbolic fixtures
 give the standard normal moments $m_0, \ldots, m_{2n}$, explicitly or, in
 `hyperbolic_normal_distribution_n2`, through `[initial]` without
-`maximum_order`, so that the inferred order $2n$ is checked as well. For
-moments symmetric about their mean the closure is exact, and the HyQMOM rule
-with node count $n$ is the $(n+1)$-point Gauss rule.
+`maximum_order`, so that an inferred order below $2n$ would fail; the unit tests
+pin the inferred order itself. For moments symmetric about their mean the
+closure is exact, and the HyQMOM rule with node count $n$ is the $(n+1)$-point
+Gauss rule.
 
 ### Wheeler inversion
 
@@ -87,14 +88,16 @@ Fixed mode must return $n + 1$ nodes, and adaptive mode the identical rule.
 (`hyperbolic_characteristic_speeds_exact.cpp`). The characteristic speeds of the
 closed system, from
 [QMOM families](../../../docs/developer/qmom_families.md#characteristic-speeds),
-against three references:
+of the given moments, the moments the references are computed from. A state's
+speeds are those of its stored moments, which the unit tests check bit for bit.
+Three references:
 
-- `normal`: states of normal moments with dyadic mean $\mu$ and standard
-  deviation $\sigma$, $n = 1$ to 3, whose speeds are $\mu + \sigma s$ for the
-  roots $s$ of $He_n$ and of $R_{n+1}$ of the standard normal distribution.
-- `boundary`: states of $k \le n$ dyadic weighted points, whose speeds are the
-  points, each twice, and their mean.
-- `skewed`, `bimodal`: states of the moments of the HyQMOM cases above,
+- `normal`: normal moments with dyadic mean $\mu$ and standard deviation
+  $\sigma$, $n = 1$ to 3, whose speeds are $\mu + \sigma s$ for the roots $s$
+  of $He_n$ and of $R_{n+1}$ of the standard normal distribution.
+- `boundary`: the moments of $k \le n$ dyadic weighted points, whose speeds are
+  the points, each twice, and their mean.
+- `skewed`, `bimodal`: the moments of the HyQMOM cases above,
   $n = 1$ to 10, against the eigenvalues of the Jacobian of the closed
   system. The script in the test source closes $m_{2n+1}$ in exact rational
   arithmetic with the reverse step of Fox & Laurent (2022, Algorithm 2),
@@ -194,8 +197,8 @@ one node.
 | Wheeler, up to three points | $10^{-14}$ to $10^{-11}$ per case | absolute | observed $10^{-15}$ to $10^{-13}$ |
 | Wheeler, from four points and the scaled points | $10^{-12}$; $10^{-10}$ for eight points, $2 \times 10^{-12}$ for the droplets | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight |
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
-| HyQMOM | $10^{-12}$ up to $n = 7$, $10^{-11}$ for $n = 8$, $5 \times 10^{-10}$ for $n = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$; observed $3.8 \times 10^{-15}$ up to $n = 5$ to $9.6 \times 10^{-12}$ at $n = 9$ and 10, a margin of 34 or more |
-| HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $n$; observed $5.4 \times 10^{-15}$ up to $n = 5$ to $1.3 \times 10^{-11}$ at $n = 9$ and 10, a margin of 27 or more; $2.1 \times 10^{-16}$ for `normal` and $1.6 \times 10^{-16}$ for `boundary` |
+| HyQMOM | $10^{-12}$ up to $n = 7$, $10^{-11}$ for $n = 8$, $5 \times 10^{-10}$ for $n = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ |
+| HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $n$; a safety bound for `normal` and `boundary` |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
 | Failure statuses | none | exact status and message fragment | |

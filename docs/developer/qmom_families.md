@@ -16,10 +16,10 @@ enters the code and the mathematics of each family other than `classical`.
 | Moments read | `internal::qmom_required_moment_count` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) | $2n$ or $2n+1$ for node count $n$, the one definition cases, state candidates, the evolution and the configuration use. |
 | Maximum node count | `QmomState::maximum_node_count()` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp)) | $N$ or $N+1$ for the case's node count $N$. |
 | Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` with `node_count` as $n$; abscissa bounds with `hyperbolic` are `invalid_input` before any reconstruction. |
-| Evolution | `qmom_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts): the maximum count asks for the family's quadrature, a count below $N$ for a classical one. |
+| Evolution | `qmom_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts): the maximum count asks for the family's quadrature, a count below the maximum for a classical one. |
 | Configuration | `parse_qmom_family` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family` and the default `[initial] maximum_order` ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
 | CQMOM | `compute_cqmom(const CqmomCase&)`, `internal::compute_cqmom_internal` ([`src/public_api.cpp`](../../src/public_api.cpp)) | Every family other than `classical` is `invalid_input` ([CQMOM](cqmom.md)). |
-| Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`. |
+| Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the reconstruction of the stored moments. |
 
 Every `switch` over `QmomFamily` has a case per family and no `default`, so the
 compiler's `-Wswitch` names each place a new family must handle.
@@ -103,8 +103,8 @@ R_{n+1}=(x-a_n)\,Q_n-\beta_nQ_{n-1},\qquad \beta_n=\frac{2n+1}{n}\,b_n
 ```
 
 (Fox & Laurent, 2022, Theorem 4.6, eqs. 4.11, 4.13 and 4.16), shown for $n\le9$
-and postulated beyond; the verification confirms it to $n=10$
-([QMOM verification](../../tests/verification/qmom/README.md#hyqmom)). Its
+and postulated beyond; the verification checks it for sample moments up to
+$n=10$ ([QMOM verification](../../tests/verification/qmom/README.md#hyqmom)). Its
 $2n+1$ roots, the characteristic speeds, are the eigenvalues of $J_n$, diagonal
 $a_0,\ldots,a_{n-1}$ and off-diagonal $\sqrt{b_1},\ldots,\sqrt{b_{n-1}}$, and of
 $K_{n+1}$, which is $J_{n+1}$ with $\sqrt{\beta_n}$ in place of $\sqrt{b_n}$
@@ -113,14 +113,13 @@ never the quadrature. For $\beta_n>0$ the roots of $R_{n+1}$ strictly separate
 those of $Q_n$ (Fox & Laurent, 2022, Theorem 4.8), so the speeds are distinct.
 
 The public `compute_hyqmom_characteristic_speeds(state)`
-([`src/public_api.cpp`](../../src/public_api.cpp)) follows the quadrature the
-state holds, as the evolution does
-([Phase-space evolution](phase_space_evolution.md#node-counts)), and
-reconstructs nothing:
+([`src/public_api.cpp`](../../src/public_api.cpp)) returns the speeds of the
+quadrature that `compute_qmom(...)` reconstructs from the state's stored moments
+with its node count and options:
 
-| State | Speeds |
+| Reconstruction of the stored moments | Speeds |
 | --- | --- |
-| $n+1$ nodes | The eigenvalues of $J_n$ and $K_{n+1}$ for the stored moments $m_0,\ldots,m_{2n}$, the moments of the nodes, with the closure: $2n+1$ values |
+| $n+1$ nodes | The eigenvalues of $J_n$ and $K_{n+1}$: $2n+1$ values |
 | A classical quadrature of $k\le n$ nodes | Its $k$ abscissas, the roots of $Q_k$, each twice, and its closure $a_k$, the mean of $a_0,\ldots,a_{k-1}$, which is the trace of $J_k$ over $k$ and so the mean of the abscissas: $2k+1$ values |
 
 The second row is the $k$-node system on its own boundary, $\beta_k=0$, where
@@ -129,42 +128,34 @@ first row with $\beta_n=0$, so the speeds are continuous as the moments approach
 the boundary. Fox & Laurent (2022) define no speeds on the boundary for $k<n$;
 returning those of the $k$-node system is QMOMKit's choice.
 
-The internal `compute_hyperbolic_characteristic_speeds` computes the first row
-from the abscissas $x_i$ and weights $w_i$ of the nodes. The first $2n+1$
-moments of $n+1$ nodes determine $a_0,\ldots,a_{n-1}$ and $b_1,\ldots,b_n$, the
-recurrence of a discrete measure, which Lanczos's algorithm computes from the
-abscissas and weights by orthogonal transformations: from the unit vector with
-components $\sqrt{w_i/m_0}$, each new vector is $\operatorname{diag}(x)$ times
-the last, orthogonalized against the earlier ones
-[[Lanczos, 1950](https://www.doi.org/10.6028/jres.045.026), Section VII; [Gautschi, 2005](https://www.doi.org/10.1016/j.cam.2004.03.029), Section 2.3].
-The moment table would lose these coefficients to cancellation near the
-boundary: the moments of an accepted quadrature of $n+1$ nodes differ from those
-it was built from by rounding, and can fail the rounding test.
+The speeds count only the nodes that the stored moments resolve.
+[Node advection](phase_space_evolution.md#node-advection) moves the nodes
+without reconstructing them, so a state can hold more nodes than its moments
+resolve, for example after drag has brought its nodes together; its speeds are
+then those of the fewer nodes a reconstruction would give. The stored moments
+are recomputed from the state's nodes, so a classical quadrature gives its own
+abscissas only to the rounding of that reconstruction.
 
-As such, Lanczos's algorithm is unstable (Gautschi, 2005, Section 2.3). Lanczos
-(1950, Section IX, eq. 99) corrected each new vector against all earlier ones;
-QMOMKit removes the projections onto all earlier vectors twice at every step,
-which keeps the vectors orthogonal to rounding while they are numerically
-independent
-[[Giraud et al., 2005](https://www.doi.org/10.1007/s00211-005-0615-4), Theorem 2].
-Once is not enough where the projections cancel most of the product with
-$\operatorname{diag}(x)$, as for nodes of small spread far from the origin. As
-nodes come together, the vectors cease to be numerically independent and the
-speeds tend continuously to the boundary values of the second row, which
-coinciding nodes give to rounding. A $b_k$ that vanishes, as for nodes all at
-zero or coordinates that underflow, or that is not finite ends the recurrence,
-and the result is `not_realizable`. The closure is `hyperbolic_closure`, shared
-with `compute_hyperbolic_quadrature`. The options of the state do not enter, and
-no performance counter records the speeds.
+The internal `compute_hyperbolic_characteristic_speeds(moments, n, options)` and
+`compute_hyperbolic_quadrature` share `hyperbolic_recurrence`: the input checks,
+the recurrence of $m_0,\ldots,m_{2n}$ with the closure, and the decision of
+[Reconstruction](#reconstruction). The speeds therefore cannot decide
+differently from the reconstruction. A failed reconstruction is returned with
+its status and message and no speeds, so fixed mode is `not_realizable` when the
+moments no longer support $n+1$ nodes. For $n+1$ nodes, the speeds take $J_n$
+and $K_{n+1}$ from the recurrence in place of the eigensolve of $J_{n+1}$; an
+eigensolve that does not converge or a speed beyond the range of a double is
+`not_realizable`. Each call records one `wheeler_calls`
+([Performance counters](performance_counters.md)).
 
 ### Where the code lives
 
 | Function | File | Role |
 | --- | --- | --- |
 | `compute_hyperbolic_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal HyQMOM reconstruction, $s=0$. |
-| `compute_hyqmom_characteristic_speeds` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public HyQMOM characteristic speeds of a state; family and count dispatch. |
-| `compute_hyperbolic_characteristic_speeds` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal speeds of $n+1$ nodes, the eigenvalues of $J_n$ and $K_{n+1}$ from the Lanczos recurrence of the nodes. |
-| `hyperbolic_closure`, `weighted_point_recurrence` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The closure $a_n$, and the Lanczos recurrence of the nodes. |
+| `compute_hyqmom_characteristic_speeds` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public HyQMOM characteristic speeds of a state: family dispatch, then the internal speeds of the stored moments with the state's node count and options. |
+| `compute_hyperbolic_characteristic_speeds` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal speeds of $m_0,\ldots,m_{2n}$, those of the quadrature `hyperbolic_recurrence` decides. |
+| `hyperbolic_recurrence`, `hyperbolic_closure` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The input checks, the recurrence with the closure and the decision that the reconstruction and the speeds share; the closure $a_n$. |
 
 ## Adding a family
 

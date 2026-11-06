@@ -184,7 +184,7 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | `QmomResult` | `invalid_input` | Too few or non-finite moments, no nodes, or invalid options or bounds. |
 | | `not_realizable` | The moments give no quadrature with the requested nodes. |
 | `HyqmomCharacteristicSpeeds` | `invalid_input` | The state is not of the hyperbolic family. |
-| | `not_realizable` | The recurrence of the $N + 1$ nodes vanished or overflowed, or an eigensolve failed. |
+| | `not_realizable` | The state's moments give no quadrature with its options, as in fixed mode when they no longer support $N + 1$ nodes, or an eigensolve failed or a speed exceeds the range of a double. |
 | `CqmomResult` | `invalid_input` | The moments do not fit the hierarchy, or invalid options. |
 | | `qmom_failed` | A one-dimensional reconstruction of a branch failed. |
 | | `conditional_moment_failed` | A conditional system could not be solved. |
@@ -246,7 +246,7 @@ These throw instead of returning a status:
 | `QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.` | Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
 | `CQMOM supports only the classical QMOM family.` | Set `qmom_options.family` of the CQMOM case to `classical`. |
 | `Characteristic speeds require the hyperbolic QMOM family.` | Only a state of the hyperbolic family has these speeds. |
-| `Characteristic speed recurrence of the nodes vanished.`, `Characteristic speed recurrence produced non-finite values.` | The nodes all lie at zero, or their coordinates are near the range of a double. Use units that keep coordinates near unity. |
+| `Characteristic speeds exceed the range of a double.` | The coordinates of the state are near the range of a double. Use units that keep them near unity. |
 | `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |
 | `Moment sequence has m0 < cutoff.` | There is no population left; stop evolving it. |

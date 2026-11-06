@@ -48,14 +48,11 @@
 // Error metric and pass criteria
 //   Speeds relative to the largest |speed| of the reference, as positions in
 //   hyperbolic_quadrature_exact.cpp. The map from 2n + 1 moments to the
-//   speeds worsens in conditioning with n. The largest observed deviation is
-//   1.6e-16 for the boundary cases, 2.0e-16 for the normal ones, 5.2e-15 up to
-//   n = 5, 3.6e-14 for n = 6 and 7, 2.7e-13 for n = 8 and 1.3e-11 for n = 9
-//   and 10, alike to two digits in Debug, Release and GCC builds. The
-//   tolerances are those of hyperbolic_quadrature_exact.cpp: 1e-12 up to
-//   n = 7, 1e-11 for n = 8 and 5e-10 for n = 9 and 10, a margin of 27 or more
-//   over those deviations, and 1e-12 for the normal and boundary cases, a
-//   safety bound.
+//   speeds worsens in conditioning with n, and the tolerances are those of
+//   hyperbolic_quadrature_exact.cpp: 1e-12 up to n = 7, 1e-11 for n = 8 and
+//   5e-10 for n = 9 and 10. For the normal and boundary cases, 1e-12 is a
+//   safety bound. The deviations depend on the build, for example on whether
+//   it fuses multiply-adds.
 //
 // Reproduce
 //   ctest -R verification_hyperbolic_characteristic_speeds_exact

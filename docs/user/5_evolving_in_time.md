@@ -203,7 +203,7 @@ one node per step.
 
 A QMOM state gives its moments $m_0, m_1, \ldots$ with `moment_values()` and its
 quadrature with `quadrature()`; `active_node_count()` and `maximum_node_count()`
-give the current and the configured number of nodes. A CQMOM state lists its
+give the current and the largest number of nodes. A CQMOM state lists its
 moments in the order of `moment_indices()`, and `moment(index)` returns one of
 them if the state holds it:
 

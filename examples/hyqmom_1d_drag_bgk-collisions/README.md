@@ -6,9 +6,9 @@ of the `hyperbolic` family, HyQMOM [[Fox & Laurent,
 quadrature has three nodes, reconstructed from $m_0, \ldots, m_4$.
 `advance_qmom_phase_space(...)` combines two callbacks: a velocity, the drag,
 which moves the abscissas, and a source, the collisions, which change the
-moments. At the start and the end, the example prints $m_5$ of the quadrature,
-which HyQMOM provides beyond the moments of the state, and the characteristic
-speeds, which `compute_hyqmom_characteristic_speeds(...)` returns. A code that
+moments. At the start and the end, the example prints $m_5$ of the state's
+nodes, the moment beyond those the state holds, and the characteristic speeds,
+which `compute_hyqmom_characteristic_speeds(...)` returns. A code that
 transports $m_0, \ldots, m_4$ in physical space needs both: the transport of
 $m_4$ involves $m_5$, and the slowest and fastest characteristic speeds are
 those at which changes in the moments travel, as
@@ -76,7 +76,7 @@ cd build
 
 At $t = 0$ and $t = 2\,\mathrm{s}$, the example prints the node count, the
 number density $m_0$, the mean and standard deviation of the velocity, $m_5$
-of the quadrature, and the five characteristic speeds. It writes the moments
+of the state's nodes, and the five characteristic speeds. It writes the moments
 and the quadrature every $0.05\,\mathrm{s}$ to `build/output/moments.txt` and
 `build/output/quadrature.txt`, as set in the `[output]` section of
 `configuration.qmom`.

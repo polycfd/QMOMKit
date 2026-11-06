@@ -112,7 +112,7 @@ int main()
             moments.back() = boundary_moment + hankel_determinant / previous_hankel_determinant;
 
             // The state of these moments, as a host creates it for moments it
-            // computed itself, and the characteristic speeds of its quadrature.
+            // computed itself, and the characteristic speeds of its moments.
             const qmomkit::QmomStateCandidate candidate = qmom_case.state_candidate(qmomkit::MomentSet(moments));
             if (!candidate.ok())
             {

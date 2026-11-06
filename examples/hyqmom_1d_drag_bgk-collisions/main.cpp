@@ -15,7 +15,7 @@ namespace
 {
 
 // The number density, the mean and standard deviation of the velocity, m_{2n+1}
-// of the quadrature, and the characteristic speeds of a state.
+// of the nodes, and the characteristic speeds of a state.
 bool print_state(const double time, const qmomkit::QmomState& state)
 {
     const qmomkit::HyqmomCharacteristicSpeeds characteristic = qmomkit::compute_hyqmom_characteristic_speeds(state);
@@ -27,8 +27,8 @@ bool print_state(const double time, const qmomkit::QmomState& state)
     const std::vector<double>& moments = state.moment_values();
     const double mean = moments[1] / moments[0];
     const double standard_deviation = std::sqrt(moments[2] / moments[0] - mean * mean);
-    // HyQMOM with node count n reconstructs n + 1 nodes from m0..m2n; their
-    // m_{2n+1} is the moment that HyQMOM provides beyond those of the state.
+    // With node count n, the state holds up to n + 1 nodes and their moments
+    // m0..m2n; m_{2n+1} of its nodes is the moment beyond those.
     const std::size_t next_order = 2 * state.maximum_node_count() - 1;
 
     std::cout << "t = " << time << " s, " << state.active_node_count() << " nodes\n";

@@ -75,7 +75,7 @@ Reconstruction is adaptive by default: node counts are maxima, and a
 quadrature uses fewer nodes where the moments do not support more. The branches
 of a CQMOM quadrature can then differ in size, so iterate over `weights()` and
 `abscissas()` rather than indexing nodes on a grid. A fixed reconstruction,
-`[qmom] adaptive = false`, returns exactly the requested nodes or fails.
+`[qmom] adaptive = false`, returns exactly the maximum number of nodes or fails.
 
 ## Results and statuses
 

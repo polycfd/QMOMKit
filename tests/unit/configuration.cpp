@@ -428,13 +428,18 @@ void test_qmom_family_needs_two_n_plus_one_moments()
 void test_qmom_family_takes_no_abscissa_bounds()
 {
     // Bounds with the hyperbolic family are refused, from a file at the line
-    // of support_lower and from a C++ call of create_qmom_case; the classical
-    // family keeps them.
+    // of support_lower and from a C++ call of create_qmom_case, which refuses
+    // them before it counts the moments; the classical family keeps them.
+    // Supports of `none` are no bounds, so the hyperbolic family takes them.
     const std::string message = "The hyperbolic QMOM family takes no abscissa bounds.";
     const std::string bounds = "support_lower = -5\nsupport_upper = 5\n";
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, five_moments), "f.qmom").error() == "f.qmom:4: " + message);
     assert(qmomkit::config::parse_qmom(qmom_file(bounds, five_moments)).ok());
+    const auto unbounded =
+        qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\nsupport_lower = none\nsupport_upper = none\n", five_moments));
+    assert(unbounded.ok());
+    assert(!unbounded.value().abscissa_bounds.has_value());
 
     const qmomkit::config::InitialConditionSpecification initial_condition{
         qmomkit::config::ExplicitMomentInitialization{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 3.0}}};
@@ -443,6 +448,14 @@ void test_qmom_family_takes_no_abscissa_bounds()
     const auto refused = qmomkit::config::create_qmom_case(initial_condition, 2, hyperbolic, "c++", qmomkit::AbscissaBounds{-5.0, 5.0});
     assert(refused.error() == "c++: " + message);
     assert(qmomkit::config::create_qmom_case(initial_condition, 2, hyperbolic, "c++").ok());
+
+    // Four moments are too few for the hyperbolic family with node count two,
+    // but the bounds are refused first.
+    const qmomkit::config::InitialConditionSpecification four_moments{
+        qmomkit::config::ExplicitMomentInitialization{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0}}};
+    assert(qmomkit::config::create_qmom_case(four_moments, 2, hyperbolic, "c++", qmomkit::AbscissaBounds{-5.0, 5.0}).error() == "c++: " + message);
+    assert(qmomkit::config::create_qmom_case(four_moments, 2, hyperbolic, "c++").error() ==
+           "c++: QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.");
 }
 
 void test_cqmom_rejects_the_qmom_family_key()

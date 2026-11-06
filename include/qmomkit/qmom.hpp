@@ -275,7 +275,8 @@ struct QmomCase
 
 /**
  * Construct a one-dimensional QMOM quadrature and require returned abscissas
- * to lie in the optional closed interval.
+ * to lie in the optional closed interval. The hyperbolic family takes no
+ * interval: with one, the result is `invalid_input`.
  */
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options,
                                       std::optional<AbscissaBounds> abscissa_bounds);

@@ -1437,7 +1437,7 @@ void test_hyperbolic_qmom_characteristic_speeds_follow_the_reconstruction_throug
 void test_hyperbolic_qmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve_after_advection()
 {
     // Drag towards 1 with relaxation time 0.25 for t = 2 brings the three
-    // nodes of n = 2 within 1.3e-3 of each other. Their stored moments, far
+    // nodes of n = 2 within 1.4e-3 of each other. Their stored moments, far
     // from the origin relative to that spread, resolve only two nodes: the
     // state keeps its three nodes, and the speeds are those of the classical
     // quadrature of two nodes of its moments.

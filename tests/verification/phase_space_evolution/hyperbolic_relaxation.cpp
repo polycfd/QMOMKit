@@ -1,10 +1,10 @@
 // HyQMOM states under the source step alone: linear relaxation of the stored
-// moments towards those of the standard normal distribution.
+// moments toward those of the standard normal distribution.
 //
 // What is verified
 //   That a hyperbolic QMOM state with node count n and its 2n + 1 stored
-//   moments evolves under the source step with zero velocity as the count
-//   rule of docs/developer/phase_space_evolution.md requires:
+//   moments evolves under the source step as the count rule of
+//   docs/developer/phase_space_evolution.md requires:
 //   - interior start (n = 1 to 4): the n + 1 nodes of HyQMOM after every
 //     step, stored moments equal to the reference, and, once the deviation
 //     from equilibrium is below rounding, the (n + 1)-point Gauss-Hermite rule
@@ -33,11 +33,11 @@
 // Error metric and pass criteria
 //   The active node count must match exactly. Values must match the reference
 //   relative to max(|reference|, 1): positions, weights, m_0 and m_1 to
-//   1.0e-12, as for the exact references of this directory, with observed
-//   errors below 1.5e-15; the stored moments of the interior case to 1.0e-11.
-//   Those are the moments of the accepted rule, up to order 8 for n = 4, and
-//   carry the conditioning of the map from nodes to moments: observed 2.4e-15
-//   up to n = 2, 1.3e-14 for n = 3 and 1.4e-13 for n = 4, a margin of 70.
+//   1.0e-12, as for the exact references of this directory; the stored
+//   moments of the interior case to 1.0e-11. Those are the moments of the
+//   accepted rule, up to order 8 for n = 4, and carry the conditioning of the
+//   map from nodes to moments, which worsens with n. The deviations depend on
+//   the build, for example on whether it fuses multiply-adds.
 //
 // Reproduce
 //   ctest -R verification_phase_space_evolution_hyperbolic_relaxation_

@@ -56,7 +56,7 @@ string.
 | `type` | required | `distribution` or `mixture` for QMOM, `independent_product` for CQMOM. |
 | `family`, parameters | — | `type = distribution`: the family and its parameters, below. |
 | `number_density` | `1.0` | `type = distribution`: the total, $m_0$. Required for `independent_product`. |
-| `maximum_order` | the least the family needs, $2N - 1$ for `classical` and $2N$ for `hyperbolic` | QMOM: highest moment order generated. |
+| `maximum_order` | the least the QMOM family needs, $2N - 1$ for `classical` and $2N$ for `hyperbolic` | QMOM: highest moment order generated. |
 | `maximum_orders` | — | CQMOM: highest order per coordinate, only for code that builds a full tensor with `initialize_cqmom_moment_tensor(...)`. |
 
 - **Mixture:** sections `[initial.mixture.component.0]`, `[...1]`, …, each with

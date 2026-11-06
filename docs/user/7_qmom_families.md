@@ -3,8 +3,8 @@
 QMOM, CQMOM and the methods derived from them share one idea: a quadrature that
 reproduces the moments of a number density function. The number of coordinates
 selects QMOM or CQMOM ([Concepts](3_concepts.md#qmom-and-cqmom)); the *family*
-decides how the moments of a coordinate become nodes. The rest of this guide
-describes the default, `classical`. Select another on the case,
+decides how the moments of a coordinate become nodes. The other pages of this
+guide describe the default, `classical`. Select another on the case,
 
 ```cpp
 qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
@@ -12,10 +12,10 @@ qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
 
 or in a file with `[phase_space] qmom_family = hyperbolic`.
 
-| Family | Moments for node count $N$ | Nodes | Bounds | Methods | Also gives |
+| Family | Moments for node count $N$ | Nodes | Bounds | Used with | Also gives |
 | --- | --- | --- | --- | --- | --- |
 | `classical` | $m_0, \ldots, m_{2N-1}$ | up to $N$ | yes | QMOM, CQMOM | — |
-| `hyperbolic` | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | HyQMOM | characteristic speeds |
+| `hyperbolic` | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | QMOM | characteristic speeds |
 
 ## Hyperbolic
 
@@ -62,14 +62,16 @@ if (result.ok())
 }
 ```
 
-The speeds are ascending and belong to the quadrature that the state's moments
-reconstruct to with its options: $2N + 1$ for $N + 1$ nodes, and for a classical
-quadrature of $k \le N$ nodes $2k + 1$, its abscissas, each twice, and their
-mean. Where advection has brought nodes closer than the moments resolve, they
-are the speeds of fewer nodes than the state holds, and in fixed mode they fail.
-For moments your code changed, create a new state with `state_candidate(...)`
+The speeds are those of the quadrature that the state's moments reconstruct
+to with its options, in ascending order: $2N + 1$ speeds for $N + 1$ nodes, and
+$2k + 1$ for a classical quadrature of $k \le N$ nodes, its abscissas, each
+twice, and their mean. After advection has brought nodes closer together than
+the moments resolve, these are the speeds of fewer nodes than the state holds,
+and in fixed mode they fail. For moments your code changed, create a new state
+with `state_candidate(...)`
 ([Coupling QMOMKit](6_coupling_qmomkit.md#moments-changed-by-your-code)). The
-[Reference](8_reference.md#statuses) lists the statuses and messages.
+Reference lists the [statuses](8_reference.md#statuses) and
+[messages](8_reference.md#troubleshooting).
 
 The [`hyqmom_characteristic_speeds`](../../examples/hyqmom_characteristic_speeds/README.md)
 example computes the speeds of Fig. 1 of Fox & Laurent (2022), and

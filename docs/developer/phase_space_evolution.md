@@ -248,8 +248,9 @@ asks for a count $c$, which `qmom_reconstruction_request` in
 to the count and options passed to `compute_qmom`: the maximum to $N$ and the
 state's options, a count below it to $c$ and the classical family. For the
 classical family the maximum is $N$, so this is the count with the state's
-options. The family's reconstruction is never asked for a count below $N$: it
-would continue from that count and return a quadrature the count does not name.
+options. The family's reconstruction is never asked for a node count below
+$N$: with node count $c$, HyQMOM returns up to $c+1$ nodes, not the $c$ the
+count names.
 
 Active node counts follow one policy:
 

@@ -3,10 +3,11 @@
 ## Purpose
 
 These cases verify the inversion of raw moments into a one-dimensional
-quadrature, through `load_qmom` and `compute_qmom` and through the low-level
-Wheeler inversion `compute_quadrature`, whose recurrence
-`compute_wheeler_recurrence` reports, the internal HyQMOM reconstruction
-`compute_hyperbolic_quadrature`, and the HyQMOM characteristic speeds. A rule
+quadrature: through `load_qmom` and `compute_qmom`, through the low-level
+Wheeler inversion `compute_quadrature` and the recurrence that
+`compute_wheeler_recurrence` reports, and through the internal HyQMOM
+reconstruction `compute_hyperbolic_quadrature`. They also verify the HyQMOM
+characteristic speeds. A rule
 of $n$ weighted points is determined by its first $2n$ moments, and a HyQMOM
 rule of $n + 1$ nodes and its speeds by $m_0, \ldots, m_{2n}$ and its closure,
 so each reference has one correct answer.
@@ -85,10 +86,10 @@ Python's `fractions`, the eigenpairs of $J_{n+1}$ with mpmath at 60 digits.
 Fixed mode must return $n + 1$ nodes, and adaptive mode the identical rule.
 
 `verification_hyperbolic_characteristic_speeds_exact_<case>`
-(`hyperbolic_characteristic_speeds_exact.cpp`). The characteristic speeds of the
-closed system, from
-[QMOM families](../../../docs/developer/qmom_families.md#characteristic-speeds),
-of the given moments, the moments the references are computed from. A state's
+(`hyperbolic_characteristic_speeds_exact.cpp`) check the characteristic speeds
+of the closed system
+([QMOM families](../../../docs/developer/qmom_families.md#characteristic-speeds))
+for the given moments, from which the references are computed. A state's
 speeds are those of its stored moments, which the unit tests check bit for bit.
 Three references:
 

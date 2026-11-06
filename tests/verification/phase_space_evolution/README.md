@@ -155,8 +155,8 @@ equal the reference.
 
 `hyperbolic_relaxation_{interior_moments_keep_n_plus_one_nodes,boundary_moments_grow_to_n_plus_one_nodes}`
 (`hyperbolic_relaxation.cpp`) evolve hyperbolic QMOM states, with node count
-$n$ and $2n + 1$ stored moments, under the source step alone: zero velocity and
-the linear relaxation $S_k = (M^{\mathrm{eq}}_k - M_k)/\theta$ towards the
+$n$ and $2n + 1$ stored moments, under the source step alone: the linear
+relaxation $S_k = (M^{\mathrm{eq}}_k - M_k)/\theta$ toward the
 moments $M^{\mathrm{eq}}$ of the standard normal distribution, in steps of
 $\Delta t = \theta/2$. One SSP-RK3 step multiplies $M - M^{\mathrm{eq}}$ by
 $R(z) = 1 + z + z^2/2 + z^3/6$, $z = -\Delta t/\theta$, so the reference after
@@ -356,7 +356,7 @@ case reach the post-source reconstructions.
 | `time_dependent_splitting_schemes_match_their_exact_split_solutions` | order $\ge 2.8$ on the two finest pairs; deviation `1e-6` at 80 steps | 2.97 to 3.01; `1e-7` | the SSP-RK3 source error is third order; the bound leaves a factor of 10 |
 | `time_dependent_splitting_strang_is_second_order` | order $\ge 1.75, 1.85$ on the two finest pairs | 2.07, 2.03 | the thresholds of `noncommuting_convergence` |
 | `adaptive_qmom_*`, `source_retries_*` | nodes and weights `1e-12`, and the moments for the retries | below `1e-14`, `1e-16` | exact references; rounding of the step and the reconstruction |
-| `hyperbolic_relaxation_*` | positions, weights, $m_0$ and $m_1$ `1e-12`; stored moments `1e-11`, relative to $\max(\lvert\text{reference}\rvert, 1)$ | below `1.5e-15`; moments `2e-15` to `1.4e-13`, growing with $n$ | exact references; the stored moments of up to order 8 carry the conditioning of the map from nodes to moments, and the bound leaves a factor of 70 |
+| `hyperbolic_relaxation_*` | positions, weights, $m_0$ and $m_1$ `1e-12`; stored moments `1e-11`, relative to $\max(\lvert\text{reference}\rvert, 1)$ | — | exact references; the stored moments of up to order 8 carry the conditioning of the map from nodes to moments, which worsens with $n$ |
 | `state_candidate_*` | weights, positions and moments `1e-12` | below `1e-14` | exact references; rounding of the reconstruction |
 | `abscissa_bounds_*` | nodes, weights and moments `1e-12` | below `4e-15` | exact references; rounding of the step and the reconstruction |
 | `source_context_moments_qmom_*` | order $\ge 2.8$ on the two finest pairs; error `1e-5` at 160 steps | 2.94 to 3.00 on those pairs; `2e-6`, `2e-8` | the SSP-RK3 source error is third order; the bound leaves a factor of 6 and lies far below the `7e-3` and `6e-2` of the step-start quadrature, which gives order 1 |

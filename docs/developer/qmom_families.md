@@ -13,11 +13,11 @@ enters the code and the mathematics of each family other than `classical`.
 
 | Concern | Code | Behavior |
 | --- | --- | --- |
-| Moments read | `internal::qmom_required_moment_count` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) | $2n$ or $2n+1$ for node count $n$, the one definition cases, state candidates, the evolution and the configuration use. |
+| Moments read | `internal::qmom_required_moment_count` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) | $2N$ or $2N+1$ for node count $N$, the one definition cases, state candidates, the evolution and the configuration use. |
 | Maximum node count | `QmomState::maximum_node_count()` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp)) | $N$ or $N+1$ for the case's node count $N$. |
 | Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` with `node_count` as $n$; abscissa bounds with `hyperbolic` are `invalid_input` before any reconstruction. |
 | Evolution | `qmom_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts): the maximum count asks for the family's quadrature, a count below the maximum for a classical one. |
-| Configuration | `parse_qmom_family` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family` and the default `[initial] maximum_order` ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
+| Configuration | `parse_qmom_family`, `infer_qmom_initial_maximum_order` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, and the default `[initial] maximum_order` from the moments the family reads ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
 | CQMOM | `compute_cqmom(const CqmomCase&)`, `internal::compute_cqmom_internal` ([`src/public_api.cpp`](../../src/public_api.cpp)) | Every family other than `classical` is `invalid_input` ([CQMOM](cqmom.md)). |
 | Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the reconstruction of the stored moments. |
 
@@ -99,7 +99,7 @@ by HyQMOM has the characteristic polynomial $P_{2n+1}=Q_nR_{n+1}$, with $Q_n$
 the $n$-th monic orthogonal polynomial of the recurrence and
 
 ```math
-R_{n+1}=(x-a_n)\,Q_n-\beta_nQ_{n-1},\qquad \beta_n=\frac{2n+1}{n}\,b_n
+R_{n+1}(\lambda)=(\lambda-a_n)\,Q_n(\lambda)-\beta_nQ_{n-1}(\lambda),\qquad \beta_n=\frac{2n+1}{n}\,b_n
 ```
 
 (Fox & Laurent, 2022, Theorem 4.6, eqs. 4.11, 4.13 and 4.16), shown for $n\le9$
@@ -123,18 +123,20 @@ with its node count and options:
 | A classical quadrature of $k\le n$ nodes | Its $k$ abscissas, the roots of $Q_k$, each twice, and its closure $a_k$, the mean of $a_0,\ldots,a_{k-1}$, which is the trace of $J_k$ over $k$ and so the mean of the abscissas: $2k+1$ values |
 
 The second row is the $k$-node system on its own boundary, $\beta_k=0$, where
-$R_{k+1}=(x-a_k)\,Q_k$ (Fox & Laurent, 2022, Remark 4.9). At $k=n$ it is the
-first row with $\beta_n=0$, so the speeds are continuous as the moments approach
-the boundary. Fox & Laurent (2022) define no speeds on the boundary for $k<n$;
-returning those of the $k$-node system is QMOMKit's choice.
+$R_{k+1}(\lambda)=(\lambda-a_k)\,Q_k(\lambda)$ (Fox & Laurent, 2022, Remark
+4.9). At $k=n$ it is the first row with $\beta_n=0$, so the speeds are
+continuous as the moments approach the boundary. Fox & Laurent (2022) define no
+speeds on the boundary for $k<n$; returning those of the $k$-node system is
+QMOMKit's choice.
 
 The speeds count only the nodes that the stored moments resolve.
 [Node advection](phase_space_evolution.md#node-advection) moves the nodes
 without reconstructing them, so a state can hold more nodes than its moments
 resolve, for example after drag has brought its nodes together; its speeds are
-then those of the fewer nodes a reconstruction would give. The stored moments
-are recomputed from the state's nodes, so a classical quadrature gives its own
-abscissas only to the rounding of that reconstruction.
+then those of the fewer nodes a reconstruction would give. For a state that
+holds a classical quadrature, the speeds reproduce its abscissas only to
+rounding, since they come from a reconstruction of its stored moments, not from
+its nodes.
 
 The internal `compute_hyperbolic_characteristic_speeds(moments, n, options)` and
 `compute_hyperbolic_quadrature` share `hyperbolic_recurrence`: the input checks,

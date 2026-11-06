@@ -36,7 +36,7 @@ string.
 
 | Key | Default | Meaning | C++ |
 | --- | --- | --- | --- |
-| `node_counts` | required | Maximum nodes per coordinate; one coordinate selects QMOM, several CQMOM. | `QmomCase::node_count`, `PhaseSpaceHierarchy` |
+| `node_counts` | required | Node count $N$ per coordinate, the maximum number of nodes, or $N + 1$ for the hyperbolic family; one coordinate selects QMOM, several CQMOM. | `QmomCase::node_count`, `PhaseSpaceHierarchy` |
 | `names` | none | One label per coordinate, for the reader; QMOMKit does not use them. | — |
 | `conditioning_order` | `0, 1, …` | CQMOM conditioning order. | `PhaseSpaceHierarchy` |
 | `support_lower`, `support_upper` | none | Interval the nodes must lie in, per coordinate; `none` for no bound. Both or neither, finite, `lower < upper`. | `abscissa_bounds` |

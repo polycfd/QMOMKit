@@ -153,8 +153,8 @@ int main(const int argc, char** argv)
         {"qmom_hyperbolic_insufficient_moments.qmom", Loader::qmom, "requires at least 2 * node_count + 1 moments for the hyperbolic family."},
 
         // HyQMOM is defined on the real line, so a hyperbolic case takes no
-        // abscissa bounds.
-        {"qmom_hyperbolic_abscissa_bounds.qmom", Loader::qmom, "The hyperbolic QMOM family takes no abscissa bounds."},
+        // abscissa bounds, reported at the line of support_lower.
+        {"qmom_hyperbolic_abscissa_bounds.qmom", Loader::qmom, "The hyperbolic QMOM family takes no abscissa bounds.", 4},
 
         // Vandermonde solver selection is a user-facing CQMOM option. Unknown
         // names should not silently fall back to the default policy.

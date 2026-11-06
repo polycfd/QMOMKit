@@ -427,12 +427,13 @@ void test_qmom_family_needs_two_n_plus_one_moments()
 
 void test_qmom_family_takes_no_abscissa_bounds()
 {
-    // Bounds with the hyperbolic family are refused, from a file and from a
-    // C++ call of create_qmom_case; the classical family keeps them.
+    // Bounds with the hyperbolic family are refused, from a file at the line
+    // of support_lower and from a C++ call of create_qmom_case; the classical
+    // family keeps them.
     const std::string message = "The hyperbolic QMOM family takes no abscissa bounds.";
     const std::string bounds = "support_lower = -5\nsupport_upper = 5\n";
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
-    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, five_moments), "f.qmom").error() == "f.qmom: " + message);
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, five_moments), "f.qmom").error() == "f.qmom:4: " + message);
     assert(qmomkit::config::parse_qmom(qmom_file(bounds, five_moments)).ok());
 
     const qmomkit::config::InitialConditionSpecification initial_condition{

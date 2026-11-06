@@ -130,7 +130,8 @@ as well.
 
 Every state stores the moments of its quadrature. For a state from
 `state_candidate(...)`, they equal the moments your code gave up to order
-$2N - 1$, or for CQMOM the required moments, unless an adaptive reconstruction dropped nodes the moments do not support;
+$2N - 1$, or $2N$ for the hyperbolic family, or for CQMOM the required moments,
+unless an adaptive reconstruction dropped nodes the moments do not support;
 every other moment is that of the quadrature. Storing them back keeps each cell
 consistent with what was evolved. The same pattern restarts a run: store the
 moments of each state, and create the states again from them with

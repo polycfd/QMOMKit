@@ -93,7 +93,7 @@ $\mu - \sqrt{6}\,\sigma$, $\mu - \sigma$, $\mu$, $\mu + \sigma$ and
 $\mu + \sqrt{6}\,\sigma$, those of a normal distribution of mean $\mu$ and
 standard deviation $\sigma$ with node count 2, as $\mu$ and $\sigma$ keep
 falling. At $t = 2\,\mathrm{s}$ they are $-3.97$, $-0.24$, $2.39$, $4.82$ and
-$8.44\,\mathrm{m/s}$, against $-3.78$, $-0.12$, $2.41$, $4.94$ and
+$8.44\,\mathrm{m/s}$, against $-3.78$, $-0.12$, $2.41$, $4.93$ and
 $8.60\,\mathrm{m/s}$ for a normal distribution. They are slightly lower
 because the drag slows the fastest particles most, which leaves more particles
 in a tail toward low velocities than a normal distribution has; the

@@ -2880,14 +2880,29 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     {
         return failure_result<QmomCase>(std::move(parsed));
     }
+    const std::optional<AbscissaBounds> abscissa_bounds = coordinate_support->empty() ? std::nullopt : coordinate_support->front();
+    // HyQMOM is defined on the real line. A file reports bounds at the line of
+    // support_lower, which bounds always have; create_qmom_case refuses them
+    // for a case built in code.
+    switch (*family)
+    {
+    case QmomFamily::classical:
+        break;
+    case QmomFamily::hyperbolic:
+        if (abscissa_bounds.has_value())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, find_entry(parsed, "phase_space.support_lower")->line,
+                      "The hyperbolic QMOM family takes no abscissa bounds.");
+            return failure_result<QmomCase>(std::move(parsed));
+        }
+        break;
+    }
 
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_qmom_initial_condition_from_parsed(std::move(parsed), source_name);
     if (!initial_condition)
     {
         return ConfigurationResult<QmomCase>::failure(initial_condition.error());
     }
-    const CqmomAbscissaBounds& parsed_support = coordinate_support.value();
-    const std::optional<AbscissaBounds> abscissa_bounds = parsed_support.empty() ? std::nullopt : parsed_support.front();
     QmomOptions options = qmom_options.value_or(QmomOptions{});
     options.family = *family;
     return create_qmom_case(initial_condition.value(), node_counts[0], options, std::move(source_name), abscissa_bounds);

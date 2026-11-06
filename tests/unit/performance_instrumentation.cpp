@@ -428,10 +428,11 @@ void test_hyperbolic_quadrature_records_one_wheeler_call_when_enabled()
     }
 }
 
-void test_hyqmom_characteristic_speeds_record_no_reconstruction()
+void test_hyqmom_characteristic_speeds_record_one_wheeler_call_when_enabled()
 {
-    // The speeds read the state: neither the rule of n + 1 nodes nor a
-    // classical rule on the boundary reconstructs a quadrature.
+    // The speeds invert the stored moments once, whether they give the n + 1
+    // nodes or a classical quadrature on the boundary, and return no
+    // quadrature, so no QMOM reconstruction is recorded.
     qmomkit::QmomOptions options;
     options.family = qmomkit::QmomFamily::hyperbolic;
     for (const qmomkit::MomentSet& moments : {qmomkit::MomentSet{1.0, 0.0, 1.0, 0.25, 2.0}, qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 1.0}})
@@ -446,7 +447,11 @@ void test_hyqmom_characteristic_speeds_record_no_reconstruction()
 
         const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
         assert(counters.reconstruction.qmom_reconstructions == 0);
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+        assert(counters.reconstruction.wheeler_calls == 1);
+#else
         assert(counters.reconstruction.wheeler_calls == 0);
+#endif
     }
 }
 
@@ -999,7 +1004,8 @@ int main(const int argc, char** argv)
              test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled},
             {"qmom_workflow_records_coarse_reconstruction_events_when_enabled", test_qmom_workflow_records_coarse_reconstruction_events_when_enabled},
             {"hyperbolic_quadrature_records_one_wheeler_call_when_enabled", test_hyperbolic_quadrature_records_one_wheeler_call_when_enabled},
-            {"hyqmom_characteristic_speeds_record_no_reconstruction", test_hyqmom_characteristic_speeds_record_no_reconstruction},
+            {"hyqmom_characteristic_speeds_record_one_wheeler_call_when_enabled",
+             test_hyqmom_characteristic_speeds_record_one_wheeler_call_when_enabled},
             {"cqmom_source_update_reuses_stage_layout_when_enabled", test_cqmom_source_update_reuses_stage_layout_when_enabled},
             {"cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled",
              test_cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled},

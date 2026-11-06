@@ -350,10 +350,11 @@ struct Recurrence
 
 // A fixed count, one node per entry of the recurrence, must be supported by
 // the moments. A sigma(k, k) that is zero within its rounding bound puts the
-// sequence on the boundary at k nodes, and any larger rule would carry nodes
-// made of rounding. The first such k is reached while the coefficients before
-// it are finite; a recurrence that overflows instead is reported as non-finite.
-[[nodiscard]] Quadrature1D fixed_quadrature(const MomentSet& moments, const Recurrence& recurrence)
+// sequence on the boundary at k nodes, and any larger quadrature would carry
+// nodes made of rounding. The first such k is reached while the coefficients
+// before it are finite; a recurrence that overflows instead is reported as
+// non-finite. fixed_quadrature makes these checks before its eigensolve.
+[[nodiscard]] std::optional<Quadrature1D> fixed_count_failure(const MomentSet& moments, const Recurrence& recurrence)
 {
     const std::size_t node_count = recurrence.diagonal.size();
     for (std::size_t k = 1; k < node_count; ++k)
@@ -368,12 +369,16 @@ struct Recurrence
             return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
         }
     }
+    return recurrence_failure(moments, recurrence, node_count);
+}
 
-    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, recurrence, node_count))
+[[nodiscard]] Quadrature1D fixed_quadrature(const MomentSet& moments, const Recurrence& recurrence)
+{
+    if (const std::optional<Quadrature1D> failure = fixed_count_failure(moments, recurrence))
     {
         return *failure;
     }
-    return gauss_rule(moments, recurrence, node_count);
+    return gauss_rule(moments, recurrence, recurrence.diagonal.size());
 }
 
 // The HyQMOM closure for a_n, the mean of a_0, ..., a_{n-1} (Fox & Laurent
@@ -384,76 +389,72 @@ struct Recurrence
     return std::accumulate(a.begin(), a.begin() + end, 0.0) / static_cast<double>(n);
 }
 
-[[nodiscard]] double dot(const std::vector<double>& lhs, const std::vector<double>& rhs)
+// The hyperbolic reconstruction of m_0, ..., m_{2n}, n = node_count, up to its
+// last step. For moments that give the n + 1 nodes of J_{n+1}, outcome is
+// empty and recurrence holds a_0, ..., a_n, the last the closure, and b_1,
+// ..., b_n. Otherwise outcome is the result of the reconstruction: a failure,
+// or in adaptive mode the classical quadrature of moments on or below the
+// boundary.
+struct HyperbolicRecurrence
 {
-    return std::inner_product(lhs.begin(), lhs.end(), rhs.begin(), 0.0);
-}
+    std::optional<Quadrature1D> outcome;
+    Recurrence recurrence;
+};
 
-// The recurrence a_0, ..., a_{N-1}, b_1, ..., b_{N-1} of N weighted points,
-// that of their moments m_0, ..., m_{2N-1}, by Lanczos on diag(x) from the unit
-// vector q_0 with components sqrt(w_i / m_0) (Lanczos 1950, Section VII;
-// Gautschi 2005, Section 2.3). Its vector q_k holds p_k(x_i) sqrt(w_i / m_0)
-// for the orthonormal polynomials p_k of the points, so a_k = q_k^T diag(x) q_k
-// and b_{k+1} is the squared norm of diag(x) q_k after its projections onto
-// q_0, ..., q_k are removed. Lanczos's algorithm is unstable as such (Gautschi
-// 2005, Section 2.3); removing the projections twice keeps the vectors
-// orthogonal to rounding while they are numerically independent (Giraud et al.
-// 2005, Theorem 2). Once is not enough where the projections cancel most of
-// diag(x) q_k, as for points of small spread far from the origin. Orthogonal
-// transformations avoid the cancellation of the moment table near the boundary
-// of the realizable set. A b_{k+1} that is zero, as for points all at zero or
-// coordinates that underflow, or not finite ends the recurrence, with the later
-// entries zero; points that coincide elsewhere leave a b_{k+1} of rounding
-// size. The diagonal of the Wheeler table is left empty.
-[[nodiscard]] Recurrence weighted_point_recurrence(const std::vector<double>& abscissas, const std::vector<double>& weights)
+[[nodiscard]] HyperbolicRecurrence hyperbolic_recurrence(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options)
 {
-    const std::size_t count = abscissas.size();
-    const double m0 = std::accumulate(weights.begin(), weights.end(), 0.0);
-    Recurrence recurrence{std::vector<double>(count, 0.0), std::vector<double>(count, 0.0), {}};
-    std::vector<std::vector<double>> basis;
-    basis.reserve(count);
-    std::vector<double> current(count);
-    for (std::size_t i = 0; i < count; ++i)
+    const auto finished = [](Quadrature1D quadrature) { return HyperbolicRecurrence{std::move(quadrature), {}}; };
+    // The input checks of compute_quadrature_at_scale for m_0, ..., m_{2n},
+    // with messages naming node_count and no one-node shortcut: n = 1 gives
+    // the two nodes of J_2. A change to these checks belongs in
+    // compute_quadrature_at_scale as well.
+    if (const std::optional<Quadrature1D> failure = option_failure(options))
     {
-        current[i] = std::sqrt(weights[i] / m0);
+        return finished(*failure);
     }
-    for (std::size_t k = 0; k < count; ++k)
+    if (node_count == 0)
     {
-        basis.push_back(current);
-        std::vector<double> next(count);
-        for (std::size_t i = 0; i < count; ++i)
+        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count must be positive."});
+    }
+    const std::optional<std::size_t> even_moment_count = internal::checked_size_multiply(2, node_count);
+    if (!even_moment_count.has_value())
+    {
+        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count is too large to derive the required moment count."});
+    }
+    // 2n is even, so 2n + 1 cannot overflow once 2n does not.
+    const std::size_t moment_count = *even_moment_count + 1;
+    if (moments.size() < moment_count)
+    {
+        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n+1 entries."});
+    }
+    if (const std::optional<Quadrature1D> failure = moment_failure(moments, moment_count, options))
+    {
+        return finished(*failure);
+    }
+
+    // The recurrence of m_0, ..., m_{2n} at coordinate scale zero, with the
+    // closure for a_n. Its n + 1 entries give the Jacobi matrix J_{n+1}.
+    Recurrence recurrence = compute_recurrence(moments, moment_count, 0.0);
+    recurrence.a[node_count] = hyperbolic_closure(recurrence.a, node_count);
+
+    // In adaptive mode, moments on or below the boundary take the classical
+    // selection from the first k with sigma(k, k) <= tau_k, which is HyQMOM's
+    // own limit there. Interior moments give the quadrature of J_{n+1} without
+    // the acceptance tests: the rounding test already excludes nodes made of
+    // rounding, and near the boundary the extra node tends to a_n, with a
+    // weight that vanishes on the boundary. Fixed mode requires the n + 1
+    // nodes.
+    if (options.adaptive)
+    {
+        const std::size_t usable_count = supported_count(recurrence);
+        if (usable_count <= node_count)
         {
-            next[i] = abscissas[i] * current[i];
-        }
-        recurrence.a[k] = dot(current, next);
-        if (k + 1 == count)
-        {
-            break;
-        }
-        for (int pass = 0; pass < 2; ++pass)
-        {
-            for (const std::vector<double>& earlier : basis)
-            {
-                const double projection = dot(earlier, next);
-                for (std::size_t i = 0; i < count; ++i)
-                {
-                    next[i] -= projection * earlier[i];
-                }
-            }
-        }
-        const double norm_squared = dot(next, next);
-        recurrence.b[k + 1] = norm_squared;
-        if (norm_squared == 0.0 || !std::isfinite(norm_squared))
-        {
-            break;
-        }
-        const double norm = std::sqrt(norm_squared);
-        for (std::size_t i = 0; i < count; ++i)
-        {
-            current[i] = next[i] / norm;
+            return finished(adaptive_selection(moments, recurrence, usable_count, options));
         }
     }
-    return recurrence;
+    std::optional<Quadrature1D> failure =
+        options.adaptive ? recurrence_failure(moments, recurrence, node_count + 1) : fixed_count_failure(moments, recurrence);
+    return HyperbolicRecurrence{std::move(failure), std::move(recurrence)};
 }
 
 [[nodiscard]] Quadrature1D compute_quadrature_at_scale(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
@@ -573,97 +574,72 @@ Quadrature1D compute_conditional_quadrature(const MomentSet& moments, const std:
 Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options)
 {
     performance::record_wheeler_call();
-    // The input checks of compute_quadrature_at_scale for m_0, ..., m_{2n},
-    // with messages naming node_count and no one-node shortcut: n = 1 gives
-    // the two nodes of J_2. A change to these checks belongs in
-    // compute_quadrature_at_scale as well.
-    if (const std::optional<Quadrature1D> failure = option_failure(options))
+    HyperbolicRecurrence reconstruction = hyperbolic_recurrence(moments, node_count, options);
+    if (reconstruction.outcome.has_value())
     {
-        return *failure;
+        return std::move(*reconstruction.outcome);
     }
-    if (node_count == 0)
-    {
-        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count must be positive."};
-    }
-    const std::optional<std::size_t> even_moment_count = checked_size_multiply(2, node_count);
-    if (!even_moment_count.has_value())
-    {
-        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count is too large to derive the required moment count."};
-    }
-    // 2n is even, so 2n + 1 cannot overflow once 2n does not.
-    const std::size_t moment_count = *even_moment_count + 1;
-    if (moments.size() < moment_count)
-    {
-        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n+1 entries."};
-    }
-    if (const std::optional<Quadrature1D> failure = moment_failure(moments, moment_count, options))
-    {
-        return *failure;
-    }
-
-    // The recurrence of m_0, ..., m_{2n} at coordinate scale zero, with the
-    // closure for a_n. Its n + 1 entries give the Jacobi matrix J_{n+1}.
-    Recurrence recurrence = compute_recurrence(moments, moment_count, 0.0);
-    recurrence.a[node_count] = hyperbolic_closure(recurrence.a, node_count);
-    if (!options.adaptive)
-    {
-        return fixed_quadrature(moments, recurrence);
-    }
-
-    // Moments on or below the boundary take the classical selection from the
-    // first k with sigma(k, k) <= tau_k, which is HyQMOM's own limit there.
-    // Interior moments give the rule of J_{n+1} without the acceptance tests:
-    // the rounding test already excludes nodes made of rounding, and near the
-    // boundary the extra node tends to a_n, with a weight that vanishes on the
-    // boundary.
-    const std::size_t usable_count = supported_count(recurrence);
-    if (usable_count <= node_count)
-    {
-        return adaptive_selection(moments, recurrence, usable_count, options);
-    }
-    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, recurrence, node_count + 1))
-    {
-        return *failure;
-    }
-    return gauss_rule(moments, recurrence, node_count + 1);
+    return gauss_rule(moments, reconstruction.recurrence, node_count + 1);
 }
 
-HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const std::vector<double>& abscissas, const std::vector<double>& weights)
+HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const MomentSet& moments, const std::size_t node_count,
+                                                                        const WheelerOptions& options)
 {
-    const auto failure = [](std::string message) { return HyperbolicCharacteristicSpeeds{{}, QuadratureStatus::not_realizable, std::move(message)}; };
-    const std::size_t node_count = abscissas.size() - 1;
-    Recurrence recurrence = weighted_point_recurrence(abscissas, weights);
-    recurrence.a[node_count] = hyperbolic_closure(recurrence.a, node_count);
-    if (!recurrence_is_finite(recurrence, node_count + 1))
-    {
-        return failure("Characteristic speed recurrence produced non-finite values.");
-    }
-    const auto end = static_cast<std::ptrdiff_t>(node_count + 1);
-    if (std::any_of(recurrence.b.begin() + 1, recurrence.b.begin() + end, [](const double b) { return b <= 0.0; }))
-    {
-        return failure("Characteristic speed recurrence of the nodes vanished.");
-    }
+    // One Wheeler inversion of the moments, recorded as for
+    // compute_hyperbolic_quadrature.
+    performance::record_wheeler_call();
+    const auto failure = [](const QuadratureStatus status, std::string message)
+    { return HyperbolicCharacteristicSpeeds{{}, status, std::move(message)}; };
 
-    // J_n uses b_1, ..., b_{n-1}. K_{n+1} adds b_n, replaced by beta_n =
-    // (2n + 1) b_n / n (Fox & Laurent 2022, eqs. 4.13, 4.16 and 4.18).
-    const EigenDecomposition j_eigen = symmetric_jacobi_eigen(make_jacobi_matrix(recurrence.a, recurrence.b, node_count), {});
-    recurrence.b[node_count] = static_cast<double>((2 * node_count) + 1) * recurrence.b[node_count] / static_cast<double>(node_count);
-    const EigenDecomposition k_eigen = symmetric_jacobi_eigen(make_jacobi_matrix(recurrence.a, recurrence.b, node_count + 1), {});
-    for (const EigenDecomposition* eigen : {&j_eigen, &k_eigen})
+    // The speeds are those of the quadrature that compute_hyperbolic_quadrature
+    // reconstructs from the same moments, decided on the same recurrence.
+    HyperbolicRecurrence reconstruction = hyperbolic_recurrence(moments, node_count, options);
+    std::vector<double> speeds;
+    if (reconstruction.outcome.has_value())
     {
-        if (!eigen->converged)
+        const Quadrature1D& quadrature = *reconstruction.outcome;
+        if (!quadrature.ok())
         {
-            return failure("Jacobi matrix eigen solve did not converge.");
+            return failure(quadrature.status, quadrature.message);
         }
-        if (!all_finite(eigen->eigenvalues))
-        {
-            return failure("Jacobi matrix diagonalization produced non-finite values.");
-        }
-    }
 
-    // Both eigenvalue sequences are ascending.
-    std::vector<double> speeds((2 * node_count) + 1);
-    std::merge(j_eigen.eigenvalues.begin(), j_eigen.eigenvalues.end(), k_eigen.eigenvalues.begin(), k_eigen.eigenvalues.end(), speeds.begin());
+        // A classical quadrature of k <= n nodes has the speeds of the k-point
+        // system on its boundary, beta_k = 0, where R_{k+1} = (x - a_k) Q_k
+        // (Fox & Laurent 2022, Remark 4.9, for k = n): the roots of Q_k, its k
+        // abscissas, each twice, and the closure a_k, the trace of J_k over k
+        // and so the arithmetic mean of the abscissas.
+        const std::vector<double>& abscissas = quadrature.abscissas;
+        speeds.reserve((2 * abscissas.size()) + 1);
+        for (const double abscissa : abscissas)
+        {
+            speeds.push_back(abscissa);
+            speeds.push_back(abscissa);
+        }
+        speeds.push_back(std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / static_cast<double>(abscissas.size()));
+        std::sort(speeds.begin(), speeds.end());
+    }
+    else
+    {
+        // n + 1 nodes: J_n uses a_0, ..., a_{n-1} and b_1, ..., b_{n-1}.
+        // K_{n+1} adds the closure a_n and b_n, replaced by beta_n =
+        // (2n + 1) b_n / n (Fox & Laurent 2022, eqs. 4.13, 4.16 and 4.18).
+        Recurrence& recurrence = reconstruction.recurrence;
+        const EigenDecomposition j_eigen = symmetric_jacobi_eigen(make_jacobi_matrix(recurrence.a, recurrence.b, node_count), {});
+        recurrence.b[node_count] = static_cast<double>((2 * node_count) + 1) * recurrence.b[node_count] / static_cast<double>(node_count);
+        const EigenDecomposition k_eigen = symmetric_jacobi_eigen(make_jacobi_matrix(recurrence.a, recurrence.b, node_count + 1), {});
+        if (!j_eigen.converged || !k_eigen.converged)
+        {
+            return failure(QuadratureStatus::not_realizable, "Jacobi matrix eigen solve did not converge.");
+        }
+
+        // Both eigenvalue sequences are ascending.
+        speeds.resize((2 * node_count) + 1);
+        std::merge(j_eigen.eigenvalues.begin(), j_eigen.eigenvalues.end(), k_eigen.eigenvalues.begin(), k_eigen.eigenvalues.end(), speeds.begin());
+    }
+    if (!all_finite(speeds))
+    {
+        return failure(QuadratureStatus::not_realizable, "Characteristic speeds exceed the range of a double.");
+    }
     return HyperbolicCharacteristicSpeeds{std::move(speeds), QuadratureStatus::success, ""};
 }
 

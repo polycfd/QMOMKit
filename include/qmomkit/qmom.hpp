@@ -140,9 +140,9 @@ private:
 
 /**
  * Characteristic speeds of the moment system of free transport closed by
- * HyQMOM (Fox & Laurent 2022), for the quadrature of a hyperbolic state with
- * node count n: ascending, 2n + 1 values for its n + 1 nodes, 2k + 1 for a
- * classical quadrature of k <= n nodes, none on failure.
+ * HyQMOM (Fox & Laurent 2022), for a hyperbolic state with node count n:
+ * ascending, 2n + 1 values when its moments give n + 1 nodes, 2k + 1 when they
+ * give a classical quadrature of k <= n nodes, none on failure.
  */
 struct HyqmomCharacteristicSpeeds
 {
@@ -157,16 +157,18 @@ struct HyqmomCharacteristicSpeeds
 };
 
 /**
- * The characteristic speeds of the quadrature `state` holds. With n + 1 nodes
- * they are those of the stored moments, the eigenvalues of J_n and K_{n+1},
- * which are those of the Jacobian of the closed system (shown for n <= 9 by
- * Fox & Laurent 2022, verified by QMOMKit to n = 10); with a classical
- * quadrature of k <= n nodes, its k abscissas, each twice, and their mean. Nodes that come
- * together give the speeds of the boundary, to rounding when they coincide.
- * `invalid_input` for a family other than `hyperbolic`; `not_realizable` when
- * the recurrence of the nodes vanishes, as for nodes all at zero or
- * coordinates beyond the range of a double, or an eigensolve fails. The
- * state's options do not enter.
+ * The characteristic speeds of the stored moments of `state`: those of the
+ * quadrature that `compute_qmom(...)` reconstructs from them with the state's
+ * node count n and options. For n + 1 nodes, they are the eigenvalues of J_n
+ * and K_{n+1}, which are those of the Jacobian of the closed system (shown for
+ * n <= 9 by Fox & Laurent 2022, checked by QMOMKit's tests for sample moments
+ * up to n = 10); for a classical quadrature of k <= n nodes, its k abscissas,
+ * each twice, and their mean. The speeds thus count only the nodes that the
+ * moments resolve, which after advection can be fewer than the state holds.
+ * `invalid_input` for a family other than `hyperbolic`; otherwise the status
+ * and message of a failed reconstruction, such as `not_realizable` in fixed
+ * mode when the moments no longer support n + 1 nodes, and `not_realizable`
+ * when an eigensolve does not converge or a speed is too large for a double.
  */
 [[nodiscard]] HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState& state);
 

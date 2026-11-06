@@ -1,27 +1,31 @@
 // HyQMOM characteristic speeds, against the eigenvalues of the Jacobian of the
 // closed moment system computed in exact rational arithmetic, and against the
-// speeds of the standard normal distribution and of rules on the boundary.
+// speeds of the standard normal distribution and of quadratures on the
+// boundary.
 //
 // What is verified
 //   That the 2n + 1 speeds of the moment system of free transport,
 //   d_t m_k + d_x m_{k+1} = 0 for k = 0, ..., 2n, closed by HyQMOM are the
 //   eigenvalues of J_n and K_{n+1} (Fox & Laurent 2022, eqs. 4.17 and 4.18),
-//   ascending and distinct, and that a state below n + 1 nodes gives the
-//   speeds of its classical rule of k nodes, its abscissas each twice and
-//   their mean. The cases:
-//   - normal: states of normal moments at node counts n = 1 to 3, whose
-//     speeds are mu + sigma s for the roots s of He_n and of R_{n+1} of the
-//     standard normal distribution: 0 and -+sqrt(3) for n = 1; -+1 and 0,
+//   ascending and distinct, and that moments that the reconstruction takes to
+//   a classical quadrature of k <= n nodes give its abscissas each twice and
+//   their mean. The speeds are those of the internal function
+//   compute_hyperbolic_characteristic_speeds(...) for the given moments, the
+//   moments the references are computed from; a state applies it to its
+//   stored moments, bit for bit (tests/unit/public_api.cpp). The cases:
+//   - normal: normal moments at node counts n = 1 to 3, whose speeds are
+//     mu + sigma s for the roots s of He_n and of R_{n+1} of the standard
+//     normal distribution: 0 and -+sqrt(3) for n = 1; -+1 and 0,
 //     -+sqrt(6) for n = 2; 0, -+sqrt(3) and -+sqrt(5 -+ 3 sqrt(2)) for n = 3,
 //     the roots of x^4 - 10 x^2 + 7. Fox & Laurent 2022, section 5.3, prints
 //     x^4 - 10 x^2 + 9, a typo: eq. 4.11 with a_k = 0, b_k = k and
 //     beta_3 = 7 gives + 7.
-//   - boundary: states of k <= n weighted points, two at n = 2, and three,
-//     two and one at n = 3, whose speeds are the points, each twice, and
-//     their mean.
-//   - skewed and bimodal: states of the moments of the skewed and bimodal
-//     cases of hyperbolic_quadrature_exact.cpp, n = 1 to 10, which its
-//     generator asserts to lie in the interior of moment space.
+//   - boundary: the moments of k <= n weighted points, two at n = 2, and
+//     three, two and one at n = 3, whose speeds are the points, each twice,
+//     and their mean.
+//   - skewed and bimodal: the moments of the skewed and bimodal cases of
+//     hyperbolic_quadrature_exact.cpp, n = 1 to 10, which its generator
+//     asserts to lie in the interior of moment space.
 //
 // How the reference is constructed
 //   Normal and boundary: mean, standard deviation, points and weights are
@@ -38,21 +42,20 @@
 //   asserts that these roots are real, that they agree with the eigenvalues of
 //   J_n and K_{n+1} to 1e-40, that the roots of R_{n+1} strictly separate
 //   those of Q_n (Fox & Laurent 2022, Theorem 4.8), and that the closure
-//   equals m_{2n+1} of the J_{n+1} rule. The smallest gap between two speeds
-//   is 2.3e-3 of the largest |speed|, at skewed n = 10.
+//   equals m_{2n+1} of the J_{n+1} quadrature. The smallest gap between two
+//   speeds is 2.3e-3 of the largest |speed|, at skewed n = 10.
 //
 // Error metric and pass criteria
 //   Speeds relative to the largest |speed| of the reference, as positions in
-//   hyperbolic_quadrature_exact.cpp. Every case runs through a state, whose
-//   speeds come from the nodes of the reconstruction of the given moments; the
-//   map from 2n + 1 moments to the rule worsens in conditioning with n. The
-//   largest observed deviation is 1.6e-16 for the boundary cases, 2.1e-16 for
-//   the normal ones, 5.4e-15 up to n = 5, 3.6e-14 for n = 6 and 7, 2.7e-13
-//   for n = 8 and 1.3e-11 for n = 9 and 10, alike to two digits in Debug,
-//   Release and GCC builds. The tolerances are those of
-//   hyperbolic_quadrature_exact.cpp: 1e-12 up to n = 7, 1e-11 for n = 8 and
-//   5e-10 for n = 9 and 10, a margin of 27 or more over those deviations, and
-//   1e-12 for the normal and boundary cases, a safety bound.
+//   hyperbolic_quadrature_exact.cpp. The map from 2n + 1 moments to the
+//   speeds worsens in conditioning with n. The largest observed deviation is
+//   1.6e-16 for the boundary cases, 2.0e-16 for the normal ones, 5.2e-15 up to
+//   n = 5, 3.6e-14 for n = 6 and 7, 2.7e-13 for n = 8 and 1.3e-11 for n = 9
+//   and 10, alike to two digits in Debug, Release and GCC builds. The
+//   tolerances are those of hyperbolic_quadrature_exact.cpp: 1e-12 up to
+//   n = 7, 1e-11 for n = 8 and 5e-10 for n = 9 and 10, a margin of 27 or more
+//   over those deviations, and 1e-12 for the normal and boundary cases, a
+//   safety bound.
 //
 // Reproduce
 //   ctest -R verification_hyperbolic_characteristic_speeds_exact
@@ -205,6 +208,7 @@
 //   print("};")
 
 #include "../verification_helpers.hpp"
+#include "internal/hyperbolic_quadrature.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
@@ -414,28 +418,35 @@ void verify_strictly_ascending(const std::vector<double>& speeds)
     }
 }
 
-qmomkit::QmomState hyperbolic_state(const std::vector<double>& moments, const std::size_t n)
+// The node count of the hyperbolic reconstruction of the moments.
+std::size_t node_count_of(const std::vector<double>& moments, const std::size_t n)
 {
-    qmomkit::QmomOptions options;
-    options.family = qmomkit::QmomFamily::hyperbolic;
-    return qmomkit::QmomCase{qmomkit::MomentSet(moments), n, options}.initial_state();
+    return qmomkit::internal::compute_hyperbolic_quadrature(qmomkit::MomentSet(moments), n, {}).weights.size();
+}
+
+// The speeds of the moments with the default options, those of a default
+// hyperbolic case.
+std::vector<double> speeds_of(const std::vector<double>& moments, const std::size_t n)
+{
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds result =
+        qmomkit::internal::compute_hyperbolic_characteristic_speeds(qmomkit::MomentSet(moments), n, {});
+    QMOMKIT_VERIFY_CHECK(result.status == qmomkit::QuadratureStatus::success);
+    return result.speeds;
 }
 
 void test_normal()
 {
     for (const NormalReference& reference : normal_references)
     {
-        const qmomkit::QmomState state = hyperbolic_state(reference.moments, reference.n);
-        QMOMKIT_VERIFY_CHECK(state.active_node_count() == reference.n + 1);
-        const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
-        QMOMKIT_VERIFY_CHECK(result.ok());
+        QMOMKIT_VERIFY_CHECK(node_count_of(reference.moments, reference.n) == reference.n + 1);
+        const std::vector<double> speeds = speeds_of(reference.moments, reference.n);
         std::vector<double> expected = standard_normal_speeds(reference.n);
         for (double& speed : expected)
         {
             speed = reference.mean + (reference.deviation * speed);
         }
-        verify_speeds(result.speeds, expected, 1.0e-12);
-        verify_strictly_ascending(result.speeds);
+        verify_speeds(speeds, expected, 1.0e-12);
+        verify_strictly_ascending(speeds);
     }
 }
 
@@ -443,11 +454,8 @@ void test_boundary()
 {
     for (const BoundaryReference& reference : boundary_references)
     {
-        const qmomkit::QmomState state = hyperbolic_state(reference.moments, reference.n);
-        QMOMKIT_VERIFY_CHECK((2 * state.active_node_count()) + 1 == reference.speeds.size());
-        const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
-        QMOMKIT_VERIFY_CHECK(result.ok());
-        verify_speeds(result.speeds, reference.speeds, 1.0e-12);
+        QMOMKIT_VERIFY_CHECK((2 * node_count_of(reference.moments, reference.n)) + 1 == reference.speeds.size());
+        verify_speeds(speeds_of(reference.moments, reference.n), reference.speeds, 1.0e-12);
     }
 }
 
@@ -455,12 +463,10 @@ void verify_against_references(const std::vector<SpeedReference>& references)
 {
     for (const SpeedReference& reference : references)
     {
-        const qmomkit::QmomState state = hyperbolic_state(reference.moments, reference.n);
-        QMOMKIT_VERIFY_CHECK(state.active_node_count() == reference.n + 1);
-        const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
-        QMOMKIT_VERIFY_CHECK(result.ok());
-        verify_speeds(result.speeds, reference.speeds, tolerance_for(reference.n));
-        verify_strictly_ascending(result.speeds);
+        QMOMKIT_VERIFY_CHECK(node_count_of(reference.moments, reference.n) == reference.n + 1);
+        const std::vector<double> speeds = speeds_of(reference.moments, reference.n);
+        verify_speeds(speeds, reference.speeds, tolerance_for(reference.n));
+        verify_strictly_ascending(speeds);
     }
 }
 

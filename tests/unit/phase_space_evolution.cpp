@@ -1337,86 +1337,110 @@ void test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count()
     }
 }
 
-// The speeds follow the rule of the state. A classical rule of k <= n nodes
-// gives 2k + 1: its abscissas, each twice, and their mean. The rule of n + 1
-// nodes gives 2n + 1 that depend on the stored moments only, so a state
-// rebuilt from them has the same speeds to rounding.
-void assert_characteristic_speeds_follow_the_rule(const qmomkit::QmomState& state, const std::size_t node_count)
+// The speeds follow the reconstruction of the state's stored moments with its
+// options. A classical quadrature of k <= n nodes gives 2k + 1 speeds, its
+// abscissas, each twice, and their mean. The n + 1 nodes give 2n + 1 strictly
+// ascending speeds, of which every second is an eigenvalue of J_n, a node of
+// the classical quadrature of n nodes of the stored moments. Returns the node
+// count of the reconstruction.
+std::size_t assert_characteristic_speeds_follow_the_reconstruction(const qmomkit::QmomState& state, const std::size_t node_count)
 {
     const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
     assert(result.ok());
-    assert(std::is_sorted(result.speeds.begin(), result.speeds.end()));
-    if (state.active_node_count() < state.maximum_node_count())
+    const qmomkit::MomentSet moments(state.moment_values());
+    const qmomkit::QmomResult reconstruction = qmomkit::compute_qmom(moments, node_count, state.qmom_options());
+    assert(reconstruction.ok());
+    const std::vector<double>& abscissas = reconstruction.abscissas;
+    if (abscissas.size() <= node_count)
     {
-        assert(result.speeds.size() == (2 * state.active_node_count()) + 1);
-        std::vector<double> remaining = result.speeds;
-        for (const double abscissa : state.quadrature().abscissas)
+        std::vector<double> expected;
+        for (const double abscissa : abscissas)
         {
-            for (int copy = 0; copy < 2; ++copy)
-            {
-                const auto found = std::find(remaining.begin(), remaining.end(), abscissa);
-                assert(found != remaining.end());
-                remaining.erase(found);
-            }
+            expected.push_back(abscissa);
+            expected.push_back(abscissa);
         }
-        const std::vector<double>& abscissas = state.quadrature().abscissas;
-        const double mean = std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / static_cast<double>(abscissas.size());
-        assert(remaining.size() == 1);
-        assert_near(remaining[0], mean, 1.0e-15 * std::max(1.0, std::abs(mean)));
-        return;
+        expected.push_back(std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / static_cast<double>(abscissas.size()));
+        std::sort(expected.begin(), expected.end());
+        assert(result.speeds == expected);
+        return abscissas.size();
     }
+
     assert(result.speeds.size() == (2 * node_count) + 1);
-    const qmomkit::QmomStateCandidate rebuilt =
-        qmomkit::QmomCase{qmomkit::MomentSet(state.moment_values()), node_count, state.qmom_options()}.state_candidate(
-            qmomkit::MomentSet(state.moment_values()));
-    assert(rebuilt.ok());
-    const qmomkit::HyqmomCharacteristicSpeeds rebuilt_speeds = qmomkit::compute_hyqmom_characteristic_speeds(*rebuilt.state);
+    assert(std::adjacent_find(result.speeds.begin(), result.speeds.end(), [](const double lhs, const double rhs) { return lhs >= rhs; }) ==
+           result.speeds.end());
+    qmomkit::QmomOptions classical_fixed;
+    classical_fixed.adaptive = false;
+    const qmomkit::QmomResult classical = qmomkit::compute_qmom(moments, node_count, classical_fixed);
+    assert(classical.ok());
     const double scale = std::max(std::abs(result.speeds.front()), std::abs(result.speeds.back()));
-    assert_vector_near(result.speeds, rebuilt_speeds.speeds, 1.0e-12 * scale);
+    for (std::size_t i = 0; i < node_count; ++i)
+    {
+        assert_near(result.speeds[(2 * i) + 1], classical.abscissas[i], 1.0e-13 * scale);
+    }
+    return node_count + 1;
 }
 
-void test_hyperbolic_qmom_characteristic_speeds_follow_the_rule_through_advection_and_source_steps()
+void test_hyperbolic_qmom_characteristic_speeds_follow_the_reconstruction_through_advection_and_source_steps()
 {
     // n = 2 through the steps of the count test above, with a velocity
     // 0.1 xi^2 + 0.2 that keeps the nodes apart but moves them off the HyQMOM
-    // rule of their moments, then n = 3 growing from one point.
+    // quadrature of their moments, then n = 3 growing from one point.
     const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>& coordinate) { return std::vector<double>{(0.1 * coordinate[0] * coordinate[0]) + 0.2}; });
     const qmomkit::QmomState state =
         qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
-    assert_characteristic_speeds_follow_the_rule(state, 2);
+    assert(assert_characteristic_speeds_follow_the_reconstruction(state, 2) == 3);
 
     const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(state, 0.0, 0.5, velocity);
     assert(advected.ok());
     assert_hyperbolic_counts(advected.state, 3, 2);
-    const qmomkit::QmomResult own_rule = qmomkit::compute_qmom(qmomkit::MomentSet(advected.state.moment_values()), 2, hyperbolic_qmom_options(true));
-    assert(std::abs(own_rule.abscissas[1] - advected.state.quadrature().abscissas[1]) > 1.0e-6);
-    assert_characteristic_speeds_follow_the_rule(advected.state, 2);
+    const qmomkit::QmomResult own_quadrature =
+        qmomkit::compute_qmom(qmomkit::MomentSet(advected.state.moment_values()), 2, hyperbolic_qmom_options(true));
+    assert(std::abs(own_quadrature.abscissas[1] - advected.state.quadrature().abscissas[1]) > 1.0e-6);
+    assert(assert_characteristic_speeds_follow_the_reconstruction(advected.state, 2) == 3);
 
     const std::vector<double> two_points = raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5);
     const qmomkit::QmomPhaseSpaceEvolutionResult reduced =
         qmomkit::advance_qmom_moment_source(advected.state, 0.5, 1.0, qmom_source_from_to(advected.state.moment_values(), two_points));
     assert(reduced.ok());
     assert_hyperbolic_counts(reduced.state, 2, 2);
-    assert_characteristic_speeds_follow_the_rule(reduced.state, 2);
+    assert(assert_characteristic_speeds_follow_the_reconstruction(reduced.state, 2) == 2);
 
     const qmomkit::QmomPhaseSpaceEvolutionResult advected_reduced = qmomkit::advance_qmom_advection(reduced.state, 1.5, 0.5, velocity);
     assert(advected_reduced.ok());
     assert_hyperbolic_counts(advected_reduced.state, 2, 2);
-    assert_characteristic_speeds_follow_the_rule(advected_reduced.state, 2);
+    assert(assert_characteristic_speeds_follow_the_reconstruction(advected_reduced.state, 2) == 2);
 
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
     qmomkit::QmomState growing = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 7), 3, hyperbolic_qmom_options(true));
-    assert_characteristic_speeds_follow_the_rule(growing, 3);
+    assert(assert_characteristic_speeds_follow_the_reconstruction(growing, 3) == 1);
     for (std::size_t step = 1; step <= 3; ++step)
     {
         const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_moment_source(
             growing, static_cast<double>(step - 1), 1.0, qmom_source_from_to(growing.moment_values(), five_points));
         assert(result.ok());
         assert_hyperbolic_counts(result.state, 1 + step, 3);
-        assert_characteristic_speeds_follow_the_rule(result.state, 3);
+        assert(assert_characteristic_speeds_follow_the_reconstruction(result.state, 3) == 1 + step);
         growing = result.state;
     }
+}
+
+void test_hyperbolic_qmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve_after_advection()
+{
+    // Drag towards 1 with relaxation time 0.25 for t = 2 brings the three
+    // nodes of n = 2 within 1.3e-3 of each other. Their stored moments, far
+    // from the origin relative to that spread, resolve only two nodes: the
+    // state keeps its three nodes, and the speeds are those of the classical
+    // quadrature of two nodes of its moments.
+    const qmomkit::PhaseSpaceVelocity drag = qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate)
+                                                                                { return std::vector<double>{-(coordinate[0] - 1.0) / 0.25}; });
+    const qmomkit::QmomState state =
+        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
+    assert(assert_characteristic_speeds_follow_the_reconstruction(state, 2) == 3);
+    const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(state, 0.0, 2.0, drag);
+    assert(advected.ok());
+    assert(advected.state.active_node_count() == 3);
+    assert(assert_characteristic_speeds_follow_the_reconstruction(advected.state, 2) == 2);
 }
 
 void test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature()
@@ -4951,8 +4975,10 @@ int main(const int argc, char** argv)
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},
             {"hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count",
              test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count},
-            {"hyperbolic_qmom_characteristic_speeds_follow_the_rule_through_advection_and_source_steps",
-             test_hyperbolic_qmom_characteristic_speeds_follow_the_rule_through_advection_and_source_steps},
+            {"hyperbolic_qmom_characteristic_speeds_follow_the_reconstruction_through_advection_and_source_steps",
+             test_hyperbolic_qmom_characteristic_speeds_follow_the_reconstruction_through_advection_and_source_steps},
+            {"hyperbolic_qmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve_after_advection",
+             test_hyperbolic_qmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve_after_advection},
             {"qmom_source_context_uses_current_rk_stage_and_caches_quadrature", test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature},
             {"qmom_boundary_context_matches_source_context", test_qmom_boundary_context_matches_source_context},
             {"qmom_source_context_generalized_moment_semantics", test_qmom_source_context_generalized_moment_semantics},

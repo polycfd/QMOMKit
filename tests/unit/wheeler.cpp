@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <numeric>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -1092,48 +1093,109 @@ void test_hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state()
     }
 }
 
-void test_hyperbolic_speeds_are_covariant_for_a_narrow_distribution_far_from_the_origin()
+void test_hyperbolic_speeds_of_interior_moments_interlace_the_classical_nodes()
 {
-    // The speeds of the points shift + scale y are shift + scale times those of
-    // the points y. Six points of spread 2^-10 around 4 make every Lanczos step
-    // cancel most of diag(x) q_k; removing the projections twice keeps the
-    // speeds accurate to the rounding of the shift, 1e-12 of the spread, where
-    // removing them once loses the spread entirely.
-    const std::vector<double> points{-1.5, -0.5, 0.0, 0.5, 1.0, 2.0};
-    const std::vector<double> weights{0.125, 0.25, 0.125, 0.25, 0.125, 0.125};
-    const double shift = 4.0;
-    const double scale = std::ldexp(1.0, -10);
-    std::vector<double> narrow;
-    for (const double point : points)
+    // Moments that give n + 1 nodes give the n eigenvalues of J_n, the nodes of
+    // the classical quadrature of n nodes, each strictly between two of the
+    // n + 1 eigenvalues of K_{n+1} (Fox & Laurent 2022, Theorem 4.8). These sum
+    // to the trace of K_{n+1}, a_0 + ... + a_{n-1} plus the closure a_n, so
+    // (n + 1) / n times the sum of the classical nodes.
+    const std::vector<double> points{-1.25, 0.5, 1.0, 2.75};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25};
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (std::size_t n = 1; n <= 3; ++n)
     {
-        narrow.push_back(shift + (scale * point));
-    }
-    const qmomkit::internal::HyperbolicCharacteristicSpeeds reference = qmomkit::internal::compute_hyperbolic_characteristic_speeds(points, weights);
-    const qmomkit::internal::HyperbolicCharacteristicSpeeds speeds = qmomkit::internal::compute_hyperbolic_characteristic_speeds(narrow, weights);
-    assert(reference.status == qmomkit::QuadratureStatus::success && speeds.status == qmomkit::QuadratureStatus::success);
-    assert(speeds.speeds.size() == 11 && reference.speeds.size() == 11);
-    for (std::size_t i = 0; i < speeds.speeds.size(); ++i)
-    {
-        assert_near(speeds.speeds[i], shift + (scale * reference.speeds[i]), 1.0e-10 * scale);
+        const qmomkit::MomentSet moments = moments_of(points, weights, (2 * n) + 1);
+        assert(qmomkit::internal::compute_hyperbolic_quadrature(moments, n, {}).weights.size() == n + 1);
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds result = qmomkit::internal::compute_hyperbolic_characteristic_speeds(moments, n, {});
+        assert(result.status == qmomkit::QuadratureStatus::success);
+        assert(result.message.empty());
+        assert(result.speeds.size() == (2 * n) + 1);
+
+        const qmomkit::Quadrature1D classical = qmomkit::compute_quadrature(moments, n, fixed);
+        assert(classical.ok());
+        const double scale = std::max(std::abs(result.speeds.front()), std::abs(result.speeds.back()));
+        double k_sum = result.speeds[2 * n];
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            assert(result.speeds[2 * i] < result.speeds[(2 * i) + 1]);
+            assert(result.speeds[(2 * i) + 1] < result.speeds[(2 * i) + 2]);
+            assert_near(result.speeds[(2 * i) + 1], classical.abscissas[i], 1.0e-14 * scale);
+            k_sum += result.speeds[2 * i];
+        }
+        const double classical_sum = std::accumulate(classical.abscissas.begin(), classical.abscissas.end(), 0.0);
+        assert_near(k_sum, static_cast<double>(n + 1) * classical_sum / static_cast<double>(n), 1.0e-13 * scale);
     }
 }
 
-void test_hyperbolic_speeds_report_a_recurrence_that_vanishes_or_overflows()
+void test_hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature()
 {
-    // Three points at zero give b_1 = 0 exactly at the first Lanczos step,
-    // before the recurrence of n = 2 is complete; points near 1e200 overflow
-    // b_1.
-    const qmomkit::internal::HyperbolicCharacteristicSpeeds vanishing =
-        qmomkit::internal::compute_hyperbolic_characteristic_speeds({0.0, 0.0, 0.0}, {0.25, 0.5, 0.25});
-    assert(vanishing.status == qmomkit::QuadratureStatus::not_realizable);
-    assert(vanishing.message == "Characteristic speed recurrence of the nodes vanished.");
-    assert(vanishing.speeds.empty());
+    // Moments that the reconstruction takes to a classical quadrature of k <= n
+    // nodes, two points at n = 2 and n = 3 and one point at n = 2, give its k
+    // abscissas, each twice, and their arithmetic mean.
+    const std::vector<std::tuple<std::vector<double>, std::vector<double>, std::size_t>> cases{
+        {{-1.25, 2.75}, {0.25, 0.75}, 2}, {{-1.25, 2.75}, {0.25, 0.75}, 3}, {{0.5}, {2.0}, 2}};
+    for (const auto& [points, weights, n] : cases)
+    {
+        const qmomkit::MomentSet moments = moments_of(points, weights, (2 * n) + 1);
+        const qmomkit::Quadrature1D quadrature = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, {});
+        assert(quadrature.ok());
+        assert(quadrature.weights.size() == points.size());
+        std::vector<double> expected;
+        for (const double abscissa : quadrature.abscissas)
+        {
+            expected.push_back(abscissa);
+            expected.push_back(abscissa);
+        }
+        expected.push_back(std::accumulate(quadrature.abscissas.begin(), quadrature.abscissas.end(), 0.0) /
+                           static_cast<double>(quadrature.abscissas.size()));
+        std::sort(expected.begin(), expected.end());
 
-    const qmomkit::internal::HyperbolicCharacteristicSpeeds overflowing =
-        qmomkit::internal::compute_hyperbolic_characteristic_speeds({1.0e200, 2.0e200}, {0.5, 0.5});
-    assert(overflowing.status == qmomkit::QuadratureStatus::not_realizable);
-    assert(overflowing.message == "Characteristic speed recurrence produced non-finite values.");
-    assert(overflowing.speeds.empty());
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds result = qmomkit::internal::compute_hyperbolic_characteristic_speeds(moments, n, {});
+        assert(result.status == qmomkit::QuadratureStatus::success);
+        assert(result.speeds == expected);
+    }
+}
+
+void test_hyperbolic_speeds_report_the_failures_of_the_reconstruction()
+{
+    // A failed reconstruction gives its status and message and no speeds: an
+    // invalid option, node count zero, too few or non-finite moments, m0 below
+    // the cutoff, and in fixed mode two points, which support fewer than
+    // n + 1 nodes. A reconstruction that succeeds can still give no speeds:
+    // for a variance of 1e308 at n = 1, beta_1 = 3 b_1 overflows.
+    const qmomkit::MomentSet interior = moments_of({-1.25, 0.5, 1.0, 2.75}, {0.25, 0.375, 0.125, 0.25}, 5);
+    qmomkit::WheelerOptions negative_rmin;
+    negative_rmin.rmin = -1.0;
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    const double infinity = std::numeric_limits<double>::infinity();
+    const std::vector<std::tuple<qmomkit::MomentSet, std::size_t, qmomkit::WheelerOptions>> cases{
+        {interior, 2, negative_rmin},
+        {interior, 0, {}},
+        {qmomkit::MomentSet{1.0, 0.0, 1.0}, 2, {}},
+        {qmomkit::MomentSet{1.0, 0.0, infinity, 0.0, 1.0}, 2, {}},
+        {qmomkit::MomentSet{0.0, 0.0, 0.0}, 1, {}},
+        {moments_of({-1.25, 2.75}, {0.25, 0.75}, 5), 2, fixed}};
+    for (const auto& [moments, n, options] : cases)
+    {
+        const qmomkit::Quadrature1D quadrature = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, options);
+        assert(!quadrature.ok());
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds result =
+            qmomkit::internal::compute_hyperbolic_characteristic_speeds(moments, n, options);
+        assert(result.status == quadrature.status);
+        assert(result.message == quadrature.message);
+        assert(result.speeds.empty());
+    }
+
+    const qmomkit::MomentSet huge_variance{1.0, 0.0, 1.0e308};
+    assert(qmomkit::internal::compute_hyperbolic_quadrature(huge_variance, 1, {}).ok());
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds overflow =
+        qmomkit::internal::compute_hyperbolic_characteristic_speeds(huge_variance, 1, {});
+    assert(overflow.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(overflow.message == "Characteristic speeds exceed the range of a double.");
+    assert(overflow.speeds.empty());
 }
 
 } // namespace
@@ -1190,9 +1252,10 @@ int main(const int argc, char** argv)
             {"hyperbolic_does_not_apply_rmin_or_eabs", test_hyperbolic_does_not_apply_rmin_or_eabs},
             {"hyperbolic_n_equal_one_gives_two_nodes_or_refuses_zero_variance", test_hyperbolic_n_equal_one_gives_two_nodes_or_refuses_zero_variance},
             {"hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state", test_hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state},
-            {"hyperbolic_speeds_are_covariant_for_a_narrow_distribution_far_from_the_origin",
-             test_hyperbolic_speeds_are_covariant_for_a_narrow_distribution_far_from_the_origin},
-            {"hyperbolic_speeds_report_a_recurrence_that_vanishes_or_overflows",
-             test_hyperbolic_speeds_report_a_recurrence_that_vanishes_or_overflows},
+            {"hyperbolic_speeds_of_interior_moments_interlace_the_classical_nodes",
+             test_hyperbolic_speeds_of_interior_moments_interlace_the_classical_nodes},
+            {"hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature",
+             test_hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature},
+            {"hyperbolic_speeds_report_the_failures_of_the_reconstruction", test_hyperbolic_speeds_report_the_failures_of_the_reconstruction},
         });
 }

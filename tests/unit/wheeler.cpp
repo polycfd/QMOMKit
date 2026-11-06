@@ -826,6 +826,8 @@ void test_hyperbolic_reports_input_failures()
     assert(invalid_options.status == QuadratureStatus::invalid_input);
     assert(invalid_options.message == "Invalid Wheeler numerical option.");
     assert(invalid_options.abscissas.empty() && invalid_options.weights.empty());
+    // The options are checked before the node count, as in compute_quadrature.
+    assert(compute_hyperbolic_quadrature(moments, 0, invalid).message == "Invalid Wheeler numerical option.");
 
     const std::vector<std::pair<qmomkit::Quadrature1D, std::string>> invalid_inputs{
         {compute_hyperbolic_quadrature(moments, 0, options), "node_count must be positive."},
@@ -852,6 +854,30 @@ void test_hyperbolic_reports_input_failures()
 
     // m_{2n+1} is not read.
     assert(compute_hyperbolic_quadrature(qmomkit::MomentSet{1.0, 0.25, 1.0, 0.5, 2.0, nan}, 2, options).ok());
+}
+
+void test_hyperbolic_reads_no_moments_beyond_m2n()
+{
+    // Moments beyond m_{2n} are not read, also where they would decide the
+    // node count: at n = 1, fixed mode returns the two nodes of m_0, m_1, m_2,
+    // and their speeds, whether m_3 and m_4 put the moments on the boundary or
+    // outside the realizable set.
+    using qmomkit::QuadratureStatus;
+    using qmomkit::internal::compute_hyperbolic_quadrature;
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    const qmomkit::MomentSet three{1.0, 0.0, 1.0};
+    const qmomkit::Quadrature1D expected = compute_hyperbolic_quadrature(three, 1, fixed);
+    assert(expected.ok() && expected.weights.size() == 2);
+    const std::vector<double> expected_speeds = qmomkit::internal::compute_hyperbolic_characteristic_speeds(three, 1, fixed).speeds;
+    for (const qmomkit::MomentSet& longer : {qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 1.0}, qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 0.5}})
+    {
+        assert_identical(compute_hyperbolic_quadrature(longer, 1, fixed), expected);
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds speeds =
+            qmomkit::internal::compute_hyperbolic_characteristic_speeds(longer, 1, fixed);
+        assert(speeds.status == QuadratureStatus::success);
+        assert(speeds.speeds == expected_speeds);
+    }
 }
 
 void test_hyperbolic_on_the_boundary_returns_the_classical_rule()
@@ -1267,6 +1293,7 @@ int main(const int argc, char** argv)
             {"recurrence_tolerance_is_the_documented_bound", test_recurrence_tolerance_is_the_documented_bound},
             {"recurrence_decides_the_node_count", test_recurrence_decides_the_node_count},
             {"hyperbolic_reports_input_failures", test_hyperbolic_reports_input_failures},
+            {"hyperbolic_reads_no_moments_beyond_m2n", test_hyperbolic_reads_no_moments_beyond_m2n},
             {"hyperbolic_on_the_boundary_returns_the_classical_rule", test_hyperbolic_on_the_boundary_returns_the_classical_rule},
             {"hyperbolic_below_the_boundary_returns_the_classical_rule", test_hyperbolic_below_the_boundary_returns_the_classical_rule},
             {"hyperbolic_overflow_of_the_extra_row", test_hyperbolic_overflow_of_the_extra_row},

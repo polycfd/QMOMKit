@@ -79,9 +79,9 @@ plt.savefig('speeds_n3.png')"
 
 Every state has $2n + 1$ speeds. For $H_{2n} > 0$, its quadrature has $n + 1$
 nodes. The speeds in even positions, the second, the fourth and so on, are
-then the abscissas of the classical quadrature of $n$ nodes of $m_0, \ldots, m_{2n-1}$, which do not depend on
-$H_{2n}$, and the other $n + 1$ speeds lie between and beyond them (Theorem 4.8
-of the paper):
+then the abscissas of the classical quadrature of $n$ nodes of
+$m_0, \ldots, m_{2n-1}$, which do not depend on $H_{2n}$, and the other $n + 1$
+speeds lie between and beyond them (Theorem 4.8 of the paper):
 
 | $n$ | Abscissas of the classical quadrature | Slowest and fastest speeds at the largest $H_{2n}$ |
 | --- | --- | --- |

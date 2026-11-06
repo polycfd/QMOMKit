@@ -17,7 +17,7 @@ explains.
 
 ## Model
 
-The phase-space coordinate is the particle velocity $u$ in m/s, named `u` in
+The phase-space coordinate is the particle velocity $\xi$ in m/s, named `u` in
 the configuration, and time $t$ is in seconds. The particles are glass beads of
 radius $r_p = 1\,\mathrm{mm}$ and density $\rho_p = 2500\,\mathrm{kg/m^3}$ in
 still air of density $\rho_g = 1.2\,\mathrm{kg/m^3}$ and viscosity
@@ -25,7 +25,7 @@ $1.8 \times 10^{-5}\,\mathrm{Pa\,s}$. Drag with a constant drag coefficient
 $C_D = 0.44$ slows each particle down,
 
 ```math
-\frac{\mathrm{d}u}{\mathrm{d}t} = -c\,|u|\,u,
+\frac{\mathrm{d}\xi}{\mathrm{d}t} = -c\,|\xi|\,\xi,
 \qquad
 c = \frac{3\,C_D\,\rho_g}{8\,\rho_p\,r_p} = 0.0792\,\mathrm{m^{-1}}.
 ```

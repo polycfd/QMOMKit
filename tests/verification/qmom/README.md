@@ -64,7 +64,7 @@ arithmetic gives it, for rules of two to five weighted points
 (`three_points_at_number_density_1024`). Nodes and weights are short binary
 fractions, so the moments are exact in double. The references for $a_k$, $b_k$
 and $\sigma_{k,k}$ were computed from those moments with Python's `fractions`,
-by the script in the test source, and are stored to 17 significant digits; the
+by `wheeler_recurrence_exact.py`, and are stored to 17 significant digits; the
 coefficients of the two-point and symmetric rules are exact in double, those of
 the other rules are not. Entry 0 must hold $a_0 = m_1/m_0$, $b_0 = 0$,
 $\sigma_{0,0} = m_0$ and tolerance 0, and every $\tau_k$ must be finite, positive
@@ -79,12 +79,13 @@ the Gauss rule of $J_{n+1}$ with the closure of
 $n = 1$ to 10 and three shapes: a symmetric binomial rule (`symmetric`), a
 skewed geometric one with weights $625\,(3/4)^j$ (`skewed`), and two binomial
 clusters of masses 3/4 and 1/4 shifted off the origin (`bimodal`). Each shape
-has more than $n + 1$ weighted points, so its moments are interior; the script
-in the test source asserts that every $\sigma_{k,k}$ exceeds $\tau_k$ at least a
-thousandfold. The moments $m_0, \ldots, m_{2n}$ are rounded to double, and the
-references are computed from those doubles: the recurrence and the closure with
-Python's `fractions`, the eigenpairs of $J_{n+1}$ with mpmath at 60 digits.
-Fixed mode must return $n + 1$ nodes, and adaptive mode the identical rule.
+has more than $n + 1$ weighted points, so its moments are interior;
+`hyperbolic_quadrature_exact.py` asserts that every $\sigma_{k,k}$ exceeds
+$\tau_k$ at least a thousandfold. The moments $m_0, \ldots, m_{2n}$ are rounded
+to double, and the references are computed from those doubles: the recurrence
+and the closure with Python's `fractions`, the eigenpairs of $J_{n+1}$ with
+mpmath at 60 digits. Fixed mode must return $n + 1$ nodes, and adaptive mode
+the identical rule.
 
 `verification_hyperbolic_characteristic_speeds_exact_<case>`
 (`hyperbolic_characteristic_speeds_exact.cpp`) check the characteristic speeds
@@ -99,14 +100,14 @@ Three references:
   of $He_n$ and of $R_{n+1}$ of the standard normal distribution.
 - `boundary`: the moments of $k \le n$ dyadic weighted points, whose speeds are
   the points, each twice, and their mean.
-- `skewed`, `bimodal`: the moments of the HyQMOM cases above,
-  $n = 1$ to 10, against the eigenvalues of the Jacobian of the closed
-  system. The script in the test source closes $m_{2n+1}$ in exact rational
-  arithmetic with the reverse step of Fox & Laurent (2022, Algorithm 2),
-  differentiates it exactly with dual numbers, and finds the roots of the
-  characteristic polynomial with mpmath at 60 digits. It asserts that they
-  agree with the eigenvalues of $J_n$ and $K_{n+1}$ and interlace; the test
-  asserts that the speeds strictly increase.
+- `skewed`, `bimodal`: the moments of the HyQMOM cases above, $n = 1$ to 10,
+  against the eigenvalues of the Jacobian of the closed system.
+  `hyperbolic_characteristic_speeds_exact.py` closes $m_{2n+1}$ in exact
+  rational arithmetic with the reverse step of Fox & Laurent
+  (2022, Algorithm 2), differentiates it exactly with dual numbers, and finds
+  the roots of the characteristic polynomial with mpmath at 60 digits. It
+  asserts that they agree with the eigenvalues of $J_n$ and $K_{n+1}$ and
+  interlace; the test asserts that the speeds strictly increase.
 
 ### Moment-space boundary
 
@@ -210,5 +211,10 @@ one node.
 ```bash
 ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|hyperbolic_quadrature_exact|hyperbolic_characteristic_speeds_exact|adaptive_qmom)_' --output-on-failure
 ```
+
+The scripts `wheeler_recurrence_exact.py`, `hyperbolic_quadrature_exact.py` and
+`hyperbolic_characteristic_speeds_exact.py`, beside the tests, print the
+references the three exact tests store. They run with `python3`; the two HyQMOM
+scripts also need mpmath.
 
 See [Building and running](../../../docs/developer/testing.md#building-and-running).

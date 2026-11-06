@@ -24,26 +24,27 @@
 //     three, two and one at n = 3, whose speeds are the points, each twice,
 //     and their mean.
 //   - skewed and bimodal: the moments of the skewed and bimodal cases of
-//     hyperbolic_quadrature_exact.cpp, n = 1 to 10, which its generator
-//     asserts to lie in the interior of moment space.
+//     hyperbolic_quadrature_exact.cpp, n = 1 to 10, which
+//     hyperbolic_quadrature_exact.py asserts to lie in the interior of moment
+//     space.
 //
 // How the reference is constructed
 //   Normal and boundary: mean, standard deviation, points and weights are
-//   dyadic, and the script below computes the moments in exact arithmetic and
-//   asserts that double holds them exactly. The normal speeds are evaluated in
-//   double from the roots above; the boundary speeds are the points and their
-//   mean. Skewed and bimodal: from the double moments of each shape, the
-//   script below closes m_{2n+1} in exact rational arithmetic, by the
-//   recurrence of docs/developer/qmom.md, the closure a_n = (a_0 + ... +
-//   a_{n-1}) / n and the reverse step of Fox & Laurent 2022, Algorithm 2, and
-//   differentiates it exactly with dual numbers. The speeds are the roots of
-//   lambda^{2n+1} - sum_j (d m_{2n+1} / d m_j) lambda^j, the characteristic
-//   polynomial of the Jacobian, found with mpmath at 60 digits. The script
-//   asserts that these roots are real, that they agree with the eigenvalues of
-//   J_n and K_{n+1} to 1e-40, that the roots of R_{n+1} strictly separate
-//   those of Q_n (Fox & Laurent 2022, Theorem 4.8), and that the closure
-//   equals m_{2n+1} of the J_{n+1} quadrature. The smallest gap between two
-//   speeds is 2.3e-3 of the largest |speed|, at skewed n = 10.
+//   dyadic, and the script hyperbolic_characteristic_speeds_exact.py, beside
+//   this file, computes the moments in exact arithmetic and asserts that double
+//   holds them exactly. The normal speeds are evaluated in double from the
+//   roots above; the boundary speeds are the points and their mean. Skewed and
+//   bimodal: from the double moments of each shape, the script closes m_{2n+1}
+//   in exact rational arithmetic, by the recurrence of docs/developer/qmom.md,
+//   the closure a_n = (a_0 + ... + a_{n-1}) / n and the reverse step of Fox &
+//   Laurent 2022, Algorithm 2, and differentiates it exactly with dual numbers.
+//   The speeds are the roots of lambda^{2n+1} - sum_j (d m_{2n+1} / d m_j)
+//   lambda^j, the characteristic polynomial of the Jacobian, found with mpmath
+//   at 60 digits. The script asserts that these roots are real, that they agree
+//   with the eigenvalues of J_n and K_{n+1} to 1e-40, that the roots of R_{n+1}
+//   strictly separate those of Q_n (Fox & Laurent 2022, Theorem 4.8), and that
+//   the closure equals m_{2n+1} of the J_{n+1} quadrature. The smallest gap
+//   between two speeds is 2.3e-3 of the largest |speed|, at skewed n = 10.
 //
 // Error metric and pass criteria
 //   Speeds relative to the largest |speed| of the reference, as positions in
@@ -56,153 +57,12 @@
 //
 // Reproduce
 //   ctest -R verification_hyperbolic_characteristic_speeds_exact
-//   The references: python3 with mpmath and the script below.
+//   The references: python3 hyperbolic_characteristic_speeds_exact.py, with
+//   mpmath, prints the arrays stored below.
 //
 // Build modes
 //   Both. QMOMKIT_VERIFY_CHECK and QMOMKIT_VERIFY_NEAR report and exit rather
 //   than relying on assert(), so NDEBUG does not weaken this study.
-//
-// Generator of the references:
-//
-//   from fractions import Fraction as F
-//   from math import comb
-//   import mpmath as mp
-//
-//   mp.mp.dps = 60
-//
-//
-//   class D:
-//       # A dual number over the rationals: a value and its exact gradient in
-//       # m_0, ..., m_{2n}.
-//       def __init__(self, v, g):
-//           self.v, self.g = v, g
-//
-//       def __add__(s, o):
-//           return D(s.v + o.v, [x + y for x, y in zip(s.g, o.g)])
-//
-//       def __sub__(s, o):
-//           return D(s.v - o.v, [x - y for x, y in zip(s.g, o.g)])
-//
-//       def __mul__(s, o):
-//           return D(s.v * o.v, [s.v * y + o.v * x for x, y in zip(s.g, o.g)])
-//
-//       def __truediv__(s, o):
-//           return D(s.v / o.v, [(x * o.v - s.v * y) / (o.v * o.v) for x, y in zip(s.g, o.g)])
-//
-//
-//   def shapes(n):
-//       # The asymmetric shapes of hyperbolic_quadrature_exact.cpp: a skewed
-//       # geometric rule with weights 625 (3/4)^j, and two binomial clusters of
-//       # masses 3/4 and 1/4, shifted off the origin.
-//       p = 2 * n + 2
-//       skewed = ([F(j - n - 1, 2) for j in range(p + 1)], [2500 * F(3, 4)**j / 4 for j in range(p + 1)])
-//       bimodal = ([1 + c + F(j, 2) - F(n, 4) for c in (-2, 2) for j in range(n + 1)],
-//                  [mass * F(comb(n, j), 2**n) for mass in (F(3, 4), F(1, 4)) for j in range(n + 1)])
-//       return {"skewed": skewed, "bimodal": bimodal}
-//
-//
-//   def closure(m, n):
-//       # m_{2n+1} of the HyQMOM closure and its exact gradient: the recurrence of
-//       # m_0, ..., m_{2n}, docs/developer/qmom.md, the closure a_n = mean(a_0, ...,
-//       # a_{n-1}), then the reverse step of Fox & Laurent 2022, Algorithm 2.
-//       size = 2 * n + 1
-//       zero = D(F(0), [F(0)] * size)
-//       s = {(-1, l): zero for l in range(size + 1)}
-//       for l in range(size):
-//           s[(0, l)] = D(m[l], [F(int(j == l)) for j in range(size)])
-//       a, b = [s[(0, 1)] / s[(0, 0)]], [zero]
-//       for k in range(1, n + 1):
-//           for l in range(k, 2 * n - k + 1):
-//               s[(k, l)] = s[(k - 1, l + 1)] - a[k - 1] * s[(k - 1, l)] - b[k - 1] * s[(k - 2, l)]
-//           b.append(s[(k, k)] / s[(k - 1, k - 1)])
-//           if k < n:
-//               a.append(s[(k, k + 1)] / s[(k, k)] - s[(k - 1, k)] / s[(k - 1, k - 1)])
-//       total = zero
-//       for value in a:
-//           total = total + value
-//       a.append(total / D(F(n), [F(0)] * size))
-//       s[(n, n + 1)] = s[(n, n)] * (a[n] + s[(n - 1, n)] / s[(n - 1, n - 1)])
-//       for k in range(n - 1, -1, -1):
-//           s[(k, 2 * n - k + 1)] = s[(k + 1, 2 * n - k)] + a[k] * s[(k, 2 * n - k)] + b[k] * s[(k - 1, 2 * n - k)]
-//       return s[(0, size)], [v.v for v in a], [v.v for v in b]
-//
-//
-//   def q(v):
-//       return mp.mpf(v.numerator) / v.denominator
-//
-//
-//   def eigenvalues(a, off, size):
-//       J = mp.matrix(size, size)
-//       for i in range(size):
-//           J[i, i] = q(a[i])
-//       for i in range(1, size):
-//           J[i - 1, i] = J[i, i - 1] = mp.sqrt(q(off[i]))
-//       E, Q = mp.eigsy(J)
-//       return sorted(E[i] for i in range(size)), E, Q
-//
-//
-//   def speeds(m, n):
-//       # The eigenvalues of the Jacobian of the closed system, rows e_{k+1} for
-//       # k < 2n and the gradient of m_{2n+1}: the roots of
-//       # lambda^{2n+1} - sum_j (d m_{2n+1} / d m_j) lambda^j.
-//       m_next, a, b = closure(m, n)
-//       coefficients = [mp.mpf(1)] + [-q(c) for c in reversed(m_next.g)]
-//       roots = mp.polyroots(coefficients, maxsteps=4000, extraprec=800)
-//       assert all(abs(mp.im(r)) < mp.mpf(10)**-40 for r in roots)
-//       roots = sorted(mp.re(r) for r in roots)
-//       scale = max(abs(r) for r in roots)
-//       # They are the eigenvalues of J_n and K_{n+1} (eqs. 4.17 and 4.18), which
-//       # interlace (Theorem 4.8): K_{n+1} at even positions, J_n at odd ones.
-//       beta = b[:n] + [F(2 * n + 1, n) * b[n]]
-//       j_roots, _, _ = eigenvalues(a, b, n)
-//       k_roots, _, _ = eigenvalues(a, beta, n + 1)
-//       assert max(abs(x - y) for x, y in zip(roots[1::2], j_roots)) < mp.mpf(10)**-40 * scale
-//       assert max(abs(x - y) for x, y in zip(roots[0::2], k_roots)) < mp.mpf(10)**-40 * scale
-//       assert all(x < y for x, y in zip(roots, roots[1:]))
-//       # The closure is the moment m_{2n+1} of the HyQMOM rule, the Gauss rule
-//       # of J_{n+1}.
-//       _, E, Q = eigenvalues(a, b, n + 1)
-//       rule = sum(q(m[0]) * Q[0, i]**2 * E[i]**(2 * n + 1) for i in range(n + 1))
-//       assert abs(rule - q(m_next.v)) < mp.mpf(10)**-40 * max(1, abs(rule))
-//       gap = min(y - x for x, y in zip(roots, roots[1:])) / scale
-//       return roots, gap
-//
-//
-//   fmt = lambda values: ", ".join(repr(float(v)) for v in values)
-//   for name in ["skewed", "bimodal"]:
-//       print(f"const std::vector<SpeedReference> {name}_references{{")
-//       for n in range(1, 11):
-//           x, w = shapes(n)[name]
-//           m = [F(float(sum(wi * xi**k for xi, wi in zip(x, w)))) for k in range(2 * n + 1)]
-//           roots, gap = speeds(m, n)
-//           print(f"    {{{n}, {{{fmt(m)}}}, {{{fmt(roots)}}}}},  // gap {mp.nstr(gap, 3)}")
-//       print("};")
-//
-//
-//   def exact(values):
-//       # Moments that double holds exactly.
-//       assert all(F(float(v)) == v for v in values)
-//       return values
-//
-//
-//   def normal_moments(m0, mu, sigma, n):
-//       # m_k = m0 E[(mu + sigma Z)^k], with E[Z^j] = (j - 1)!! for even j.
-//       double_factorial = lambda j: 1 if j <= 0 else j * double_factorial(j - 2)
-//       return exact([m0 * sum(comb(k, j) * mu**(k - j) * sigma**j * double_factorial(j - 1) for j in range(0, k + 1, 2)) for k in range(2 * n + 1)])
-//
-//
-//   print("const std::vector<NormalReference> normal_references{")
-//   for m0, mu, sigma in [(F(2), F(3, 4), F(3, 2)), (F(1, 2), F(-5, 4), F(1, 2))]:
-//       for n in range(1, 4):
-//           print(f"    {{{n}, {float(mu)!r}, {float(sigma)!r}, {{{fmt(normal_moments(m0, mu, sigma, n))}}}}},")
-//   print("};")
-//
-//   print("const std::vector<BoundaryReference> boundary_references{")
-//   for n, x, w in [(2, [F(-5, 4), F(11, 4)], [F(1, 4), F(3, 4)]), (3, [F(-3, 2), F(1, 4), F(11, 4)], [F(1, 4), F(1, 2), F(1, 4)]),
-//                   (3, [F(-5, 4), F(11, 4)], [F(1, 4), F(3, 4)]), (3, [F(1, 2)], [F(2)])]:
-//       m = exact([sum(wi * xi**k for xi, wi in zip(x, w)) for k in range(2 * n + 1)])
-//       print(f"    {{{n}, {{{fmt(m)}}}, {{{fmt(sorted(x + x + [sum(x) / len(x)]))}}}}},")
-//   print("};")
 
 #include "../verification_helpers.hpp"
 #include "internal/hyperbolic_quadrature.hpp"

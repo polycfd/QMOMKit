@@ -20,8 +20,8 @@ deliberate fault:
 - `qmom_invalid_family`\*: `qmom_family = hyperbolical`, a misspelling;
 - `qmom_hyperbolic_insufficient_moments`: four moments for the hyperbolic
   family with node count two, which reads five;
-- `qmom_hyperbolic_abscissa_bounds`: `support_lower` and `support_upper` with
-  the hyperbolic family;
+- `qmom_hyperbolic_abscissa_bounds`\*: `support_lower` and `support_upper` with
+  the hyperbolic family, reported at the line of `support_lower`;
 - `cqmom_invalid_vandermonde_solver`\*: `solver = structured`;
 - `cqmom_missing_phase_space`: no `[phase_space]` section;
 - `cqmom_invalid_conditioning_order`\*: `conditioning_order = 0, 0`;
@@ -30,8 +30,8 @@ deliberate fault:
 Each case checks that loading fails, that no value is returned, and that the
 error contains the file path and a fragment of the expected message; checking
 failure alone would let an unrelated error pass. For the fixtures marked \*,
-whose fault sits on one line, the error must read `<file>:<line>: ...` with
-the line of the fault.
+the error must read `<file>:<line>: ...` with the line of the fault, or of the
+key named above where the fault involves two keys.
 
 ## Tolerances
 

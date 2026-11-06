@@ -21,8 +21,9 @@ reject a rule without clipping it.
 ### Classical and manufactured rules
 
 `verification_qmom_analytical_<case>` (`qmom_analytical.cpp`, `expected.hpp`,
-`<case>.qmom`). Each fixture holds the first $2n$ raw moments of a rule listed
-independently in `expected.hpp`:
+`<case>.qmom`). Each classical fixture holds the first $2n$ raw moments of a
+rule listed independently in `expected.hpp`, and each hyperbolic fixture the
+moments below the table:
 
 | Cases | Reference rule |
 | --- | --- |
@@ -76,7 +77,7 @@ and below $\sigma_{k,k}$, so that all $n$ points are supported.
 the Gauss rule of $J_{n+1}$ with the closure of
 [QMOM families](../../../docs/developer/qmom_families.md#hyperbolic), for
 $n = 1$ to 10 and three shapes: a symmetric binomial rule (`symmetric`), a
-skewed geometric one at number density 2500 (`skewed`), and two binomial
+skewed geometric one with weights $625\,(3/4)^j$ (`skewed`), and two binomial
 clusters of masses 3/4 and 1/4 shifted off the origin (`bimodal`). Each shape
 has more than $n + 1$ weighted points, so its moments are interior; the script
 in the test source asserts that every $\sigma_{k,k}$ exceeds $\tau_k$ at least a

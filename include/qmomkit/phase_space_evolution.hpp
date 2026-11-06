@@ -231,6 +231,8 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * post-source QMOM reconstruction, may reduce the active node count, and may
  * grow it by at most one node toward the state's configured maximum. On success it returns
  * a canonical accepted state; on failure, it returns the unchanged input state.
+ * The maximum count is reconstructed with the state's family; for
+ * `hyperbolic`, a count below its n + 1 nodes is a classical quadrature.
  */
 [[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, double t, double time_step,
                                                                        const QmomMomentSource& source,
@@ -264,8 +266,8 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * and in the `second_*`/`final_*` fields for `srcadv`.
  *
  * The state's configured maximum node count and reconstruction options govern
- * reconstruction. In adaptive mode the accepted state's quadrature size is the
- * active count.
+ * reconstruction, with the family's count rule of `advance_qmom_moment_source`.
+ * In adaptive mode the accepted state's quadrature size is the active count.
  */
 [[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, double t, double time_step,
                                                                      const PhaseSpaceVelocity& velocity, const QmomMomentSource& source,

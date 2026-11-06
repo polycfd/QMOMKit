@@ -88,8 +88,8 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | Key | Default | Meaning | C++ |
 | --- | --- | --- | --- |
 | `[qmom] adaptive` | `true` | Use fewer nodes where the moments support no more. | `QmomOptions::adaptive` |
-| — | `1e-10` | Adaptive: smallest accepted ratio of the smallest to the largest weight. | `QmomOptions::rmin` |
-| — | `1e-10` | Adaptive: smallest accepted relative node separation. | `QmomOptions::eabs` |
+| — | `1e-10` | Adaptive: smallest accepted ratio of the smallest to the largest weight; not applied to the $N + 1$ nodes of `hyperbolic`. | `QmomOptions::rmin` |
+| — | `1e-10` | Adaptive: smallest accepted relative node separation; not applied to the $N + 1$ nodes of `hyperbolic`. | `QmomOptions::eabs` |
 | — | `1e-30` | Smallest $m_0$ that is reconstructed. | `QmomOptions::cutoff` |
 
 ### `[cqmom]` and `[vandermonde]`

@@ -92,7 +92,7 @@
 //
 //   def shapes(n):
 //       # The asymmetric shapes of hyperbolic_quadrature_exact.cpp: a skewed
-//       # geometric rule at number density 2500, and two binomial clusters of
+//       # geometric rule with weights 625 (3/4)^j, and two binomial clusters of
 //       # masses 3/4 and 1/4, shifted off the origin.
 //       p = 2 * n + 2
 //       skewed = ([F(j - n - 1, 2) for j in range(p + 1)], [2500 * F(3, 4)**j / 4 for j in range(p + 1)])

@@ -35,8 +35,10 @@ enum class QmomFamily
  * Numerical controls for one-dimensional QMOM quadrature construction.
  *
  * Adaptive node reduction is on by default; set `adaptive = false` to require
- * the requested node count. `family` selects the quadrature family; CQMOM
- * supports only `classical`.
+ * the family's maximum node count, n for `classical` and n + 1 for
+ * `hyperbolic`. `rmin` and `eabs` apply only to classical quadratures, not to
+ * the n + 1 nodes of `hyperbolic`. `family` selects the quadrature family;
+ * CQMOM supports only `classical`.
  */
 struct QmomOptions
 {

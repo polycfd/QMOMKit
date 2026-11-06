@@ -6,11 +6,11 @@
 //   J_{n+1}, whose diagonal holds a_0, ..., a_{n-1} and the closure
 //   a_n = (a_0 + ... + a_{n-1}) / n (Fox & Laurent 2022, eq. 4.16) and whose
 //   off-diagonal holds the square roots of b_1, ..., b_n, for n = 1 to 10 and
-//   three shapes: a symmetric binomial rule, a skewed geometric one at number
-//   density 2500, and two binomial clusters of masses 3/4 and 1/4 shifted off
-//   the origin. Every case has more than n + 1 weighted points, so its moments
-//   lie in the interior of moment space, and must return n + 1 nodes in fixed
-//   mode, with adaptive mode returning the identical rule.
+//   three shapes: a symmetric binomial rule, a skewed geometric one with
+//   weights 625 (3/4)^j, and two binomial clusters of masses 3/4 and 1/4
+//   shifted off the origin. Every case has more than n + 1 weighted points, so
+//   its moments lie in the interior of moment space, and must return n + 1
+//   nodes in fixed mode, with adaptive mode returning the identical rule.
 //
 // How the reference is constructed
 //   The moments m_0, ..., m_{2n} of each shape are rounded to double, and the
@@ -50,8 +50,9 @@
 //
 //   def shapes(n):
 //       # Sums of more than n + 1 weighted points, with moments rounded to double:
-//       # a symmetric binomial rule, a skewed geometric one at number density 2500,
-//       # and two binomial clusters of masses 3/4 and 1/4, shifted off the origin.
+//       # a symmetric binomial rule, a skewed geometric one with weights
+//       # 625 (3/4)^j, and two binomial clusters of masses 3/4 and 1/4, shifted
+//       # off the origin.
 //       p = 2 * n + 2
 //       symmetric = ([F(j - n - 1, 2) for j in range(p + 1)], [F(comb(p, j), 2**p) for j in range(p + 1)])
 //       skewed = ([F(j - n - 1, 2) for j in range(p + 1)], [2500 * F(3, 4)**j / 4 for j in range(p + 1)])

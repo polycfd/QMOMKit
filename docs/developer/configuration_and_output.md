@@ -114,13 +114,14 @@ other formulation.
 The case parsers go through the same steps a caller can take separately:
 `initialize_qmom_moments(...)` or `initialize_cqmom_moments(...)` turn an
 `InitialConditionSpecification` into moments, and `create_qmom_case(...)` or
-`create_cqmom_case(...)` build the case. A QMOM case needs at least $2N$ moments
-for $N$ nodes at this point, or as many as its family reads, the count
-`internal::qmom_required_moment_count` gives, and a family may refuse abscissa
-bounds ([QMOM families](qmom_families.md)). A CQMOM explicit tensor must be
-complete within its `extents`, and the case keeps only the moments its layout
-requires ([CQMOM](cqmom.md)). Options without a key, such as
-`QmomOptions::cutoff` or the source-step retries, keep their C++ defaults.
+`create_cqmom_case(...)` build the case. A QMOM case with node count $N$ needs
+at this point the moments its family reads, $2N$, or $2N + 1$ for
+`hyperbolic`, the count `internal::qmom_required_moment_count` gives, and a
+family may refuse abscissa bounds ([QMOM families](qmom_families.md)). A CQMOM
+explicit tensor must be complete within its `extents`, and the case keeps only
+the moments its layout requires ([CQMOM](cqmom.md)). Options without a key,
+such as `QmomOptions::cutoff` or the source-step retries, keep their C++
+defaults.
 
 The QMOM family, `[phase_space] qmom_family`, is read by one helper,
 `parse_qmom_family`, which gives `classical` when the key is absent:

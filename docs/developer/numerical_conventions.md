@@ -93,10 +93,11 @@ every branch follows its parent. Code for both layouts iterates over
 ## Adaptive and fixed reconstruction
 
 One flag, `QmomOptions::adaptive` (default `true`), governs every inversion; in
-CQMOM, every marginal and conditional inversion and every branch count. Adaptive
-node counts are maxima; a fixed reconstruction returns exactly the configured
-count in every inversion, or fails. Criteria: [QMOM](qmom.md); branches:
-[CQMOM](cqmom.md).
+CQMOM, every marginal and conditional inversion and every branch count. An
+adaptive reconstruction returns at most the family's maximum node count,
+`maximum_node_count()`, which is $N + 1$ for `hyperbolic`; a fixed one returns
+exactly that count in every inversion, or fails. Criteria: [QMOM](qmom.md);
+branches: [CQMOM](cqmom.md).
 
 ## Tolerances
 

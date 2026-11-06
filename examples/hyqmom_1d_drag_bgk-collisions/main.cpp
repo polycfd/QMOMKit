@@ -14,9 +14,10 @@
 namespace
 {
 
-// The number density, the mean and standard deviation of the velocity, m_{2n+1}
-// of the nodes, and the characteristic speeds of a state.
-bool print_state(const double time, const qmomkit::QmomState& state)
+// The number density, the mean and standard deviation of the velocity, and
+// m_{2n+1} and the characteristic speeds of the HyQMOM reconstruction of the
+// state's moments, with node count n.
+bool print_state(const double time, const qmomkit::QmomState& state, const std::size_t node_count)
 {
     const qmomkit::HyqmomCharacteristicSpeeds characteristic = qmomkit::compute_hyqmom_characteristic_speeds(state);
     if (!characteristic.ok())
@@ -24,19 +25,26 @@ bool print_state(const double time, const qmomkit::QmomState& state)
         std::cerr << "Characteristic speeds failed: " << characteristic.message << '\n';
         return false;
     }
+    // The state holds m0..m2n. Its nodes are moved by the drag and need not be
+    // the quadrature that HyQMOM reconstructs from those moments; m_{2n+1}, the
+    // flux of m_2n, is that of the reconstruction, as are the speeds.
     const std::vector<double>& moments = state.moment_values();
+    const qmomkit::QmomResult reconstruction = qmomkit::compute_qmom(qmomkit::MomentSet(moments), node_count, state.qmom_options());
+    if (!reconstruction.ok())
+    {
+        std::cerr << "HyQMOM reconstruction failed: " << reconstruction.message << '\n';
+        return false;
+    }
     const double mean = moments[1] / moments[0];
     const double standard_deviation = std::sqrt(moments[2] / moments[0] - mean * mean);
-    // With node count n, the state holds up to n + 1 nodes and their moments
-    // m0..m2n; m_{2n+1} of its nodes is the moment beyond those.
-    const std::size_t next_order = 2 * state.maximum_node_count() - 1;
+    const std::size_t next_order = 2 * node_count + 1;
 
     std::cout << "t = " << time << " s, " << state.active_node_count() << " nodes\n";
     std::cout << "  number density m0 (1/m^3):     " << moments[0] << '\n';
     std::cout << "  mean velocity (m/s):           " << mean << '\n';
     std::cout << "  standard deviation (m/s):      " << standard_deviation << '\n';
     std::cout << "  moment m" << next_order << " (m^" << next_order - 3 << "/s^" << next_order
-              << "):           " << qmomkit::evaluate_generalized_moment(state.quadrature(), static_cast<double>(next_order)) << '\n';
+              << "):           " << qmomkit::evaluate_generalized_moment(reconstruction, static_cast<double>(next_order)) << '\n';
     std::cout << "  characteristic speeds (m/s):  ";
     for (const double speed : characteristic.speeds)
     {
@@ -90,7 +98,7 @@ int main()
         // initial_state() throws when the configured moments admit no quadrature,
         // and the writers throw when a file cannot be written.
         qmomkit::QmomState state = qmom_case.initial_state();
-        if (!print_state(initial_time, state))
+        if (!print_state(initial_time, state, qmom_case.node_count))
         {
             return 1;
         }
@@ -146,7 +154,7 @@ int main()
             }
         }
 
-        if (!print_state(time, state))
+        if (!print_state(time, state, qmom_case.node_count))
         {
             return 1;
         }

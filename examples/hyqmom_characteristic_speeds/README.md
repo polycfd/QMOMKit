@@ -2,13 +2,14 @@
 
 This example computes the characteristic speeds of HyQMOM, the `hyperbolic`
 QMOM family, with `compute_hyqmom_characteristic_speeds(...)`, for the moments
-of section 5 and Fig. 1 of [Fox & Laurent
+of Section 5 and Fig. 1 of [Fox & Laurent
 (2022)](https://www.doi.org/10.1137/21M1406143). When the moments are
 transported in physical space, with $\xi$ the velocity, the characteristic
 speeds are the speeds at which changes in the moments travel. A code that
-transports them needs the slowest and the fastest, for example for the fluxes
-and the time step of a finite-volume scheme, as in section 6 of the paper. That
-transport belongs to the host code, so it is not part of this example.
+transports the moments needs the leftmost and the rightmost speeds, the most
+negative and the most positive, for example for the fluxes and the time step of
+a finite-volume scheme, as in Section 6 of the paper. That transport belongs to
+the host code, so it is not part of this example.
 Everything is set in [main.cpp](./main.cpp).
 
 ## Moments
@@ -83,7 +84,7 @@ then the abscissas of the classical quadrature of $n$ nodes of
 $m_0, \ldots, m_{2n-1}$, which do not depend on $H_{2n}$, and the other $n + 1$
 speeds lie between and beyond them (Theorem 4.8 of the paper):
 
-| $n$ | Abscissas of the classical quadrature | Slowest and fastest speeds at the largest $H_{2n}$ |
+| $n$ | Abscissas of the classical quadrature | Leftmost and rightmost speeds at the largest $H_{2n}$ |
 | --- | --- | --- |
 | 2 | $-1.6180$, $0.61803$ | $-7.8914$, $6.4013$ |
 | 3 | $-2.4732$, $0.077968$, $1.7286$ | $-13.537$, $13.635$ |

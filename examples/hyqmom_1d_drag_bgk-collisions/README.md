@@ -10,7 +10,7 @@ moments. At $t = 0$ and $t = 2\,\mathrm{s}$, the example prints $m_5$ of the
 HyQMOM reconstruction of the state's moments, the moment beyond those the state
 holds, and the characteristic speeds, which
 `compute_hyqmom_characteristic_speeds(...)` returns. A code that transports
-$m_0, \ldots, m_4$ in physical space needs both: the slowest and fastest
+$m_0, \ldots, m_4$ in physical space needs both: the leftmost and rightmost
 speeds, at which changes in the moments travel, as
 [hyqmom_characteristic_speeds](../hyqmom_characteristic_speeds/README.md)
 explains, and $m_5$, the flux of $m_4$, which HyQMOM provides as $m_5$ of the

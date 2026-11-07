@@ -1251,6 +1251,30 @@ void test_hyperbolic_qmom_state_grows_through_the_classical_counts()
     }
 }
 
+void test_hyperbolic_qmom_state_below_its_maximum_keeps_a_classical_count_when_growth_is_refused()
+{
+    // n = 3, from one node, with rmin = 0.99. A source step onto the moments of
+    // five points refuses the classical growth to two nodes on rmin, so the
+    // state keeps one node, the classical quadrature of its count. HyQMOM with
+    // node count 1 would return two nodes of equal weight from the same
+    // moments, since rmin does not apply to its extra node.
+    qmomkit::QmomOptions options = hyperbolic_qmom_options(true);
+    options.rmin = 0.99;
+    const std::vector<double> five_points = raw_moments_1d({6.75, 8.5, 9.0, 10.75, 11.0}, {0.25, 0.375, 0.125, 0.25, 0.0625}, 7);
+    qmomkit::QmomOptions classical_options = options;
+    classical_options.family = qmomkit::QmomFamily::classical;
+    assert(qmomkit::compute_qmom(qmomkit::MomentSet(five_points), 2, classical_options).weights.size() == 1);
+    assert(qmomkit::compute_qmom(qmomkit::MomentSet(five_points), 1, options).weights.size() == 2);
+
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({8.5}, {1.0625}, 7), 3, options);
+    assert_hyperbolic_counts(state, 1, 3);
+    const qmomkit::QmomPhaseSpaceEvolutionResult result =
+        qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, qmom_source_from_to(state.moment_values(), five_points));
+    assert(result.ok());
+    assert_hyperbolic_counts(result.state, 1, 3);
+    assert_qmom_quadrature_near(result.state.quadrature(), qmomkit::QmomResult{{five_points[1] / five_points[0]}, {five_points[0]}}, 1.0e-12);
+}
+
 void test_fixed_hyperbolic_qmom_state_keeps_n_plus_one_nodes_and_fails_on_the_boundary()
 {
     // A fixed state keeps the three nodes of J_3 while the moments stay
@@ -5015,6 +5039,8 @@ int main(const int argc, char** argv)
             {"public_qmom_moment_source_stage_failures_roll_back", test_public_qmom_moment_source_stage_failures_roll_back},
             {"hyperbolic_qmom_state_keeps_n_plus_one_nodes_until_the_boundary", test_hyperbolic_qmom_state_keeps_n_plus_one_nodes_until_the_boundary},
             {"hyperbolic_qmom_state_grows_through_the_classical_counts", test_hyperbolic_qmom_state_grows_through_the_classical_counts},
+            {"hyperbolic_qmom_state_below_its_maximum_keeps_a_classical_count_when_growth_is_refused",
+             test_hyperbolic_qmom_state_below_its_maximum_keeps_a_classical_count_when_growth_is_refused},
             {"fixed_hyperbolic_qmom_state_keeps_n_plus_one_nodes_and_fails_on_the_boundary",
              test_fixed_hyperbolic_qmom_state_keeps_n_plus_one_nodes_and_fails_on_the_boundary},
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},

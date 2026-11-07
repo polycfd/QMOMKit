@@ -229,7 +229,7 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  *
  * The stage advances the full stored moment vector, applies fixed or adaptive
  * post-source QMOM reconstruction, may reduce the active node count, and may
- * grow it by at most one node toward the state's configured maximum. On success it returns
+ * grow it by at most one node toward the state's `maximum_node_count()`. On success it returns
  * a canonical accepted state; on failure, it returns the unchanged input state.
  * The maximum count is reconstructed with the state's family; for
  * `hyperbolic`, a count below its n + 1 nodes is a classical quadrature.
@@ -265,7 +265,7 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * advection substep's diagnostics land in the `first_*` fields for `advsrc`
  * and in the `second_*`/`final_*` fields for `srcadv`.
  *
- * The state's configured maximum node count and reconstruction options govern
+ * The state's `maximum_node_count()` and reconstruction options govern
  * reconstruction, with the family's count rule of `advance_qmom_moment_source`.
  * In adaptive mode the accepted state's quadrature size is the active count.
  */

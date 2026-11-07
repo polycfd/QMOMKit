@@ -32,10 +32,11 @@ c = \frac{3\,C_D\,\rho_g}{8\,\rho_p\,r_p} = 0.0792\,\mathrm{m^{-1}}.
 ```
 
 A constant $C_D$ holds for particle Reynolds numbers above about $10^3$, which
-these beads reach above about $7.5\,\mathrm{m/s}$; for the slower particles,
-present at $t = 0$, it is an assumption of the model. The drag changes the
-velocity of each particle and not their number, so it is the velocity
-callback: it moves the abscissas and leaves the weights unchanged.
+these beads reach above about $7.5\,\mathrm{m/s}$. About a tenth of the
+particles are slower at $t = 0$ and nearly all at $t = 2\,\mathrm{s}$; for
+them, a constant $C_D$ is an assumption of the model. The drag changes the
+velocity of each particle and not their number, so it is the velocity callback:
+it moves the abscissas and leaves the weights unchanged.
 
 The collisions are modeled after Bhatnagar, Gross and Krook (BGK): they relax
 the velocity distribution toward the normal distribution with the same number

@@ -15,12 +15,17 @@
 //   -sqrt(3), 0, +sqrt(3) with weights 1/6, 2/3, 1/6, which is published
 //   independently of any software. The moments in each .qmom file are the raw
 //   moments of that rule, so the inversion is being asked to recover a result
-//   that was established long before QMOMKit existed.
+//   that was established long before QMOMKit existed. The hyperbolic cases
+//   give the standard normal moments m_0, ..., m_{2n} to the hyperbolic family,
+//   explicitly or through [initial] with the inferred order 2n; for moments
+//   symmetric about their mean its closure is exact, so its rule is the
+//   (n + 1)-point Gauss-Hermite rule.
 //
 // Error metric and pass criteria
 //   Maximum absolute and relative deviation of positions, weights and rebuilt
 //   moments from the reference, at 1.0e-12. An n-point rule is exactly
-//   determined by its first 2n moments, so there is a single correct answer
+//   determined by its first 2n moments, and a hyperbolic rule of n + 1 nodes by
+//   m_0, ..., m_{2n} and its closure, so there is a single correct answer
 //   rather than a family of acceptable ones.
 //
 // Reproduce

@@ -65,7 +65,7 @@ for (std::vector<double>& moments : cell_moments)
 The candidate uses the node count, options, and bounds of the case, with the
 moments it is given. It reconstructs the quadrature once and does not throw:
 `status` says whether a state was created, the cell was `empty`, or the moments
-were rejected, and the [Reference](7_reference.md#statuses) lists all cases.
+were rejected, and the [Reference](8_reference.md#statuses) lists all cases.
 Passing a realizability policy is optional; it checks the moments before the
 reconstruction.
 
@@ -130,7 +130,8 @@ as well.
 
 Every state stores the moments of its quadrature. For a state from
 `state_candidate(...)`, they equal the moments your code gave up to order
-$2N - 1$, or for CQMOM the required moments, unless an adaptive reconstruction dropped nodes the moments do not support;
+$2N - 1$, or $2N$ for the hyperbolic family, or for CQMOM the required moments,
+unless an adaptive reconstruction dropped nodes the moments do not support;
 every other moment is that of the quadrature. Storing them back keeps each cell
 consistent with what was evolved. The same pattern restarts a run: store the
 moments of each state, and create the states again from them with
@@ -145,6 +146,9 @@ moments: `{1, 0, -1, 0}`, with a negative variance, becomes a single node at 0.
 A policy rejects them instead. It checks moments, not node abscissas, and for
 CQMOM only each coordinate's own moments; see
 [Moments and quadrature](4_moments_and_quadrature.md#check-realizability).
+The time step of the transport is your code's choice too; some
+[QMOM families](7_qmom_families.md) give the characteristic speeds that limit
+it.
 
 The [`qmom_state_candidate`](../../examples/qmom_state_candidate/README.md)
 example shows the outcomes.

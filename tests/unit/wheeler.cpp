@@ -1,11 +1,14 @@
 #include "internal/bounded_quadrature.hpp"
+#include "internal/hyperbolic_quadrature.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <numeric>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -794,6 +797,459 @@ void test_recurrence_decides_the_node_count()
     }
 }
 
+// The first count moments of the weighted points, exact in double for short
+// binary fractions.
+qmomkit::MomentSet moments_of(const std::vector<double>& abscissas, const std::vector<double>& weights, const std::size_t count)
+{
+    return qmomkit::MomentSet(reconstruct_moments(qmomkit::Quadrature1D{abscissas, weights}, count));
+}
+
+void assert_identical(const qmomkit::Quadrature1D& actual, const qmomkit::Quadrature1D& expected)
+{
+    assert(actual.abscissas == expected.abscissas);
+    assert(actual.weights == expected.weights);
+    assert(actual.status == expected.status);
+    assert(actual.message == expected.message);
+}
+
+void test_hyperbolic_reports_input_failures()
+{
+    using qmomkit::QuadratureStatus;
+    using qmomkit::internal::compute_hyperbolic_quadrature;
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const qmomkit::MomentSet moments{1.0, 0.25, 1.0, 0.5, 2.0};
+    const qmomkit::WheelerOptions options;
+
+    qmomkit::WheelerOptions invalid;
+    invalid.rmin = -1.0;
+    const qmomkit::Quadrature1D invalid_options = compute_hyperbolic_quadrature(moments, 2, invalid);
+    assert(invalid_options.status == QuadratureStatus::invalid_input);
+    assert(invalid_options.message == "Invalid Wheeler numerical option.");
+    assert(invalid_options.abscissas.empty() && invalid_options.weights.empty());
+    // The options are checked before the node count, as in compute_quadrature.
+    assert(compute_hyperbolic_quadrature(moments, 0, invalid).message == "Invalid Wheeler numerical option.");
+
+    const std::vector<std::pair<qmomkit::Quadrature1D, std::string>> invalid_inputs{
+        {compute_hyperbolic_quadrature(moments, 0, options), "node_count must be positive."},
+        {compute_hyperbolic_quadrature(moments, std::numeric_limits<std::size_t>::max(), options),
+         "node_count is too large to derive the required moment count."},
+        {compute_hyperbolic_quadrature(qmomkit::MomentSet{1.0, 0.25, 1.0, 0.5}, 2, options), "Moment sequence has fewer than 2*n+1 entries."},
+        {compute_hyperbolic_quadrature(qmomkit::MomentSet{1.0, 0.25, 1.0, 0.5, nan}, 2, options), "Moment sequence contains non-finite values."},
+    };
+    for (const auto& [result, message] : invalid_inputs)
+    {
+        assert(result.status == QuadratureStatus::invalid_input);
+        assert(result.message == message);
+        assert(result.abscissas.empty() && result.weights.empty());
+    }
+
+    // m0 < 0 and m0 < cutoff fail as in compute_quadrature, with its diagnostic
+    // vectors.
+    for (const qmomkit::MomentSet& failing : {qmomkit::MomentSet{-1.0, 0.25, 1.0, 0.5, 2.0}, qmomkit::MomentSet{1.0e-31, 0.0, 1.0e-31, 0.0, 1.0e-31}})
+    {
+        const qmomkit::Quadrature1D result = compute_hyperbolic_quadrature(failing, 2, options);
+        assert(result.status == QuadratureStatus::not_realizable);
+        assert_identical(result, qmomkit::compute_quadrature(failing, 2, options));
+    }
+}
+
+void test_hyperbolic_reads_no_moments_beyond_m2n()
+{
+    // Moments beyond m_{2n} are not read, also where they would decide the
+    // node count: at n = 1, fixed mode returns the two nodes of m_0, m_1, m_2,
+    // and their speeds, whether m_3 and m_4 put the moments on the boundary or
+    // outside the realizable set.
+    using qmomkit::QuadratureStatus;
+    using qmomkit::internal::compute_hyperbolic_quadrature;
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    const qmomkit::MomentSet three{1.0, 0.0, 1.0};
+    const qmomkit::Quadrature1D expected = compute_hyperbolic_quadrature(three, 1, fixed);
+    assert(expected.ok() && expected.weights.size() == 2);
+    const std::vector<double> expected_speeds = qmomkit::internal::compute_hyperbolic_characteristic_speeds(three, 1, fixed).speeds;
+    for (const qmomkit::MomentSet& longer : {qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 1.0}, qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 0.5}})
+    {
+        assert_identical(compute_hyperbolic_quadrature(longer, 1, fixed), expected);
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds speeds =
+            qmomkit::internal::compute_hyperbolic_characteristic_speeds(longer, 1, fixed);
+        assert(speeds.status == QuadratureStatus::success);
+        assert(speeds.speeds == expected_speeds);
+    }
+
+    // A NaN beyond m_{2n} changes nothing either.
+    const qmomkit::WheelerOptions adaptive;
+    const qmomkit::MomentSet five{1.0, 0.25, 1.0, 0.5, 2.0};
+    const qmomkit::MomentSet with_nan{1.0, 0.25, 1.0, 0.5, 2.0, std::numeric_limits<double>::quiet_NaN()};
+    assert(compute_hyperbolic_quadrature(five, 2, adaptive).ok());
+    assert_identical(compute_hyperbolic_quadrature(with_nan, 2, adaptive), compute_hyperbolic_quadrature(five, 2, adaptive));
+}
+
+void test_hyperbolic_on_the_boundary_returns_the_classical_rule()
+{
+    // k <= n weighted points put m_0, ..., m_{2n} on the boundary at k. Adaptive
+    // mode returns exactly the classical selection for n nodes, which still
+    // applies rmin: from three points on, the weight ratio 1/3 is below
+    // rmin = 0.5, and the selection reduces. Fixed mode refuses at k.
+    const std::vector<double> points{-1.25, 0.5, 1.0, 2.75};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25};
+    qmomkit::WheelerOptions strict;
+    strict.rmin = 0.5;
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (std::size_t n = 2; n <= 4; ++n)
+    {
+        for (std::size_t k = 1; k <= n; ++k)
+        {
+            const std::vector<double> x(points.begin(), points.begin() + static_cast<std::ptrdiff_t>(k));
+            const std::vector<double> w(weights.begin(), weights.begin() + static_cast<std::ptrdiff_t>(k));
+            const qmomkit::MomentSet moments = moments_of(x, w, 2 * n + 1);
+            const qmomkit::Quadrature1D result = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, {});
+            assert(result.ok());
+            assert(result.weights.size() == k);
+            assert_identical(result, qmomkit::compute_quadrature(moments, n, {}));
+
+            const qmomkit::Quadrature1D reduced = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, strict);
+            assert(reduced.ok());
+            assert_identical(reduced, qmomkit::compute_quadrature(moments, n, strict));
+            if (k >= 3)
+            {
+                assert(reduced.weights.size() < k);
+            }
+
+            const qmomkit::Quadrature1D refused = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, fixed);
+            const std::string expected = "Moment sequence supports at most " + std::to_string(k) + (k == 1 ? " node:" : " nodes:");
+            assert(refused.status == qmomkit::QuadratureStatus::not_realizable);
+            assert(refused.message.rfind(expected, 0) == 0);
+        }
+    }
+}
+
+void test_hyperbolic_below_the_boundary_returns_the_classical_rule()
+{
+    // sigma(n, n) depends on m_{2n} with coefficient one, so lowering m_{2n} by
+    // 2 sigma(n, n) makes it -sigma(n, n), far below -tau_n. Adaptive mode
+    // returns the classical rule of m_0, ..., m_{2n-1}; fixed mode reports the
+    // negative b_n.
+    const std::vector<double> points{-1.25, 0.5, 1.0, 2.75};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25};
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (std::size_t n = 1; n <= 3; ++n)
+    {
+        std::vector<double> values = moments_of(points, weights, 2 * n + 2).values();
+        values[2 * n] -= 2.0 * qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet(values), n + 1).sigma[n];
+        const qmomkit::MomentSet lowered(values);
+        const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(lowered, n + 1);
+        assert(recurrence.sigma[n] < -recurrence.tolerance[n]);
+
+        const qmomkit::Quadrature1D result = qmomkit::internal::compute_hyperbolic_quadrature(lowered, n, {});
+        assert(result.ok());
+        assert_identical(result, qmomkit::compute_quadrature(lowered, n, {}));
+
+        const qmomkit::Quadrature1D refused = qmomkit::internal::compute_hyperbolic_quadrature(lowered, n, fixed);
+        assert(refused.status == qmomkit::QuadratureStatus::not_realizable);
+        assert(refused.message.rfind("Moment sequence has negative recurrence b = ", 0) == 0);
+    }
+}
+
+void test_hyperbolic_overflow_of_the_extra_row()
+{
+    // With finite moments {1, 1e200, 1e308}, sigma(1, 1) = m2 - a0 m1 overflows to
+    // -inf, and so does tau_1 to inf. Adaptive mode then finds sigma(1, 1) <=
+    // tau_1 and returns the classical rule; fixed mode skips the non-finite
+    // tau_1 and reports the non-finite recurrence, where the classical fixed
+    // rule of n = 1 succeeds without reading m2.
+    const qmomkit::MomentSet moments{1.0, 1.0e200, 1.0e308};
+    const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{1.0, 1.0e200, 1.0e308, 0.0}, 2);
+    assert(std::isinf(recurrence.sigma[1]) && std::isinf(recurrence.tolerance[1]));
+
+    const qmomkit::Quadrature1D result = qmomkit::internal::compute_hyperbolic_quadrature(moments, 1, {});
+    assert(result.ok());
+    assert_identical(result, qmomkit::compute_quadrature(moments, 1, {}));
+
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    assert(qmomkit::compute_quadrature(moments, 1, fixed).ok());
+    const qmomkit::Quadrature1D refused = qmomkit::internal::compute_hyperbolic_quadrature(moments, 1, fixed);
+    assert(refused.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(refused.message == "Wheeler recurrence produced non-finite values.");
+
+    // With finite moments {1, 1e120, 2e240, -1e300, 1} at n = 2, sigma(2, 2) is
+    // NaN and tau_2 inf. A NaN fails sigma(2, 2) <= tau_2, so adaptive mode
+    // does not take the classical selection either, and in both modes the
+    // reconstruction and the speeds report the non-finite recurrence.
+    const qmomkit::MomentSet nan_row{1.0, 1.0e120, 2.0e240, -1.0e300, 1.0};
+    const qmomkit::WheelerRecurrence nan_recurrence =
+        qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet{1.0, 1.0e120, 2.0e240, -1.0e300, 1.0, 0.0}, 3);
+    assert(std::isnan(nan_recurrence.sigma[2]) && std::isinf(nan_recurrence.tolerance[2]));
+    for (const bool adaptive : {true, false})
+    {
+        qmomkit::WheelerOptions options;
+        options.adaptive = adaptive;
+        const qmomkit::Quadrature1D failed = qmomkit::internal::compute_hyperbolic_quadrature(nan_row, 2, options);
+        assert(failed.status == qmomkit::QuadratureStatus::not_realizable);
+        assert(failed.message == "Wheeler recurrence produced non-finite values.");
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds speeds =
+            qmomkit::internal::compute_hyperbolic_characteristic_speeds(nan_row, 2, options);
+        assert(speeds.status == qmomkit::QuadratureStatus::not_realizable);
+        assert(speeds.message == failed.message);
+        assert(speeds.speeds.empty());
+    }
+}
+
+void test_hyperbolic_keeps_a_small_weight_in_the_interior()
+{
+    // Points -1 and 1 with weight 1/2 and 2 with weight 1e-12 are interior at
+    // n = 2, sigma(2, 2) about 200 tau_2. The J_3 rule has a weight ratio of
+    // about 2e-11, below the default rmin, and adaptive mode returns it as
+    // fixed mode does.
+    const qmomkit::MomentSet moments = moments_of({-1.0, 1.0, 2.0}, {0.5, 0.5, 1.0e-12}, 6);
+    const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(moments, 3);
+    assert(recurrence.sigma[1] > recurrence.tolerance[1]);
+    assert(recurrence.sigma[2] > 100.0 * recurrence.tolerance[2]);
+
+    const qmomkit::WheelerOptions options;
+    const qmomkit::Quadrature1D result = qmomkit::internal::compute_hyperbolic_quadrature(moments, 2, options);
+    assert(result.ok());
+    assert(result.weights.size() == 3);
+    const auto [smallest, largest] = std::minmax_element(result.weights.begin(), result.weights.end());
+    assert(*smallest / *largest < options.rmin);
+
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    assert_identical(result, qmomkit::internal::compute_hyperbolic_quadrature(moments, 2, fixed));
+}
+
+// Whether a rule passes the weight-ratio and separation tests of adaptive
+// inversion (docs/developer/qmom.md, "Adaptive reduction").
+bool passes_acceptance(const qmomkit::Quadrature1D& rule, const qmomkit::WheelerOptions& options)
+{
+    const auto [smallest_weight, largest_weight] = std::minmax_element(rule.weights.begin(), rule.weights.end());
+    const std::vector<double>& x = rule.abscissas;
+    double separation = 0.0;
+    if (x.size() == 2)
+    {
+        separation = std::abs(x[1] - x[0]) / std::max(std::abs(x[0]), std::abs(x[1]));
+    }
+    else
+    {
+        double smallest_gap = x[1] - x[0];
+        for (std::size_t i = 2; i < x.size(); ++i)
+        {
+            smallest_gap = std::min(smallest_gap, x[i] - x[i - 1]);
+        }
+        separation = smallest_gap / (x.back() - x.front());
+    }
+    return *smallest_weight / *largest_weight > options.rmin && separation > options.eabs;
+}
+
+void test_hyperbolic_does_not_apply_rmin_or_eabs()
+{
+    // With rmin = 0.99 and eabs = 0.9, the classical rules of these moments
+    // reduce, and the J_{n+1} rule of the same interior moments fails the
+    // tests too, but is returned whole, as fixed mode returns it. The points
+    // lie away from the origin, so that the two equal weights of J_2 still
+    // fail the two-node separation test.
+    const std::vector<double> points{6.75, 8.5, 9.0, 10.75, 11.0};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25, 0.0625};
+    qmomkit::WheelerOptions strict;
+    strict.rmin = 0.99;
+    strict.eabs = 0.9;
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (std::size_t n = 1; n <= 3; ++n)
+    {
+        const qmomkit::MomentSet moments = moments_of(points, weights, 2 * n + 2);
+        assert(qmomkit::compute_quadrature(moments, n + 1, strict).weights.size() < n + 1);
+
+        const qmomkit::Quadrature1D result = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, strict);
+        assert(result.ok());
+        assert(result.weights.size() == n + 1);
+        assert(!passes_acceptance(result, strict));
+        assert_identical(result, qmomkit::internal::compute_hyperbolic_quadrature(moments, n, fixed));
+    }
+}
+
+void test_hyperbolic_n_equal_one_gives_two_nodes_or_refuses_zero_variance()
+{
+    // Two nodes at mu -+ s with weights m0 / 2 have a_1 = a_0, so J_2 returns
+    // them; zero variance is the boundary at one node.
+    const qmomkit::MomentSet moments = moments_of({0.25, 1.25}, {2.5, 2.5}, 3);
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (const qmomkit::WheelerOptions& options : {qmomkit::WheelerOptions{}, fixed})
+    {
+        const qmomkit::Quadrature1D result = qmomkit::internal::compute_hyperbolic_quadrature(moments, 1, options);
+        assert(result.ok());
+        assert_vector_near(result.abscissas, {0.25, 1.25}, 1.0e-15);
+        assert_vector_near(result.weights, {2.5, 2.5}, 1.0e-14);
+    }
+
+    const qmomkit::MomentSet zero_variance{2.0, 1.5, 1.125};
+    const qmomkit::Quadrature1D one_node = qmomkit::internal::compute_hyperbolic_quadrature(zero_variance, 1, {});
+    assert(one_node.ok());
+    assert_identical(one_node, qmomkit::compute_quadrature(zero_variance, 1, {}));
+    const qmomkit::Quadrature1D refused = qmomkit::internal::compute_hyperbolic_quadrature(zero_variance, 1, fixed);
+    assert(refused.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(refused.message.rfind("Moment sequence supports at most 1 node:", 0) == 0);
+}
+
+// The standardized moments S_3, S_4 and S_5 of a rule.
+std::vector<double> standardized_moments(const qmomkit::Quadrature1D& rule)
+{
+    double mass = 0.0;
+    double mean = 0.0;
+    for (std::size_t i = 0; i < rule.weights.size(); ++i)
+    {
+        mass += rule.weights[i];
+        mean += rule.weights[i] * rule.abscissas[i];
+    }
+    mean /= mass;
+    std::vector<double> central(6, 0.0);
+    for (std::size_t order = 2; order < central.size(); ++order)
+    {
+        for (std::size_t i = 0; i < rule.weights.size(); ++i)
+        {
+            central[order] += rule.weights[i] * std::pow(rule.abscissas[i] - mean, static_cast<double>(order)) / mass;
+        }
+    }
+    return {central[3] / std::pow(central[2], 1.5), central[4] / (central[2] * central[2]), central[5] / std::pow(central[2], 2.5)};
+}
+
+void test_hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state()
+{
+    // The closure gives S_3 = 0 for n = 1 (Fox & Laurent 2022, Section 5.1) and
+    // S_5 = S_3 (5 S_4 - 3 S_3^2 - 1) / 2 for n = 2 (Section 5.2). The rules
+    // reproduce m_0, ..., m_{2n}.
+    const std::vector<double> points{-1.25, 0.5, 1.0, 2.75};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25};
+    for (std::size_t n = 1; n <= 2; ++n)
+    {
+        const qmomkit::MomentSet moments = moments_of(points, weights, 2 * n + 1);
+        const qmomkit::Quadrature1D rule = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, {});
+        assert(rule.ok());
+        assert(rule.weights.size() == n + 1);
+        assert_vector_near_relative(reconstruct_moments(rule, 2 * n + 1), moments.values(), 1.0e-13);
+
+        const std::vector<double> standardized = standardized_moments(rule);
+        if (n == 1)
+        {
+            assert_near(standardized[0], 0.0, 1.0e-13);
+        }
+        else
+        {
+            const double s3 = standardized[0];
+            const double s4 = standardized[1];
+            assert_near_relative(standardized[2], 0.5 * s3 * (5.0 * s4 - 3.0 * s3 * s3 - 1.0), 1.0e-12);
+        }
+    }
+}
+
+void test_hyperbolic_speeds_of_interior_moments_interlace_the_classical_nodes()
+{
+    // Moments that give n + 1 nodes give the n eigenvalues of J_n, the nodes of
+    // the classical quadrature of n nodes, each strictly between two of the
+    // n + 1 eigenvalues of K_{n+1} (Fox & Laurent 2022, Theorem 4.8). These sum
+    // to the trace of K_{n+1}, a_0 + ... + a_{n-1} plus the closure a_n, so
+    // (n + 1) / n times the sum of the classical nodes.
+    const std::vector<double> points{-1.25, 0.5, 1.0, 2.75};
+    const std::vector<double> weights{0.25, 0.375, 0.125, 0.25};
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (std::size_t n = 1; n <= 3; ++n)
+    {
+        const qmomkit::MomentSet moments = moments_of(points, weights, (2 * n) + 1);
+        assert(qmomkit::internal::compute_hyperbolic_quadrature(moments, n, {}).weights.size() == n + 1);
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds result = qmomkit::internal::compute_hyperbolic_characteristic_speeds(moments, n, {});
+        assert(result.status == qmomkit::QuadratureStatus::success);
+        assert(result.message.empty());
+        assert(result.speeds.size() == (2 * n) + 1);
+
+        const qmomkit::Quadrature1D classical = qmomkit::compute_quadrature(moments, n, fixed);
+        assert(classical.ok());
+        const double scale = std::max(std::abs(result.speeds.front()), std::abs(result.speeds.back()));
+        double k_sum = result.speeds[2 * n];
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            assert(result.speeds[2 * i] < result.speeds[(2 * i) + 1]);
+            assert(result.speeds[(2 * i) + 1] < result.speeds[(2 * i) + 2]);
+            assert_near(result.speeds[(2 * i) + 1], classical.abscissas[i], 1.0e-14 * scale);
+            k_sum += result.speeds[2 * i];
+        }
+        const double classical_sum = std::accumulate(classical.abscissas.begin(), classical.abscissas.end(), 0.0);
+        assert_near(k_sum, static_cast<double>(n + 1) * classical_sum / static_cast<double>(n), 1.0e-13 * scale);
+    }
+}
+
+void test_hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature()
+{
+    // Moments that the reconstruction takes to a classical quadrature of k <= n
+    // nodes, two points at n = 2 and n = 3 and one point at n = 2, give its k
+    // abscissas, each twice, and their arithmetic mean.
+    const std::vector<std::tuple<std::vector<double>, std::vector<double>, std::size_t>> cases{
+        {{-1.25, 2.75}, {0.25, 0.75}, 2}, {{-1.25, 2.75}, {0.25, 0.75}, 3}, {{0.5}, {2.0}, 2}};
+    for (const auto& [points, weights, n] : cases)
+    {
+        const qmomkit::MomentSet moments = moments_of(points, weights, (2 * n) + 1);
+        const qmomkit::Quadrature1D quadrature = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, {});
+        assert(quadrature.ok());
+        assert(quadrature.weights.size() == points.size());
+        std::vector<double> expected;
+        for (const double abscissa : quadrature.abscissas)
+        {
+            expected.push_back(abscissa);
+            expected.push_back(abscissa);
+        }
+        expected.push_back(std::accumulate(quadrature.abscissas.begin(), quadrature.abscissas.end(), 0.0) /
+                           static_cast<double>(quadrature.abscissas.size()));
+        std::sort(expected.begin(), expected.end());
+
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds result = qmomkit::internal::compute_hyperbolic_characteristic_speeds(moments, n, {});
+        assert(result.status == qmomkit::QuadratureStatus::success);
+        assert(result.speeds == expected);
+    }
+}
+
+void test_hyperbolic_speeds_report_the_failures_of_the_reconstruction()
+{
+    // A failed reconstruction gives its status and message and no speeds: an
+    // invalid option, node count zero, too few or non-finite moments, m0 below
+    // the cutoff, and in fixed mode two points, which support fewer than
+    // n + 1 nodes. A reconstruction that succeeds can still give no speeds:
+    // for a variance of 1e308 at n = 1, beta_1 = 3 b_1 overflows.
+    const qmomkit::MomentSet interior = moments_of({-1.25, 0.5, 1.0, 2.75}, {0.25, 0.375, 0.125, 0.25}, 5);
+    qmomkit::WheelerOptions negative_rmin;
+    negative_rmin.rmin = -1.0;
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    const double infinity = std::numeric_limits<double>::infinity();
+    const std::vector<std::tuple<qmomkit::MomentSet, std::size_t, qmomkit::WheelerOptions>> cases{
+        {interior, 2, negative_rmin},
+        {interior, 0, {}},
+        {qmomkit::MomentSet{1.0, 0.0, 1.0}, 2, {}},
+        {qmomkit::MomentSet{1.0, 0.0, infinity, 0.0, 1.0}, 2, {}},
+        {qmomkit::MomentSet{0.0, 0.0, 0.0}, 1, {}},
+        {moments_of({-1.25, 2.75}, {0.25, 0.75}, 5), 2, fixed}};
+    for (const auto& [moments, n, options] : cases)
+    {
+        const qmomkit::Quadrature1D quadrature = qmomkit::internal::compute_hyperbolic_quadrature(moments, n, options);
+        assert(!quadrature.ok());
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds result =
+            qmomkit::internal::compute_hyperbolic_characteristic_speeds(moments, n, options);
+        assert(result.status == quadrature.status);
+        assert(result.message == quadrature.message);
+        assert(result.speeds.empty());
+    }
+
+    const qmomkit::MomentSet huge_variance{1.0, 0.0, 1.0e308};
+    assert(qmomkit::internal::compute_hyperbolic_quadrature(huge_variance, 1, {}).ok());
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds overflow =
+        qmomkit::internal::compute_hyperbolic_characteristic_speeds(huge_variance, 1, {});
+    assert(overflow.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(overflow.message == "Characteristic speeds exceed the range of a double.");
+    assert(overflow.speeds.empty());
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -840,5 +1296,19 @@ int main(const int argc, char** argv)
             {"recurrence_sigma_is_m0_times_the_product_of_b", test_recurrence_sigma_is_m0_times_the_product_of_b},
             {"recurrence_tolerance_is_the_documented_bound", test_recurrence_tolerance_is_the_documented_bound},
             {"recurrence_decides_the_node_count", test_recurrence_decides_the_node_count},
+            {"hyperbolic_reports_input_failures", test_hyperbolic_reports_input_failures},
+            {"hyperbolic_reads_no_moments_beyond_m2n", test_hyperbolic_reads_no_moments_beyond_m2n},
+            {"hyperbolic_on_the_boundary_returns_the_classical_rule", test_hyperbolic_on_the_boundary_returns_the_classical_rule},
+            {"hyperbolic_below_the_boundary_returns_the_classical_rule", test_hyperbolic_below_the_boundary_returns_the_classical_rule},
+            {"hyperbolic_overflow_of_the_extra_row", test_hyperbolic_overflow_of_the_extra_row},
+            {"hyperbolic_keeps_a_small_weight_in_the_interior", test_hyperbolic_keeps_a_small_weight_in_the_interior},
+            {"hyperbolic_does_not_apply_rmin_or_eabs", test_hyperbolic_does_not_apply_rmin_or_eabs},
+            {"hyperbolic_n_equal_one_gives_two_nodes_or_refuses_zero_variance", test_hyperbolic_n_equal_one_gives_two_nodes_or_refuses_zero_variance},
+            {"hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state", test_hyperbolic_rule_closes_the_next_moment_as_fox_and_laurent_state},
+            {"hyperbolic_speeds_of_interior_moments_interlace_the_classical_nodes",
+             test_hyperbolic_speeds_of_interior_moments_interlace_the_classical_nodes},
+            {"hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature",
+             test_hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature},
+            {"hyperbolic_speeds_report_the_failures_of_the_reconstruction", test_hyperbolic_speeds_report_the_failures_of_the_reconstruction},
         });
 }

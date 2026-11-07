@@ -17,11 +17,13 @@ and expected output. In order of increasing scope:
 | [`qmom_distribution_initialization`](../../examples/qmom_distribution_initialization/README.md) | Moments from a log-normal distribution. |
 | [`qmom_mixture_initialization`](../../examples/qmom_mixture_initialization/README.md) | Moments from a mixture with absolute component densities. |
 | [`realizability_check`](../../examples/realizability_check/README.md) | Checking moments against a support. |
+| [`hyqmom_characteristic_speeds`](../../examples/hyqmom_characteristic_speeds/README.md) | The characteristic speeds of the `hyperbolic` family, HyQMOM, from the moments of Fox & Laurent (2022). |
 | [`cqmom_independent_product_initialization`](../../examples/cqmom_independent_product_initialization/README.md) | A CQMOM case from a configuration file, and the conditioning order. |
 | **Evolving in time** | |
 | [`qmom_1d_minimal`](../../examples/qmom_1d_minimal/README.md) | The smallest QMOM time loop, with a velocity and a fragmentation source. |
 | [`qmom_1d_aerosol_evaporation`](../../examples/qmom_1d_aerosol_evaporation/README.md) | Node advection alone: evaporating aerosol. |
 | [`qmom_1d_breakage_advection`](../../examples/qmom_1d_breakage_advection/README.md) | Node advection and a size-dependent breakage source written over the nodes. |
+| [`hyqmom_1d_drag_bgk-collisions`](../../examples/hyqmom_1d_drag_bgk-collisions/README.md) | A velocity distribution of the `hyperbolic` family, HyQMOM, under drag and BGK collisions. |
 | [`cqmom_2d_minimal`](../../examples/cqmom_2d_minimal/README.md) | The CQMOM time loop with velocity, source, and boundary contribution. |
 | [`cqmom_2d_adaptive_node_counts`](../../examples/cqmom_2d_adaptive_node_counts/README.md) | Branches losing and regaining nodes during a run. |
 | **Coupling** | |

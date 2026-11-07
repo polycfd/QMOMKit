@@ -2,6 +2,10 @@ qmomkit_add_test_executable(test_wheeler_analytical wheeler_analytical.cpp)
 qmomkit_register_source_logical_cases(test_wheeler_analytical verification "${CMAKE_CURRENT_LIST_DIR}/wheeler_analytical.cpp")
 qmomkit_add_test_executable(test_wheeler_recurrence_exact wheeler_recurrence_exact.cpp)
 qmomkit_register_source_logical_cases(test_wheeler_recurrence_exact verification "${CMAKE_CURRENT_LIST_DIR}/wheeler_recurrence_exact.cpp")
+qmomkit_add_test_executable(test_hyperbolic_quadrature_exact hyperbolic_quadrature_exact.cpp)
+qmomkit_register_source_logical_cases(test_hyperbolic_quadrature_exact verification "${CMAKE_CURRENT_LIST_DIR}/hyperbolic_quadrature_exact.cpp")
+qmomkit_add_test_executable(test_hyperbolic_characteristic_speeds_exact hyperbolic_characteristic_speeds_exact.cpp)
+qmomkit_register_source_logical_cases(test_hyperbolic_characteristic_speeds_exact verification "${CMAKE_CURRENT_LIST_DIR}/hyperbolic_characteristic_speeds_exact.cpp")
 qmomkit_add_test_executable(test_adaptive_qmom adaptive_qmom.cpp)
 qmomkit_register_source_logical_cases(test_adaptive_qmom verification "${CMAKE_CURRENT_LIST_DIR}/adaptive_qmom.cpp")
 qmomkit_add_test_executable(test_qmom_moment_space_boundary moment_space_boundary.cpp)
@@ -19,7 +23,7 @@ endforeach()
 add_executable(qmom_analytical_verification qmom_analytical.cpp)
 target_link_libraries(qmom_analytical_verification PRIVATE qmomkit)
 foreach(case_name IN ITEMS single_dirac two_node_discrete three_node_discrete uniform_n2 uniform_n3 exponential_n2 exponential_n3
-                           gaussian_n2 gaussian_n3)
+                           gaussian_n2 gaussian_n3 hyperbolic_gaussian_n1 hyperbolic_gaussian_n2 hyperbolic_normal_distribution_n2)
     add_test(
         NAME verification_qmom_analytical_${case_name}
         COMMAND

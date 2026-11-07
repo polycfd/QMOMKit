@@ -61,7 +61,9 @@ together.
    output.
 6. [Coupling QMOMKit](6_coupling_qmomkit.md): use QMOMKit inside a simulation
    code.
-7. [Reference](7_reference.md): configuration keys, C++ entry points and
+7. [QMOM families](7_qmom_families.md): how the moments become quadrature
+   nodes, and what each family gives.
+8. [Reference](8_reference.md): configuration keys, C++ entry points and
    callbacks, statuses and exceptions, troubleshooting, and output formats.
-8. [Going further](8_going_further.md): examples, the Monte Carlo companion,
+9. [Going further](9_going_further.md): examples, the Monte Carlo companion,
    citing QMOMKit, and the developer documentation.

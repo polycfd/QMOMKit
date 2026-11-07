@@ -18,7 +18,7 @@ access classes ([Architecture](architecture.md#public-and-internal-boundary)).
 | | `QmomState` | `CqmomState` |
 | --- | --- | --- |
 | Moments | $m_0, \ldots, m_{K-1}$, as many as the case or candidate gave | the required moments of the hierarchy's layout |
-| Reconstruction settings | maximum node count, `QmomOptions`, abscissa bounds, copied from the case | the settings of the `CqmomCase`, and the prepared branch structure, shared read-only along the lineage |
+| Reconstruction settings | the case's node count $N$, `QmomOptions` with its family, abscissa bounds, copied from the case; `maximum_node_count()` is the family's maximum ([QMOM families](qmom_families.md)) | the settings of the `CqmomCase`, and the prepared branch structure, shared read-only along the lineage |
 | Node counts | `active_node_count()`, the number of quadrature nodes | `active_branch_counts()`, one entry per branch; empty for a fixed case |
 | Quadrature | `quadrature()`, the accepted `QmomResult` | `quadrature()`, the accepted `CqmomQuadrature` |
 
@@ -26,12 +26,14 @@ Creating a state reconstructs the quadrature once and then sums the stored
 moments from it (`qmom_state_candidate` and `cqmom_state_candidate` in
 [`src/public_api.cpp`](../../src/public_api.cpp)). QMOM reconstructs at the
 case's node count; CQMOM starts every branch from its configured maximum. With
-$n$ active QMOM nodes, the stored $m_0, \ldots, m_{2n-1}$ reproduce the given
-moments to rounding and every higher one is that of the quadrature; $n$ is
-below the case's node count when an adaptive reconstruction dropped nodes. For
-CQMOM, an adaptive reduction likewise replaces the given required moments by
-those of the reduced quadrature. Stored moments that overflow a double make
-the candidate `reconstruction_failed`.
+$n$ active classical QMOM nodes, the stored $m_0, \ldots, m_{2n-1}$ reproduce
+the given moments to rounding and every higher one is that of the quadrature;
+$n$ is below `maximum_node_count()` when an adaptive reconstruction dropped
+nodes. At the maximum count of a family that reads more moments, the stored
+moments reproduce those it reads, and every higher one is that of the
+quadrature. For CQMOM, an adaptive reduction likewise replaces the given
+required moments by those of the reduced quadrature. Stored moments that
+overflow a double make the candidate `reconstruction_failed`.
 
 `initial_state()` runs the same construction as `state_candidate(...)` and
 differs only in how it reports failure. It is called once, at setup, where a
@@ -146,7 +148,7 @@ the first of the next, and a rejected trial reuses the first derivative.
 `AdaptiveRkOptions` in
 [`include/qmomkit/runge_kutta.hpp`](../../include/qmomkit/runge_kutta.hpp)
 holds the controls; the
-[Reference](../user/7_reference.md#evolution-options) lists their defaults.
+[Reference](../user/8_reference.md#evolution-options) lists their defaults.
 Step sizes are in the units of the time argument. The first trial step is never
 estimated from the problem, rejected trials do not count toward `max_steps`,
 and the step floor is the larger of `min_step` and ten spacings of the double
@@ -219,15 +221,17 @@ the stage moments: a non-owning view, valid during the callback, whose
 constructors from temporaries are deleted. Its accessors are listed in
 [Evolving in time](../user/5_evolving_in_time.md#source).
 
-A tracked moment comes from the stage values. An untracked moment, a
-generalized moment, or a node visit uses a quadrature reconstructed from the
-stage moments on first request and cached in the context, so at most once per
-stage. It is never the state's quadrature, which belongs to the start of the
-step. The reconstruction uses the state's settings and its active counts as
-ceilings: QMOM calls `compute_qmom` with the state's active node count; CQMOM
-passes `active_branch_counts()` to `internal::compute_cqmom_internal` with
-growth disabled. A failed stage reconstruction throws inside the callback and
-fails the source step.
+A tracked moment comes from the stage values. An untracked moment, a generalized
+moment, or a node visit uses a quadrature reconstructed from the stage moments
+on first request and cached in the context, so at most once per stage. It is
+never the state's quadrature, which belongs to the start of the step. The
+reconstruction uses the state's settings and its active counts as ceilings: QMOM
+calls `compute_qmom` with the count and options that the count rule of
+[Node counts](#node-counts) gives for the state's active count, so a state at
+its maximum count visits the quadrature of its family; CQMOM passes
+`active_branch_counts()` to `internal::compute_cqmom_internal` with growth
+disabled. A failed stage reconstruction throws inside the callback and fails the
+source step.
 
 Without a state, as in `advance_*_moments_with_source`, there are no
 reconstruction settings: `moment(...)` works for tracked orders only, and
@@ -235,6 +239,18 @@ reconstruction settings: `moment(...)` works for tracked orders only, and
 visitors throw `std::out_of_range`, which fails the update.
 
 ## Node counts
+
+A QMOM state's active count $c$ names the quadrature it holds: the maximum
+count, `maximum_node_count()`, is the family's quadrature, and a count $c\le N$
+is a classical quadrature. Every reconstruction of a state's moments therefore
+asks for a count $c$, which `qmom_reconstruction_request` in
+[`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) resolves
+to the count and options passed to `compute_qmom`: the maximum to $N$ and the
+state's options, a count below it to $c$ and the classical family. For the
+classical family the maximum is $N$, so this is the count with the state's
+options. The family's reconstruction is never asked for a node count below
+$N$: with node count $c$, HyQMOM returns up to $c+1$ nodes, not the $c$ the
+count names.
 
 Active node counts follow one policy:
 
@@ -244,10 +260,12 @@ Active node counts follow one policy:
   below a branch that lost nodes, which condition on other nodes, start from
   their configured maximum.
 - **QMOM post-source reconstruction**, `select_post_source_qmom`: a fixed case
-  must return its configured count. An adaptive case reconstructs at the
-  state's active count $n$ and accepts a reduction as is; if $n$ is kept and
-  below the maximum, it tries $n+1$ and accepts that only when the
-  reconstruction returns exactly $n+1$ nodes. With abscissa bounds,
+  must return its maximum count. An adaptive case reconstructs at the state's
+  active count $n$ and accepts a reduction as is; if $n$ is kept and below the
+  maximum, it tries $n+1$ and accepts that only when the reconstruction returns
+  exactly $n+1$ nodes. A state whose family's maximum exceeds $N$ thus grows
+  through the classical counts to $N$, and then to that maximum. With abscissa
+  bounds, which only the classical family takes,
   `internal::select_bounded_quadrature` applies the same rule and accepts the
   extra node only within the bounds.
 - **CQMOM post-source reconstruction**, `internal::compute_cqmom_internal` with
@@ -382,7 +400,7 @@ or diagnostic a component-regression test of the failing path.
 | `qmom_state_candidate`, `cqmom_state_candidate` | [`src/public_api.cpp`](../../src/public_api.cpp) | create states for `initial_state()` and `state_candidate(...)` |
 | `execute_phase_space_evolution_sequence` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | splitting schemes |
 | `advance_qmom_advection_stage`, `advance_cqmom_advection_stage` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | advection stage |
-| `advance_qmom_moment_source_stage`, `advance_cqmom_moment_source_stage`, `select_post_source_qmom` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | source stage and post-source reconstruction |
+| `advance_qmom_moment_source_stage`, `advance_cqmom_moment_source_stage`, `select_post_source_qmom`, `qmom_reconstruction_request` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | source stage, post-source reconstruction, the QMOM count rule |
 | `advance_nodes`, `integrate_nodes`, `make_phase_space_velocity` | [`src/node_advection.cpp`](../../src/node_advection.cpp) | node advection |
 | `integrate_embedded_rk`, `ssp_rk3_step` | [`src/runge_kutta.cpp`](../../src/runge_kutta.cpp) | generic integrators |
 | `take_embedded_rk_step`, `embedded_rk_tableau` | [`src/internal/embedded_runge_kutta.cpp`](../../src/internal/embedded_runge_kutta.cpp) | embedded stage arithmetic |

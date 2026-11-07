@@ -649,6 +649,43 @@ void test_qmom_adaptive_quadrature_output_accepts_changing_node_counts()
     std::filesystem::remove(path);
 }
 
+void test_qmom_quadrature_output_follows_the_hyperbolic_maximum_node_count()
+{
+    // A hyperbolic state at n = 1 holds the two nodes of J_2, one more than n:
+    // a writer for maximum_node_count() nodes writes both, one for n nodes
+    // refuses them.
+    qmomkit::QmomOptions options;
+    options.family = qmomkit::QmomFamily::hyperbolic;
+    const qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet{5.0, 3.75, 4.0625}, 1, options}.initial_state();
+    assert(state.maximum_node_count() == 2);
+    assert(state.active_node_count() == 2);
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_qmom_hyperbolic_quadrature");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, state.maximum_node_count());
+        writer.write(0.5, state.quadrature());
+    }
+    const qmomkit::QmomResult& quadrature = state.quadrature();
+    const std::string expected = "# time node_index weight x0\n" + format_scientific(0.5) + " 0 " + format_scientific(quadrature.weights[0]) + " " +
+                                 format_scientific(quadrature.abscissas[0]) + "\n" + format_scientific(0.5) + " 1 " +
+                                 format_scientific(quadrature.weights[1]) + " " + format_scientific(quadrature.abscissas[1]) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
+    std::filesystem::remove(path);
+
+    bool refused = false;
+    try
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 1);
+        writer.write(0.5, state.quadrature());
+    }
+    catch (const std::invalid_argument& error)
+    {
+        refused = std::string(error.what()) == "QMOM quadrature output active node count exceeds the writer maximum.";
+    }
+    assert(refused);
+    std::filesystem::remove(path);
+}
+
 void test_cqmom_quadrature_output()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1339,6 +1376,8 @@ int main(const int argc, char** argv)
             {"qmom_quadrature_output", test_qmom_quadrature_output},
             {"quadrature_1d_output", test_quadrature_1d_output},
             {"qmom_adaptive_quadrature_output_accepts_changing_node_counts", test_qmom_adaptive_quadrature_output_accepts_changing_node_counts},
+            {"qmom_quadrature_output_follows_the_hyperbolic_maximum_node_count",
+             test_qmom_quadrature_output_follows_the_hyperbolic_maximum_node_count},
             {"cqmom_quadrature_output", test_cqmom_quadrature_output},
             {"cqmom_adaptive_quadrature_output_accepts_changing_node_counts", test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts},
             {"quadrature_writer_rejects_mismatched_inputs", test_quadrature_writer_rejects_mismatched_inputs},

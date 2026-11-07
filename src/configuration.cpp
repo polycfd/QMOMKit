@@ -3,6 +3,7 @@
 #include "internal/checked_size.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/qmom_family.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -688,7 +689,9 @@ bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, 
     return true;
 }
 
-std::optional<std::size_t> infer_qmom_initial_maximum_order(ParsedFile& parsed, const std::string& source_name)
+// The highest moment order the reconstruction reads: 2n - 1 for the classical
+// family, 2n for the hyperbolic one.
+std::optional<std::size_t> infer_qmom_initial_maximum_order(ParsedFile& parsed, const std::string& source_name, const QmomFamily family)
 {
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
     if (node_counts_entry == nullptr)
@@ -706,13 +709,14 @@ std::optional<std::size_t> infer_qmom_initial_maximum_order(ParsedFile& parsed, 
     {
         return std::nullopt;
     }
-    if ((*node_counts)[0] > std::numeric_limits<std::size_t>::max() / 2)
+    const std::optional<std::size_t> required_moment_count = internal::qmom_required_moment_count((*node_counts)[0], family);
+    if (!required_moment_count.has_value())
     {
         add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, node_counts_entry->line,
                   "QMOM node_count is too large to infer initial.maximum_order.");
         return std::nullopt;
     }
-    return 2 * (*node_counts)[0] - 1;
+    return *required_moment_count - 1;
 }
 
 bool parse_optional_positive_size(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::size_t& value)
@@ -901,8 +905,8 @@ bool has_explicit_cqmom_moments(const ParsedFile& parsed)
 // can serve all of them.
 std::vector<std::string> qmom_explicit_allowed_keys()
 {
-    return {"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower", "phase_space.support_upper",
-            "qmom.adaptive",  "moments.values"};
+    return {"format_version",          "phase_space.names", "phase_space.node_counts", "phase_space.support_lower", "phase_space.support_upper",
+            "phase_space.qmom_family", "qmom.adaptive",     "moments.values"};
 }
 
 std::vector<std::string> qmom_initial_allowed_keys()
@@ -1524,6 +1528,24 @@ std::optional<QmomOptions> parse_qmom_options_from_parsed(ParsedFile& parsed, co
         return std::nullopt;
     }
     return options;
+}
+
+// The QMOM family of [phase_space] qmom_family, classical when the key is
+// absent. It belongs to the phase space rather than to [qmom], whose options
+// apply to every coordinate alike.
+std::optional<QmomFamily> parse_qmom_family(ParsedFile& parsed, const std::string& source_name)
+{
+    const Entry* entry = find_entry(parsed, "phase_space.qmom_family");
+    if (entry == nullptr || entry->value == "classical")
+    {
+        return QmomFamily::classical;
+    }
+    if (entry->value == "hyperbolic")
+    {
+        return QmomFamily::hyperbolic;
+    }
+    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, "phase_space.qmom_family must be classical or hyperbolic.");
+    return std::nullopt;
 }
 
 void reject_unknown_qmom_option_keys(ParsedFile& parsed, const std::string& source_name)
@@ -2312,6 +2334,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_
     validate_format_version(parsed, source_name);
     static_cast<void>(parse_output_options_from_parsed(parsed, source_name));
     validate_optional_qmom_phase_space(parsed, source_name);
+    const std::optional<QmomFamily> family = parse_qmom_family(parsed, source_name);
     if (!parsed.moments.empty())
     {
         add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, parsed.moments.begin()->second.line,
@@ -2356,7 +2379,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_
     }
     else if (parsed.errors.empty())
     {
-        const std::optional<std::size_t> inferred_maximum_order = infer_qmom_initial_maximum_order(parsed, source_name);
+        const std::optional<std::size_t> inferred_maximum_order = infer_qmom_initial_maximum_order(parsed, source_name, *family);
         if (inferred_maximum_order.has_value())
         {
             maximum_order = *inferred_maximum_order;
@@ -2664,6 +2687,21 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     return parse_cqmom_initial_condition_from_parsed(std::move(parsed), std::move(source_name));
 }
 
+namespace
+{
+[[nodiscard]] const char* too_few_qmom_moments_message(const QmomFamily family)
+{
+    switch (family)
+    {
+    case QmomFamily::classical:
+        return "QMOM requires at least 2 * node_count moments.";
+    case QmomFamily::hyperbolic:
+        return "QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.";
+    }
+    return "QMOM requires more moments for the node count.";
+}
+} // namespace
+
 ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, const std::size_t node_count,
                                                const QmomOptions& options, std::string source_name, std::optional<AbscissaBounds> abscissa_bounds)
 {
@@ -2671,11 +2709,25 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
     {
         return failure_result<QmomCase>({ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count must be positive."});
     }
-    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, node_count);
+    const std::optional<std::size_t> required_moment_count = internal::qmom_required_moment_count(node_count, options.family);
     if (!required_moment_count.has_value())
     {
         return failure_result<QmomCase>(
             {ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count is too large to derive the required moment count."});
+    }
+    // HyQMOM is defined on the real line; compute_qmom refuses the same, and a
+    // case refuses it before computing moments.
+    switch (options.family)
+    {
+    case QmomFamily::classical:
+        break;
+    case QmomFamily::hyperbolic:
+        if (abscissa_bounds.has_value())
+        {
+            return failure_result<QmomCase>(
+                {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "The hyperbolic QMOM family takes no abscissa bounds."});
+        }
+        break;
     }
 
     ConfigurationResult<MomentSet> initialized = initialize_qmom_moments(initial_condition, source_name);
@@ -2686,7 +2738,7 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
     if (initialized.value().size() < *required_moment_count)
     {
         return failure_result<QmomCase>(
-            {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "QMOM requires at least 2 * node_count moments."});
+            {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, too_few_qmom_moments_message(options.family)});
     }
     return ConfigurationResult<QmomCase>{QmomCase{std::move(initialized).value(), node_count, options, std::move(abscissa_bounds)}};
 }
@@ -2799,6 +2851,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     validate_optional_realizability_policy(parsed, RealizabilitySettings::qmom, source_name);
     validate_format_version(parsed, source_name);
     std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
+    const std::optional<QmomFamily> family = parse_qmom_family(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
     if (!parsed.moments.empty())
     {
@@ -2827,15 +2880,32 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     {
         return failure_result<QmomCase>(std::move(parsed));
     }
+    const std::optional<AbscissaBounds> abscissa_bounds = coordinate_support->empty() ? std::nullopt : coordinate_support->front();
+    // HyQMOM is defined on the real line. A file reports bounds at the line of
+    // support_lower, which bounds always have; create_qmom_case refuses them
+    // for a case built in code.
+    switch (*family)
+    {
+    case QmomFamily::classical:
+        break;
+    case QmomFamily::hyperbolic:
+        if (abscissa_bounds.has_value())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, find_entry(parsed, "phase_space.support_lower")->line,
+                      "The hyperbolic QMOM family takes no abscissa bounds.");
+            return failure_result<QmomCase>(std::move(parsed));
+        }
+        break;
+    }
 
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_qmom_initial_condition_from_parsed(std::move(parsed), source_name);
     if (!initial_condition)
     {
         return ConfigurationResult<QmomCase>::failure(initial_condition.error());
     }
-    const CqmomAbscissaBounds& parsed_support = coordinate_support.value();
-    const std::optional<AbscissaBounds> abscissa_bounds = parsed_support.empty() ? std::nullopt : parsed_support.front();
-    return create_qmom_case(initial_condition.value(), node_counts[0], qmom_options.value_or(QmomOptions{}), std::move(source_name), abscissa_bounds);
+    QmomOptions options = qmom_options.value_or(QmomOptions{});
+    options.family = *family;
+    return create_qmom_case(initial_condition.value(), node_counts[0], options, std::move(source_name), abscissa_bounds);
 }
 
 ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::string source_name)

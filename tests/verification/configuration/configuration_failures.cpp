@@ -10,9 +10,11 @@
 //   containing one deliberate fault - a malformed section header, an invalid
 //   boolean, missing moments, a hierarchy the loader cannot infer, an unknown
 //   Vandermonde solver, a moment set that cannot support the requested node
-//   count, a repeated dimension in the conditioning order, an incomplete
-//   moment tensor. The expected error is written beside each case. There is no
-//   numerical reference because no case should be produced.
+//   count, for the classical and the hyperbolic family, an unknown QMOM
+//   family, abscissa bounds with the hyperbolic family, a repeated dimension
+//   in the conditioning order, an incomplete moment tensor. The expected
+//   error is written beside each case. There is no numerical reference
+//   because no case should be produced.
 //
 // Pass criteria
 //   The load must fail, the reported error must identify the intended cause
@@ -141,6 +143,18 @@ int main(const int argc, char** argv)
         // have the required four raw moments. This should fail at case creation
         // time, before compute_qmom(...) is called.
         {"qmom_insufficient_moments.qmom", Loader::qmom, "requires at least 2 * node_count moments."},
+
+        // The QMOM family is classical or hyperbolic; another name must not
+        // fall back to the classical family.
+        {"qmom_invalid_family.qmom", Loader::qmom, "phase_space.qmom_family must be classical or hyperbolic.", 3},
+
+        // The hyperbolic family with n = 2 reads five moments, so four are too
+        // few even though they would serve the classical family.
+        {"qmom_hyperbolic_insufficient_moments.qmom", Loader::qmom, "requires at least 2 * node_count + 1 moments for the hyperbolic family."},
+
+        // HyQMOM is defined on the real line, so a hyperbolic case takes no
+        // abscissa bounds, reported at the line of support_lower.
+        {"qmom_hyperbolic_abscissa_bounds.qmom", Loader::qmom, "The hyperbolic QMOM family takes no abscissa bounds.", 4},
 
         // Vandermonde solver selection is a user-facing CQMOM option. Unknown
         // names should not silently fall back to the default policy.

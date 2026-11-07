@@ -47,6 +47,10 @@ node* has one weight and one value per coordinate. CQMOM needs only some of the
 moments; QMOMKit derives which ones from the node counts and the conditioning
 order.
 
+How the moments of a coordinate become quadrature nodes is the *QMOM family*.
+This guide describes the default, `classical`;
+[QMOM families](7_qmom_families.md) describes the others.
+
 ## Case and state
 
 A *case* is the fixed setup: the initial moments, node counts, and options.
@@ -71,7 +75,7 @@ Reconstruction is adaptive by default: node counts are maxima, and a
 quadrature uses fewer nodes where the moments do not support more. The branches
 of a CQMOM quadrature can then differ in size, so iterate over `weights()` and
 `abscissas()` rather than indexing nodes on a grid. A fixed reconstruction,
-`[qmom] adaptive = false`, returns exactly the requested nodes or fails.
+`[qmom] adaptive = false`, returns exactly the maximum number of nodes or fails.
 
 ## Results and statuses
 
@@ -83,7 +87,7 @@ Loading a configuration is checked separately:
 `if (!configured)`, then `configured.error()`. A few functions throw instead,
 notably `initial_state()`, when the moments of a case cannot be reconstructed,
 and output writers, when a file cannot be written. The
-[Reference](7_reference.md) lists all statuses.
+[Reference](8_reference.md) lists all statuses.
 
 ## Terms
 
@@ -97,6 +101,7 @@ and output writers, when a file cannot be written. The
 | callback | A function you supply with the physics: a velocity, a source, or a boundary contribution. |
 | case | The fixed setup of a reconstruction: moments, node counts, options. |
 | conditioning order | The order in which CQMOM reconstructs the coordinates. |
+| family | How the moments of a coordinate become nodes, `QmomOptions::family`; `classical` by default. |
 | hierarchy | The node counts of a CQMOM case and its conditioning order, `PhaseSpaceHierarchy`. |
 | layout | The moments a CQMOM hierarchy requires, in a fixed order, `CqmomMomentLayout`. |
 | node | A weighted point of a quadrature. |

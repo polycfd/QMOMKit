@@ -14,6 +14,11 @@ and this project adheres to
 - `compute_wheeler_recurrence`, which returns the Wheeler recurrence
   coefficients, the diagonal of the Wheeler table and its rounding bounds as
   every QMOM reconstruction computes them.
+- HyQMOM (Fox & Laurent, 2022) as the `hyperbolic` QMOM family, selected
+  with `QmomOptions::family` or `[phase_space] qmom_family`. With node count
+  N, it reconstructs up to N + 1 nodes from 2N + 1 moments.
+  `compute_hyqmom_characteristic_speeds` returns the characteristic speeds of
+  a HyQMOM state. Two new examples show both.
 
 ## [1.0.0] - 2026-10-28
 

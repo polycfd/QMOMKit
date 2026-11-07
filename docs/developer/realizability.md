@@ -198,7 +198,7 @@ which reduces the node count in adaptive mode and may fail in fixed mode.
 `RealizabilityPolicy`, in
 [`include/qmomkit/realizability_policy.hpp`](../../include/qmomkit/realizability_policy.hpp),
 holds the check mode, support, interval, tolerance and two acceptance flags;
-the [Reference](../user/7_reference.md#time_integrationrealizability) lists
+the [Reference](../user/8_reference.md#time_integrationrealizability) lists
 them with their defaults. The public
 `accepts_realizability_status(policy, status)` is the one acceptance rule: it
 accepts `strictly_realizable`, `boundary` if `accept_boundary` is set, and

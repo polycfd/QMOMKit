@@ -1,0 +1,6 @@
+[phase_space]
+node_counts = 2
+qmom_family = hyperbolic
+
+[moments]
+values = 1.0, 0.0, 1.0, 0.0

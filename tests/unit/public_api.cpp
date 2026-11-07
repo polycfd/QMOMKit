@@ -1,5 +1,7 @@
 #include "internal/cqmom_case.hpp"
+#include "internal/hyperbolic_quadrature.hpp"
 #include "internal/performance.hpp"
+#include "internal/qmom_state_access.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
@@ -11,6 +13,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -1256,6 +1259,401 @@ void test_qmom_state_candidate_reports_failures_without_throwing()
     assert(threw);
 }
 
+qmomkit::QmomOptions hyperbolic_options(const bool adaptive)
+{
+    qmomkit::QmomOptions options;
+    options.adaptive = adaptive;
+    options.family = qmomkit::QmomFamily::hyperbolic;
+    return options;
+}
+
+// The QMOM status of each quadrature status, by name.
+qmomkit::QmomStatus qmom_status_of(const qmomkit::QuadratureStatus status)
+{
+    switch (status)
+    {
+    case qmomkit::QuadratureStatus::success:
+        return qmomkit::QmomStatus::success;
+    case qmomkit::QuadratureStatus::invalid_input:
+        return qmomkit::QmomStatus::invalid_input;
+    case qmomkit::QuadratureStatus::not_realizable:
+        return qmomkit::QmomStatus::not_realizable;
+    }
+    return qmomkit::QmomStatus::invalid_input;
+}
+
+void assert_same_as_hyperbolic_quadrature(const qmomkit::QmomResult& result, const qmomkit::Quadrature1D& expected)
+{
+    assert(result.abscissas == expected.abscissas);
+    assert(result.weights == expected.weights);
+    assert(result.status == qmom_status_of(expected.status));
+    assert(result.message == expected.message);
+}
+
+void test_qmom_hyperbolic_family_is_the_hyperbolic_reconstruction()
+{
+    // Three points are interior at n = 2 and give the J_3 rule; two put the
+    // moments on the boundary, where adaptive mode returns the classical rule
+    // and fixed mode refuses. Every overload returns what the reconstruction
+    // returns, with one QMOM reconstruction per call.
+    const qmomkit::MomentSet interior(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
+    const qmomkit::MomentSet boundary(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5));
+    for (const qmomkit::MomentSet& moments : {interior, boundary})
+    {
+        for (const bool adaptive : {true, false})
+        {
+            const qmomkit::QmomOptions options = hyperbolic_options(adaptive);
+            qmomkit::WheelerOptions wheeler;
+            wheeler.adaptive = adaptive;
+            const qmomkit::Quadrature1D expected = qmomkit::internal::compute_hyperbolic_quadrature(moments, 2, wheeler);
+            qmomkit::QmomResult result;
+            assert_qmom_reconstructions(1, [&] { result = qmomkit::compute_qmom(moments, 2, options); });
+            assert_same_as_hyperbolic_quadrature(result, expected);
+            assert_same_as_hyperbolic_quadrature(qmomkit::compute_qmom(moments, 2, options, std::nullopt), expected);
+            assert_same_as_hyperbolic_quadrature(qmomkit::compute_qmom(qmomkit::QmomCase{moments, 2, options}), expected);
+        }
+    }
+    assert(qmomkit::compute_qmom(interior, 2, hyperbolic_options(true)).weights.size() == 3);
+    assert(qmomkit::compute_qmom(boundary, 2, hyperbolic_options(true)).weights.size() == 2);
+    assert(qmomkit::compute_qmom(boundary, 2, hyperbolic_options(false)).status == qmomkit::QmomStatus::not_realizable);
+}
+
+void test_qmom_hyperbolic_family_takes_no_abscissa_bounds()
+{
+    // HyQMOM is defined on the real line: bounds are invalid input before any
+    // reconstruction. A state candidate reports a policy that rejects the
+    // moments first, as for invalid bounds.
+    const std::string message = "The hyperbolic QMOM family takes no abscissa bounds.";
+    const qmomkit::AbscissaBounds bounds{-2.0, 3.0};
+    const qmomkit::MomentSet moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
+    const qmomkit::QmomCase bounded_case{moments, 2, hyperbolic_options(true), bounds};
+    for (const qmomkit::QmomResult& result :
+         {qmomkit::compute_qmom(moments, 2, hyperbolic_options(true), bounds), qmomkit::compute_qmom(bounded_case)})
+    {
+        assert(result.status == qmomkit::QmomStatus::invalid_input);
+        assert(result.message == message);
+        assert(result.abscissas.empty() && result.weights.empty());
+    }
+
+    const qmomkit::QmomStateCandidate candidate = bounded_case.state_candidate(moments);
+    assert(candidate.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(candidate.reconstruction_status == qmomkit::QmomStatus::invalid_input);
+    assert(candidate.message == message);
+
+    qmomkit::RealizabilityPolicy real_line;
+    real_line.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    const qmomkit::QmomStateCandidate rejected = bounded_case.state_candidate(qmomkit::MomentSet{1.0, 0.0, -1.0, 0.0, 1.0}, real_line);
+    assert(rejected.status == qmomkit::StateCandidateStatus::realizability_rejected);
+    assert(!rejected.reconstruction_status.has_value());
+}
+
+void test_qmom_hyperbolic_state_holds_up_to_n_plus_one_nodes()
+{
+    // The maximum node count is n + 1 for the hyperbolic family and n for the
+    // classical one, while the state keeps n. Interior moments give n + 1
+    // active nodes, moments on the boundary the classical count.
+    const qmomkit::MomentSet interior(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
+    const qmomkit::MomentSet boundary(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5));
+
+    const qmomkit::QmomState hyperbolic = qmomkit::QmomCase{interior, 2, hyperbolic_options(true)}.initial_state();
+    assert(hyperbolic.maximum_node_count() == 3);
+    assert(hyperbolic.active_node_count() == 3);
+    assert(qmomkit::internal::QmomStateAccess::node_count(hyperbolic) == 2);
+    assert(hyperbolic.moment_values().size() == 5);
+
+    const qmomkit::QmomState on_boundary = qmomkit::QmomCase{boundary, 2, hyperbolic_options(true)}.initial_state();
+    assert(on_boundary.maximum_node_count() == 3);
+    assert(on_boundary.active_node_count() == 2);
+
+    const qmomkit::QmomState classical = qmomkit::QmomCase{interior, 2}.initial_state();
+    assert(classical.maximum_node_count() == 2);
+    assert(classical.active_node_count() == 2);
+    assert(qmomkit::internal::QmomStateAccess::node_count(classical) == 2);
+}
+
+void test_qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature()
+{
+    // A hyperbolic state from given moments holds the quadrature of those
+    // moments, n + 1 nodes in the interior and the classical quadrature on the
+    // boundary, and the moments of that quadrature, as many as were given:
+    // m_0, ..., m_{2n} (n + 1 nodes) or m_0, ..., m_{2k-1} (k classical nodes)
+    // reproduce the given moments to rounding, and every higher one is that of
+    // the quadrature.
+    const qmomkit::QmomOptions options = hyperbolic_options(true);
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5)), 2, options};
+    const qmomkit::MomentSet interior(raw_moments_1d({-1.5, -0.25, 0.75, 2.5}, {0.125, 0.375, 0.25, 0.25}, 7));
+    const qmomkit::MomentSet boundary(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 7));
+    for (const auto& [moments, active_node_count, reproduced_count] :
+         {std::tuple{interior, std::size_t{3}, std::size_t{5}}, std::tuple{boundary, std::size_t{2}, std::size_t{4}}})
+    {
+        const qmomkit::QmomStateCandidate candidate = qmom_case.state_candidate(moments);
+        assert(candidate.ok());
+        const qmomkit::QmomState& state = *candidate.state;
+        assert(state.active_node_count() == active_node_count);
+        assert(state.maximum_node_count() == 3);
+
+        const qmomkit::QmomResult quadrature = qmomkit::compute_qmom(moments, 2, options);
+        assert(state.quadrature().abscissas == quadrature.abscissas);
+        assert(state.quadrature().weights == quadrature.weights);
+        const std::vector<double> quadrature_moments = qmomkit::reconstruct_raw_moments(
+            qmomkit::Quadrature1D{quadrature.abscissas, quadrature.weights, qmomkit::QuadratureStatus::success, ""}, moments.size());
+        assert(state.moment_values() == quadrature_moments);
+        for (std::size_t order = 0; order < reproduced_count; ++order)
+        {
+            assert_relative_near(state.moment_values()[order], moments[order], 1.0e-13);
+        }
+    }
+
+    // Four points have more moments than three nodes reproduce: m_5 and m_6
+    // of the state are those of the quadrature, not the given ones.
+    const qmomkit::QmomStateCandidate replaced = qmom_case.state_candidate(interior);
+    for (const std::size_t order : {std::size_t{5}, std::size_t{6}})
+    {
+        assert(std::abs(replaced.state->moment_values()[order] - interior[order]) > 1.0e-3 * std::abs(interior[order]));
+    }
+}
+
+void test_qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments()
+{
+    // Four moments are too few for n = 2 in the hyperbolic family, so the
+    // policy check is skipped and the reconstruction reports invalid input; the
+    // classical family checks the same moments and rejects them.
+    const qmomkit::MomentSet four_moments{1.0, 0.0, -1.0, 0.0};
+    qmomkit::RealizabilityPolicy real_line;
+    real_line.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+
+    const qmomkit::QmomStateCandidate hyperbolic =
+        qmomkit::QmomCase{four_moments, 2, hyperbolic_options(true)}.state_candidate(four_moments, real_line);
+    assert(hyperbolic.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(hyperbolic.reconstruction_status == qmomkit::QmomStatus::invalid_input);
+    assert(!hyperbolic.realizability.has_value());
+    assert(hyperbolic.message == "Moment sequence has fewer than 2*n+1 entries.");
+
+    const qmomkit::QmomStateCandidate classical = qmomkit::QmomCase{four_moments, 2}.state_candidate(four_moments, real_line);
+    assert(classical.status == qmomkit::StateCandidateStatus::realizability_rejected);
+}
+
+void assert_strictly_ascending(const std::vector<double>& values)
+{
+    assert(std::adjacent_find(values.begin(), values.end(), [](const double lhs, const double rhs) { return lhs >= rhs; }) == values.end());
+}
+
+void test_hyqmom_characteristic_speeds_refuse_the_classical_family()
+{
+    const qmomkit::QmomState state =
+        qmomkit::QmomCase{qmomkit::MomentSet(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5)), 2}.initial_state();
+    const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+    assert(result.status == qmomkit::QmomStatus::invalid_input);
+    assert(result.message == "Characteristic speeds require the hyperbolic QMOM family.");
+    assert(result.speeds.empty());
+}
+
+void test_hyqmom_characteristic_speeds_are_those_of_the_stored_moments()
+{
+    // The speeds of a state are the internal speeds of its stored moments
+    // with its node count and options, bit for bit: n + 1 nodes, adaptive and
+    // fixed; a classical quadrature; n + 1 nodes that are not the
+    // reconstruction of their moments, as after advection; and an rmin that
+    // reduces a classical quadrature.
+    const qmomkit::MomentSet moments(raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5));
+    qmomkit::QmomOptions large_rmin = hyperbolic_options(true);
+    large_rmin.rmin = 0.4;
+    const std::vector<std::pair<qmomkit::QmomState, std::size_t>> cases{
+        {qmomkit::QmomCase{moments, 2, hyperbolic_options(true)}.initial_state(), 2},
+        {qmomkit::QmomCase{moments, 2, hyperbolic_options(false)}.initial_state(), 2},
+        {qmomkit::QmomCase{qmomkit::MomentSet(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 7)), 3, hyperbolic_options(true)}.initial_state(), 3},
+        {qmomkit::internal::QmomStateAccess::from_quadrature(qmomkit::QmomResult{{-1.0, 0.75, 2.5}, {0.25, 0.375, 0.375}}, 5, 2,
+                                                             hyperbolic_options(true)),
+         2},
+        {qmomkit::internal::QmomStateAccess::from_quadrature(qmomkit::QmomResult{{-1.25, 2.75}, {0.25, 0.75}}, 5, 2, large_rmin), 2}};
+    for (const auto& [state, n] : cases)
+    {
+        const qmomkit::QmomOptions& options = state.qmom_options();
+        const qmomkit::internal::HyperbolicCharacteristicSpeeds expected = qmomkit::internal::compute_hyperbolic_characteristic_speeds(
+            qmomkit::MomentSet(state.moment_values()), n, qmomkit::WheelerOptions{options.adaptive, options.rmin, options.eabs, options.cutoff});
+        const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+        assert(result.ok());
+        assert(result.status == qmom_status_of(expected.status));
+        assert(result.message == expected.message);
+        assert(result.speeds == expected.speeds);
+    }
+}
+
+void test_hyqmom_characteristic_speeds_of_moments_on_the_boundary_to_rounding_are_those_of_the_classical_quadrature()
+{
+    // n = 3: four distinct nodes, one of weight 2^-60, whose moments the
+    // Wheeler recurrence finds on the boundary, sigma(3, 3) <= tau_3. No public
+    // path makes this state. The stored moments are reconstructed as the
+    // classical quadrature of the three heavy points, so the speeds are 0,
+    // 1.375 and 1.625, each twice, and their mean, 1.
+    const std::vector<double> abscissas{0.0, 1.125, 1.375, 1.625};
+    const std::vector<double> weights{0.25, std::ldexp(1.0, -60), 0.75, 1.0};
+    const qmomkit::Quadrature1D nodes{abscissas, weights, qmomkit::QuadratureStatus::success, ""};
+    const qmomkit::WheelerRecurrence recurrence =
+        qmomkit::compute_wheeler_recurrence(qmomkit::MomentSet(qmomkit::reconstruct_raw_moments(nodes, 8)), 4);
+    assert(recurrence.ok());
+    assert(recurrence.sigma[3] <= recurrence.tolerance[3]);
+
+    const qmomkit::QmomState state =
+        qmomkit::internal::QmomStateAccess::from_quadrature(qmomkit::QmomResult{abscissas, weights}, 7, 3, hyperbolic_options(true));
+    const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+    assert(result.ok());
+    const std::vector<double> boundary{0.0, 0.0, 1.0, 1.375, 1.375, 1.625, 1.625};
+    assert(result.speeds.size() == boundary.size());
+    for (std::size_t i = 0; i < boundary.size(); ++i)
+    {
+        assert_near(result.speeds[i], boundary[i], 1.0e-12);
+    }
+}
+
+void test_hyqmom_characteristic_speeds_at_node_count_one_are_the_mean_and_the_mean_shifted_by_sqrt3_sigma()
+{
+    // n = 1 with mean 0.5 and standard deviation 0.75: J_1 = [mu], and K_2 has
+    // diagonal mu, mu and off-diagonal sqrt(3) sigma, so the speeds are mu and
+    // mu -+ sqrt(3) sigma.
+    const qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet{2.0, 1.0, 1.625}, 1, hyperbolic_options(true)}.initial_state();
+    assert(state.active_node_count() == 2);
+    const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+    assert(result.ok());
+    assert(result.speeds.size() == 3);
+    const double spread = std::sqrt(3.0) * 0.75;
+    assert_near(result.speeds[0], 0.5 - spread, 1.0e-14);
+    assert_near(result.speeds[1], 0.5, 1.0e-14);
+    assert_near(result.speeds[2], 0.5 + spread, 1.0e-14);
+}
+
+void test_hyqmom_characteristic_speeds_of_a_classical_quadrature_are_its_abscissas_twice_and_their_mean()
+{
+    // Two points on the boundary at n = 2 and at n = 3 give their abscissas,
+    // each twice, and their mean, 0.75; the one node that rmin = 0.4 leaves of
+    // them at n = 2, above their weight ratio of 1/3, gives their mean, 1.75,
+    // three times.
+    const std::vector<double> two_points = raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 7);
+    qmomkit::QmomOptions large_rmin = hyperbolic_options(true);
+    large_rmin.rmin = 0.4;
+    const std::vector<std::pair<qmomkit::QmomState, std::vector<double>>> cases{
+        {qmomkit::QmomCase{qmomkit::MomentSet(two_points), 2, hyperbolic_options(true)}.initial_state(), {-1.25, -1.25, 0.75, 2.75, 2.75}},
+        {qmomkit::QmomCase{qmomkit::MomentSet(two_points), 3, hyperbolic_options(true)}.initial_state(), {-1.25, -1.25, 0.75, 2.75, 2.75}},
+        {qmomkit::QmomCase{qmomkit::MomentSet(two_points), 2, large_rmin}.initial_state(), {1.75, 1.75, 1.75}}};
+    for (const auto& [state, expected] : cases)
+    {
+        assert((2 * state.active_node_count()) + 1 == expected.size());
+        const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+        assert(result.ok());
+        assert(result.speeds.size() == expected.size());
+        for (std::size_t i = 0; i < expected.size(); ++i)
+        {
+            assert_near(result.speeds[i], expected[i], 1.0e-14);
+        }
+    }
+}
+
+void test_hyqmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve()
+{
+    // No public path makes these states directly; advection can. Three nodes
+    // at n = 2, two of them 0.5 apart, give the five distinct speeds of three
+    // nodes. With the two 1e-9 apart, the stored moments resolve only two
+    // nodes, and the speeds are those of their classical quadrature: its two
+    // abscissas, each twice, and their mean, near -1.25, 2.75 and 0.75. Two
+    // nodes at zero give the speeds of one point at zero.
+    const qmomkit::QmomState resolved = qmomkit::internal::QmomStateAccess::from_quadrature(
+        qmomkit::QmomResult{{-1.25, 2.75, 3.25}, {0.25, 0.375, 0.375}}, 5, 2, hyperbolic_options(true));
+    const qmomkit::HyqmomCharacteristicSpeeds distinct = qmomkit::compute_hyqmom_characteristic_speeds(resolved);
+    assert(distinct.ok());
+    assert(distinct.speeds.size() == 5);
+    assert_strictly_ascending(distinct.speeds);
+
+    const qmomkit::QmomState close = qmomkit::internal::QmomStateAccess::from_quadrature(
+        qmomkit::QmomResult{{-1.25, 2.75, 2.75 + 1.0e-9}, {0.25, 0.375, 0.375}}, 5, 2, hyperbolic_options(true));
+    const qmomkit::QmomResult reconstruction = qmomkit::compute_qmom(qmomkit::MomentSet(close.moment_values()), 2, close.qmom_options());
+    assert(reconstruction.ok());
+    assert(reconstruction.abscissas.size() == 2);
+    const std::vector<double>& abscissas = reconstruction.abscissas;
+    std::vector<double> expected{abscissas[0], abscissas[0], (abscissas[0] + abscissas[1]) / 2.0, abscissas[1], abscissas[1]};
+    const qmomkit::HyqmomCharacteristicSpeeds merged = qmomkit::compute_hyqmom_characteristic_speeds(close);
+    assert(merged.ok());
+    assert(merged.speeds == expected);
+    const std::vector<double> boundary{-1.25, -1.25, 0.75, 2.75, 2.75};
+    for (std::size_t i = 0; i < boundary.size(); ++i)
+    {
+        assert_near(merged.speeds[i], boundary[i], 1.0e-8);
+    }
+
+    const qmomkit::QmomState coincident =
+        qmomkit::internal::QmomStateAccess::from_quadrature(qmomkit::QmomResult{{0.0, 0.0}, {0.5, 0.5}}, 3, 1, hyperbolic_options(true));
+    const qmomkit::HyqmomCharacteristicSpeeds point = qmomkit::compute_hyqmom_characteristic_speeds(coincident);
+    assert(point.ok());
+    assert((point.speeds == std::vector<double>{0.0, 0.0, 0.0}));
+}
+
+void test_hyqmom_characteristic_speeds_apply_the_options_of_the_state()
+{
+    // The stored moments are reconstructed with the state's options. Two nodes
+    // of weight ratio 1/3 at n = 2 give their abscissas, each twice, and their
+    // mean, 0.75; rmin = 0.4, above that ratio, leaves one node at their mean,
+    // 1.75, three times. In fixed mode, three nodes of which two coincide have
+    // moments that support only two nodes, which is not realizable.
+    const qmomkit::QmomResult two_nodes{{-1.25, 2.75}, {0.25, 0.75}};
+    qmomkit::QmomOptions large_rmin = hyperbolic_options(true);
+    large_rmin.rmin = 0.4;
+    const std::vector<std::pair<qmomkit::QmomOptions, std::vector<double>>> cases{{hyperbolic_options(true), {-1.25, -1.25, 0.75, 2.75, 2.75}},
+                                                                                  {large_rmin, {1.75, 1.75, 1.75}}};
+    for (const auto& [options, expected] : cases)
+    {
+        const qmomkit::QmomState state = qmomkit::internal::QmomStateAccess::from_quadrature(two_nodes, 5, 2, options);
+        const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+        assert(result.ok());
+        assert(result.speeds.size() == expected.size());
+        for (std::size_t i = 0; i < expected.size(); ++i)
+        {
+            assert_near(result.speeds[i], expected[i], 1.0e-14);
+        }
+    }
+
+    const qmomkit::QmomState fixed = qmomkit::internal::QmomStateAccess::from_quadrature(
+        qmomkit::QmomResult{{-1.25, 2.75, 2.75}, {0.25, 0.375, 0.375}}, 5, 2, hyperbolic_options(false));
+    const qmomkit::HyqmomCharacteristicSpeeds refused = qmomkit::compute_hyqmom_characteristic_speeds(fixed);
+    assert(refused.status == qmomkit::QmomStatus::not_realizable);
+    assert(refused.message.rfind("Moment sequence supports at most 2 nodes", 0) == 0);
+    assert(refused.speeds.empty());
+}
+
+void test_cqmom_refuses_the_hyperbolic_family()
+{
+    // The conditional inversions of CQMOM are classical: a case, a prepared
+    // case, a state candidate and an initial state with the hyperbolic family
+    // are refused.
+    const std::string message = "CQMOM supports only the classical QMOM family.";
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    qmomkit::QmomOptions options;
+    options.family = qmomkit::QmomFamily::hyperbolic;
+    const qmomkit::CqmomCase cqmom_case{moment_data_from_tensor(hierarchy, public_cqmom_promotion_moments()), {}, options};
+
+    const qmomkit::CqmomResult direct = qmomkit::compute_cqmom(cqmom_case);
+    assert(direct.status == qmomkit::CqmomStatus::invalid_input);
+    assert(direct.message == message);
+
+    const qmomkit::CqmomPreparedCase prepared{cqmom_case};
+    const qmomkit::CqmomResult from_prepared = qmomkit::compute_cqmom(prepared);
+    assert(from_prepared.status == qmomkit::CqmomStatus::invalid_input);
+    assert(from_prepared.message == message);
+
+    const qmomkit::CqmomStateCandidate candidate = prepared.state_candidate(cqmom_case.moments);
+    assert(candidate.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(candidate.message == message);
+
+    bool threw = false;
+    try
+    {
+        static_cast<void>(cqmom_case.initial_state());
+    }
+    catch (const std::runtime_error& error)
+    {
+        threw = std::string(error.what()).find(message) != std::string::npos;
+    }
+    assert(threw);
+}
+
 void test_qmom_rejects_node_count_with_unrepresentable_moment_requirement()
 {
     const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
@@ -1865,6 +2263,24 @@ int main(const int argc, char** argv)
             {"qmom_state_candidate_applies_the_realizability_policy", test_qmom_state_candidate_applies_the_realizability_policy},
             {"qmom_state_candidate_accepts_indeterminate_moments_when_allowed", test_qmom_state_candidate_accepts_indeterminate_moments_when_allowed},
             {"qmom_state_candidate_reports_failures_without_throwing", test_qmom_state_candidate_reports_failures_without_throwing},
+            {"qmom_hyperbolic_family_is_the_hyperbolic_reconstruction", test_qmom_hyperbolic_family_is_the_hyperbolic_reconstruction},
+            {"qmom_hyperbolic_family_takes_no_abscissa_bounds", test_qmom_hyperbolic_family_takes_no_abscissa_bounds},
+            {"qmom_hyperbolic_state_holds_up_to_n_plus_one_nodes", test_qmom_hyperbolic_state_holds_up_to_n_plus_one_nodes},
+            {"qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature",
+             test_qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature},
+            {"qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments", test_qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments},
+            {"hyqmom_characteristic_speeds_refuse_the_classical_family", test_hyqmom_characteristic_speeds_refuse_the_classical_family},
+            {"hyqmom_characteristic_speeds_are_those_of_the_stored_moments", test_hyqmom_characteristic_speeds_are_those_of_the_stored_moments},
+            {"hyqmom_characteristic_speeds_of_moments_on_the_boundary_to_rounding_are_those_of_the_classical_quadrature",
+             test_hyqmom_characteristic_speeds_of_moments_on_the_boundary_to_rounding_are_those_of_the_classical_quadrature},
+            {"hyqmom_characteristic_speeds_at_node_count_one_are_the_mean_and_the_mean_shifted_by_sqrt3_sigma",
+             test_hyqmom_characteristic_speeds_at_node_count_one_are_the_mean_and_the_mean_shifted_by_sqrt3_sigma},
+            {"hyqmom_characteristic_speeds_of_a_classical_quadrature_are_its_abscissas_twice_and_their_mean",
+             test_hyqmom_characteristic_speeds_of_a_classical_quadrature_are_its_abscissas_twice_and_their_mean},
+            {"hyqmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve",
+             test_hyqmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve},
+            {"hyqmom_characteristic_speeds_apply_the_options_of_the_state", test_hyqmom_characteristic_speeds_apply_the_options_of_the_state},
+            {"cqmom_refuses_the_hyperbolic_family", test_cqmom_refuses_the_hyperbolic_family},
             {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
             {"qmom_rejects_fewer_than_2n_moments_with_or_without_bounds", test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds},

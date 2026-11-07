@@ -36,7 +36,7 @@ Each counter is incremented once per event.
 | --- | --- | --- |
 | `reconstruction` | `qmom_reconstructions` | QMOM reconstruction (`compute_qmom_from_moments`) |
 | | `cqmom_reconstructions` | CQMOM reconstruction (`compute_recursive_quadrature_from_validated_moment_data`) |
-| | `wheeler_calls` | Wheeler inversion at one coordinate scale (`compute_quadrature_at_scale`) |
+| | `wheeler_calls` | Wheeler inversion at one coordinate scale (`compute_quadrature_at_scale`), HyQMOM reconstructions (`compute_hyperbolic_quadrature`) and characteristic speeds (`compute_hyperbolic_characteristic_speeds`) included, one per call |
 | | `moment_layout_builds` | `create_cqmom_moment_layout` or `create_branch_moment_layout` |
 | | `cqmom_prepared_metadata_builds` | prepared branch structure built |
 | | `cqmom_prepared_metadata_uses`, `cqmom_dynamic_metadata_builds` | CQMOM reconstruction with prepared metadata, or building its own |

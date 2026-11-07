@@ -4,7 +4,8 @@ QMOM turns the raw moments $m_0,\ldots,m_{2N-1}$ of a one-dimensional number
 density into an $N$-node Gauss quadrature with the Wheeler algorithm
 [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. The same
 inversion reconstructs every one-dimensional sequence of recursive
-[CQMOM](cqmom.md). Public usage is in
+[CQMOM](cqmom.md). This is the classical family; the others are in
+[QMOM families](qmom_families.md). Public usage is in
 [Moments and quadrature](../user/4_moments_and_quadrature.md#reconstruct);
 moment and ordering conventions are in
 [Numerical conventions](numerical_conventions.md).
@@ -93,27 +94,28 @@ With `adaptive = false`, the first $k\in\{1,\ldots,N-1\}$ with
 $|\sigma_{k,k}|\le\tau_k$ ends the inversion with `not_realizable` and the
 message `Moment sequence supports at most k nodes: …`, with $k$ filled in.
 Without this test, rounding would decide whether a sequence on the boundary
-passes, and that changes with unit and number density; an accepted rule would
-also carry nodes made only of rounding. A non-finite recurrence or a
+passes, and that changes with unit and number density; an accepted quadrature
+would also carry nodes made only of rounding. A non-finite recurrence or a
 negative $b_k$ is also `not_realizable`. Otherwise the result has exactly $N$
 nodes; `rmin` and `eabs` are not applied.
 
 ## Adaptive reduction
 
-Adaptive inversion [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]
-(`adaptive = true`, the default) selects its rule in two steps:
+Adaptive inversion
+[[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)]
+(`adaptive = true`, the default) selects its quadrature in two steps:
 
 1. The usable count is $n=k$ for the first $k\in\{1,\ldots,N-1\}$ with
    $\sigma_{k,k}\le\tau_k$, zero within its rounding or negative, and $n=N$
    if there is none.
-2. For $n_1=n,n-1,\ldots,2$, form the $n_1$-node rule from the leading
+2. For $n_1=n,n-1,\ldots,2$, form the $n_1$-node quadrature from the leading
    coefficients and return the first that passes the two criteria below.
 
-If $n=1$ or no rule passes, the result is the one-node rule
+If $n=1$ or no quadrature passes, the result is the one-node quadrature
 $(m_1/m_0,\ m_0)$ with `success`. A sequence with negative variance therefore
 succeeds with one node that matches $m_0$ and $m_1$ only.
 
-A rule with $n_1$ nodes is accepted when
+A quadrature with $n_1$ nodes is accepted when
 
 ```math
 \frac{\min_i w_i}{\max_i w_i}>r_{\min},
@@ -136,9 +138,9 @@ origin: a pair whose gap is below `eabs` times its distance from zero collapses
 to one node. `rmin` and `eabs` default to `1e-10` in
 `QmomOptions` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp))
 and `WheelerOptions`
-([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); only
-`adaptive` is a `.qmom` key
-([Reference](../user/7_reference.md#reconstruction-options)).
+([`include/qmomkit/wheeler.hpp`](../../include/qmomkit/wheeler.hpp)); neither
+has a `.qmom` key
+([Reference](../user/8_reference.md#reconstruction-options)).
 
 ## Coordinate scales
 
@@ -183,12 +185,12 @@ maps `QuadratureStatus` one to one onto `QmomStatus`:
 
 | Status | Cause |
 | --- | --- |
-| `success` | A rule was accepted, in adaptive mode possibly with fewer nodes than requested. |
-| `invalid_input` | Invalid options or bounds, no nodes, too few or non-finite moments. |
+| `success` | A quadrature was accepted, in adaptive mode possibly with fewer nodes than requested. |
+| `invalid_input` | Invalid options or bounds, bounds with a family that takes none, no nodes, too few or non-finite moments. |
 | `not_realizable` | $m_0<0$, $m_0<$ `cutoff`, a fixed count the moments do not support, negative $b_k$, non-finite recurrence or eigenpairs, an unconverged eigensolve, or nodes outside the bounds. |
 
 `ok()` is true only for `success`; the accepted node count is `weights.size()`.
-Data returned with a failure is diagnostic, such as a one-node rule or the
+Data returned with a failure is diagnostic, such as a one-node quadrature or the
 rejected candidate, and empty for invalid input. Callers test the status, never
 whether the vectors are empty.
 
@@ -196,7 +198,7 @@ whether the vectors are empty.
 
 | Function | File | Role |
 | --- | --- | --- |
-| `compute_qmom` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public entry; bounds dispatch, status mapping. |
+| `compute_qmom` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public entry; family and bounds dispatch, status mapping. |
 | `compute_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public low-level Wheeler inversion, $s=0$. |
 | `compute_wheeler_recurrence` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public Wheeler recurrence and rounding bounds, $s=0$. |
 | `compute_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Inversion of CQMOM conditional moments with scale $s$. |

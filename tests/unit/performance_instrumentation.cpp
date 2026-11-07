@@ -1,5 +1,6 @@
 #include "conditional_vandermonde_matrix.hpp"
 #include "internal/cqmom_case.hpp"
+#include "internal/hyperbolic_quadrature.hpp"
 #include "internal/moment_source.hpp"
 #include "internal/performance.hpp"
 #include "internal/vandermonde.hpp"
@@ -400,6 +401,58 @@ void test_qmom_workflow_records_coarse_reconstruction_events_when_enabled()
     assert(counters.reconstruction.qmom_reconstructions == 0);
     assert(counters.reconstruction.wheeler_calls == 0);
 #endif
+}
+
+void test_hyperbolic_quadrature_records_one_wheeler_call_when_enabled()
+{
+    // Interior moments give the J_3 rule; two weighted points put the moments on
+    // the boundary, and the classical fallback must not record a second call.
+    const std::vector<std::pair<qmomkit::MomentSet, std::size_t>> cases{{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.25, 2.0}, 3},
+                                                                        {qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 1.0}, 2}};
+    for (const auto& [moments, node_count] : cases)
+    {
+        qmomkit::internal::performance::CounterSession session;
+        {
+            qmomkit::internal::performance::CounterScope scope(session);
+            const qmomkit::Quadrature1D result = qmomkit::internal::compute_hyperbolic_quadrature(moments, 2, {});
+            assert(result.ok());
+            assert(result.weights.size() == node_count);
+        }
+
+        const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+        assert(counters.reconstruction.wheeler_calls == 1);
+#else
+        assert(counters.reconstruction.wheeler_calls == 0);
+#endif
+    }
+}
+
+void test_hyqmom_characteristic_speeds_record_one_wheeler_call_when_enabled()
+{
+    // The speeds invert the stored moments once, whether they give the n + 1
+    // nodes or a classical quadrature on the boundary, and return no
+    // quadrature, so no QMOM reconstruction is recorded.
+    qmomkit::QmomOptions options;
+    options.family = qmomkit::QmomFamily::hyperbolic;
+    for (const qmomkit::MomentSet& moments : {qmomkit::MomentSet{1.0, 0.0, 1.0, 0.25, 2.0}, qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 1.0}})
+    {
+        const qmomkit::QmomState state = qmomkit::QmomCase{moments, 2, options}.initial_state();
+        qmomkit::internal::performance::CounterSession session;
+        {
+            qmomkit::internal::performance::CounterScope scope(session);
+            const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+            assert(result.ok());
+        }
+
+        const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
+        assert(counters.reconstruction.qmom_reconstructions == 0);
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+        assert(counters.reconstruction.wheeler_calls == 1);
+#else
+        assert(counters.reconstruction.wheeler_calls == 0);
+#endif
+    }
 }
 
 void test_cqmom_source_update_reuses_stage_layout_when_enabled()
@@ -950,6 +1003,9 @@ int main(const int argc, char** argv)
             {"explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled",
              test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled},
             {"qmom_workflow_records_coarse_reconstruction_events_when_enabled", test_qmom_workflow_records_coarse_reconstruction_events_when_enabled},
+            {"hyperbolic_quadrature_records_one_wheeler_call_when_enabled", test_hyperbolic_quadrature_records_one_wheeler_call_when_enabled},
+            {"hyqmom_characteristic_speeds_record_one_wheeler_call_when_enabled",
+             test_hyqmom_characteristic_speeds_record_one_wheeler_call_when_enabled},
             {"cqmom_source_update_reuses_stage_layout_when_enabled", test_cqmom_source_update_reuses_stage_layout_when_enabled},
             {"cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled",
              test_cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled},

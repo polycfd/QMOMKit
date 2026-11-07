@@ -36,16 +36,17 @@ string.
 
 | Key | Default | Meaning | C++ |
 | --- | --- | --- | --- |
-| `node_counts` | required | Maximum nodes per coordinate; one coordinate selects QMOM, several CQMOM. | `QmomCase::node_count`, `PhaseSpaceHierarchy` |
+| `node_counts` | required | Node count $N$ per coordinate, the maximum number of nodes, or $N + 1$ for the hyperbolic family; one coordinate selects QMOM, several CQMOM. | `QmomCase::node_count`, `PhaseSpaceHierarchy` |
 | `names` | none | One label per coordinate, for the reader; QMOMKit does not use them. | — |
 | `conditioning_order` | `0, 1, …` | CQMOM conditioning order. | `PhaseSpaceHierarchy` |
 | `support_lower`, `support_upper` | none | Interval the nodes must lie in, per coordinate; `none` for no bound. Both or neither, finite, `lower < upper`. | `abscissa_bounds` |
+| `qmom_family` | `classical` | QMOM only: `classical` or `hyperbolic` ([QMOM families](7_qmom_families.md)). The hyperbolic family takes no `support_lower` or `support_upper`. | `QmomOptions::family` |
 
 ### `[moments]`
 
 | Key | Meaning |
 | --- | --- |
-| `values` | QMOM: raw moments $m_0, m_1, \ldots$, at least $2N$. |
+| `values` | QMOM: raw moments $m_0, m_1, \ldots$, at least as many as the family needs, $2N$ for `classical` and $2N + 1$ for `hyperbolic`. |
 | `extents`, `M[i,j,…]` | CQMOM: tensor extents, at least twice each coordinate's node count, then one `M[i,j,…] = value` line for every entry within them. |
 
 ### `[initial]`
@@ -55,7 +56,7 @@ string.
 | `type` | required | `distribution` or `mixture` for QMOM, `independent_product` for CQMOM. |
 | `family`, parameters | — | `type = distribution`: the family and its parameters, below. |
 | `number_density` | `1.0` | `type = distribution`: the total, $m_0$. Required for `independent_product`. |
-| `maximum_order` | $2N - 1$ | QMOM: highest moment order generated. |
+| `maximum_order` | the least the QMOM family needs, $2N - 1$ for `classical` and $2N$ for `hyperbolic` | QMOM: highest moment order generated. |
 | `maximum_orders` | — | CQMOM: highest order per coordinate, only for code that builds a full tensor with `initialize_cqmom_moment_tensor(...)`. |
 
 - **Mixture:** sections `[initial.mixture.component.0]`, `[...1]`, …, each with
@@ -87,8 +88,8 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | Key | Default | Meaning | C++ |
 | --- | --- | --- | --- |
 | `[qmom] adaptive` | `true` | Use fewer nodes where the moments support no more. | `QmomOptions::adaptive` |
-| — | `1e-10` | Adaptive: smallest accepted ratio of the smallest to the largest weight. | `QmomOptions::rmin` |
-| — | `1e-10` | Adaptive: smallest accepted relative node separation. | `QmomOptions::eabs` |
+| — | `1e-10` | Adaptive: smallest accepted ratio of the smallest to the largest weight; not applied to the $N + 1$ nodes of `hyperbolic`. | `QmomOptions::rmin` |
+| — | `1e-10` | Adaptive: smallest accepted relative node separation; not applied to the $N + 1$ nodes of `hyperbolic`. | `QmomOptions::eabs` |
 | — | `1e-30` | Smallest $m_0$ that is reconstructed. | `QmomOptions::cutoff` |
 
 ### `[cqmom]` and `[vandermonde]`
@@ -149,6 +150,7 @@ function.
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
 | Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `active_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
+| HyQMOM characteristic speeds | `compute_hyqmom_characteristic_speeds` | `qmom.hpp` |
 | Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` and `_batch_with_index` forms | `phase_space_evolution.hpp` |
 | Check realizability | `check_realizability` | `realizability.hpp` |
 | Inspect the Wheeler recurrence | `compute_wheeler_recurrence` | `wheeler.hpp` |
@@ -181,6 +183,8 @@ The `Batch` forms, such as `BatchPhaseSpaceVelocity`, take a leading
 | --- | --- | --- |
 | `QmomResult` | `invalid_input` | Too few or non-finite moments, no nodes, or invalid options or bounds. |
 | | `not_realizable` | The moments give no quadrature with the requested nodes. |
+| `HyqmomCharacteristicSpeeds` | `invalid_input` | The state is not of the hyperbolic family. |
+| | `not_realizable` | The state's moments give no quadrature with its options, as in fixed mode when they no longer support $N + 1$ nodes, or an eigensolve failed or a speed exceeds the range of a double. |
 | `CqmomResult` | `invalid_input` | The moments do not fit the hierarchy, or invalid options. |
 | | `qmom_failed` | A one-dimensional reconstruction of a branch failed. |
 | | `conditional_moment_failed` | A conditional system could not be solved. |
@@ -236,6 +240,13 @@ These throw instead of returning a status:
 | Message | Cause and remedy |
 | --- | --- |
 | `Moment sequence has fewer than 2*n entries.` | $N$ nodes need $2N$ moments. Supply more, request fewer nodes, or raise `maximum_order`. |
+| `Moment sequence has fewer than 2*n+1 entries.` | The hyperbolic family with node count $N$ needs $2N + 1$ moments. |
+| `The hyperbolic QMOM family takes no abscissa bounds.` | HyQMOM is defined on the real line. Remove the bounds, or `support_lower` and `support_upper` from the file, or use the classical family. |
+| `phase_space.qmom_family must be classical or hyperbolic.` | Set one of the two families; `[phase_space] qmom_family` takes a single value. |
+| `QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.` | Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
+| `CQMOM supports only the classical QMOM family.` | Set `qmom_options.family` of the CQMOM case to `classical`. |
+| `Characteristic speeds require the hyperbolic QMOM family.` | Only a state of the hyperbolic family has these speeds. |
+| `Characteristic speeds exceed the range of a double.` | The coordinates of the state are near the range of a double. Use units that keep them near unity. |
 | `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |
 | `Moment sequence has m0 < cutoff.` | There is no population left; stop evolving it. |

@@ -13,7 +13,7 @@ namespace qmomkit
 
 /**
  * Advanced composable operation: reconstruct one-dimensional raw moments from
- * a successful QMOM quadrature rule using m_k = sum_i w_i x_i^k.
+ * a successful QMOM quadrature using m_k = sum_i w_i x_i^k.
  *
  * An unsuccessful quadrature, a zero `moment_count`, or inconsistent/non-finite
  * quadrature storage is rejected with `std::invalid_argument`. A non-finite
@@ -64,7 +64,7 @@ namespace qmomkit
 
 /**
  * Evaluate a one-dimensional generalized moment from an existing quadrature
- * rule using M_alpha = sum_i w_i x_i^alpha.
+ * using M_alpha = sum_i w_i x_i^alpha.
  *
  * The exponent may be non-integer. The exponent, weights, and abscissas must be
  * finite; invalid storage or non-finite exponents are rejected with

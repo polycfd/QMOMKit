@@ -21,7 +21,7 @@ derived from a quadrature, never an input to reconstruction or evolution.
 
 | Container | Indexed by | Storage |
 | --- | --- | --- |
-| `MomentSet` | order $k$ | `values()[k]` is $m_k$; $N$ nodes need $m_0, \ldots, m_{2N-1}$. |
+| `MomentSet` | order $k$ | `values()[k]` is $m_k$; $N$ nodes of the classical family need $m_0, \ldots, m_{2N-1}$, and each family states its count ([QMOM families](qmom_families.md)). |
 | `MultiIndex` | phase-space dimension | `std::vector<std::size_t>`, one order or node index per dimension. |
 | `RawMomentTensor` | multi-index $\alpha$ | `values[flatten_multi_index(alpha, extents)]`. |
 | `CqmomMomentData` | position in its layout | `values[i]` is the moment of `layout.required_indices` row `i`. |
@@ -93,10 +93,11 @@ every branch follows its parent. Code for both layouts iterates over
 ## Adaptive and fixed reconstruction
 
 One flag, `QmomOptions::adaptive` (default `true`), governs every inversion; in
-CQMOM, every marginal and conditional inversion and every branch count. Adaptive
-node counts are maxima; a fixed reconstruction returns exactly the configured
-count in every inversion, or fails. Criteria: [QMOM](qmom.md); branches:
-[CQMOM](cqmom.md).
+CQMOM, every marginal and conditional inversion and every branch count. An
+adaptive reconstruction returns at most the family's maximum node count,
+`maximum_node_count()`, which is $N + 1$ for `hyperbolic`; a fixed one returns
+exactly that count in every inversion, or fails. Criteria: [QMOM](qmom.md);
+branches: [CQMOM](cqmom.md).
 
 ## Tolerances
 
@@ -128,13 +129,13 @@ realizability check or policy and does not constrain reconstruction
 ([Realizability](realizability.md)).
 
 **Abscissa bounds** (`AbscissaBounds`, or `CqmomAbscissaBounds` per coordinate)
-are acceptance criteria for reconstructed abscissas. A candidate rule with a
-node outside the bounds, beyond a rounding margin, is rejected. An adaptive
+are acceptance criteria for reconstructed abscissas. A candidate quadrature with
+a node outside the bounds, beyond a rounding margin, is rejected. An adaptive
 reconstruction then tries fewer nodes, and a fixed one fails. Nodes are never
-clipped or projected. Bounds exist only when the caller gives them. In a
-`.qmom` file, they are the keys `phase_space.support_lower` and
-`phase_space.support_upper`, which set abscissa bounds despite their names.
-They are never inferred from a realizability support, a coordinate name, or the
+clipped or projected. Bounds exist only when the caller gives them. In a `.qmom`
+file, they are the keys `phase_space.support_lower` and
+`phase_space.support_upper`, which set abscissa bounds despite their names. They
+are never inferred from a realizability support, a coordinate name, or the
 moments. The margin is in [QMOM](qmom.md).
 
 ## Units and scales
@@ -153,14 +154,14 @@ Terms the [user guide](../user/3_concepts.md#terms) does not define:
 
 | Term | Meaning |
 | --- | --- |
-| active node count | Nodes that a branch or a QMOM state uses; at most the configured count. |
+| active node count | Nodes that a branch or a QMOM state uses; at most the configured count, or for a QMOM state its family's maximum. |
 | canonical moments | Moments recomputed from an accepted quadrature; a state stores these, not the moments it was given. |
 | ceiling | The largest node count a branch may return in one reconstruction, apart from the growth trial: its recorded active count when a state's counts are passed in, otherwise its configured count. |
 | child case | Internal layout data for the children of a branch with a given node count ([CQMOM](cqmom.md#branch-layouts)). |
 | conditional moments | Moments of later coordinates conditioned on a node of earlier ones, from a conditional Vandermonde solve. |
 | conditioning level | Position `l` in the conditioning order. |
 | conditioning path | `ConditioningPath`: the node index chosen at each level from the root to a node. |
-| configured node count | Node count of a dimension in the hierarchy: the maximum of every branch. |
+| configured node count | Node count of a dimension in the hierarchy: the maximum of every branch. For QMOM, the case's `node_count` $N$; `maximum_node_count()` is the family's maximum. |
 | full tensor | `RawMomentTensor`: every moment in a rectangular box; an input or output format that cases and states never hold. |
 | growth | A branch trying one more node than its active count, allowed only in the post-source reconstruction. |
 | local weight | Weight from one branch inversion; terminal weights are products of local weights. |

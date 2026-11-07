@@ -6,7 +6,7 @@ into the same public cases and options a C++ caller builds, in namespace
 quadrature histories as text tables. Neither owns physics or a schedule:
 callbacks, the time loop and the choice of when to write are the host's. Every
 key and file format is listed in the user
-[Reference](../user/7_reference.md#configuration-file); this page explains
+[Reference](../user/8_reference.md#configuration-file); this page explains
 the rules behind them.
 
 ## Parser structure
@@ -32,7 +32,7 @@ value or one error string, the first recorded error formatted as
 ## Syntax
 
 The rules a user sees, such as comments, plain decimals and canonical indices,
-are in the [Reference](../user/7_reference.md#configuration-file). The
+are in the [Reference](../user/8_reference.md#configuration-file). The
 parser also fixes these, which are equally part of the file format:
 
 - `[name]` opens a section. A mixture-component or product-dimension section,
@@ -114,11 +114,24 @@ other formulation.
 The case parsers go through the same steps a caller can take separately:
 `initialize_qmom_moments(...)` or `initialize_cqmom_moments(...)` turn an
 `InitialConditionSpecification` into moments, and `create_qmom_case(...)` or
-`create_cqmom_case(...)` build the case. A QMOM case needs at least $2N$
-moments for $N$ nodes at this point. A CQMOM explicit tensor must be complete
-within its `extents`, and the case keeps only the moments its layout requires
-([CQMOM](cqmom.md)). Options without a key, such as `QmomOptions::cutoff` or
-the source-step retries, keep their C++ defaults.
+`create_cqmom_case(...)` build the case. A QMOM case with node count $N$ needs
+at this point the moments its family reads, $2N$, or $2N + 1$ for
+`hyperbolic`, the count `internal::qmom_required_moment_count` gives, and a
+family may refuse abscissa bounds ([QMOM families](qmom_families.md)). A CQMOM
+explicit tensor must be complete within its `extents`, and the case keeps only
+the moments its layout requires ([CQMOM](cqmom.md)). Options without a key,
+such as `QmomOptions::cutoff` or the source-step retries, keep their C++
+defaults.
+
+The QMOM family, `[phase_space] qmom_family`, is read by one helper,
+`parse_qmom_family`, which gives `classical` when the key is absent:
+`parse_qmom` sets it in the options of the case, and
+`parse_qmom_initial_condition` validates it whatever its path and infers the
+default `initial.maximum_order` from it, one less than the family's count. It is
+a `[phase_space]` key because it describes the coordinate, including how many
+moments it needs; `[qmom]` keeps the options that apply to every coordinate
+alike, which `parse_qmom_options_from_parsed` reads for the case, the CQMOM case
+settings and the evolution options. CQMOM files do not accept the key.
 
 `with_initial_moments(...)` replaces the moments of a `CqmomCase` or
 `CqmomPreparedCase`, given as a `RawMomentTensor` or as `CqmomMomentData`. It
@@ -157,7 +170,7 @@ Then:
    ineffective.
 2. Write it to the C++ field, leaving the field's default when the key is
    absent, so the file and the API share one default.
-3. Add it to the [Reference](../user/7_reference.md).
+3. Add it to the [Reference](../user/8_reference.md).
 4. Test the value, the default, an invalid value and an ineffective use in
    [`tests/unit/configuration.cpp`](../../tests/unit/configuration.cpp); a
    failure seen through a file belongs in
@@ -218,7 +231,7 @@ the host, which decides where, what and when to write.
 Existing columns keep their order and labels, since readers of the files rely
 on them; a new quantity becomes a new column after them or a new factory. A new
 writer documents its format here and in the
-[Reference](../user/7_reference.md#output-files) before it becomes public API;
+[Reference](../user/8_reference.md#output-files) before it becomes public API;
 a format needed by only one example or test stays local to it.
 
 [`tests/unit/output.cpp`](../../tests/unit/output.cpp) covers the formats,

@@ -49,8 +49,8 @@ path.
 
 | File | Owns | Implements |
 | --- | --- | --- |
-| [`src/public_api.cpp`](../../src/public_api.cpp) | `compute_qmom`, `compute_cqmom`, cases, states, state candidates, `CqmomQuadrature`, conversion of internal recursive results into `CqmomResult` | `qmom.hpp`, `cqmom.hpp`, the non-inline part of `internal/cqmom_case.hpp` |
-| [`src/wheeler.cpp`](../../src/wheeler.cpp) | Wheeler inversion, adaptive reduction, bounded-support selection | `wheeler.hpp`, `internal/bounded_quadrature.hpp` |
+| [`src/public_api.cpp`](../../src/public_api.cpp) | `compute_qmom`, `compute_cqmom`, cases, states, state candidates, HyQMOM characteristic speeds, `CqmomQuadrature`, conversion of internal recursive results into `CqmomResult` | `qmom.hpp`, `cqmom.hpp`, the non-inline part of `internal/cqmom_case.hpp` |
+| [`src/wheeler.cpp`](../../src/wheeler.cpp) | Wheeler inversion, adaptive reduction, bounded-support selection, HyQMOM reconstruction and characteristic speeds | `wheeler.hpp`, `internal/bounded_quadrature.hpp`, `internal/hyperbolic_quadrature.hpp` |
 | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Recursive CQMOM traversal, prepared branch structure, required-moment layout, `extract_cqmom_moments`, multi-index flattening, `PhaseSpaceHierarchy` | `internal/recursive_quadrature.hpp`, `multi_index.hpp`, `phase_space_hierarchy.hpp`, the layout functions of `cqmom.hpp` |
 | [`src/conditioning_path.cpp`](../../src/conditioning_path.cpp) | Conditioning paths, path tables, path-to-node-index conversion | `conditioning_path.hpp` |
 | [`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp) | Coordinate scales for adaptive conditional inversions | `internal/coordinate_scales.hpp` |
@@ -72,7 +72,8 @@ path.
 Header-only internals: `DenseMatrix` in `linear_algebra.hpp`, the inline helpers
 of `cqmom_case.hpp` (case successors, marginal extraction),
 `cqmom_validation.hpp` (layout and storage checks),
-`qmom_state_access.hpp`, `numeric_utils.hpp`, `checked_size.hpp`,
+`qmom_state_access.hpp`, `qmom_family.hpp` (what each QMOM family reads),
+`numeric_utils.hpp`, `checked_size.hpp`,
 `ode_rhs_validation.hpp`, `phase_space_velocity_validation.hpp`, and
 `performance.hpp`. The public `realizability_policy.hpp` is header-only.
 
@@ -124,13 +125,13 @@ that a setup cannot start: malformed structure while constructing objects,
 reconstruction helpers given malformed input or a value beyond the range of a
 double, rectangular accessors on ragged storage, output writers, and the generic
 integrators when `rhs` breaks its contract. The
-[user Reference](../user/7_reference.md#statuses) lists the workflow functions
+[user Reference](../user/8_reference.md#statuses) lists the workflow functions
 that throw, with their exception types, and a new one is added there; accessors
 given an index out of range also throw and are not listed.
 
 Data returned with a non-success status is diagnostic. A failed Wheeler
-inversion can carry a one-node rule, and a failed step returns its input state;
-neither is a result.
+inversion can carry a one-node quadrature, and a failed step returns its input
+state; neither is a result.
 
 ## Thread safety
 

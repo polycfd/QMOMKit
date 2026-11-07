@@ -24,6 +24,9 @@ Reconstruction, from moments to a quadrature:
   bounds.
 - [CQMOM](cqmom.md): the recursive reconstruction, its moment layout,
   branches and prepared cases.
+- [QMOM families](qmom_families.md): where a family enters the code, HyQMOM with
+  its closure, boundary fallback and characteristic speeds, and how to add a
+  family.
 - [Linear algebra](linear_algebra.md): the internal dense kernels and the
   conditional Vandermonde solve.
 
@@ -53,6 +56,7 @@ Evidence:
 | Changing | Code | Read first |
 | --- | --- | --- |
 | QMOM inversion, adaptive reduction, bounds | `src/wheeler.cpp` | [QMOM](qmom.md) |
+| A QMOM family | `src/internal/qmom_family.hpp`, `src/public_api.cpp`, `src/wheeler.cpp`, `src/phase_space_evolution.cpp`, `src/configuration.cpp` | [QMOM families](qmom_families.md) |
 | CQMOM reconstruction, layouts, branch counts | `src/recursive_quadrature.cpp`, `src/public_api.cpp` | [CQMOM](cqmom.md) |
 | Moments and generalized moments of a quadrature | `src/moment_reconstruction.cpp` | [CQMOM](cqmom.md#moments-from-a-quadrature) |
 | Dense solvers, Vandermonde systems | `src/internal/` | [Linear algebra](linear_algebra.md) |

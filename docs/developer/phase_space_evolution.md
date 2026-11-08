@@ -268,17 +268,25 @@ Active node counts follow one policy:
   below a branch that lost nodes, which condition on other nodes, start from
   their configured maximum.
 - **QMOM post-source reconstruction**, `select_post_source_qmom`: a fixed case
-  must return its maximum count. An adaptive case reconstructs at the state's
-  active count $n$ and accepts a reduction as is; if $n$ is kept and below the
-  maximum, it tries $n+1$ and accepts that only when the reconstruction returns
-  exactly $n+1$ nodes. A state whose family's maximum exceeds $N$ thus grows
-  through the classical counts to $N$, and then to that maximum. With abscissa
-  bounds, which only the classical family takes,
-  `internal::select_bounded_quadrature` applies the same rule and accepts the
-  extra node only within the bounds.
+  must return its maximum count. An adaptive case decides on the state's base
+  node count $b$. It reconstructs at the state's own count and accepts a
+  reduction as it is, either a lower base node count or the same base node
+  count with fewer nodes. A state that holds its family's full quadrature, with
+  base node count $N$ and the maximum count, keeps it. If $b$ is below $N$, the
+  state tries $b+1$ base nodes and accepts the trial only if it has base node
+  count $b+1$. If $b$ is $N$ but the state has fewer nodes than the maximum, it
+  tries the family's full quadrature and accepts it only with the maximum
+  count. The base node count thus rises by at most one per step. For
+  `classical` and `hyperbolic`, a state grows by one node per step, through the
+  classical quadratures up to $N$ nodes and then to its family's maximum. With
+  abscissa bounds, which only the classical family takes,
+  `internal::select_bounded_quadrature` applies this rule on the active count,
+  which for the classical quadrature it returns is the base node count, and it
+  accepts the extra node only within the bounds.
 - **CQMOM post-source reconstruction**, `internal::compute_cqmom_internal` with
-  growth enabled: every branch follows the QMOM rule with its own active count;
-  the mechanism, including the reset below a branch whose count changed, is in
+  growth enabled: every branch follows the QMOM rule on its own active count,
+  which for its classical quadrature is the base node count. The mechanism,
+  including the reset below a branch whose count changed, is in
   [CQMOM](cqmom.md#active-branch-counts).
 - **Created states** start from the configured maximum ([States](#states)).
 

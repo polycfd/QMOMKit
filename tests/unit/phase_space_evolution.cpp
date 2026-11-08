@@ -1401,6 +1401,144 @@ void test_qmom_state_base_node_count_follows_the_growth_of_the_node_count()
     }
 }
 
+// One source step of 1 at a constant rate, which carries the moments exactly
+// onto the target, with the number of QMOM reconstructions it makes. The
+// constant rate reads no stage quadrature, so the count holds only the
+// post-source reconstructions.
+struct CountedSourceStep
+{
+    qmomkit::QmomPhaseSpaceEvolutionResult result;
+    std::size_t reconstructions = 0;
+};
+
+CountedSourceStep counted_source_step(const qmomkit::QmomState& state, const std::vector<double>& target)
+{
+    qmomkit::internal::performance::CounterSession session;
+    std::optional<qmomkit::QmomPhaseSpaceEvolutionResult> result;
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        result.emplace(qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, qmom_source_from_to(state.moment_values(), target)));
+    }
+    return {std::move(*result), session.snapshot().reconstruction.qmom_reconstructions};
+}
+
+void assert_reconstructions(const CountedSourceStep& step, const std::size_t expected)
+{
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(step.reconstructions == expected);
+#else
+    static_cast<void>(expected);
+    assert(step.reconstructions == 0);
+#endif
+}
+
+void assert_accepted_counts(const CountedSourceStep& step, const std::size_t active, const std::size_t base, const std::size_t reconstructions)
+{
+    assert(step.result.ok());
+    assert(step.result.state.active_node_count() == active);
+    assert(step.result.state.base_node_count() == base);
+    assert_reconstructions(step, reconstructions);
+}
+
+void test_adaptive_qmom_post_source_failure_is_the_result()
+{
+    // A target with a negative m_0 makes the reconstruction at the state's own
+    // count fail in both families. The step fails with that reconstruction,
+    // returns the input state and tries no growth.
+    const std::vector<double> negative_mass = raw_moments_1d({0.5, 1.5}, {-0.5, -0.5}, 5);
+    for (const qmomkit::QmomState& state : {qmom_state_from_moments(raw_moments_1d({-1.0, 0.5}, {0.5, 0.5}, 4), 2),
+                                            qmom_state_from_moments(raw_moments_1d({-1.0, 0.5}, {0.5, 0.5}, 5), 2, hyperbolic_qmom_options(true))})
+    {
+        const std::vector<double> target(negative_mass.begin(), negative_mass.begin() + static_cast<std::ptrdiff_t>(state.moment_values().size()));
+        const CountedSourceStep step = counted_source_step(state, target);
+        assert(step.result.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
+        assert(step.result.diagnostics.post_source_qmom_status == qmomkit::QmomStatus::not_realizable);
+        assert(step.result.state.moment_values() == state.moment_values());
+        assert_reconstructions(step, 1);
+    }
+}
+
+void test_adaptive_qmom_post_source_reduction_is_the_result()
+{
+    // A reduction is accepted as it is, without a growth trial. For classical
+    // at n = 3, three nodes go to two. For hyperbolic at n = 3, two classical
+    // nodes go to one, a lower base node count, and at n = 2 the three nodes of
+    // J_3 go to the classical two-node rule, the same base node count with
+    // fewer nodes.
+    const std::vector<double> two_points = raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 7);
+    const std::vector<double> one_point = raw_moments_1d({0.75}, {1.0}, 7);
+    const std::vector<double> three_points = raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 6);
+    const auto first = [](const std::vector<double>& moments, const std::size_t count)
+    { return std::vector<double>(moments.begin(), moments.begin() + static_cast<std::ptrdiff_t>(count)); };
+
+    const qmomkit::QmomState classical = qmom_state_from_moments(three_points, 3);
+    assert(classical.active_node_count() == 3);
+    assert_accepted_counts(counted_source_step(classical, first(two_points, 6)), 2, 2, 1);
+
+    const qmomkit::QmomState two_classical_nodes = qmom_state_from_moments(two_points, 3, hyperbolic_qmom_options(true));
+    assert(two_classical_nodes.active_node_count() == 2 && two_classical_nodes.base_node_count() == 2);
+    assert_accepted_counts(counted_source_step(two_classical_nodes, one_point), 1, 1, 1);
+
+    const qmomkit::QmomState full = qmom_state_from_moments(first(three_points, 5), 2, hyperbolic_qmom_options(true));
+    assert(full.active_node_count() == 3 && full.base_node_count() == 2);
+    assert_accepted_counts(counted_source_step(full, first(two_points, 5)), 2, 2, 1);
+}
+
+void test_adaptive_qmom_post_source_keeps_the_full_quadrature()
+{
+    // A state that holds its family's full quadrature keeps it without a
+    // growth trial: two nodes for classical at n = 2, and the three nodes of
+    // J_3 for hyperbolic at n = 2.
+    const std::vector<double> three_points = raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5);
+    const std::vector<double> four_points = raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5);
+    const qmomkit::QmomState classical = qmom_state_from_moments(std::vector<double>(three_points.begin(), three_points.begin() + 4), 2);
+    assert_accepted_counts(counted_source_step(classical, std::vector<double>(four_points.begin(), four_points.begin() + 4)), 2, 2, 1);
+    const qmomkit::QmomState hyperbolic = qmom_state_from_moments(three_points, 2, hyperbolic_qmom_options(true));
+    assert_accepted_counts(counted_source_step(hyperbolic, four_points), 3, 2, 1);
+}
+
+void test_adaptive_qmom_post_source_grows_by_one_base_node_below_n()
+{
+    // At n = 3, a state of one node grows to two classical nodes on the moments
+    // of five points, in both families. With rmin = 0.99, the classical
+    // two-node trial on the moments of five other points fails rmin and is
+    // refused, and the state keeps its one node. Each step makes the
+    // reconstruction at the state's own count and one trial.
+    const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
+    const std::vector<double> clustered = raw_moments_1d({6.75, 8.5, 9.0, 10.75, 11.0}, {0.25, 0.375, 0.125, 0.25, 0.0625}, 7);
+    qmomkit::QmomOptions classical_strict;
+    classical_strict.rmin = 0.99;
+    qmomkit::QmomOptions hyperbolic_strict = hyperbolic_qmom_options(true);
+    hyperbolic_strict.rmin = 0.99;
+    for (const auto& [options, strict] :
+         {std::pair{qmomkit::QmomOptions{}, classical_strict}, std::pair{hyperbolic_qmom_options(true), hyperbolic_strict}})
+    {
+        const std::size_t moment_count = options.family == qmomkit::QmomFamily::hyperbolic ? 7 : 6;
+        const auto first = [moment_count](const std::vector<double>& moments)
+        { return std::vector<double>(moments.begin(), moments.begin() + static_cast<std::ptrdiff_t>(moment_count)); };
+
+        const qmomkit::QmomState one_node = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, moment_count), 3, options);
+        assert_accepted_counts(counted_source_step(one_node, first(five_points)), 2, 2, 2);
+
+        const qmomkit::QmomState strict_one_node = qmom_state_from_moments(raw_moments_1d({8.5}, {1.0625}, moment_count), 3, strict);
+        assert(strict_one_node.active_node_count() == 1);
+        assert_accepted_counts(counted_source_step(strict_one_node, first(clustered)), 1, 1, 2);
+    }
+}
+
+void test_adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n()
+{
+    // A hyperbolic state at n = 2 that holds the classical two-node rule tries
+    // the three nodes of J_3. On interior moments it gets them. On the moments
+    // of two other points, which lie on the boundary, the trial returns two
+    // classical nodes and is refused. Each step makes the reconstruction at the
+    // state's own count and one trial.
+    const qmomkit::QmomState two_nodes = qmom_state_from_moments(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, hyperbolic_qmom_options(true));
+    assert(two_nodes.active_node_count() == 2 && two_nodes.base_node_count() == 2);
+    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 3, 2, 2);
+    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 2);
+}
+
 void test_hyperbolic_qmom_state_with_two_n_moments_is_refused()
 {
     // No public path makes this state, since a hyperbolic case needs 2n + 1
@@ -5149,6 +5287,11 @@ int main(const int argc, char** argv)
              test_qmom_state_base_node_count_after_a_source_step_is_that_of_the_post_source_reconstruction},
             {"qmom_state_base_node_count_is_unchanged_by_node_advection", test_qmom_state_base_node_count_is_unchanged_by_node_advection},
             {"qmom_state_base_node_count_follows_the_growth_of_the_node_count", test_qmom_state_base_node_count_follows_the_growth_of_the_node_count},
+            {"adaptive_qmom_post_source_failure_is_the_result", test_adaptive_qmom_post_source_failure_is_the_result},
+            {"adaptive_qmom_post_source_reduction_is_the_result", test_adaptive_qmom_post_source_reduction_is_the_result},
+            {"adaptive_qmom_post_source_keeps_the_full_quadrature", test_adaptive_qmom_post_source_keeps_the_full_quadrature},
+            {"adaptive_qmom_post_source_grows_by_one_base_node_below_n", test_adaptive_qmom_post_source_grows_by_one_base_node_below_n},
+            {"adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n", test_adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n},
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},
             {"hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count",
              test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count},

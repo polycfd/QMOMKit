@@ -172,7 +172,12 @@ A family is a value of `QmomFamily` with:
    state's own reconstructions from it;
 3. what its maximum count reconstructs in the evolution's count rule, and how a
    state grows to it
-   ([Phase-space evolution](phase_space_evolution.md#node-counts));
+   ([Phase-space evolution](phase_space_evolution.md#node-counts)). A state
+   grows by one base node at a time up to its full quadrature, which has base
+   node count $N$ and the maximum node count. For a trial below $N$,
+   `qmom_reconstruction_request` requests one more base node from the classical
+   family, and for the trial at $N$ it requests the family's own
+   reconstruction with node count $N$;
 4. its `qmom_family` value and message in `parse_qmom_family`, and its default
    `[initial] maximum_order`;
 5. its support or refusal in CQMOM;

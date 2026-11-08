@@ -41,14 +41,14 @@ namespace
     if (!abscissa_bounds.has_value())
     {
         const Quadrature1D result = compute_quadrature(moments, node_count, to_wheeler_options(options));
-        return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message};
+        return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message, result.ok() ? result.weights.size() : 0};
     }
 
     const internal::BoundedQuadratureSelectionRequest request{node_count, node_count, std::nullopt, options.adaptive, false};
     const internal::BoundedQuadratureSelection selection =
         internal::select_bounded_quadrature(moments.values(), request, *abscissa_bounds, to_wheeler_options(options));
     return QmomResult{selection.quadrature.abscissas, selection.quadrature.weights, to_qmom_status(selection.quadrature.status),
-                      selection.quadrature.message};
+                      selection.quadrature.message, selection.quadrature.ok() ? selection.quadrature.weights.size() : 0};
 }
 
 // HyQMOM is defined on the real line, so abscissa bounds are refused before
@@ -61,7 +61,16 @@ namespace
         return QmomResult{{}, {}, QmomStatus::invalid_input, "The hyperbolic QMOM family takes no abscissa bounds."};
     }
     const Quadrature1D result = internal::compute_hyperbolic_quadrature(moments, node_count, to_wheeler_options(options));
-    return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message};
+    // compute_hyperbolic_quadrature returns n + 1 nodes only for J_{n+1}, whose
+    // base node count is n. Every other successful result is a classical
+    // quadrature with at most n nodes, and its base node count is its number of
+    // nodes.
+    std::size_t base_node_count = 0;
+    if (result.ok())
+    {
+        base_node_count = result.weights.size() == node_count + 1 ? node_count : result.weights.size();
+    }
+    return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message, base_node_count};
 }
 
 [[nodiscard]] QmomResult compute_qmom_from_moments(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,

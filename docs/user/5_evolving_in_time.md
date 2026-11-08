@@ -199,11 +199,37 @@ condition on other nodes and start from their configured maximum. Node counts
 therefore shrink readily, and a branch that keeps its parent grows by at most
 one node per step.
 
+A QMOM state reports three node counts, each relative to the node count $N$ of
+its case:
+
+- The **maximum node count**, `maximum_node_count()`, is the largest number of
+  nodes the state's quadrature can have. The case fixes it at $N$ for
+  `classical` and $N + 1$ for `hyperbolic`. It is the size to allocate for any
+  quadrature of the state, for example in a `QuadratureWriter`.
+- The **active node count**, `active_node_count()`, is the number of nodes the
+  quadrature has now, so it is the count to loop over. In fixed mode it always
+  equals the maximum. In adaptive mode it is smaller where the moments do not
+  support more nodes.
+- The **base node count**, `base_node_count()`, is the number of nodes of the
+  classical quadrature on which the current quadrature rests. For `classical`,
+  it equals the active node count. For `hyperbolic`, the $N + 1$ nodes of
+  HyQMOM rest on the classical $N$-node quadrature, so their base node count
+  is $N$. When a `hyperbolic` state has fallen back to a classical quadrature,
+  its base node count equals its active node count. A base node count below
+  $N$ therefore shows, in every family, that adaptive reconstruction has
+  reduced the state.
+
+For example, a `hyperbolic` state with $N = 3$ has a maximum node count of 4.
+While it holds the four nodes of HyQMOM, its active node count is 4 and its
+base node count is 3. After a reduction to a classical two-node quadrature,
+both are 2.
+
 ## Reading a state
 
 A QMOM state gives its moments $m_0, m_1, \ldots$ with `moment_values()` and its
-quadrature with `quadrature()`; `active_node_count()` and `maximum_node_count()`
-give the current and the largest number of nodes. A CQMOM state lists its
+quadrature with `quadrature()`. `maximum_node_count()`, `active_node_count()`
+and `base_node_count()` give the node counts described in
+[Adaptive node counts](#adaptive-node-counts). A CQMOM state lists its
 moments in the order of `moment_indices()`, and `moment(index)` returns one of
 them if the state holds it:
 

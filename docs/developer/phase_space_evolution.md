@@ -19,7 +19,7 @@ access classes ([Architecture](architecture.md#public-and-internal-boundary)).
 | --- | --- | --- |
 | Moments | $m_0, \ldots, m_{K-1}$, as many as the case or candidate gave | the required moments of the hierarchy's layout |
 | Reconstruction settings | the case's node count $N$, `QmomOptions` with its family, abscissa bounds, copied from the case; `maximum_node_count()` is the family's maximum ([QMOM families](qmom_families.md)) | the settings of the `CqmomCase`, and the prepared branch structure, shared read-only along the lineage |
-| Node counts | `active_node_count()`, the number of quadrature nodes | `active_branch_counts()`, one entry per branch; empty for a fixed case |
+| Node counts | `active_node_count()`, the number of quadrature nodes, and `base_node_count()`, the number of nodes of the classical quadrature on which they rest | `active_branch_counts()`, one entry per branch; empty for a fixed case |
 | Quadrature | `quadrature()`, the accepted `QmomResult` | `quadrature()`, the accepted `CqmomQuadrature` |
 
 Creating a state reconstructs the quadrature once and then sums the stored
@@ -94,8 +94,9 @@ construction stay in those stages, separately for QMOM and CQMOM.
 
 Node advection integrates $\mathrm{d}\boldsymbol{\xi}_j/\mathrm{d}t =
 \dot{\boldsymbol{\xi}}(t, \boldsymbol{\xi}_j)$ for every node $j$. Weights, terminal
-paths, storage layout, and active counts are kept; the stage then sums the
-stored moments from the moved nodes (`QmomStateAccess::from_quadrature`,
+paths, storage layout, active counts, and the QMOM base node count are kept; the
+stage then sums the stored moments from the moved nodes
+(`QmomStateAccess::from_quadrature`,
 `internal::reconstruct_trusted_cqmom_moments`). Advection never reconstructs a
 quadrature, in QMOM or CQMOM, so it cannot change a node count and runs no
 realizability check. Abscissa bounds apply only where a quadrature is
@@ -252,6 +253,13 @@ options. The family's reconstruction is never asked for a node count below
 $N$: with node count $c$, HyQMOM returns up to $c+1$ nodes, not the $c$ the
 count names.
 
+For the state's own count, the node count passed equals the state's base node
+count, which is $N$ at the maximum and $c$ below it. The source stages and the
+post-source reconstruction at the current count therefore take their node
+count from `base_node_count()`. After a source step, the state has the base
+node count of its post-source reconstruction, and node advection leaves it
+unchanged.
+
 Active node counts follow one policy:
 
 - **Advection** keeps every count.
@@ -400,7 +408,7 @@ or diagnostic a component-regression test of the failing path.
 | `qmom_state_candidate`, `cqmom_state_candidate` | [`src/public_api.cpp`](../../src/public_api.cpp) | create states for `initial_state()` and `state_candidate(...)` |
 | `execute_phase_space_evolution_sequence` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | splitting schemes |
 | `advance_qmom_advection_stage`, `advance_cqmom_advection_stage` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | advection stage |
-| `advance_qmom_moment_source_stage`, `advance_cqmom_moment_source_stage`, `select_post_source_qmom`, `qmom_reconstruction_request` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | source stage, post-source reconstruction, the QMOM count rule |
+| `advance_qmom_moment_source_stage`, `advance_cqmom_moment_source_stage`, `select_post_source_qmom`, `qmom_reconstruction_request`, `current_reconstruction_request` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | source stage, post-source reconstruction, the QMOM count rule |
 | `advance_nodes`, `integrate_nodes`, `make_phase_space_velocity` | [`src/node_advection.cpp`](../../src/node_advection.cpp) | node advection |
 | `integrate_embedded_rk`, `ssp_rk3_step` | [`src/runge_kutta.cpp`](../../src/runge_kutta.cpp) | generic integrators |
 | `take_embedded_rk_step`, `embedded_rk_tableau` | [`src/internal/embedded_runge_kutta.cpp`](../../src/internal/embedded_runge_kutta.cpp) | embedded stage arithmetic |

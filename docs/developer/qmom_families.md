@@ -167,7 +167,9 @@ A family is a value of `QmomFamily` with:
    `QmomState::maximum_node_count()`;
 2. its reconstruction, dispatched in `compute_qmom_from_moments`, with the
    options and bounds it accepts and what it returns where the moments do not
-   support its maximum count;
+   support its maximum count. The reconstruction also sets the base node count
+   of every successful result, because the evolution takes the node count of a
+   state's own reconstructions from it;
 3. what its maximum count reconstructs in the evolution's count rule, and how a
    state grows to it
    ([Phase-space evolution](phase_space_evolution.md#node-counts));

@@ -13,10 +13,10 @@ qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
 
 or in a file with `[phase_space] qmom_family = hyperbolic`.
 
-| Family | Moments for node count $N$ | Nodes | Bounds | Used with | Also gives |
-| --- | --- | --- | --- | --- | --- |
-| `classical` | $m_0, \ldots, m_{2N-1}$ | up to $N$ | yes | QMOM, CQMOM | — |
-| `hyperbolic` | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | QMOM | characteristic speeds |
+| Family | Moments for node count $N$ | Nodes | Base node count | Bounds | Used with | Also gives |
+| --- | --- | --- | --- | --- | --- | --- |
+| `classical` | $m_0, \ldots, m_{2N-1}$ | up to $N$ | the number of nodes | yes | QMOM, CQMOM | — |
+| `hyperbolic` | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | $N$ for $N + 1$ nodes, otherwise the number of nodes | no | QMOM | characteristic speeds |
 
 ## Hyperbolic
 
@@ -47,6 +47,13 @@ realizable set, where at most $N$ nodes carry the moments, or outside the set,
 an adaptive reconstruction returns the quadrature that adaptive classical QMOM
 reconstructs from $m_0, \ldots, m_{2N-1}$, with the `rmin` and `eabs` tests,
 and a fixed reconstruction fails.
+
+The base node count of the $N + 1$ nodes is $N$, because HyQMOM builds them
+from the recurrence of the classical $N$-node quadrature of
+$m_0, \ldots, m_{2N-1}$, extended by $m_{2N}$ and by the closure that gives
+$m_{2N+1}$. When the reconstruction returns a classical quadrature, on the
+boundary or outside the realizable set, the base node count is the number of
+nodes of that quadrature.
 
 A state of node count $N$ has at most $N + 1$ nodes, `maximum_node_count()`.
 Having lost nodes, the state regains at most one node per step (see

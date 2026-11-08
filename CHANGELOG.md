@@ -19,6 +19,9 @@ and this project adheres to
   N, it reconstructs up to N + 1 nodes from 2N + 1 moments.
   `compute_hyqmom_characteristic_speeds` returns the characteristic speeds of
   a HyQMOM state. Two new examples show both.
+- `QmomResult::base_node_count` and `QmomState::base_node_count()`, the
+  number of nodes of the classical quadrature on which a QMOM quadrature
+  rests. For the N + 1 nodes of `hyperbolic`, it is N.
 
 ## [1.0.0] - 2026-10-28
 

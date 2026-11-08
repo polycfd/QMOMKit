@@ -55,6 +55,17 @@ struct QmomResult
     std::vector<double> weights;
     QmomStatus status = QmomStatus::success;
     std::string message;
+    /**
+     * The number of nodes of the classical quadrature on which the result
+     * rests, which never exceeds the node count n of the reconstruction. For
+     * `classical`, it equals the number of nodes of the result. For
+     * `hyperbolic`, it is n when the result holds the n + 1 nodes of J_{n+1},
+     * because these are built from the recurrence of the classical n-node
+     * quadrature of m_0, ..., m_{2n-1}. When the moments lie on or below the
+     * boundary and a classical quadrature is returned, it is the number of
+     * nodes of that quadrature. A failed result has a base node count of 0.
+     */
+    std::size_t base_node_count = 0;
 
     [[nodiscard]] bool ok() const noexcept
     {
@@ -100,6 +111,17 @@ public:
     [[nodiscard]] std::size_t active_node_count() const noexcept
     {
         return quadrature_.weights.size();
+    }
+
+    /**
+     * The base node count of the state's quadrature, as defined for
+     * `QmomResult::base_node_count`. For `classical`, it equals the active
+     * node count. For `hyperbolic`, it is n while the state holds the n + 1
+     * nodes of J_{n+1}, and the active node count otherwise.
+     */
+    [[nodiscard]] std::size_t base_node_count() const noexcept
+    {
+        return quadrature_.base_node_count;
     }
 
     /**

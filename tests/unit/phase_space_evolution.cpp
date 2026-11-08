@@ -1299,6 +1299,108 @@ void test_fixed_hyperbolic_qmom_state_keeps_n_plus_one_nodes_and_fails_on_the_bo
     assert(failed.state.moment_values() == kept.state.moment_values());
 }
 
+void test_qmom_state_base_node_count_after_a_source_step_is_that_of_the_post_source_reconstruction()
+{
+    // A source step of 1 at a constant rate carries the moments exactly onto
+    // the target, and the state takes the base node count of the post-source
+    // reconstruction. For classical at n = 3, two points give 2. For
+    // hyperbolic at n = 2, four points give 2 for the three nodes of J_3 in
+    // both modes, and two points give 2 for the classical two-node rule. A
+    // bounded classical state at n = 2 gives 2.
+    const std::vector<double> four_points = raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 6);
+    const std::vector<double> two_points = raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 6);
+    const qmomkit::AbscissaBounds bounds{0.0, 1.0};
+    struct Case
+    {
+        qmomkit::QmomState state;
+        std::vector<double> target;
+        std::size_t node_count;
+        qmomkit::QmomOptions options;
+        std::optional<qmomkit::AbscissaBounds> bounds;
+        std::size_t active;
+        std::size_t base;
+    };
+    const auto five = [](const std::vector<double>& moments) { return std::vector<double>(moments.begin(), moments.begin() + 5); };
+    const std::vector<Case> cases{{qmom_state_from_moments(four_points, 3), two_points, 3, {}, std::nullopt, 2, 2},
+                                  {qmom_state_from_moments(five(two_points), 2, hyperbolic_qmom_options(true)), five(four_points), 2,
+                                   hyperbolic_qmom_options(true), std::nullopt, 3, 2},
+                                  {qmom_state_from_moments(five(four_points), 2, hyperbolic_qmom_options(false)), five(four_points), 2,
+                                   hyperbolic_qmom_options(false), std::nullopt, 3, 2},
+                                  {qmom_state_from_moments(five(four_points), 2, hyperbolic_qmom_options(true)), five(two_points), 2,
+                                   hyperbolic_qmom_options(true), std::nullopt, 2, 2},
+                                  {qmom_state_from_moments(raw_moments_1d({0.25, 0.75}, {0.5, 0.5}, 4), 2, {}, bounds),
+                                   raw_moments_1d({0.125, 0.5}, {0.25, 0.75}, 4),
+                                   2,
+                                   {},
+                                   bounds,
+                                   2,
+                                   2}};
+    for (const Case& test : cases)
+    {
+        const qmomkit::QmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_qmom_moment_source(test.state, 0.0, 1.0, qmom_source_from_to(test.state.moment_values(), test.target));
+        assert(result.ok());
+        assert(result.state.active_node_count() == test.active);
+        assert(result.state.base_node_count() == test.base);
+        assert(result.state.base_node_count() ==
+               qmomkit::compute_qmom(qmomkit::MomentSet(test.target), test.node_count, test.options, test.bounds).base_node_count);
+    }
+}
+
+void test_qmom_state_base_node_count_is_unchanged_by_node_advection()
+{
+    // A velocity that is not affine in xi moves the nodes, and the state keeps
+    // both its node count and its base node count. The cases are the classical
+    // rule of n = 2, the single node that rmin = 0.9 leaves, and, for the
+    // hyperbolic family, the three nodes of J_3 and the classical two-node
+    // rule.
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinate) { return std::vector<double>{0.25 * coordinate[0] * coordinate[0]}; });
+    qmomkit::QmomOptions relative_weight;
+    relative_weight.rmin = 0.9;
+    const std::vector<double> three_points = raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5);
+    const std::vector<double> two_points = raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5);
+    for (const qmomkit::QmomState& state :
+         {qmom_state_from_moments(std::vector<double>(three_points.begin(), three_points.begin() + 4), 2),
+          qmom_state_from_moments(std::vector<double>(three_points.begin(), three_points.begin() + 4), 2, relative_weight),
+          qmom_state_from_moments(three_points, 2, hyperbolic_qmom_options(true)),
+          qmom_state_from_moments(two_points, 2, hyperbolic_qmom_options(true))})
+    {
+        const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(state, 0.0, 0.1, velocity);
+        assert(advected.ok());
+        assert(advected.state.quadrature().abscissas != state.quadrature().abscissas);
+        assert(advected.state.active_node_count() == state.active_node_count());
+        assert(advected.state.base_node_count() == state.base_node_count());
+    }
+}
+
+void test_qmom_state_base_node_count_follows_the_growth_of_the_node_count()
+{
+    // Starting from one point at n = 3, each source step onto the moments of
+    // five points adds one node. The base node count equals the node count for
+    // classical and min(node count, 3) for hyperbolic, whose state reaches the
+    // four nodes of J_4.
+    const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
+    for (const qmomkit::QmomOptions& options : {qmomkit::QmomOptions{}, hyperbolic_qmom_options(true)})
+    {
+        const bool hyperbolic = options.family == qmomkit::QmomFamily::hyperbolic;
+        const std::size_t moment_count = hyperbolic ? 7 : 6;
+        const std::vector<double> target(five_points.begin(), five_points.begin() + static_cast<std::ptrdiff_t>(moment_count));
+        qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, moment_count), 3, options);
+        assert(state.active_node_count() == 1 && state.base_node_count() == 1);
+        for (std::size_t step = 1; step <= 4; ++step)
+        {
+            const qmomkit::QmomPhaseSpaceEvolutionResult result =
+                qmomkit::advance_qmom_moment_source(state, static_cast<double>(step - 1), 1.0, qmom_source_from_to(state.moment_values(), target));
+            assert(result.ok());
+            const std::size_t count = std::min<std::size_t>(1 + step, hyperbolic ? 4 : 3);
+            assert(result.state.active_node_count() == count);
+            assert(result.state.base_node_count() == std::min<std::size_t>(count, 3));
+            state = result.state;
+        }
+    }
+}
+
 void test_hyperbolic_qmom_state_with_two_n_moments_is_refused()
 {
     // No public path makes this state, since a hyperbolic case needs 2n + 1
@@ -5043,6 +5145,10 @@ int main(const int argc, char** argv)
              test_hyperbolic_qmom_state_below_its_maximum_keeps_a_classical_count_when_growth_is_refused},
             {"fixed_hyperbolic_qmom_state_keeps_n_plus_one_nodes_and_fails_on_the_boundary",
              test_fixed_hyperbolic_qmom_state_keeps_n_plus_one_nodes_and_fails_on_the_boundary},
+            {"qmom_state_base_node_count_after_a_source_step_is_that_of_the_post_source_reconstruction",
+             test_qmom_state_base_node_count_after_a_source_step_is_that_of_the_post_source_reconstruction},
+            {"qmom_state_base_node_count_is_unchanged_by_node_advection", test_qmom_state_base_node_count_is_unchanged_by_node_advection},
+            {"qmom_state_base_node_count_follows_the_growth_of_the_node_count", test_qmom_state_base_node_count_follows_the_growth_of_the_node_count},
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},
             {"hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count",
              test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count},

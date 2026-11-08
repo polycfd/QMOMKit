@@ -321,23 +321,12 @@ struct QmomReconstructionRequest
     return compute_qmom(MomentSet(moments), request.node_count, request.options);
 }
 
-// The reconstruction of the moments after a source step of state. With
-// abscissa bounds, the bounded selection decides. A fixed state must get its
-// maximum node count. An adaptive state decides on its base node count b,
-// with a its active node count, M its maximum node count and n its configured
-// node count, and current the reconstruction at its own count:
-//   1. If current fails, it is the result.
-//   2. If current has a base node count below b, or the base node count b
-//      with fewer than a nodes, the reduction is the result.
-//   3. If the state holds its family's full quadrature, b = n and a = M,
-//      current is the result.
-//   4. If b < n, growth tries one more base node, and the trial is the result
-//      if it succeeds with base node count b + 1.
-//   5. If b = n and a < M, growth tries the family's full quadrature, and the
-//      trial is the result if it succeeds with M nodes.
-// A refused trial leaves current as the result, and at most one trial is made.
-// For classical and hyperbolic, this is growth by one node per step, through
-// the classical quadratures up to n nodes and then to the family's maximum.
+// The reconstruction of the moments after a source step of state. An adaptive
+// state without bounds decides on its base node count. It returns a failed or
+// reduced reconstruction as it is and keeps its family's full quadrature.
+// Otherwise it makes one growth trial, for one more base node below n or for
+// the family's full quadrature at n, and accepts the trial only if it gets
+// that.
 [[nodiscard]] QmomResult select_post_source_qmom(const std::vector<double>& post_source_moments, const QmomState& state)
 {
     const std::size_t active_node_count = state.active_node_count();

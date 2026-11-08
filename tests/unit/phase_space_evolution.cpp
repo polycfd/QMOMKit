@@ -1401,10 +1401,9 @@ void test_qmom_state_base_node_count_follows_the_growth_of_the_node_count()
     }
 }
 
-// One source step of 1 at a constant rate, which carries the moments exactly
-// onto the target, with the number of QMOM reconstructions it makes. The
-// constant rate reads no stage quadrature, so the count holds only the
-// post-source reconstructions.
+// One source step onto the target, with its number of QMOM reconstructions.
+// The constant rate reads no stage quadrature, so only the post-source
+// reconstructions are counted.
 struct CountedSourceStep
 {
     qmomkit::QmomPhaseSpaceEvolutionResult result;
@@ -1442,9 +1441,8 @@ void assert_accepted_counts(const CountedSourceStep& step, const std::size_t act
 
 void test_adaptive_qmom_post_source_failure_is_the_result()
 {
-    // A target with a negative m_0 makes the reconstruction at the state's own
-    // count fail in both families. The step fails with that reconstruction,
-    // returns the input state and tries no growth.
+    // A negative m_0 fails the reconstruction in both families, and the step
+    // returns the input state without a growth trial.
     const std::vector<double> negative_mass = raw_moments_1d({0.5, 1.5}, {-0.5, -0.5}, 5);
     for (const qmomkit::QmomState& state : {qmom_state_from_moments(raw_moments_1d({-1.0, 0.5}, {0.5, 0.5}, 4), 2),
                                             qmom_state_from_moments(raw_moments_1d({-1.0, 0.5}, {0.5, 0.5}, 5), 2, hyperbolic_qmom_options(true))})
@@ -1460,11 +1458,9 @@ void test_adaptive_qmom_post_source_failure_is_the_result()
 
 void test_adaptive_qmom_post_source_reduction_is_the_result()
 {
-    // A reduction is accepted as it is, without a growth trial. For classical
-    // at n = 3, three nodes go to two. For hyperbolic at n = 3, two classical
-    // nodes go to one, a lower base node count, and at n = 2 the three nodes of
-    // J_3 go to the classical two-node rule, the same base node count with
-    // fewer nodes.
+    // A reduction is accepted without a growth trial: classical from three
+    // nodes to two, hyperbolic from two classical nodes to one, and from J_3 to
+    // the classical two-node rule.
     const std::vector<double> two_points = raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 7);
     const std::vector<double> one_point = raw_moments_1d({0.75}, {1.0}, 7);
     const std::vector<double> three_points = raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 6);
@@ -1486,9 +1482,8 @@ void test_adaptive_qmom_post_source_reduction_is_the_result()
 
 void test_adaptive_qmom_post_source_keeps_the_full_quadrature()
 {
-    // A state that holds its family's full quadrature keeps it without a
-    // growth trial: two nodes for classical at n = 2, and the three nodes of
-    // J_3 for hyperbolic at n = 2.
+    // The full quadrature, two classical nodes or the three nodes of J_3 at
+    // n = 2, is kept without a growth trial.
     const std::vector<double> three_points = raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5);
     const std::vector<double> four_points = raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5);
     const qmomkit::QmomState classical = qmom_state_from_moments(std::vector<double>(three_points.begin(), three_points.begin() + 4), 2);
@@ -1499,11 +1494,8 @@ void test_adaptive_qmom_post_source_keeps_the_full_quadrature()
 
 void test_adaptive_qmom_post_source_grows_by_one_base_node_below_n()
 {
-    // At n = 3, a state of one node grows to two classical nodes on the moments
-    // of five points, in both families. With rmin = 0.99, the classical
-    // two-node trial on the moments of five other points fails rmin and is
-    // refused, and the state keeps its one node. Each step makes the
-    // reconstruction at the state's own count and one trial.
+    // At n = 3, one node grows to two classical nodes in both families. With
+    // rmin = 0.99, the two-node trial returns one node and is refused.
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
     const std::vector<double> clustered = raw_moments_1d({6.75, 8.5, 9.0, 10.75, 11.0}, {0.25, 0.375, 0.125, 0.25, 0.0625}, 7);
     qmomkit::QmomOptions classical_strict;
@@ -1528,11 +1520,8 @@ void test_adaptive_qmom_post_source_grows_by_one_base_node_below_n()
 
 void test_adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n()
 {
-    // A hyperbolic state at n = 2 that holds the classical two-node rule tries
-    // the three nodes of J_3. On interior moments it gets them. On the moments
-    // of two other points, which lie on the boundary, the trial returns two
-    // classical nodes and is refused. Each step makes the reconstruction at the
-    // state's own count and one trial.
+    // A hyperbolic state holding the classical two-node rule at n = 2 grows to
+    // J_3 on interior moments, and keeps two nodes on boundary moments.
     const qmomkit::QmomState two_nodes = qmom_state_from_moments(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, hyperbolic_qmom_options(true));
     assert(two_nodes.active_node_count() == 2 && two_nodes.base_node_count() == 2);
     assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 3, 2, 2);

@@ -269,20 +269,17 @@ Active node counts follow one policy:
   their configured maximum.
 - **QMOM post-source reconstruction**, `select_post_source_qmom`: a fixed case
   must return its maximum count. An adaptive case decides on the state's base
-  node count $b$. It reconstructs at the state's own count and accepts a
-  reduction as it is, either a lower base node count or the same base node
-  count with fewer nodes. A state that holds its family's full quadrature, with
-  base node count $N$ and the maximum count, keeps it. If $b$ is below $N$, the
-  state tries $b+1$ base nodes and accepts the trial only if it has base node
-  count $b+1$. If $b$ is $N$ but the state has fewer nodes than the maximum, it
-  tries the family's full quadrature and accepts it only with the maximum
-  count. The base node count thus rises by at most one per step. For
-  `classical` and `hyperbolic`, a state grows by one node per step, through the
-  classical quadratures up to $N$ nodes and then to its family's maximum. With
-  abscissa bounds, which only the classical family takes,
-  `internal::select_bounded_quadrature` applies this rule on the active count,
-  which for the classical quadrature it returns is the base node count, and it
-  accepts the extra node only within the bounds.
+  node count. It accepts a reduction as it is and keeps its family's full
+  quadrature. Otherwise it makes one trial. Below $N$, the trial asks for one
+  more base node and is accepted only with that base node count. At $N$, it
+  asks for the family's full quadrature and is accepted only with the maximum
+  count. The base node count thus rises by at most one per step, and a
+  `classical` or `hyperbolic` state grows by at most one node per step, through
+  the classical quadratures up to $N$ nodes and then to its family's maximum.
+  With abscissa bounds, which only the classical family takes,
+  `internal::select_bounded_quadrature` decides on the active count, which for
+  a classical quadrature is the base node count, and accepts the extra node
+  only within the bounds.
 - **CQMOM post-source reconstruction**, `internal::compute_cqmom_internal` with
   growth enabled: every branch follows the QMOM rule on its own active count,
   which for its classical quadrature is the base node count. The mechanism,

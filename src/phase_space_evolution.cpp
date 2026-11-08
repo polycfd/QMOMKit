@@ -321,7 +321,12 @@ struct QmomReconstructionRequest
     return compute_qmom(MomentSet(moments), request.node_count, request.options);
 }
 
-// The reconstruction of the moments after a source step of state.
+// The reconstruction of the moments after a source step of state. An adaptive
+// state without bounds decides on its base node count. It returns a failed or
+// reduced reconstruction as it is and keeps its family's full quadrature.
+// Otherwise it makes one growth trial, for one more base node below n or for
+// the family's full quadrature at n, and accepts the trial only if it gets
+// that.
 [[nodiscard]] QmomResult select_post_source_qmom(const std::vector<double>& post_source_moments, const QmomState& state)
 {
     const std::size_t active_node_count = state.active_node_count();
@@ -356,18 +361,33 @@ struct QmomReconstructionRequest
         return fixed;
     }
 
+    const std::size_t base_node_count = state.base_node_count();
+    const std::size_t node_count = internal::QmomStateAccess::node_count(state);
     QmomResult current = reconstruct_qmom(post_source_moments, current_reconstruction_request(state));
     if (!current.ok())
     {
         return current;
     }
-    if (current.weights.size() < active_node_count || active_node_count >= maximum_node_count)
+    if (current.base_node_count < base_node_count || (current.base_node_count == base_node_count && current.weights.size() < active_node_count))
+    {
+        return current;
+    }
+    if (base_node_count == node_count && active_node_count == maximum_node_count)
     {
         return current;
     }
 
-    QmomResult growth = reconstruct_qmom(post_source_moments, qmom_reconstruction_request(state, active_node_count + 1));
-    if (growth.ok() && growth.weights.size() == active_node_count + 1)
+    if (base_node_count < node_count)
+    {
+        QmomResult growth = reconstruct_qmom(post_source_moments, qmom_reconstruction_request(state, base_node_count + 1));
+        if (growth.ok() && growth.base_node_count == base_node_count + 1)
+        {
+            return growth;
+        }
+        return current;
+    }
+    QmomResult growth = reconstruct_qmom(post_source_moments, qmom_reconstruction_request(state, maximum_node_count));
+    if (growth.ok() && growth.weights.size() == maximum_node_count)
     {
         return growth;
     }

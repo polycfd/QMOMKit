@@ -149,7 +149,7 @@ function.
 | Set up CQMOM moments | `create_cqmom_moment_layout`, `extract_cqmom_moments`, `create_cqmom_moment_data` | `cqmom.hpp` |
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
-| Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `active_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
+| Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `maximum_node_count()`, `active_node_count()`, `base_node_count()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
 | HyQMOM characteristic speeds | `compute_hyqmom_characteristic_speeds` | `qmom.hpp` |
 | Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` and `_batch_with_index` forms | `phase_space_evolution.hpp` |
 | Check realizability | `check_realizability` | `realizability.hpp` |

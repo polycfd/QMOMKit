@@ -1413,6 +1413,126 @@ void test_qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature()
     }
 }
 
+void test_qmom_classical_base_node_count_is_the_node_count()
+{
+    // The moments of four points are interior at n = 3, and rmin = 0.9 reduces
+    // them to one node. With eabs = 0.3, four points of which two are 1/4 apart
+    // reduce to two nodes, and two points put the moments on the boundary at
+    // two nodes. In each case, and for bounded reconstructions in adaptive and
+    // fixed mode, the base node count is the number of nodes.
+    const qmomkit::MomentSet four_points(raw_moments_1d({0.5, 1.25, 2.0, 3.5}, {0.25, 0.375, 0.125, 0.25}, 6));
+    qmomkit::QmomOptions relative_weight;
+    relative_weight.rmin = 0.9;
+    qmomkit::QmomOptions separation;
+    separation.eabs = 0.3;
+    separation.rmin = 0.0;
+    const qmomkit::MomentSet close_points(raw_moments_1d({1.0, 1.25, 4.0, 5.0}, {0.25, 0.25, 0.25, 0.25}, 6));
+    const qmomkit::MomentSet two_points(raw_moments_1d({0.5, 2.0}, {0.25, 0.75}, 6));
+    const std::vector<std::pair<qmomkit::QmomResult, std::size_t>> cases{
+        {qmomkit::compute_qmom(four_points, 3), 3},
+        {qmomkit::compute_qmom(four_points, 3, relative_weight), 1},
+        {qmomkit::compute_qmom(close_points, 3, separation), 2},
+        {qmomkit::compute_qmom(two_points, 3), 2},
+        {qmomkit::compute_qmom(four_points, 3, {}, qmomkit::AbscissaBounds{0.0, 4.0}), 3},
+        {qmomkit::compute_qmom(four_points, 3, qmomkit::QmomOptions{false}, qmomkit::AbscissaBounds{0.0, 4.0}), 3}};
+    for (const auto& [result, node_count] : cases)
+    {
+        assert(result.ok());
+        assert(result.weights.size() == node_count);
+        assert(result.base_node_count == node_count);
+    }
+}
+
+void test_qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes()
+{
+    // At n = 2, the moments of three points are interior and give the three
+    // nodes of J_3 in both modes, with base node count 2. In adaptive mode,
+    // two points put the moments on the boundary at two nodes and one point at
+    // one node. Two points with m_4 lowered by 1/2 put them below the boundary,
+    // with sigma(2, 2) = -1/2. In these cases the result is a classical
+    // quadrature, and its base node count is its number of nodes.
+    const qmomkit::MomentSet interior(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
+    for (const bool adaptive : {true, false})
+    {
+        const qmomkit::QmomResult result = qmomkit::compute_qmom(interior, 2, hyperbolic_options(adaptive));
+        assert(result.ok());
+        assert(result.weights.size() == 3);
+        assert(result.base_node_count == 2);
+    }
+
+    std::vector<double> lowered = raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5);
+    lowered[4] -= 0.5;
+    const std::vector<std::pair<qmomkit::MomentSet, std::size_t>> classical_cases{
+        {qmomkit::MomentSet(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5)), 2},
+        {qmomkit::MomentSet(raw_moments_1d({0.5}, {2.0}, 5)), 1},
+        {qmomkit::MomentSet(lowered), 2}};
+    for (const auto& [moments, node_count] : classical_cases)
+    {
+        const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 2, hyperbolic_options(true));
+        assert(result.ok());
+        assert(result.weights.size() == node_count);
+        assert(result.base_node_count == node_count);
+    }
+}
+
+void test_qmom_failed_reconstructions_have_base_node_count_zero()
+{
+    // Failures with invalid_input and with not_realizable, in both families,
+    // have base node count 0, also when the result carries diagnostic nodes.
+    // Fixed mode is used for the negative variance, which adaptive mode would
+    // reduce to one node.
+    const qmomkit::MomentSet negative_variance{1.0, 0.0, -1.0, 0.0, 1.0};
+    const qmomkit::MomentSet two_points(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 6));
+    const qmomkit::MomentSet interior(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
+    const std::vector<std::pair<qmomkit::QmomResult, qmomkit::QmomStatus>> failures{
+        {qmomkit::compute_qmom(qmomkit::MomentSet{1.0}, 2), qmomkit::QmomStatus::invalid_input},
+        {qmomkit::compute_qmom(negative_variance, 2, qmomkit::QmomOptions{false}), qmomkit::QmomStatus::not_realizable},
+        {qmomkit::compute_qmom(two_points, 3, qmomkit::QmomOptions{false}), qmomkit::QmomStatus::not_realizable},
+        {qmomkit::compute_qmom(two_points, 2, qmomkit::QmomOptions{false}, qmomkit::AbscissaBounds{3.0, 4.0}), qmomkit::QmomStatus::not_realizable},
+        {qmomkit::compute_qmom(qmomkit::MomentSet{1.0, 0.0, 1.0}, 2, hyperbolic_options(true)), qmomkit::QmomStatus::invalid_input},
+        {qmomkit::compute_qmom(interior, 2, hyperbolic_options(true), qmomkit::AbscissaBounds{-2.0, 3.0}), qmomkit::QmomStatus::invalid_input},
+        {qmomkit::compute_qmom(negative_variance, 2, hyperbolic_options(false)), qmomkit::QmomStatus::not_realizable},
+        {qmomkit::compute_qmom(two_points, 2, hyperbolic_options(false)), qmomkit::QmomStatus::not_realizable}};
+    for (const auto& [result, status] : failures)
+    {
+        assert(result.status == status);
+        assert(result.base_node_count == 0);
+    }
+    assert(std::any_of(failures.begin(), failures.end(), [](const auto& failure) { return !failure.first.weights.empty(); }));
+}
+
+void test_qmom_result_initialized_with_its_first_four_members_has_base_node_count_zero()
+{
+    const qmomkit::QmomResult result{{0.5}, {1.0}, qmomkit::QmomStatus::success, ""};
+    assert(result.base_node_count == 0);
+}
+
+void test_qmom_state_base_node_count_is_that_of_its_reconstruction()
+{
+    // States from initial_state and state_candidate keep the base node count
+    // of compute_qmom. It is 2 for the three nodes of J_3 and for two points,
+    // and 1 where rmin = 0.9 reduces the classical rule from three nodes to
+    // one.
+    const qmomkit::MomentSet interior(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
+    const qmomkit::MomentSet four_points(raw_moments_1d({0.5, 1.25, 2.0, 3.5}, {0.25, 0.375, 0.125, 0.25}, 6));
+    const qmomkit::MomentSet two_points(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5));
+    qmomkit::QmomOptions relative_weight;
+    relative_weight.rmin = 0.9;
+    const std::vector<std::tuple<qmomkit::QmomCase, std::size_t, std::size_t>> cases{
+        {qmomkit::QmomCase{interior, 2, hyperbolic_options(true)}, 3, 2},
+        {qmomkit::QmomCase{two_points, 2, hyperbolic_options(true)}, 2, 2},
+        {qmomkit::QmomCase{four_points, 3, relative_weight}, 1, 1}};
+    for (const auto& [qmom_case, active, base] : cases)
+    {
+        const qmomkit::QmomState state = qmom_case.initial_state();
+        assert(state.active_node_count() == active);
+        assert(state.base_node_count() == base);
+        const qmomkit::QmomStateCandidate candidate = qmom_case.state_candidate(qmom_case.moments);
+        assert(candidate.ok());
+        assert(candidate.state->base_node_count() == base);
+    }
+}
+
 void test_qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments()
 {
     // Four moments are too few for n = 2 in the hyperbolic family, so the
@@ -2269,6 +2389,12 @@ int main(const int argc, char** argv)
             {"qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature",
              test_qmom_hyperbolic_state_candidate_stores_the_moments_of_its_quadrature},
             {"qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments", test_qmom_hyperbolic_state_candidate_needs_two_n_plus_one_moments},
+            {"qmom_classical_base_node_count_is_the_node_count", test_qmom_classical_base_node_count_is_the_node_count},
+            {"qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes", test_qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes},
+            {"qmom_failed_reconstructions_have_base_node_count_zero", test_qmom_failed_reconstructions_have_base_node_count_zero},
+            {"qmom_result_initialized_with_its_first_four_members_has_base_node_count_zero",
+             test_qmom_result_initialized_with_its_first_four_members_has_base_node_count_zero},
+            {"qmom_state_base_node_count_is_that_of_its_reconstruction", test_qmom_state_base_node_count_is_that_of_its_reconstruction},
             {"hyqmom_characteristic_speeds_refuse_the_classical_family", test_hyqmom_characteristic_speeds_refuse_the_classical_family},
             {"hyqmom_characteristic_speeds_are_those_of_the_stored_moments", test_hyqmom_characteristic_speeds_are_those_of_the_stored_moments},
             {"hyqmom_characteristic_speeds_of_moments_on_the_boundary_to_rounding_are_those_of_the_classical_quadrature",

@@ -304,6 +304,18 @@ struct QmomReconstructionRequest
     return {count, classical};
 }
 
+// The request for a reconstruction at the state's own count. It keeps the
+// family that qmom_reconstruction_request chooses and takes the node count from
+// the state's base node count. That is the node count qmom_reconstruction_request
+// would pass, n when the state holds its family's own quadrature and the active
+// count when it holds a classical one.
+[[nodiscard]] QmomReconstructionRequest current_reconstruction_request(const QmomState& state)
+{
+    QmomReconstructionRequest request = qmom_reconstruction_request(state, state.active_node_count());
+    request.node_count = state.base_node_count();
+    return request;
+}
+
 [[nodiscard]] QmomResult reconstruct_qmom(const std::vector<double>& moments, const QmomReconstructionRequest& request)
 {
     return compute_qmom(MomentSet(moments), request.node_count, request.options);
@@ -322,7 +334,14 @@ struct QmomReconstructionRequest
                                                                   options.adaptive, options.adaptive};
         const internal::BoundedQuadratureSelection selection = internal::select_bounded_quadrature(
             post_source_moments, request, *state.abscissa_bounds(), WheelerOptions{options.adaptive, options.rmin, options.eabs, options.cutoff});
-        return qmom_from_quadrature(selection.quadrature);
+        // The bounded selection returns a classical quadrature, whose base node
+        // count is its number of nodes.
+        QmomResult bounded = qmom_from_quadrature(selection.quadrature);
+        if (bounded.ok())
+        {
+            bounded.base_node_count = bounded.weights.size();
+        }
+        return bounded;
     }
 
     if (!options.adaptive)
@@ -332,11 +351,12 @@ struct QmomReconstructionRequest
         {
             fixed.status = QmomStatus::not_realizable;
             fixed.message = "Fixed-count QMOM reconstruction did not return the configured node count.";
+            fixed.base_node_count = 0;
         }
         return fixed;
     }
 
-    QmomResult current = reconstruct_qmom(post_source_moments, qmom_reconstruction_request(state, active_node_count));
+    QmomResult current = reconstruct_qmom(post_source_moments, current_reconstruction_request(state));
     if (!current.ok())
     {
         return current;
@@ -420,10 +440,14 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
         return false;
     }
 
+    // Advection moves the nodes but keeps their number and the reconstruction
+    // they came from, so the state keeps its base node count.
+    QmomResult advected = qmom_from_quadrature(advection.quadrature);
+    advected.base_node_count = state.base_node_count();
     try
     {
         accepted_state =
-            internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moment_values().size(),
+            internal::QmomStateAccess::from_quadrature(std::move(advected), state.moment_values().size(),
                                                        internal::QmomStateAccess::node_count(state), state.qmom_options(), state.abscissa_bounds());
         if (final_advection)
         {
@@ -474,9 +498,9 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
         source_options.ssp_rk3_options.stage_accept = [caller_accept, policy_accept](const SspRk3Stage stage, const std::vector<double>& candidate)
         { return (!caller_accept || caller_accept(stage, candidate)) && policy_accept(stage, candidate); };
     }
-    // The source context reconstructs the stage moments with the active count
+    // The source context reconstructs the stage moments at the state's own count
     // and keeps a pointer to the options, which live until the update returns.
-    const QmomReconstructionRequest stage_request = qmom_reconstruction_request(state, state.active_node_count());
+    const QmomReconstructionRequest stage_request = current_reconstruction_request(state);
     const QmomMomentSourceUpdateResult source_update =
         boundary == nullptr
             ? internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, source_options,

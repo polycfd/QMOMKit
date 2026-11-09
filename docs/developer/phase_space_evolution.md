@@ -226,13 +226,12 @@ A tracked moment comes from the stage values. An untracked moment, a generalized
 moment, or a node visit uses a quadrature reconstructed from the stage moments
 on first request and cached in the context, so at most once per stage. It is
 never the state's quadrature, which belongs to the start of the step. The
-reconstruction uses the state's settings and its active counts as ceilings: QMOM
-calls `compute_qmom` with the count and options that the count rule of
-[Node counts](#node-counts) gives for the state's active count, so a state at
-its maximum count visits the quadrature of its family; CQMOM passes
-`active_branch_counts()` to `internal::compute_cqmom_internal` with growth
-disabled. A failed stage reconstruction throws inside the callback and fails the
-source step.
+reconstruction uses the state's settings and its active counts as ceilings. QMOM
+calls `compute_qmom` with the request for the state's own count
+([Node counts](#node-counts)), so a state that holds its family's full
+quadrature visits it. CQMOM passes `active_branch_counts()` to
+`internal::compute_cqmom_internal` with growth disabled. A failed stage
+reconstruction throws inside the callback and fails the source step.
 
 Without a state, as in `advance_*_moments_with_source`, there are no
 reconstruction settings: `moment(...)` works for tracked orders only, and
@@ -241,24 +240,32 @@ visitors throw `std::out_of_range`, which fails the update.
 
 ## Node counts
 
-A QMOM state's active count $c$ names the quadrature it holds: the maximum
-count, `maximum_node_count()`, is the family's quadrature, and a count $c\le N$
-is a classical quadrature. Every reconstruction of a state's moments therefore
-asks for a count $c$, which `qmom_reconstruction_request` in
-[`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) resolves
-to the count and options passed to `compute_qmom`: the maximum to $N$ and the
-state's options, a count below it to $c$ and the classical family. For the
-classical family the maximum is $N$, so this is the count with the state's
-options. The family's reconstruction is never asked for a node count below
-$N$: with node count $c$, HyQMOM returns up to $c+1$ nodes, not the $c$ the
-count names.
+A QMOM state holds one of two kinds of quadrature:
 
-For the state's own count, the node count passed equals the state's base node
-count, which is $N$ at the maximum and $c$ below it. The source stages and the
-post-source reconstruction at the current count therefore take their node
-count from `base_node_count()`. After a source step, the state has the base
-node count of its post-source reconstruction, and node advection leaves it
-unchanged.
+- its family's **full quadrature**, the quadrature without any reduction: $N$
+  nodes for `classical` and the $N+1$ nodes of HyQMOM for `hyperbolic`. It has
+  `maximum_node_count()` nodes and base node count $N$.
+- a **reduced quadrature**, a quadrature below the full one, with a given base
+  node count. A state holds one after adaptive reconstruction has reduced it,
+  because of the moments or of the `rmin` and `eabs` tests, until the state has
+  grown back to its full quadrature. For `classical` and `hyperbolic`, a
+  reduced quadrature is classical, with fewer than $N$ nodes for `classical`
+  and at most $N$ for `hyperbolic`, and its base node count is its number of
+  nodes.
+
+Every reconstruction of a state's moments asks for one of the two. This is the
+count rule in [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp).
+`full_quadrature_request` asks for the family's own reconstruction with node
+count $N$. `reduced_quadrature_request` asks for a reduced quadrature with a
+given base node count, which for `classical` and `hyperbolic` is a classical
+reconstruction. For `hyperbolic`, the request has to be classical, because
+HyQMOM with node count $k$ returns up to $k+1$ nodes. `holds_full_quadrature`
+tells which kind a state holds, and `current_reconstruction_request` asks for
+the same kind again with the state's own base node count. The source stages and
+the post-source reconstruction at the state's own count use
+`current_reconstruction_request`. After a source
+step, the state has the base node count of its post-source reconstruction, and
+node advection leaves it unchanged.
 
 Active node counts follow one policy:
 
@@ -413,7 +420,7 @@ or diagnostic a component-regression test of the failing path.
 | `qmom_state_candidate`, `cqmom_state_candidate` | [`src/public_api.cpp`](../../src/public_api.cpp) | create states for `initial_state()` and `state_candidate(...)` |
 | `execute_phase_space_evolution_sequence` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | splitting schemes |
 | `advance_qmom_advection_stage`, `advance_cqmom_advection_stage` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | advection stage |
-| `advance_qmom_moment_source_stage`, `advance_cqmom_moment_source_stage`, `select_post_source_qmom`, `qmom_reconstruction_request`, `current_reconstruction_request` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | source stage, post-source reconstruction, the QMOM count rule |
+| `advance_qmom_moment_source_stage`, `advance_cqmom_moment_source_stage`, `select_post_source_qmom`, `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` | [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp) | source stage, post-source reconstruction, the QMOM count rule |
 | `advance_nodes`, `integrate_nodes`, `make_phase_space_velocity` | [`src/node_advection.cpp`](../../src/node_advection.cpp) | node advection |
 | `integrate_embedded_rk`, `ssp_rk3_step` | [`src/runge_kutta.cpp`](../../src/runge_kutta.cpp) | generic integrators |
 | `take_embedded_rk_step`, `embedded_rk_tableau` | [`src/internal/embedded_runge_kutta.cpp`](../../src/internal/embedded_runge_kutta.cpp) | embedded stage arithmetic |

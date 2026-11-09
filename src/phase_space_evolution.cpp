@@ -281,39 +281,37 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
     return QmomPhaseSpaceEvolutionResult{std::move(state), status, std::move(diagnostics), final_time, std::move(message)};
 }
 
-// The node count and options passed to compute_qmom for a reconstruction of a
-// state's moments with count nodes. The maximum count, n + 1 for the
-// hyperbolic family, is the family's rule, from node count n; a count below
-// the maximum is a classical rule, since HyQMOM with node count k would return
-// k + 1 nodes, not the k the count names. For the classical family the maximum
-// is n, so this is the count with the state's options.
+// The node count and options passed to compute_qmom, for either the family's
+// full quadrature or a reduced quadrature with a given base node count.
 struct QmomReconstructionRequest
 {
     std::size_t node_count = 0;
     QmomOptions options;
 };
 
-[[nodiscard]] QmomReconstructionRequest qmom_reconstruction_request(const QmomState& state, const std::size_t count)
+[[nodiscard]] bool holds_full_quadrature(const QmomState& state)
 {
-    if (count == state.maximum_node_count())
-    {
-        return {internal::QmomStateAccess::node_count(state), state.qmom_options()};
-    }
-    QmomOptions classical = state.qmom_options();
-    classical.family = QmomFamily::classical;
-    return {count, classical};
+    return state.base_node_count() == internal::QmomStateAccess::node_count(state) && state.active_node_count() == state.maximum_node_count();
 }
 
-// The request for a reconstruction at the state's own count. It keeps the
-// family that qmom_reconstruction_request chooses and takes the node count from
-// the state's base node count. That is the node count qmom_reconstruction_request
-// would pass, n when the state holds its family's own quadrature and the active
-// count when it holds a classical one.
+[[nodiscard]] QmomReconstructionRequest full_quadrature_request(const QmomState& state)
+{
+    return {internal::QmomStateAccess::node_count(state), state.qmom_options()};
+}
+
+// A reduced quadrature is reconstructed classically, also for hyperbolic, whose
+// own reconstruction with node count k returns up to k + 1 nodes.
+[[nodiscard]] QmomReconstructionRequest reduced_quadrature_request(const QmomState& state, const std::size_t base_node_count)
+{
+    QmomOptions classical = state.qmom_options();
+    classical.family = QmomFamily::classical;
+    return {base_node_count, classical};
+}
+
+// The request for a reconstruction at the state's own count.
 [[nodiscard]] QmomReconstructionRequest current_reconstruction_request(const QmomState& state)
 {
-    QmomReconstructionRequest request = qmom_reconstruction_request(state, state.active_node_count());
-    request.node_count = state.base_node_count();
-    return request;
+    return holds_full_quadrature(state) ? full_quadrature_request(state) : reduced_quadrature_request(state, state.base_node_count());
 }
 
 [[nodiscard]] QmomResult reconstruct_qmom(const std::vector<double>& moments, const QmomReconstructionRequest& request)
@@ -351,7 +349,7 @@ struct QmomReconstructionRequest
 
     if (!options.adaptive)
     {
-        QmomResult fixed = reconstruct_qmom(post_source_moments, qmom_reconstruction_request(state, maximum_node_count));
+        QmomResult fixed = reconstruct_qmom(post_source_moments, full_quadrature_request(state));
         if (fixed.ok() && fixed.weights.size() != maximum_node_count)
         {
             fixed.status = QmomStatus::not_realizable;
@@ -372,21 +370,21 @@ struct QmomReconstructionRequest
     {
         return current;
     }
-    if (base_node_count == node_count && active_node_count == maximum_node_count)
+    if (holds_full_quadrature(state))
     {
         return current;
     }
 
     if (base_node_count < node_count)
     {
-        QmomResult growth = reconstruct_qmom(post_source_moments, qmom_reconstruction_request(state, base_node_count + 1));
+        QmomResult growth = reconstruct_qmom(post_source_moments, reduced_quadrature_request(state, base_node_count + 1));
         if (growth.ok() && growth.base_node_count == base_node_count + 1)
         {
             return growth;
         }
         return current;
     }
-    QmomResult growth = reconstruct_qmom(post_source_moments, qmom_reconstruction_request(state, maximum_node_count));
+    QmomResult growth = reconstruct_qmom(post_source_moments, full_quadrature_request(state));
     if (growth.ok() && growth.weights.size() == maximum_node_count)
     {
         return growth;

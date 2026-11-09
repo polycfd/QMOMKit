@@ -16,7 +16,7 @@ enters the code and the mathematics of each family other than `classical`.
 | Moments read | `internal::qmom_required_moment_count` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) | $2N$ or $2N+1$ for node count $N$, the one definition cases, state candidates, the evolution and the configuration use. |
 | Maximum node count | `QmomState::maximum_node_count()` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp)) | $N$ or $N+1$ for the case's node count $N$. |
 | Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` with `node_count` as $n$; abscissa bounds with `hyperbolic` are `invalid_input` before any reconstruction. |
-| Evolution | `qmom_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts): the maximum count asks for the family's quadrature, a count below the maximum for a classical one. |
+| Evolution | `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts). The family's full quadrature is requested from the family, and a reduced quadrature from the classical family. |
 | Configuration | `parse_qmom_family`, `infer_qmom_initial_maximum_order` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, and the default `[initial] maximum_order` from the moments the family reads ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
 | CQMOM | `compute_cqmom(const CqmomCase&)`, `internal::compute_cqmom_internal` ([`src/public_api.cpp`](../../src/public_api.cpp)) | Every family other than `classical` is `invalid_input` ([CQMOM](cqmom.md)). |
 | Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the reconstruction of the stored moments. |
@@ -170,13 +170,16 @@ A family is a value of `QmomFamily` with:
    support its maximum count. The reconstruction also sets the base node count
    of every successful result, because the evolution takes the node count of a
    state's own reconstructions from it;
-3. what its maximum count reconstructs in the evolution's count rule, and how a
-   state grows to it
-   ([Phase-space evolution](phase_space_evolution.md#node-counts)). A state
-   grows through classical trials up to base node count $N$. Where the family's
-   full quadrature, with base node count $N$ and the maximum node count, has
-   more than $N$ nodes, one trial of the family's own reconstruction with node
-   count $N$ completes it;
+3. its full quadrature and its reduced quadratures. The full quadrature is the
+   quadrature a state holds without any reduction, with base node count $N$ and
+   `maximum_node_count()` nodes, and `full_quadrature_request` requests it from
+   the family's reconstruction with node count $N$. A reduced quadrature lies
+   below the full one, with a given base node count, and
+   `reduced_quadrature_request` requests it. For `classical` and `hyperbolic`, a
+   reduced quadrature is classical, and a reduced state grows back by at most
+   one node per step up to $N$ nodes. Where the full quadrature has more than
+   $N$ nodes, one more accepted trial restores it
+   ([Phase-space evolution](phase_space_evolution.md#node-counts));
 4. its `qmom_family` value and message in `parse_qmom_family`, and its default
    `[initial] maximum_order`;
 5. its support or refusal in CQMOM;

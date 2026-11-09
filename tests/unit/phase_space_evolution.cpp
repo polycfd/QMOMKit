@@ -1543,6 +1543,59 @@ void test_hyperbolic_qmom_state_with_two_n_moments_is_refused()
     assert(full_step.message == message);
 }
 
+void test_classical_qmom_source_context_visits_its_reduced_quadrature()
+{
+    // A classical state of two nodes at n = 3 holds a reduced quadrature. A
+    // constant rate towards the moments of five points makes the later stage
+    // moments support three nodes, yet each stage visits the classical rule of
+    // at most two nodes. The step makes three stage reconstructions, the
+    // reconstruction at the state's own count and one growth trial, which
+    // gives three nodes.
+    const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 6);
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 6), 3);
+    assert(state.active_node_count() == 2 && state.base_node_count() == 2);
+    const qmomkit::QmomMomentSource toward_five_points = qmom_source_from_to(state.moment_values(), five_points);
+    std::vector<std::vector<double>> stage_moments;
+    std::vector<qmomkit::QmomResult> visited;
+    const auto source = [&](const double time, const qmomkit::QmomSourceContext& context)
+    {
+        qmomkit::QmomResult nodes;
+        context.for_each_node(
+            [&nodes](const double weight, const double abscissa)
+            {
+                nodes.weights.push_back(weight);
+                nodes.abscissas.push_back(abscissa);
+            });
+        stage_moments.push_back(context.values());
+        visited.push_back(std::move(nodes));
+        return toward_five_points(time, context);
+    };
+
+    qmomkit::internal::performance::CounterSession session;
+    std::optional<qmomkit::QmomPhaseSpaceEvolutionResult> result;
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        result.emplace(qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, source));
+    }
+    assert(result->ok());
+    assert(result->state.active_node_count() == 3 && result->state.base_node_count() == 3);
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(session.snapshot().reconstruction.qmom_reconstructions == 5);
+#else
+    assert(session.snapshot().reconstruction.qmom_reconstructions == 0);
+#endif
+
+    assert(visited.size() == 3);
+    bool full_quadrature_differs = false;
+    for (std::size_t stage = 0; stage < visited.size(); ++stage)
+    {
+        const qmomkit::MomentSet moments(stage_moments[stage]);
+        assert_qmom_quadrature_near(visited[stage], qmomkit::compute_qmom(moments, 2), 1.0e-12);
+        full_quadrature_differs = full_quadrature_differs || qmomkit::compute_qmom(moments, 3).weights.size() == 3;
+    }
+    assert(full_quadrature_differs);
+}
+
 void test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count()
 {
     // A constant rate towards the moments of five points makes the later stage
@@ -5282,6 +5335,7 @@ int main(const int argc, char** argv)
             {"adaptive_qmom_post_source_grows_by_one_base_node_below_n", test_adaptive_qmom_post_source_grows_by_one_base_node_below_n},
             {"adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n", test_adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n},
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},
+            {"classical_qmom_source_context_visits_its_reduced_quadrature", test_classical_qmom_source_context_visits_its_reduced_quadrature},
             {"hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count",
              test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count},
             {"hyperbolic_qmom_characteristic_speeds_follow_the_reconstruction_through_advection_and_source_steps",

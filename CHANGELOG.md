@@ -25,7 +25,7 @@ and this project adheres to
 - GQMOM (Fox, Laurent & Passalacqua, 2023) with the `normal` continuation as
   the `generalized` QMOM family, selected with `QmomOptions::family` or
   `[phase_space] qmom_family`. With node count N, it reconstructs up to N_G > N
-  nodes from 2N + 1 moments.
+  nodes from 2N + 1 moments. A new example shows the family.
 
 ## [1.0.0] - 2026-10-28
 

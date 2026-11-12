@@ -109,7 +109,3 @@ the classical quadrature itself. A fixed reconstruction takes $k = N$, so it
 returns $N_G$ nodes or, on the boundary, the classical $N$ nodes, and fails
 otherwise. Each reconstruction solves an eigenproblem of
 $N_G \times N_G$ entries, so keep $N_G$ modest.
-
-The [`gqmom_trimodal_distribution`](../../examples/gqmom_trimodal_distribution/README.md)
-example reconstructs the trimodal number density of Section 4.1 of Fox et al.
-(2023) with GQMOM and with classical QMOM.

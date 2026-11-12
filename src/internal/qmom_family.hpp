@@ -9,9 +9,10 @@
 namespace qmomkit::internal
 {
 
-// The moments m_0, ..., m_{M-1} a reconstruction with node count n reads:
-// M = 2n for the classical family, 2n + 1 for the hyperbolic one; empty when
-// M does not fit in std::size_t. 2n is even, so 2n + 1 fits once 2n does.
+// The moments m_0, ..., m_{M-1} a reconstruction with node count N reads:
+// M = 2N for the classical family, 2N + 1 for the hyperbolic and generalized
+// ones; empty when M does not fit in std::size_t. 2N is even, so 2N + 1 fits
+// once 2N does.
 [[nodiscard]] inline std::optional<std::size_t> qmom_required_moment_count(const std::size_t node_count, const QmomFamily family)
 {
     const std::optional<std::size_t> even_moment_count = checked_size_multiply(2, node_count);
@@ -24,6 +25,7 @@ namespace qmomkit::internal
     case QmomFamily::classical:
         return even_moment_count;
     case QmomFamily::hyperbolic:
+    case QmomFamily::generalized:
         return *even_moment_count + 1;
     }
     return even_moment_count;

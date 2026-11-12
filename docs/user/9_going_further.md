@@ -18,6 +18,7 @@ and expected output. In order of increasing scope:
 | [`qmom_mixture_initialization`](../../examples/qmom_mixture_initialization/README.md) | Moments from a mixture with absolute component densities. |
 | [`realizability_check`](../../examples/realizability_check/README.md) | Checking moments against a support. |
 | [`hyqmom_characteristic_speeds`](../../examples/hyqmom_characteristic_speeds/README.md) | The characteristic speeds of the `hyperbolic` family, HyQMOM, from the moments of Fox & Laurent (2022). |
+| [`gqmom_trimodal_distribution`](../../examples/gqmom_trimodal_distribution/README.md) | The `generalized` family, GQMOM, for the trimodal number density of Fox, Laurent & Passalacqua (2023). |
 | [`cqmom_independent_product_initialization`](../../examples/cqmom_independent_product_initialization/README.md) | A CQMOM case from a configuration file, and the conditioning order. |
 | **Evolving in time** | |
 | [`qmom_1d_minimal`](../../examples/qmom_1d_minimal/README.md) | The smallest QMOM time loop, with a velocity and a fragmentation source. |

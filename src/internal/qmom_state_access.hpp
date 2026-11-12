@@ -17,8 +17,9 @@ namespace qmomkit::internal
 class QmomStateAccess
 {
 public:
-    // node_count is the n of the case: the state's maximum node count is n
-    // for the classical family and n + 1 for the hyperbolic one.
+    // node_count is the N of the case: the state's maximum node count is N
+    // for the classical family, N + 1 for the hyperbolic one and N_G for the
+    // generalized one.
     [[nodiscard]] static QmomState from_quadrature(QmomResult quadrature, const std::size_t moment_count, const std::size_t node_count,
                                                    QmomOptions qmom_options, std::optional<AbscissaBounds> abscissa_bounds = {})
     {

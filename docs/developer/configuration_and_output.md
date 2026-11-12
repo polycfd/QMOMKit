@@ -115,13 +115,13 @@ The case parsers go through the same steps a caller can take separately:
 `initialize_qmom_moments(...)` or `initialize_cqmom_moments(...)` turn an
 `InitialConditionSpecification` into moments, and `create_qmom_case(...)` or
 `create_cqmom_case(...)` build the case. A QMOM case with node count $N$ needs
-at this point the moments its family reads, $2N$, or $2N + 1$ for
-`hyperbolic`, the count `internal::qmom_required_moment_count` gives, and a
-family may refuse abscissa bounds ([QMOM families](qmom_families.md)). A CQMOM
-explicit tensor must be complete within its `extents`, and the case keeps only
-the moments its layout requires ([CQMOM](cqmom.md)). Options without a key,
-such as `QmomOptions::cutoff` or the source-step retries, keep their C++
-defaults.
+at this point the moments its family reads, $2N$ for `classical` or $2N + 1$
+for `hyperbolic` and `generalized`, the count
+`internal::qmom_required_moment_count` gives, and a family may refuse abscissa
+bounds ([QMOM families](qmom_families.md)). A CQMOM explicit tensor must be
+complete within its `extents`, and the case keeps only the moments its layout
+requires ([CQMOM](cqmom.md)). Options without a key, such as
+`QmomOptions::cutoff` or the source-step retries, keep their C++ defaults.
 
 The QMOM family, `[phase_space] qmom_family`, is read by one helper,
 `parse_qmom_family`, which gives `classical` when the key is absent:
@@ -132,6 +132,11 @@ a `[phase_space]` key because it describes the coordinate, including how many
 moments it needs; `[qmom]` keeps the options that apply to every coordinate
 alike, which `parse_qmom_options_from_parsed` reads for the case, the CQMOM case
 settings and the evolution options. CQMOM files do not accept the key.
+`parse_generalized_options` reads the `[phase_space]` keys of the generalized
+family, `generalized_node_counts`, required and above `node_counts`,
+`generalized_continuation` and `generalized_nu`, for `parse_qmom`. With another
+family, each of them is an error, since it would have no effect, from
+`parse_qmom` and from `parse_qmom_initial_condition` alike.
 
 `with_initial_moments(...)` replaces the moments of a `CqmomCase` or
 `CqmomPreparedCase`, given as a `RawMomentTensor` or as `CqmomMomentData`. It

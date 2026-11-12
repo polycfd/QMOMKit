@@ -17,6 +17,7 @@ or in a file with `[phase_space] qmom_family = hyperbolic`.
 | --- | --- | --- | --- | --- | --- | --- |
 | `classical` | $m_0, \ldots, m_{2N-1}$ | up to $N$ | the number of nodes | yes | QMOM, CQMOM | — |
 | `hyperbolic` | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | $N$ for $N + 1$ nodes, otherwise the number of nodes | no | QMOM | characteristic speeds |
+| `generalized` | $m_0, \ldots, m_{2N}$ | up to $N_G > N$, which you set | the number $k \le N$ of classical nodes it continues | no | QMOM | — |
 
 ## Hyperbolic
 
@@ -93,3 +94,65 @@ The [`hyqmom_characteristic_speeds`](../../examples/hyqmom_characteristic_speeds
 example computes the speeds of Fig. 1 of Fox & Laurent (2022), and
 [`hyqmom_1d_drag_bgk-collisions`](../../examples/hyqmom_1d_drag_bgk-collisions/README.md)
 evolves a velocity distribution with the hyperbolic family.
+
+## Generalized
+
+The generalized version of QMOM is GQMOM
+[[Fox, Laurent & Passalacqua, 2023](https://doi.org/10.1016/j.jaerosci.2022.106096)].
+GQMOM reconstructs a quadrature
+of many more nodes, $N_G$, that still reproduces $m_0, \ldots, m_{2N}$.
+By assuming an underlying type of distributions, e.g. a normal distribution, GQMOM
+continues the recurrence of the orthogonal polynomials of the moments beyond
+the coefficients the moments determine, so that the quadrature represents a
+continuous number density rather than $N$ points. More nodes can improve, for instance, the
+evaluation of source terms without more moments, but $N$ still controls the
+accuracy of the moment method.
+
+$N_G$ has no default and must exceed $N$:
+
+```cpp
+qmom_case.qmom_options.family = qmomkit::QmomFamily::generalized;
+qmom_case.qmom_options.generalized.node_count = 3 * qmom_case.node_count;
+```
+
+or in a `.qmom` configuration file with `qmom_family = generalized` and
+`generalized_node_counts`. Fox et al. (2023, Section 4.1) find $N_G = 3N$
+adequate in most cases, and more for highly localized source terms.
+
+At present, the only available distribution type for the quadrature continuation is `normal`, for a number
+density on the real line, so the family takes no bounds. Its parameter $\nu$,
+`generalized.nu` or `generalized_nu`, 1 by default, controls the tails: $\nu = 1$
+gives Gaussian tails and, for the moments of a normal distribution, its
+Gauss-Hermite quadrature, $\nu = 2$ exponential tails, and $\nu = 0$ a number
+density on a bounded interval (Fox et al., 2023, Fig. 1). A negative $\nu$
+drives the continued $b_i$ toward zero, and eventually several modes appear
+(Fox et al., 2023, Section 3.1.2). A strongly negative $\nu$ can drive them
+below what a double resolves, for example $\nu = -20$ with $N = 1$ and
+$N_G = 101$: many nodes then coincide and carry zero weight, while the moments
+are still reproduced.
+
+### Reconstruction
+
+An adaptive reconstruction first reconstructs a classical quadrature of
+$k \le N$ nodes, as adaptive classical QMOM does from $m_0, \ldots, m_{2N-1}$,
+with the `rmin` and `eabs` tests. Where $m_0, \ldots, m_{2k}$ lie inside the
+realizable set, it continues the quadrature to $N_G$ nodes, which reproduce
+$m_0, \ldots, m_{2k}$. On the boundary of the realizable set, the moments are
+those of $k$ points, GQMOM is classical QMOM, and the result is the classical
+$k$-node quadrature, as it is below the boundary. A fixed reconstruction takes
+$k = N$, so it returns $N_G$ nodes, or the classical $N$ nodes on the boundary,
+and fails where the moments do not support $N$ nodes or lie below the boundary.
+The base node count of a result is $k$. `rmin` and `eabs` do not apply to the
+continued nodes, whose weights in the tails are often tiny.
+
+Each reconstruction solves an eigenproblem of $N_G \times N_G$ entries, so its
+memory grows as $N_G^2$ and its time faster. An $N_G$ too large for the memory
+makes `compute_qmom(...)` throw `std::bad_alloc` or `std::length_error`.
+
+A state has at most $N_G$ nodes, `maximum_node_count()`. Having lost nodes, it
+regains at most one base node per step and keeps $N_G$ nodes while its
+moments are inside the realizable set.
+
+The [`gqmom_trimodal_distribution`](../../examples/gqmom_trimodal_distribution/README.md)
+example reconstructs the trimodal number density of Section 4.1 of Fox et al.
+(2023) with GQMOM and with classical QMOM.

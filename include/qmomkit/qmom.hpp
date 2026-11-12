@@ -20,25 +20,52 @@ enum class QmomStatus
 };
 
 /**
- * The quadrature family of a QMOM reconstruction with node count n.
- * `classical` is QMOM: up to n nodes from m_0, ..., m_{2n-1}. `hyperbolic` is
- * HyQMOM (Fox & Laurent 2022): up to n + 1 nodes from m_0, ..., m_{2n}, on
- * the real line only.
+ * The quadrature family of a QMOM reconstruction with node count N.
+ * `classical` is QMOM: up to N nodes from m_0, ..., m_{2N-1}. `hyperbolic` is
+ * HyQMOM (Fox & Laurent 2022): up to N + 1 nodes from m_0, ..., m_{2N}, on
+ * the real line only. `generalized` is GQMOM (Fox, Laurent & Passalacqua
+ * 2023): up to N_G nodes from m_0, ..., m_{2N}, with N_G > N set in
+ * `QmomOptions::generalized`, on the real line only.
  */
 enum class QmomFamily
 {
     classical,
-    hyperbolic
+    hyperbolic,
+    generalized
+};
+
+/**
+ * How GQMOM continues the recurrence coefficients of the moments to N_G nodes.
+ * `normal` is Definition 1 of Fox, Laurent & Passalacqua (2023), for a number
+ * density on the real line, whose parameter nu controls the tails.
+ */
+enum class GeneralizedContinuation
+{
+    normal
+};
+
+/**
+ * The settings of the `generalized` family, which no other family reads.
+ * `node_count` is N_G, the number of nodes of the continued quadrature. It has
+ * no default and must exceed the node count N of the reconstruction.
+ */
+struct GeneralizedOptions
+{
+    std::size_t node_count = 0;
+    GeneralizedContinuation continuation = GeneralizedContinuation::normal;
+    double nu = 1.0;
 };
 
 /**
  * Numerical controls for one-dimensional QMOM quadrature construction.
  *
  * Adaptive node reduction is on by default; set `adaptive = false` to require
- * the family's maximum node count, n for `classical` and n + 1 for
- * `hyperbolic`. `rmin` and `eabs` apply only to classical quadratures, not to
- * the n + 1 nodes of `hyperbolic`. `family` selects the quadrature family;
- * CQMOM supports only `classical`.
+ * the base node count N (see `QmomResult::base_node_count`): N nodes for
+ * `classical`, N + 1 for `hyperbolic`, and for `generalized` N_G nodes, or the
+ * classical N nodes of moments on the boundary. `rmin` and `eabs`
+ * apply only to classical quadratures, not to the N + 1 nodes of `hyperbolic`
+ * or the continued nodes of `generalized`. `family` selects the quadrature
+ * family; CQMOM supports only `classical`.
  */
 struct QmomOptions
 {
@@ -47,6 +74,7 @@ struct QmomOptions
     double eabs = 1.0e-10;
     double cutoff = 1.0e-30;
     QmomFamily family = QmomFamily::classical;
+    GeneralizedOptions generalized{};
 };
 
 struct QmomResult
@@ -57,13 +85,15 @@ struct QmomResult
     std::string message;
     /**
      * The number of nodes of the classical quadrature on which the result
-     * rests, which never exceeds the node count n of the reconstruction. For
+     * rests, which never exceeds the node count N of the reconstruction. For
      * `classical`, it equals the number of nodes of the result. For
-     * `hyperbolic`, it is n when the result holds the n + 1 nodes of J_{n+1},
-     * because these are built from the recurrence of the classical n-node
-     * quadrature of m_0, ..., m_{2n-1}. When the moments lie on or below the
-     * boundary and a classical quadrature is returned, it is the number of
-     * nodes of that quadrature. A failed result has a base node count of 0.
+     * `hyperbolic`, it is N when the result holds the N + 1 nodes of J_{N+1},
+     * because these are built from the recurrence of the classical N-node
+     * quadrature of m_0, ..., m_{2N-1}. For `generalized`, it is the number
+     * k of nodes of the classical quadrature that is continued to N_G nodes.
+     * When the moments lie on or below the boundary and a classical
+     * quadrature is returned, it is the number of nodes of that quadrature. A
+     * failed result has a base node count of 0.
      */
     std::size_t base_node_count = 0;
 
@@ -116,8 +146,10 @@ public:
     /**
      * The base node count of the state's quadrature, as defined for
      * `QmomResult::base_node_count`. For `classical`, it equals the active
-     * node count. For `hyperbolic`, it is n while the state holds the n + 1
-     * nodes of J_{n+1}, and the active node count otherwise.
+     * node count. For `hyperbolic`, it is N while the state holds the N + 1
+     * nodes of J_{N+1}, and the active node count otherwise. For
+     * `generalized`, it is k while the state holds N_G nodes continued from k,
+     * and the active node count otherwise.
      */
     [[nodiscard]] std::size_t base_node_count() const noexcept
     {
@@ -125,8 +157,9 @@ public:
     }
 
     /**
-     * The maximum node count of the state's quadrature: n for `classical`,
-     * n + 1 for `hyperbolic`, with n the node count of its case.
+     * The maximum node count of the state's quadrature: N for `classical`,
+     * N + 1 for `hyperbolic`, with N the node count of its case, and N_G for
+     * `generalized`.
      */
     [[nodiscard]] std::size_t maximum_node_count() const noexcept
     {
@@ -136,6 +169,8 @@ public:
             return node_count_;
         case QmomFamily::hyperbolic:
             return node_count_ + 1;
+        case QmomFamily::generalized:
+            return qmom_options_.generalized.node_count;
         }
         return node_count_;
     }
@@ -245,8 +280,9 @@ struct QmomStateCandidate
  * User-facing case for one-dimensional QMOM quadrature construction.
  *
  * `moments` stores unnormalized raw moments in ascending order:
- * `moments[k] == m_k`. A case with `node_count == n` requires at least
- * `2 * n` moments, or `2 * n + 1` for the `hyperbolic` family.
+ * `moments[k] == m_k`. A case with `node_count == N` requires at least
+ * `2 * N` moments, or `2 * N + 1` for the `hyperbolic` and `generalized`
+ * families.
  */
 struct QmomCase
 {
@@ -261,7 +297,7 @@ struct QmomCase
      * not used. This is how a host rebuilds the state of moments it changed
      * itself, for example by transport in physical space. All moments must be
      * finite, including those the reconstruction does not use, above order
-     * 2n - 1, or 2n for `hyperbolic`. The quadrature is reconstructed once,
+     * 2N - 1, or 2N for `hyperbolic` and `generalized`. The quadrature is reconstructed once,
      * the stored moments are those of the accepted quadrature, and a failure
      * is reported in the result rather than thrown.
      */
@@ -299,8 +335,8 @@ struct QmomCase
 
 /**
  * Construct a one-dimensional QMOM quadrature and require returned abscissas
- * to lie in the optional closed interval. The hyperbolic family takes no
- * interval: with one, the result is `invalid_input`.
+ * to lie in the optional closed interval. The hyperbolic and generalized
+ * families take no interval: with one, the result is `invalid_input`.
  */
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options,
                                       std::optional<AbscissaBounds> abscissa_bounds);

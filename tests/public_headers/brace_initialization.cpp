@@ -14,6 +14,8 @@ namespace public_header_brace_initialization
     // The family follows the four older options, which keep their positions.
     [[maybe_unused]] const qmomkit::QmomOptions fixed{false};
     [[maybe_unused]] const qmomkit::QmomOptions hyperbolic{true, 1.0e-10, 1.0e-10, 1.0e-30, qmomkit::QmomFamily::hyperbolic};
+    // The settings of the generalized family follow the family.
+    [[maybe_unused]] const qmomkit::QmomOptions generalized{true, 1.0e-10, 1.0e-10, 1.0e-30, qmomkit::QmomFamily::generalized, {9}};
     // The base node count follows the four older members of the result.
     [[maybe_unused]] const qmomkit::QmomResult result{{0.5}, {1.0}, qmomkit::QmomStatus::success, ""};
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({1, 1}));

@@ -27,9 +27,9 @@ struct GeneralizedQuadrature
  * when sigma(k, k) exceeds its rounding bound tau_k, and returned as it is
  * when sigma(k, k) is zero within tau_k. Below -tau_k, fixed mode is
  * not_realizable and adaptive mode returns the classical quadrature. A
- * non-finite sigma(k, k) or tau_k is not_realizable in fixed mode, and adaptive
- * mode returns the classical quadrature. NaN always return not_realizable.
- * The coordinate scale is zero, as in compute_quadrature(...).
+ * non-finite sigma(k, k) or tau_k is not_realizable in fixed mode. In adaptive
+ * mode, an overflowed +-inf returns the classical quadrature and a NaN is
+ * not_realizable. The coordinate scale is zero, as in compute_quadrature(...).
  */
 [[nodiscard]] GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, std::size_t node_count, const WheelerOptions& options,
                                                                    const GeneralizedOptions& generalized);

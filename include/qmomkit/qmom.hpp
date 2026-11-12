@@ -297,9 +297,9 @@ struct QmomCase
      * not used. This is how a host rebuilds the state of moments it changed
      * itself, for example by transport in physical space. All moments must be
      * finite, including those the reconstruction does not use, above order
-     * 2N - 1, or 2N for `hyperbolic` and `generalized`. The quadrature is reconstructed once,
-     * the stored moments are those of the accepted quadrature, and a failure
-     * is reported in the result rather than thrown.
+     * 2N - 1, or 2N for `hyperbolic` and `generalized`. The quadrature is
+     * reconstructed once, the stored moments are those of the accepted
+     * quadrature, and a failure is reported in the result rather than thrown.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments) const;
 

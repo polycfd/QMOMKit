@@ -1582,9 +1582,9 @@ void test_adaptive_generalized_post_source_grows_by_one_base_node_below_n()
 
 void test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n()
 {
-    // A state holding the classical two-node rule at N_G = 2, base node count N,
+    // A state holding the classical two-node rule at N = 2, base node count N,
     // grows to its six continued nodes on interior moments, and keeps two nodes
-    // on boundary moments. Its own reconstruction at base node count n is the
+    // on boundary moments. Its own reconstruction at base node count N is the
     // full quadrature request, so the growth trial repeats it and the step
     // makes two identical reconstructions.
     const qmomkit::QmomState two_nodes = qmom_state_from_moments(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, generalized_qmom_options(6));

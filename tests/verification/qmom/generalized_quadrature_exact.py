@@ -256,10 +256,10 @@ def main():
     Path(__file__).with_suffix(".inc").write_text("\n".join(lines))
 
     _, _, diagonal = recurrence(exact_moments(gaussian_moments(F(2), F(3), F(1, 2), 17)), 8)
-    print(f"Shifted Gaussian at n = 8, left out: sigma(8, 8) / tau_8 = {float(diagonal[8][0] / diagonal[8][1]):.0f}")
+    print(f"Shifted Gaussian at N = 8, left out: sigma(8, 8) / tau_8 = {float(diagonal[8][0] / diagonal[8][1]):.0f}")
     print("Change of the nodes for a change of one ulp in the moments:")
     for n in (3, 6, 9):
-        print(f"  trimodal, n = {n}, N = 101: {float(one_ulp_change(trimodal_moments(2 * n + 1), n, 101)):.1e}")
+        print(f"  trimodal, N = {n}, N_G = 101: {float(one_ulp_change(trimodal_moments(2 * n + 1), n, 101)):.1e}")
 
 
 if __name__ == "__main__":

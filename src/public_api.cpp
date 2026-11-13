@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -75,16 +76,22 @@ namespace
 }
 
 // GQMOM with the normal continuation is defined on the real line, so abscissa
-// bounds are refused before any reconstruction.
+// bounds are refused before any reconstruction. The gamma continuation is
+// defined within the abscissa bounds, which default to [0, the largest double].
+// Every continuation other than gamma goes to compute_generalized_quadrature,
+// which also reports an unsupported one.
 [[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
                                           const std::optional<AbscissaBounds> abscissa_bounds)
 {
-    if (abscissa_bounds.has_value())
+    const bool gamma = options.generalized.continuation == GeneralizedContinuation::gamma;
+    if (!gamma && abscissa_bounds.has_value())
     {
-        return QmomResult{{}, {}, QmomStatus::invalid_input, "The generalized QMOM family takes no abscissa bounds."};
+        return QmomResult{{}, {}, QmomStatus::invalid_input, "The normal continuation of the generalized QMOM family takes no abscissa bounds."};
     }
     const internal::GeneralizedQuadrature result =
-        internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized);
+        gamma ? internal::compute_bounded_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized,
+                                                                 abscissa_bounds.value_or(AbscissaBounds{0.0, std::numeric_limits<double>::max()}))
+              : internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized, 0.0);
     const Quadrature1D& quadrature = result.quadrature;
     return QmomResult{quadrature.abscissas, quadrature.weights, to_qmom_status(quadrature.status), quadrature.message, result.base_node_count};
 }

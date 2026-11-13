@@ -25,7 +25,7 @@ enum class QmomStatus
  * HyQMOM (Fox & Laurent 2022): up to N + 1 nodes from m_0, ..., m_{2N}, on
  * the real line only. `generalized` is GQMOM (Fox, Laurent & Passalacqua
  * 2023): up to N_G nodes from m_0, ..., m_{2N}, with N_G > N set in
- * `QmomOptions::generalized`, on the real line only.
+ * `QmomOptions::generalized`.
  */
 enum class QmomFamily
 {
@@ -36,18 +36,20 @@ enum class QmomFamily
 
 /**
  * How GQMOM continues the recurrence coefficients of the moments to N_G nodes.
- * `normal` is Definition 1 of Fox, Laurent & Passalacqua (2023), for a number
- * density on the real line, whose parameter nu controls the tails.
+ * `normal` is Definition 1 of Fox, Laurent & Passalacqua (2023), whose
+ * parameter nu controls the tails, and `gamma` is Definition 2.
  */
 enum class GeneralizedContinuation
 {
-    normal
+    normal,
+    gamma
 };
 
 /**
  * The settings of the `generalized` family, which no other family reads.
  * `node_count` is N_G, the number of nodes of the continued quadrature. It has
- * no default and must exceed the node count N of the reconstruction.
+ * no default and must exceed the node count N of the reconstruction. Only the
+ * `normal` continuation reads `nu`.
  */
 struct GeneralizedOptions
 {
@@ -335,8 +337,9 @@ struct QmomCase
 
 /**
  * Construct a one-dimensional QMOM quadrature and require returned abscissas
- * to lie in the optional closed interval. The hyperbolic and generalized
- * families take no interval: with one, the result is `invalid_input`.
+ * to lie in the optional closed interval. The hyperbolic family and the
+ * normal continuation of the generalized family take no interval: with one,
+ * the result is `invalid_input`.
  */
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options,
                                       std::optional<AbscissaBounds> abscissa_bounds);

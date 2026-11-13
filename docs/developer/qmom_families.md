@@ -16,7 +16,7 @@ other than `classical`.
 | --- | --- | --- |
 | Moments read | `internal::qmom_required_moment_count` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) | $2N$ for `classical` and $2N+1$ otherwise, for node count $N$, the one definition cases, state candidates, the evolution and the configuration use. |
 | Maximum node count | `QmomState::maximum_node_count()` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp)) | $N$, $N+1$ or $N_G$ for the case's node count $N$. |
-| Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` and `generalized` calls `compute_generalized_quadrature`, each with `node_count` as $N$; abscissa bounds with either are `invalid_input` before any reconstruction. |
+| Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` and `generalized` calls `compute_generalized_quadrature`, through `compute_bounded_generalized_quadrature` for the gamma continuation, each with `node_count` as $N$. Abscissa bounds with `hyperbolic` or the normal continuation are `invalid_input` before any reconstruction. |
 | Evolution | `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts). The family's full quadrature is requested from the family. A reduced quadrature is requested from the classical family for `classical` and `hyperbolic`, and from the family itself for `generalized`. |
 | Configuration | `parse_qmom_family`, `parse_generalized_options`, `infer_qmom_initial_maximum_order` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, the `generalized_node_counts`, `generalized_continuation` and `generalized_nu` of the generalized family, and the default `[initial] maximum_order` from the moments the family reads ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
 | CQMOM | `compute_cqmom(const CqmomCase&)`, `internal::compute_cqmom_internal` ([`src/public_api.cpp`](../../src/public_api.cpp)) | Every family other than `classical` is `invalid_input` ([CQMOM](cqmom.md)). |
@@ -172,9 +172,13 @@ The internal `compute_generalized_quadrature`
 ([`src/internal/generalized_quadrature.hpp`](../../src/internal/generalized_quadrature.hpp))
 returns the quadrature with its base node count and uses $s=0$, as
 `compute_quadrature(...)` does. `QmomOptions::generalized` holds $N_G$, which
-has no default, the continuation and its parameter $\nu$. The only continuation
-is `normal`, for a number density on the real line, so abscissa bounds give the
-message `The generalized QMOM family takes no abscissa bounds.`
+has no default, the continuation, and the parameter $\nu$ of the normal
+continuation. The `normal` continuation is for a number density on the real
+line, so abscissa bounds give the message
+`The normal continuation of the generalized QMOM family takes no abscissa bounds.`
+The `gamma` continuation is for a number density on $[\ell,\infty)$, with
+$\ell$ the lower abscissa bound, and its nodes must lie within the bounds
+([Gamma continuation](#gamma-continuation)).
 
 ### Reconstruction
 
@@ -239,6 +243,41 @@ $k=1$, $N_G=101$ and $\nu=-20$. The result is still a success and reproduces
 $m_0,\ldots,m_{2k}$ to rounding. This is a shortcoming of double precision,
 not of the method, and QMOMKit leaves it as it is.
 
+### Gamma continuation
+
+The gamma continuation (Fox et al., 2023, Definition 2, eqs. 23–26) is for a
+number density on $[\ell,\infty)$, with $\ell$ the lower abscissa bound.
+Subtracting $\ell$ from every $a_i$ shifts the recurrence exactly to
+$[0,\infty)$, where it is written with
+$a_0=\zeta_1$, $a_i=\zeta_{2i}+\zeta_{2i+1}$ and $b_i=\zeta_{2i-1}\zeta_{2i}$
+(eq. 23). The recurrence of $k$ nodes gives $\zeta_1,\ldots,\zeta_{2k}$, and
+Definition 2's $\alpha=m_1^2/(m_2m_0-m_1^2)-1$ is $\zeta_1/\zeta_2-1$ in the
+shifted moments. The continuation (eq. 25, with $k$ in place of $n$, as for the
+normal continuation) is
+
+```math
+\zeta_{2i-1}=\frac{i+\alpha}{k+\alpha}\,\zeta_{2k-1},\qquad \zeta_{2i}=\frac{i}{k}\,\zeta_{2k}\qquad(i>k),
+```
+
+and eq. 26 gives $a_i=\zeta_{2i}+\zeta_{2i+1}$ for $i\ge k$ and
+$b_i=\zeta_{2i-1}\zeta_{2i}$ for $i>k$, shifted back by $\ell$. Eq. 26 is
+stated for $i>n$, but $a_n$ needs the continued $\zeta_{2n+1}$ as well, as the
+paper's selection of every $\zeta_i$ with $i>2n$ implies. For the moments of a
+gamma number density, these are the coefficients of the Laguerre polynomials
+(eq. 24), from every $k$.
+
+The abscissa bounds $[\ell,u]$ are the support, $[0,\text{DBL\_MAX}]$ without
+bounds. `compute_bounded_generalized_quadrature` selects as bounded classical
+QMOM does ([Abscissa bounds](qmom.md#abscissa-bounds)): a reconstruction is
+accepted when it succeeds and its nodes pass `abscissas_inside_bounds`, the
+check of bounded classical QMOM. Fixed mode tries node count $N$ only. Adaptive
+mode retries below the base node count of a rejected reconstruction, down to
+one node, so the continuation runs once per base node count. Moments that are
+not those of a number density on $[\ell,\infty)$ give a non-positive $\zeta$,
+so the continued recurrence fails the check of a negative or non-finite $b$, or
+its nodes leave the bounds. Both reject the reconstruction. The continuation
+does not read $\nu$.
+
 `rmin` and `eabs` act on the classical quadratures only. The continued nodes
 carry the tails of the number density, whose weights can be far below `rmin`
 (Fox et al., 2023, Fig. 1), and the test on $b_k$ already excludes nodes made of
@@ -254,7 +293,9 @@ The input checks, in this order:
 
 | Condition | Status | Message |
 | --- | --- | --- |
-| non-finite $\nu$ | `invalid_input` | `The generalized parameter nu must be finite.` |
+| abscissa bounds with the normal continuation | `invalid_input` | `The normal continuation of the generalized QMOM family takes no abscissa bounds.` |
+| abscissa bounds with a non-finite value or $\ell\ge u$, with the gamma continuation | `invalid_input` | `Bounded-support interval must have finite lower < upper values.` |
+| non-finite $\nu$ with the normal continuation | `invalid_input` | `The generalized parameter nu must be finite.` |
 | $N_G\le N$, which includes an unset $N_G=0$ | `invalid_input` | `The generalized node count must exceed node_count.` |
 | a continuation outside `GeneralizedContinuation` | `invalid_input` | `Unsupported generalized continuation.` |
 | the checks of [Input checks and the cutoff](qmom.md#input-checks-and-the-cutoff) with $2N+1$ moments and no one-node shortcut, with the message `Moment sequence has fewer than 2*n+1 entries.` | | |
@@ -264,7 +305,8 @@ The input checks, in this order:
 | Function | File | Role |
 | --- | --- | --- |
 | `compute_generalized_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal GQMOM reconstruction, $s=0$, with its base node count. |
-| `is_supported_continuation`, `normal_continuation` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The check of the continuation; the normal continuation of eqs. 21 and 22. |
+| `is_supported_continuation`, `normal_continuation`, `gamma_continuation` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The check of the continuation; the normal continuation of eqs. 21 and 22; the gamma continuation of eqs. 23–26. |
+| `compute_bounded_generalized_quadrature`, `abscissas_inside_bounds` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The selection within abscissa bounds for the gamma continuation, with the node check of bounded classical QMOM. |
 | `input_failure_through_m2n` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The input checks of $m_0,\ldots,m_{2N}$, shared with HyQMOM. |
 
 ## Adding a family

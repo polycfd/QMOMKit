@@ -25,8 +25,8 @@ Reconstruction, from moments to a quadrature:
 - [CQMOM](cqmom.md): the recursive reconstruction, its moment layout,
   branches and prepared cases.
 - [QMOM families](qmom_families.md): where a family enters the code, HyQMOM with
-  its closure, boundary fallback and characteristic speeds, and how to add a
-  family.
+  its closure, boundary fallback and characteristic speeds, GQMOM with its
+  continuations, and how to add a family.
 - [Linear algebra](linear_algebra.md): the internal dense kernels and the
   conditional Vandermonde solve.
 

@@ -251,6 +251,18 @@ struct Recurrence
     return smallest_gap / span > options.eabs;
 }
 
+// Whether every abscissa lies in the closed interval, up to a margin for
+// rounding. A margin relative to the largest abscissa magnitude gives the
+// same decision in any unit, whatever the bounds. The abscissas are not empty
+// and in ascending order, so the largest magnitude is that of the first or
+// the last abscissa.
+[[nodiscard]] bool abscissas_inside_bounds(const std::vector<double>& abscissas, const AbscissaBounds bounds)
+{
+    const double margin = 1.0e-12 * std::max(std::abs(abscissas.front()), std::abs(abscissas.back()));
+    return std::all_of(abscissas.begin(), abscissas.end(), [bounds, margin](const double node)
+                       { return std::isfinite(node) && node >= bounds.lower - margin && node <= bounds.upper + margin; });
+}
+
 [[nodiscard]] bool required_moments_are_finite(const MomentSet& moments, const std::size_t moment_count)
 {
     for (std::size_t order = 0; order < moment_count; ++order)
@@ -843,21 +855,7 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
             return candidate;
         }
 
-        // A node on a bound comes back off it by the rounding of the moments,
-        // amplified by the inversion, which scales with the nodes. A tolerance
-        // relative to the largest node magnitude therefore gives the same
-        // decision in any unit, whatever the bounds. Because the abscissas are
-        // in ascending order, the largest magnitude is that of the first or the
-        // last abscissa.
-        const std::vector<double>& nodes = candidate.quadrature.abscissas;
-        const double coordinate_support_tolerance = 1.0e-12 * std::max(std::abs(nodes.front()), std::abs(nodes.back()));
-        const bool nodes_inside_interval = std::all_of(nodes.begin(), nodes.end(),
-                                                       [interval, coordinate_support_tolerance](const double node)
-                                                       {
-                                                           return std::isfinite(node) && node >= interval.lower - coordinate_support_tolerance &&
-                                                                  node <= interval.upper + coordinate_support_tolerance;
-                                                       });
-        if (!nodes_inside_interval)
+        if (!abscissas_inside_bounds(candidate.quadrature.abscissas, interval))
         {
             candidate.quadrature.status = QuadratureStatus::not_realizable;
             candidate.message = "Bounded-support Wheeler inversion returned nodes outside the configured interval.";

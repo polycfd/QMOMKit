@@ -22,10 +22,11 @@
 //   rejection case additionally checks that the returned position is
 //   unchanged, which is what distinguishes rejection from clipping. The unit
 //   case repeats the same rules at coordinate scales 1e-6, 1 and 1e6 and
-//   requires the same decision at every scale: a single position half the
-//   acceptance margin beyond a bound is accepted and one twice the margin
-//   beyond is rejected, where the margin is 1e-12 times the larger bound
-//   magnitude; rules with a position exactly on a bound are accepted.
+//   requires the same decision at every scale. In a two-node rule with one
+//   position at a bound, the other position half the acceptance margin beyond
+//   the other bound is accepted and one twice the margin beyond is rejected,
+//   where the margin is 1e-12 times the largest node magnitude, here that of
+//   the upper bound. Rules with a position exactly on a bound are accepted.
 //
 // Reproduce
 //   ctest -R verification_qmom_.*bounded
@@ -37,9 +38,9 @@
 #include "qmomkit/qmom.hpp"
 #include "test_case_dispatch.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace
@@ -127,15 +128,22 @@ void verify_bounded_qmom_acceptance_does_not_depend_on_the_unit()
     for (const double scale : {1.0e-6, 1.0, 1.0e6})
     {
         const qmomkit::AbscissaBounds bounds{0.0, scale};
-        const double margin = 1.0e-12 * std::max(std::abs(bounds.lower), std::abs(bounds.upper));
-        const auto single_position = [&bounds](const double node)
-        { return qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments({0.3}, {node})), 1, qmomkit::QmomOptions{false}, bounds); };
-
-        QMOMKIT_VERIFY_CHECK(single_position(bounds.lower - 0.5 * margin).ok());
-        QMOMKIT_VERIFY_CHECK(single_position(bounds.upper + 0.5 * margin).ok());
-        for (const double outside : {bounds.lower - 2.0 * margin, bounds.upper + 2.0 * margin})
+        // Two positions, one at a bound and one at or just beyond the other,
+        // so that the largest node magnitude, and with it the margin, is that
+        // of the upper bound.
+        const double margin = 1.0e-12 * bounds.upper;
+        const auto two_positions = [&bounds](const double lower_node, const double upper_node)
         {
-            const qmomkit::QmomResult rejected = single_position(outside);
+            return qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments({0.3, 0.7}, {lower_node, upper_node})), 2, qmomkit::QmomOptions{false},
+                                         bounds);
+        };
+
+        QMOMKIT_VERIFY_CHECK(two_positions(bounds.lower - 0.5 * margin, bounds.upper).ok());
+        QMOMKIT_VERIFY_CHECK(two_positions(bounds.lower, bounds.upper + 0.5 * margin).ok());
+        for (const auto& [lower_node, upper_node] :
+             {std::pair{bounds.lower - 2.0 * margin, bounds.upper}, std::pair{bounds.lower, bounds.upper + 2.0 * margin}})
+        {
+            const qmomkit::QmomResult rejected = two_positions(lower_node, upper_node);
             QMOMKIT_VERIFY_CHECK(!rejected.ok());
             QMOMKIT_VERIFY_CHECK(rejected.status == qmomkit::QmomStatus::not_realizable);
         }

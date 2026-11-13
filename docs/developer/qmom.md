@@ -164,13 +164,14 @@ candidate count $c$ inverts the first $2c$ moments and is accepted when it
 succeeds with exactly $c$ nodes, all in $[\ell-t,\ u+t]$ with
 
 ```math
-t=10^{-12}\max(|\ell|,|u|).
+t=10^{-12}\max_i|\xi_i|.
 ```
 
-Rounding can move a node that lies on a bound slightly outside it. That error
-scales with the coordinate, so the margin is relative to the bounds and decides
-the same in any unit. A fixed reconstruction evaluates $c=N$ only; an adaptive
-one tries $c=N,\ldots,1$ and keeps the first accepted, and if $c=1$ also fails,
+Rounding can move a node that lies on a bound slightly outside it. That
+rounding scales with the nodes, so the margin is relative to the largest node
+magnitude. It decides the same in any unit and does not depend on the bounds. A
+fixed reconstruction evaluates $c=N$ only; an adaptive one tries
+$c=N,\ldots,1$ and keeps the first accepted, and if $c=1$ also fails,
 returns its status and message. In evolution, an adaptive reconstruction starts
 from the state's active count instead of $N$, and the post-source one may then
 try one node more ([Phase-space evolution](phase_space_evolution.md#node-counts)).

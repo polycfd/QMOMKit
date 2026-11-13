@@ -933,8 +933,10 @@ void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension
 void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
 {
     const qmomkit::AbscissaBounds interval{2.0, 5.0};
-    // The acceptance margin is relative to the larger bound magnitude.
-    const double tolerance = 1.0e-12 * std::max(std::abs(interval.lower), std::abs(interval.upper));
+    // The acceptance margin is relative to the largest node magnitude, which
+    // for the single node here is the magnitude of the bound it lies at.
+    const double lower_tolerance = 1.0e-12 * std::abs(interval.lower);
+    const double upper_tolerance = 1.0e-12 * std::abs(interval.upper);
     const double weight = 0.01;
     const qmomkit::PhaseSpaceHierarchy hierarchy({1});
     const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(1, 0, interval);
@@ -948,7 +950,7 @@ void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
                                 qmomkit::VandermondeSolver::dense, support));
     };
 
-    for (const double node : {interval.lower, interval.upper, interval.lower - 0.5 * tolerance, interval.upper + 0.5 * tolerance})
+    for (const double node : {interval.lower, interval.upper, interval.lower - 0.5 * lower_tolerance, interval.upper + 0.5 * upper_tolerance})
     {
         const qmomkit::internal::RecursiveQuadratureResult result = run(node, weight);
         assert(result.ok());
@@ -957,21 +959,21 @@ void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
         assert(std::isfinite(result.quadrature.weights()[0]));
         assert(std::isfinite(result.quadrature.abscissas()[0][0]));
         assert_near(result.quadrature.weights()[0], weight, 0.0);
-        assert_near(result.quadrature.abscissas()[0][0], node, 0.01 * tolerance);
+        assert_near(result.quadrature.abscissas()[0][0], node, 0.01 * 1.0e-12 * std::abs(node));
         if (node < interval.lower)
         {
             assert(result.quadrature.abscissas()[0][0] < interval.lower);
-            assert(interval.lower - result.quadrature.abscissas()[0][0] <= tolerance);
+            assert(interval.lower - result.quadrature.abscissas()[0][0] <= lower_tolerance);
         }
         if (node > interval.upper)
         {
             assert(result.quadrature.abscissas()[0][0] > interval.upper);
-            assert(result.quadrature.abscissas()[0][0] - interval.upper <= tolerance);
+            assert(result.quadrature.abscissas()[0][0] - interval.upper <= upper_tolerance);
         }
     }
 
-    const qmomkit::internal::RecursiveQuadratureResult lower_rejected = run(interval.lower - 2.0 * tolerance, weight);
-    const qmomkit::internal::RecursiveQuadratureResult upper_rejected = run(interval.upper + 2.0 * tolerance, weight);
+    const qmomkit::internal::RecursiveQuadratureResult lower_rejected = run(interval.lower - 2.0 * lower_tolerance, weight);
+    const qmomkit::internal::RecursiveQuadratureResult upper_rejected = run(interval.upper + 2.0 * upper_tolerance, weight);
     assert(!lower_rejected.ok());
     assert(!upper_rejected.ok());
     assert(!lower_rejected.diagnostics.empty());

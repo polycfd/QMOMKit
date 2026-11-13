@@ -22,6 +22,10 @@ and this project adheres to
 - `QmomResult::base_node_count` and `QmomState::base_node_count()`, the
   number of nodes of the classical quadrature on which a QMOM quadrature
   rests. For the N + 1 nodes of `hyperbolic`, it is N.
+- GQMOM (Fox, Laurent & Passalacqua, 2023) with the `normal` continuation as
+  the `generalized` QMOM family, selected with `QmomOptions::family` or
+  `[phase_space] qmom_family`. With node count N, it reconstructs up to N_G > N
+  nodes from 2N + 1 moments. A new example shows the family.
 
 ## [1.0.0] - 2026-10-28
 

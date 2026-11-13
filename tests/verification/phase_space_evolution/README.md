@@ -178,6 +178,28 @@ one step.
   reproduces, equal the reference. The higher stored moments are those of the
   classical rules on the way and have no closed form.
 
+## GQMOM evolution
+
+`generalized_evolution_<case>` (`generalized_evolution.cpp`) evolve generalized
+QMOM states with node count $N$, $N_G = 3N$ nodes and $2N + 1$ stored moments.
+Both sources are linear and autonomous, so one SSP-RK3 step multiplies the
+deviation from equilibrium by $R(z)$, as above.
+
+- `decay_on_the_nodes`, $N = 2, 3$: the decay $S_k = -c \sum_i w_i \xi_i^k$,
+  evaluated on the $N_G$ nodes of each stage quadrature, which reproduce
+  $m_0, \ldots, m_{2N}$. The state keeps $N_G$ nodes and base node count $N$,
+  and its stored moments decay by $R(-c\,\Delta t)$ per step.
+- `constant_velocity_shifts_the_distribution`, $N = 2, 3$: advection by a
+  constant velocity moves the $N_G$ nodes by $v t$, keeps both counts, and gives
+  the moments of the shifted normal distribution.
+- `growth_from_one_point`, adaptive, $N = 3$: under the relaxation above, a
+  state of one point holds $N_G$ nodes after the first step, its base node count
+  after step $j$ is exactly $\min(1 + j, N)$, and $m_0$ and $m_1$ equal the
+  reference.
+- `fixed_boundary_start`, $N = 2, 3$: a fixed state of $N$ points holds their
+  classical $N$ nodes with base node count $N$, and after one relaxation step
+  its $N_G$ nodes and the reference moments.
+
 ## Source-step policies and retries
 
 `source_retries_<case>` (`source_step_retries.cpp`) take one Strang step of
@@ -357,6 +379,7 @@ case reach the post-source reconstructions.
 | `time_dependent_splitting_strang_is_second_order` | order $\ge 1.75, 1.85$ on the two finest pairs | 2.07, 2.03 | the thresholds of `noncommuting_convergence` |
 | `adaptive_qmom_*`, `source_retries_*` | nodes and weights `1e-12`, and the moments for the retries | below `1e-14`, `1e-16` | exact references; rounding of the step and the reconstruction |
 | `hyperbolic_relaxation_*` | positions, weights, $m_0$ and $m_1$ `1e-12`; stored moments `1e-11`, relative to $\max(\lvert\text{reference}\rvert, 1)$ | — | exact references; the stored moments of up to order 8 carry the conditioning of the map from nodes to moments, which worsens with $n$ |
+| `generalized_evolution_*` | positions, $m_0$ and $m_1$ `1e-12`; stored moments `1e-11`, relative to $\max(\lvert\text{reference}\rvert, 1)$ | $1.7 \times 10^{-16}$ to $1.0 \times 10^{-15}$; $1.3 \times 10^{-15}$ to $3.7 \times 10^{-15}$ | closed-form references; the only error is the rounding of at most ten steps, each with its stage reconstructions of the moments of a normal distribution with $N \le 3$; the bounds leave a factor of at least 270 |
 | `state_candidate_*` | weights, positions and moments `1e-12` | below `1e-14` | exact references; rounding of the reconstruction |
 | `abscissa_bounds_*` | nodes, weights and moments `1e-12` | below `4e-15` | exact references; rounding of the step and the reconstruction |
 | `source_context_moments_qmom_*` | order $\ge 2.8$ on the two finest pairs; error `1e-5` at 160 steps | 2.94 to 3.00 on those pairs; `2e-6`, `2e-8` | the SSP-RK3 source error is third order; the bound leaves a factor of 6 and lies far below the `7e-3` and `6e-2` of the step-start quadrature, which gives order 1 |

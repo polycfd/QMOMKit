@@ -227,12 +227,13 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * Advance an accepted one-dimensional QMOM state through one moment-source
  * evolution stage.
  *
- * The stage advances the full stored moment vector, applies fixed or adaptive
- * post-source QMOM reconstruction, may reduce the active node count, and may
- * grow it by at most one node toward the state's `maximum_node_count()`. On success it returns
- * a canonical accepted state; on failure, it returns the unchanged input state.
- * The maximum count is reconstructed with the state's family; for
- * `hyperbolic`, a count below its n + 1 nodes is a classical quadrature.
+ * The stage advances the full stored moment vector and reconstructs the
+ * quadrature of the new moments with the state's family and options. A
+ * fixed-count state keeps its base node count, the node count of its case. An
+ * adaptive state may lose nodes, and its base node count grows by at most one
+ * per call toward the node count of its case; see
+ * `QmomState::base_node_count()`. On success it returns a canonical accepted
+ * state; on failure, it returns the unchanged input state.
  */
 [[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, double t, double time_step,
                                                                        const QmomMomentSource& source,

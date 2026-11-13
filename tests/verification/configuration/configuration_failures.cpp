@@ -144,9 +144,9 @@ int main(const int argc, char** argv)
         // time, before compute_qmom(...) is called.
         {"qmom_insufficient_moments.qmom", Loader::qmom, "requires at least 2 * node_count moments."},
 
-        // The QMOM family is classical or hyperbolic; another name must not
-        // fall back to the classical family.
-        {"qmom_invalid_family.qmom", Loader::qmom, "phase_space.qmom_family must be classical or hyperbolic.", 3},
+        // The QMOM family is classical, hyperbolic or generalized; another
+        // name must not fall back to the classical family.
+        {"qmom_invalid_family.qmom", Loader::qmom, "phase_space.qmom_family must be classical, hyperbolic or generalized.", 3},
 
         // The hyperbolic family with n = 2 reads five moments, so four are too
         // few even though they would serve the classical family.

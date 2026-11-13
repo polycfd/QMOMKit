@@ -18,6 +18,7 @@ QMOMKit provides tools to:
 
 - reconstruct a quadrature from raw moments, with the quadrature method of moments (QMOM) [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] for one phase-space coordinate and the conditional quadrature method of moments (CQMOM) [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] for several;
 - reconstruct a velocity coordinate with the hyperbolic quadrature method of moments (HyQMOM) [[Fox & Laurent, 2022](https://www.doi.org/10.1137/21M1406143)], whose closure keeps the transport of the moments in physical space hyperbolic, and compute its characteristic speeds;
+- reconstruct more nodes than the moments determine with the generalized quadrature method of moments (GQMOM) [[Fox, Laurent & Passalacqua, 2023](https://doi.org/10.1016/j.jaerosci.2022.106096)];
 - let the quadrature reconstruction algorithm choose the number of nodes adaptively and bound the quadrature abscissas to an interval; 
 - choose the CQMOM conditioning order without changing the definition of the phase space;
 - advance a state in phase space by operator splitting (Strang or Lie) of node advection and moment sources, including exchange across phase-space boundaries;

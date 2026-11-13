@@ -37,11 +37,11 @@ The sorted nodes and the weights must match the rule; the weights must be
 positive, sum to $m_0$ and rebuild every moment. Uniform nodes must lie in
 $[0, 1]$, exponential nodes must be positive, uniform and Gaussian rules must
 be symmetric, and Gaussian odd moments must vanish. The hyperbolic fixtures
-give the standard normal moments $m_0, \ldots, m_{2n}$, explicitly or, in
+give the standard normal moments $m_0, \ldots, m_{2N}$, explicitly or, in
 `hyperbolic_normal_distribution_n2`, through `[initial]` without
-`maximum_order`, so that an inferred order below $2n$ would fail; the unit tests
+`maximum_order`, so that an inferred order below $2N$ would fail; the unit tests
 pin the inferred order itself. For moments symmetric about their mean the
-closure is exact, and the HyQMOM rule with node count $n$ is the $(n+1)$-point
+closure is exact, and the HyQMOM rule with node count $N$ is the $(N+1)$-point
 Gauss rule.
 
 ### Wheeler inversion
@@ -74,17 +74,17 @@ and below $\sigma_{k,k}$, so that all $n$ points are supported.
 
 `verification_hyperbolic_quadrature_exact_<case>`
 (`hyperbolic_quadrature_exact.cpp`). `compute_hyperbolic_quadrature` must return
-the Gauss rule of $J_{n+1}$ with the closure of
+the Gauss rule of $J_{N+1}$ with the closure of
 [QMOM families](../../../docs/developer/qmom_families.md#hyperbolic), for
-$n = 1$ to 10 and three shapes: a symmetric binomial rule (`symmetric`), a
+$N = 1$ to 10 and three shapes: a symmetric binomial rule (`symmetric`), a
 skewed geometric one with weights $625\,(3/4)^j$ (`skewed`), and two binomial
 clusters of masses 3/4 and 1/4 shifted off the origin (`bimodal`). Each shape
 has more than $n + 1$ weighted points, so its moments are interior;
 `hyperbolic_quadrature_exact.py` asserts that every $\sigma_{k,k}$ exceeds
-$\tau_k$ at least a thousandfold. The moments $m_0, \ldots, m_{2n}$ are rounded
+$\tau_k$ at least a thousandfold. The moments $m_0, \ldots, m_{2N}$ are rounded
 to double, and the references are computed from those doubles: the recurrence
-and the closure with Python's `fractions`, the eigenpairs of $J_{n+1}$ with
-mpmath at 60 digits. Fixed mode must return $n + 1$ nodes, and adaptive mode
+and the closure with Python's `fractions`, the eigenpairs of $J_{N+1}$ with
+mpmath at 60 digits. Fixed mode must return $N + 1$ nodes, and adaptive mode
 the identical rule.
 
 `verification_hyperbolic_characteristic_speeds_exact_<case>`
@@ -96,18 +96,65 @@ speeds are those of its stored moments, which the unit tests check bit for bit.
 Three references:
 
 - `normal`: normal moments with dyadic mean $\mu$ and standard deviation
-  $\sigma$, $n = 1$ to 3, whose speeds are $\mu + \sigma s$ for the roots $s$
-  of $He_n$ and of $R_{n+1}$ of the standard normal distribution.
-- `boundary`: the moments of $k \le n$ dyadic weighted points, whose speeds are
+  $\sigma$, $N = 1$ to 3, whose speeds are $\mu + \sigma s$ for the roots $s$
+  of $He_N$ and of $R_{N+1}$ of the standard normal distribution.
+- `boundary`: the moments of $k \le N$ dyadic weighted points, whose speeds are
   the points, each twice, and their mean.
-- `skewed`, `bimodal`: the moments of the HyQMOM cases above, $n = 1$ to 10,
+- `skewed`, `bimodal`: the moments of the HyQMOM cases above, $N = 1$ to 10,
   against the eigenvalues of the Jacobian of the closed system.
-  `hyperbolic_characteristic_speeds_exact.py` closes $m_{2n+1}$ in exact
+  `hyperbolic_characteristic_speeds_exact.py` closes $m_{2N+1}$ in exact
   rational arithmetic with the reverse step of Fox & Laurent
   (2022, Algorithm 2), differentiates it exactly with dual numbers, and finds
   the roots of the characteristic polynomial with mpmath at 60 digits. It
-  asserts that they agree with the eigenvalues of $J_n$ and $K_{n+1}$ and
+  asserts that they agree with the eigenvalues of $J_N$ and $K_{N+1}$ and
   interlace; the test asserts that the speeds strictly increase.
+
+### GQMOM
+
+`verification_generalized_quadrature_exact_<case>`
+(`generalized_quadrature_exact.cpp`). `compute_qmom(...)` with the generalized
+family must return the $N_G$ nodes and weights of the normal continuation of
+[QMOM families](../../../docs/developer/qmom_families.md#generalized), its base
+node count, and moments $m_0, \ldots, m_{2k}$ within a first-order bound of the
+node and weight tolerances:
+
+- `hermite`: Gaussian moments, $\nu = 1$, $N_G = 3N$ and 101, mean 0 and
+  standard deviation 1 for $N = 1, 3, 5, 8$, and mean 3 and 1/2 for
+  $N = 1, 3, 5$, whose rule is the Gauss-Hermite rule of the Gaussian. Their
+  moments are exact in double and their recurrence coefficients small dyadic
+  numbers, so these cases mainly test the continuation and the eigensolve; the
+  trimodal cases, whose moments are rounded, test rounding in the recurrence.
+  The shifted Gaussian at $N = 8$ is left out: $\sigma_{8,8}$ exceeds $\tau_8$
+  only 470-fold, below the thousandfold margin the script requires;
+- `chebyshev`: $N = 1$, $\nu = 0$, $N_G = 3, 10, 101$, whose rule is the
+  Chebyshev rule of the second kind;
+- `figures`: the standardized Gaussian of Fig. 1 of Fox, Laurent & Passalacqua
+  (2023), $N = 5$, $N_G = 101$, $\nu = 0, 2$, and the trimodal case of their
+  Section 4.1, $N_G = 101$, $N = 3, 6, 9$ with $\nu = 1$ and $N = 3$ with
+  $\nu = -1$;
+- `boundary`: the moments of three dyadic points at $N = 3$, which give their
+  classical rule in both modes, and of two points at $N = 4$, which give it in
+  adaptive mode and `not_realizable` in fixed mode;
+- `reduction`: a point of weight $10^{-8}$ that makes the classical 3-node rule
+  fail `rmin` $= 10^{-6}$, so that adaptive mode continues the 2-node rule.
+
+Fixed mode must return the identical result where the moments are interior.
+The moments are rounded to double where they are not exact, and the references
+are computed from those doubles: the recurrence and the continuation with
+Python's `fractions`, the eigenpairs with mpmath at 50 digits.
+`generalized_quadrature_exact.py` asserts that the closed forms of `hermite` and
+`chebyshev` agree with the references to $10^{-40}$, and that the decisions the
+test expects are not marginal.
+
+For the trimodal case at $N = 9$, QMOMKit's errors against the reference are
+$1.4 \times 10^{-7}$ in positions and $3.9 \times 10^{-7}$ in weights, against
+$6.1 \times 10^{-11}$ at $N = 6$ and at most $3.7 \times 10^{-15}$ in the
+well-conditioned cases. A change of one ulp in its moments moves the nodes by
+$9.1 \times 10^{-7}$, so these errors are what the conditioning of the case
+allows in double precision. Weights are measured
+relative to $m_0$, so the small weights of the tails are checked only in
+absolute terms, to the tolerance times $m_0$, $10^{-12} m_0$ in most cases, and
+not to their own relative accuracy.
 
 ### Moment-space boundary
 
@@ -155,15 +202,15 @@ reductions occur.
 - `hyperbolic_power_of_two_scaling_is_exact`: the same for the hyperbolic
   family, whose recurrence coefficients, closure (their mean) and rounding
   bounds scale exactly. Rules of two to eight points are given a node count
-  $n$ from 1 to the point count less one and $m_0, \ldots, m_{2n}$, so that
-  most lie in the interior; rules of $n + 1$ nodes and classical fallbacks must
+  $n$ from 1 to the point count less one and $m_0, \ldots, m_{2N}$, so that
+  most lie in the interior; rules of $N + 1$ nodes and classical fallbacks must
   both occur.
 - `no_more_nodes_than_weighted_points`: a fixed request for more nodes than
   points is `not_realizable`, and adaptive inversion returns at most as many
   nodes as points. No node may be made of rounding.
 - `hyperbolic_no_more_nodes_than_weighted_points`: the same for the hyperbolic
-  family, which requests $n + 1$ nodes for node count $n$. Rules of one to eight
-  points are given $n$ from 1 to the point count plus one.
+  family, which requests $N + 1$ nodes for node count $n$. Rules of one to eight
+  points are given $N$ from 1 to the point count plus one.
 
 ### Abscissa bounds
 
@@ -203,8 +250,9 @@ one node.
 | Wheeler, up to three points | $10^{-14}$ to $10^{-11}$ per case | absolute | observed $10^{-15}$ to $10^{-13}$ |
 | Wheeler, from four points and the scaled points | $10^{-12}$; $10^{-10}$ for eight points, $2 \times 10^{-12}$ for the droplets | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ and spread; observed $10^{-15}$ at four points to $10^{-12}$ at eight |
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
-| HyQMOM | $10^{-12}$ up to $n = 7$, $10^{-11}$ for $n = 8$, $5 \times 10^{-10}$ for $n = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ |
-| HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $n$; a safety bound for `normal` and `boundary` |
+| HyQMOM | $10^{-12}$ up to $N = 7$, $10^{-11}$ for $N = 8$, $5 \times 10^{-10}$ for $N = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ |
+| HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $N$; a safety bound for `normal` and `boundary` |
+| GQMOM | $10^{-12}$; $10^{-11}$ for `reduction`; $10^{-8}$ and $10^{-4}$ for the trimodal case at $N = 6$ and 9 | positions relative to the largest $\lvert\xi\rvert$, weights relative to $m_0$ | this test's rule: the smallest power of ten at least 30 times the largest error observed in the Debug, Release, GCC 12 and GCC 16 builds: at most $3.7 \times 10^{-15}$, except $3.0 \times 10^{-14}$ for the trimodal case at $N = 3$, $2.7 \times 10^{-13}$ for `reduction`, and $6.1 \times 10^{-11}$ and $3.9 \times 10^{-7}$ for the trimodal case at $N = 6$ and 9 |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
 | Failure statuses | none | exact status and message fragment | |
@@ -212,12 +260,14 @@ one node.
 ## Reproduce
 
 ```bash
-ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|hyperbolic_quadrature_exact|hyperbolic_characteristic_speeds_exact|adaptive_qmom)_' --output-on-failure
+ctest --test-dir build-tests -R '^verification_(qmom_(analytical|compute_failure|moment_space_boundary|quadrature_bounds|scaling_and_support)|wheeler_analytical|wheeler_recurrence_exact|hyperbolic_quadrature_exact|hyperbolic_characteristic_speeds_exact|generalized_quadrature_exact|adaptive_qmom)_' --output-on-failure
 ```
 
 The scripts `wheeler_recurrence_exact.py`, `hyperbolic_quadrature_exact.py` and
 `hyperbolic_characteristic_speeds_exact.py`, beside the tests, print the
-references the three exact tests store. They run with `python3`; the two HyQMOM
-scripts also need mpmath.
+references the three exact tests store, and `generalized_quadrature_exact.py`
+writes `generalized_quadrature_exact.inc` and prints the one-ulp changes of the
+nodes quoted above. They run with `python3`; the HyQMOM
+and GQMOM scripts also need mpmath.
 
 See [Building and running](../../../docs/developer/testing.md#building-and-running).

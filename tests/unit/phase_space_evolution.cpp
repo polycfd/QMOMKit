@@ -1528,6 +1528,71 @@ void test_adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n()
     assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 2);
 }
 
+qmomkit::QmomOptions generalized_qmom_options(const std::size_t continued_node_count)
+{
+    qmomkit::QmomOptions options;
+    options.family = qmomkit::QmomFamily::generalized;
+    options.generalized.node_count = continued_node_count;
+    return options;
+}
+
+void test_adaptive_generalized_post_source_reduction_is_the_result()
+{
+    // A reduction is accepted without a growth trial: at N = 2, from the six
+    // nodes continued from two to the classical two-node rule of moments on the
+    // boundary, and at N = 3, from nine nodes continued from three to the one
+    // node of a single point.
+    const qmomkit::QmomState two =
+        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, generalized_qmom_options(6));
+    assert(two.active_node_count() == 6 && two.base_node_count() == 2);
+    assert_accepted_counts(counted_source_step(two, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 1);
+
+    const qmomkit::QmomState three =
+        qmom_state_from_moments(raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7), 3, generalized_qmom_options(9));
+    assert(three.active_node_count() == 9 && three.base_node_count() == 3);
+    assert_accepted_counts(counted_source_step(three, raw_moments_1d({0.75}, {1.0}, 7)), 1, 1, 1);
+}
+
+void test_adaptive_generalized_post_source_keeps_the_full_quadrature()
+{
+    // The six nodes continued from two at N = 2 are kept on interior moments
+    // without a growth trial.
+    const qmomkit::QmomState full =
+        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, generalized_qmom_options(6));
+    assert_accepted_counts(counted_source_step(full, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 6, 2, 1);
+}
+
+void test_adaptive_generalized_post_source_grows_by_one_base_node_below_n()
+{
+    // At N = 3, a state of one node is continued to nine nodes at its own base
+    // node count, and the trial for two base nodes is accepted. With
+    // rmin = 0.99, the trial reduces to one node and is refused, and the state
+    // keeps nine nodes on a base of one.
+    const qmomkit::QmomState one_node = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 7), 3, generalized_qmom_options(9));
+    assert(one_node.active_node_count() == 1 && one_node.base_node_count() == 1);
+    assert_accepted_counts(counted_source_step(one_node, raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7)), 9, 2, 2);
+
+    qmomkit::QmomOptions strict = generalized_qmom_options(9);
+    strict.rmin = 0.99;
+    const qmomkit::QmomState strict_one_node = qmom_state_from_moments(raw_moments_1d({8.5}, {1.0625}, 7), 3, strict);
+    assert(strict_one_node.active_node_count() == 1);
+    assert_accepted_counts(counted_source_step(strict_one_node, raw_moments_1d({6.75, 8.5, 9.0, 10.75, 11.0}, {0.25, 0.375, 0.125, 0.25, 0.0625}, 7)),
+                           9, 1, 2);
+}
+
+void test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n()
+{
+    // A state holding the classical two-node rule at N = 2, base node count N,
+    // grows to its six continued nodes on interior moments, and keeps two nodes
+    // on boundary moments. Its own reconstruction at base node count N is the
+    // full quadrature request, so the growth trial repeats it and the step
+    // makes two identical reconstructions.
+    const qmomkit::QmomState two_nodes = qmom_state_from_moments(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, generalized_qmom_options(6));
+    assert(two_nodes.active_node_count() == 2 && two_nodes.base_node_count() == 2);
+    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 6, 2, 2);
+    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 2);
+}
+
 void test_hyperbolic_qmom_state_with_two_n_moments_is_refused()
 {
     // No public path makes this state, since a hyperbolic case needs 2n + 1
@@ -5334,6 +5399,11 @@ int main(const int argc, char** argv)
             {"adaptive_qmom_post_source_keeps_the_full_quadrature", test_adaptive_qmom_post_source_keeps_the_full_quadrature},
             {"adaptive_qmom_post_source_grows_by_one_base_node_below_n", test_adaptive_qmom_post_source_grows_by_one_base_node_below_n},
             {"adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n", test_adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n},
+            {"adaptive_generalized_post_source_reduction_is_the_result", test_adaptive_generalized_post_source_reduction_is_the_result},
+            {"adaptive_generalized_post_source_keeps_the_full_quadrature", test_adaptive_generalized_post_source_keeps_the_full_quadrature},
+            {"adaptive_generalized_post_source_grows_by_one_base_node_below_n", test_adaptive_generalized_post_source_grows_by_one_base_node_below_n},
+            {"adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n",
+             test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n},
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},
             {"classical_qmom_source_context_visits_its_reduced_quadrature", test_classical_qmom_source_context_visits_its_reduced_quadrature},
             {"hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count",

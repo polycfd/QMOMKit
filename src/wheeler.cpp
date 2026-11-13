@@ -2,6 +2,7 @@
 
 #include "internal/bounded_quadrature.hpp"
 #include "internal/checked_size.hpp"
+#include "internal/generalized_quadrature.hpp"
 #include "internal/hyperbolic_quadrature.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
@@ -39,7 +40,8 @@ struct SigmaDiagonal
 // k = 1, ..., N - 1 the diagonal sigma(k, k) with its rounding bound tau_k.
 // Entry 0 of the diagonal is unused. The moments m_0, ..., m_{2N} give one
 // entry more: b_N and sigma(N, N) with tau_N, and a_N, which they do not
-// determine, left zero.
+// determine, left zero. A continued recurrence, such as normal_continuation
+// returns, holds only a and b, with an empty diagonal.
 struct Recurrence
 {
     std::vector<double> a;
@@ -348,15 +350,15 @@ struct Recurrence
     return one_node_result(moments, QuadratureStatus::success, "");
 }
 
-// A fixed count, one node per entry of the recurrence, must be supported by
-// the moments. A sigma(k, k) that is zero within its rounding bound puts the
-// sequence on the boundary at k nodes, and any larger quadrature would carry
-// nodes made of rounding. The first such k is reached while the coefficients
-// before it are finite; a recurrence that overflows instead is reported as
-// non-finite. fixed_quadrature makes these checks before its eigensolve.
-[[nodiscard]] std::optional<Quadrature1D> fixed_count_failure(const MomentSet& moments, const Recurrence& recurrence)
+// A fixed count of node_count nodes, one per leading entry of the recurrence,
+// must be supported by the moments. A sigma(k, k) that is zero within its
+// rounding bound puts the sequence on the boundary at k nodes, and any larger
+// quadrature would carry nodes made of rounding. The first such k is reached
+// while the coefficients before it are finite; a recurrence that overflows
+// instead is reported as non-finite. Every fixed-mode reconstruction makes
+// these checks before its eigensolve.
+[[nodiscard]] std::optional<Quadrature1D> fixed_count_failure(const MomentSet& moments, const Recurrence& recurrence, const std::size_t node_count)
 {
-    const std::size_t node_count = recurrence.diagonal.size();
     for (std::size_t k = 1; k < node_count; ++k)
     {
         const double sigma = recurrence.diagonal[k].sigma;
@@ -374,11 +376,73 @@ struct Recurrence
 
 [[nodiscard]] Quadrature1D fixed_quadrature(const MomentSet& moments, const Recurrence& recurrence)
 {
-    if (const std::optional<Quadrature1D> failure = fixed_count_failure(moments, recurrence))
+    const std::size_t node_count = recurrence.diagonal.size();
+    if (const std::optional<Quadrature1D> failure = fixed_count_failure(moments, recurrence, node_count))
     {
         return *failure;
     }
-    return gauss_rule(moments, recurrence, recurrence.diagonal.size());
+    return gauss_rule(moments, recurrence, node_count);
+}
+
+// The input checks of compute_quadrature_at_scale for a reconstruction from
+// m_0, ..., m_{2N}, N = node_count, with messages naming node_count and no
+// one-node shortcut. Once they pass, 2N + 1 fits in std::size_t, since 2N is
+// even and does. A change to these checks belongs in
+// compute_quadrature_at_scale as well.
+[[nodiscard]] std::optional<Quadrature1D> input_failure_through_m2n(const MomentSet& moments, const std::size_t node_count,
+                                                                    const WheelerOptions& options)
+{
+    if (const std::optional<Quadrature1D> failure = option_failure(options))
+    {
+        return failure;
+    }
+    if (node_count == 0)
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count must be positive."};
+    }
+    const std::optional<std::size_t> even_moment_count = internal::checked_size_multiply(2, node_count);
+    if (!even_moment_count.has_value())
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count is too large to derive the required moment count."};
+    }
+    const std::size_t moment_count = *even_moment_count + 1;
+    if (moments.size() < moment_count)
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n+1 entries."};
+    }
+    return moment_failure(moments, moment_count, options);
+}
+
+// The normal continuation of GQMOM (Fox, Laurent & Passalacqua 2023,
+// Definition 1, eqs. 21 and 22) of the recurrence a_0, ..., a_{k-1},
+// b_1, ..., b_k of m_0, ..., m_{2k} to the N_G entries of J_{N_G}: every a_i,
+// i >= k, is the mean of a_0, ..., a_{k-1}, and b_i = (i/k)^nu b_k for i > k.
+[[nodiscard]] Recurrence normal_continuation(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count, const double nu)
+{
+    Recurrence continued{std::vector<double>(continued_count, 0.0), std::vector<double>(continued_count, 0.0), {}};
+    const auto known = static_cast<std::ptrdiff_t>(k);
+    std::copy(recurrence.a.begin(), recurrence.a.begin() + known, continued.a.begin());
+    std::copy(recurrence.b.begin(), recurrence.b.begin() + known + 1, continued.b.begin());
+    const double mean = std::accumulate(recurrence.a.begin(), recurrence.a.begin() + known, 0.0) / static_cast<double>(k);
+    for (std::size_t i = k; i < continued_count; ++i)
+    {
+        continued.a[i] = mean;
+    }
+    for (std::size_t i = k + 1; i < continued_count; ++i)
+    {
+        continued.b[i] = std::pow(static_cast<double>(i) / static_cast<double>(k), nu) * recurrence.b[k];
+    }
+    return continued;
+}
+
+[[nodiscard]] bool is_supported_continuation(const GeneralizedContinuation continuation)
+{
+    switch (continuation)
+    {
+    case GeneralizedContinuation::normal:
+        return true;
+    }
+    return false;
 }
 
 // The HyQMOM closure for a_n, the mean of a_0, ..., a_{n-1} (Fox & Laurent
@@ -404,33 +468,11 @@ struct HyperbolicRecurrence
 [[nodiscard]] HyperbolicRecurrence hyperbolic_recurrence(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options)
 {
     const auto finished = [](Quadrature1D quadrature) { return HyperbolicRecurrence{std::move(quadrature), {}}; };
-    // The input checks of compute_quadrature_at_scale for m_0, ..., m_{2n},
-    // with messages naming node_count and no one-node shortcut: n = 1 gives
-    // the two nodes of J_2. A change to these checks belongs in
-    // compute_quadrature_at_scale as well.
-    if (const std::optional<Quadrature1D> failure = option_failure(options))
+    if (const std::optional<Quadrature1D> failure = input_failure_through_m2n(moments, node_count, options))
     {
         return finished(*failure);
     }
-    if (node_count == 0)
-    {
-        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count must be positive."});
-    }
-    const std::optional<std::size_t> even_moment_count = internal::checked_size_multiply(2, node_count);
-    if (!even_moment_count.has_value())
-    {
-        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "node_count is too large to derive the required moment count."});
-    }
-    // 2n is even, so 2n + 1 cannot overflow once 2n does not.
-    const std::size_t moment_count = *even_moment_count + 1;
-    if (moments.size() < moment_count)
-    {
-        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n+1 entries."});
-    }
-    if (const std::optional<Quadrature1D> failure = moment_failure(moments, moment_count, options))
-    {
-        return finished(*failure);
-    }
+    const std::size_t moment_count = (2 * node_count) + 1;
 
     // The recurrence of m_0, ..., m_{2n} at coordinate scale zero, with the
     // closure for a_n. Its n + 1 entries give the Jacobi matrix J_{n+1}.
@@ -453,7 +495,7 @@ struct HyperbolicRecurrence
         }
     }
     std::optional<Quadrature1D> failure =
-        options.adaptive ? recurrence_failure(moments, recurrence, node_count + 1) : fixed_count_failure(moments, recurrence);
+        options.adaptive ? recurrence_failure(moments, recurrence, node_count + 1) : fixed_count_failure(moments, recurrence, node_count + 1);
     return HyperbolicRecurrence{std::move(failure), std::move(recurrence)};
 }
 
@@ -464,7 +506,7 @@ struct HyperbolicRecurrence
     // Wheeler inversion path:
     // raw moments -> recurrence coefficients -> Jacobi matrix -> eigenproblem
     // -> quadrature abscissas and weights.
-    // hyperbolic_recurrence repeats these input checks, and
+    // input_failure_through_m2n repeats these input checks, and
     // compute_wheeler_recurrence those other than the option and cutoff
     // checks; a change to them belongs there as well.
     if (const std::optional<Quadrature1D> failure = option_failure(options))
@@ -583,6 +625,92 @@ Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, const std::
         return std::move(*reconstruction.outcome);
     }
     return gauss_rule(moments, reconstruction.recurrence, node_count + 1);
+}
+
+GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
+                                                     const GeneralizedOptions& generalized)
+{
+    performance::record_wheeler_call();
+    const auto failed = [](Quadrature1D quadrature) { return GeneralizedQuadrature{std::move(quadrature), 0}; };
+    if (!std::isfinite(generalized.nu))
+    {
+        return failed(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "The generalized parameter nu must be finite."});
+    }
+    if (generalized.node_count <= node_count)
+    {
+        return failed(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "The generalized node count must exceed node_count."});
+    }
+    if (!is_supported_continuation(generalized.continuation))
+    {
+        return failed(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Unsupported generalized continuation."});
+    }
+    if (const std::optional<Quadrature1D> failure = input_failure_through_m2n(moments, node_count, options))
+    {
+        return failed(*failure);
+    }
+
+    // The recurrence of m_0, ..., m_{2N} at coordinate scale zero. Its first N
+    // entries are those of m_0, ..., m_{2N-1}, so the classical quadrature of
+    // k <= N nodes below is the one compute_quadrature(moments, N, options)
+    // returns, and entry N adds sigma(N, N) with tau_N.
+    const Recurrence recurrence = compute_recurrence(moments, (2 * node_count) + 1, 0.0);
+    Quadrature1D classical;
+    if (options.adaptive)
+    {
+        classical = adaptive_selection(moments, recurrence, std::min(supported_count(recurrence), node_count), options);
+    }
+    else
+    {
+        if (const std::optional<Quadrature1D> failure = fixed_count_failure(moments, recurrence, node_count))
+        {
+            return failed(*failure);
+        }
+        classical = gauss_rule(moments, recurrence, node_count);
+    }
+    if (!classical.ok())
+    {
+        return failed(std::move(classical));
+    }
+
+    // sigma(k, k) = m0 b_1 ... b_k. Within its rounding bound, b_k is zero, the
+    // moments lie on the boundary of moment space, and GQMOM is the classical
+    // k-node quadrature. Below the bound, b_k is negative and the moments lie
+    // below the boundary. Fixed mode refuses these moments, and a recurrence
+    // that overflowed at k, while adaptive mode keeps the classical selection,
+    // which stopped at this k: an overflowed sigma(k, k) of +-inf has an
+    // infinite bound and so lies within it. A NaN does not, and its b_k fails
+    // the checks of the continued recurrence.
+    const std::size_t k = classical.weights.size();
+    const SigmaDiagonal& diagonal = recurrence.diagonal[k];
+    if (!options.adaptive && (!std::isfinite(diagonal.sigma) || !std::isfinite(diagonal.tolerance)))
+    {
+        return failed(one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values."));
+    }
+    if (!options.adaptive && diagonal.sigma < -diagonal.tolerance)
+    {
+        return failed(negative_b_result(moments, recurrence.b[k]));
+    }
+    if (diagonal.sigma <= diagonal.tolerance)
+    {
+        return GeneralizedQuadrature{std::move(classical), k};
+    }
+
+    // The continuation was checked before the moments were read, so
+    // is_supported_continuation must accept exactly the cases of this switch.
+    Recurrence continued;
+    switch (generalized.continuation)
+    {
+    case GeneralizedContinuation::normal:
+        continued = normal_continuation(recurrence, k, generalized.node_count, generalized.nu);
+        break;
+    }
+    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, continued, generalized.node_count))
+    {
+        return failed(*failure);
+    }
+    Quadrature1D quadrature = gauss_rule(moments, continued, generalized.node_count);
+    const std::size_t base_node_count = quadrature.ok() ? k : 0;
+    return GeneralizedQuadrature{std::move(quadrature), base_node_count};
 }
 
 HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const MomentSet& moments, const std::size_t node_count,

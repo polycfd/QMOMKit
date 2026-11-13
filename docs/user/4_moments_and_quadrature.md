@@ -149,8 +149,9 @@ const qmomkit::QmomResult result = qmomkit::compute_qmom(qmom_case);
 
 `result.base_node_count` is the number of nodes of the classical quadrature on
 which the result rests. For `classical`, it is the number of nodes of the
-result, and for the $N + 1$ nodes of `hyperbolic`, it is $N$. A value below $N$
-shows that adaptive reconstruction reduced the quadrature, whatever the family.
+result, it is $N$ for the $N + 1$ nodes of `hyperbolic`, and it is the number
+of classical nodes for `generalized`. A value below $N$ shows that adaptive
+reconstruction reduced the quadrature, whatever the family.
 A failed reconstruction has a base node count of 0.
 [Evolving in time](5_evolving_in_time.md#adaptive-node-counts) compares it
 with the maximum and active node counts of a state.

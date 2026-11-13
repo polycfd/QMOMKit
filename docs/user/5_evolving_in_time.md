@@ -204,20 +204,23 @@ its case:
 
 - The **maximum node count**, `maximum_node_count()`, is the largest number of
   nodes the state's quadrature can have. The case fixes it at $N$ for
-  `classical` and $N + 1$ for `hyperbolic`. It is the size to allocate for any
-  quadrature of the state, for example in a `QuadratureWriter`.
+  `classical`, $N + 1$ for `hyperbolic`, and $N_G$ for `generalized`. It is the
+  size to allocate for any quadrature of the state, for example in a
+  `QuadratureWriter`.
 - The **active node count**, `active_node_count()`, is the number of nodes the
-  quadrature has now, so it is the count to loop over. In fixed mode it always
-  equals the maximum. In adaptive mode it is smaller where the moments do not
+  quadrature has now, so it is the count to loop over. In fixed mode it equals
+  the maximum, except for a `generalized` state on the boundary of the
+  realizable set. In adaptive mode it is smaller where the moments do not
   support more nodes.
 - The **base node count**, `base_node_count()`, is the number of nodes of the
   classical quadrature on which the current quadrature rests. For `classical`,
   it equals the active node count. For `hyperbolic`, the $N + 1$ nodes of
   HyQMOM rest on the classical $N$-node quadrature, so their base node count
   is $N$. When a `hyperbolic` state has fallen back to a classical quadrature,
-  its base node count equals its active node count. A base node count below
-  $N$ therefore shows, in every family, that adaptive reconstruction has
-  reduced the state.
+  its base node count equals its active node count. For `generalized`, the
+  $N_G$ nodes rest on the classical quadrature of $k \le N$ nodes they continue,
+  so their base node count is $k$. A base node count below $N$ therefore shows,
+  in every family, that adaptive reconstruction has reduced the state.
 
 For example, a `hyperbolic` state with $N = 3$ has a maximum node count of 4.
 While it holds the four nodes of HyQMOM, its active node count is 4 and its

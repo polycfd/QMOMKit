@@ -146,7 +146,7 @@ void validate_qmom_input(const QmomState& state, const double t, const double ti
     {
         throw std::invalid_argument("QMOM phase-space evolution state active node count exceeds the configured maximum.");
     }
-    if (!state.qmom_options().adaptive && state.active_node_count() != state.maximum_node_count())
+    if (!state.qmom_options().adaptive && state.base_node_count() != internal::QmomStateAccess::node_count(state))
     {
         throw std::invalid_argument("Fixed-count QMOM phase-space evolution state must contain the configured node count.");
     }
@@ -299,13 +299,23 @@ struct QmomReconstructionRequest
     return {internal::QmomStateAccess::node_count(state), state.qmom_options()};
 }
 
-// A reduced quadrature is reconstructed classically, also for hyperbolic, whose
-// own reconstruction with node count k returns up to k + 1 nodes.
+// A reduced quadrature is reconstructed classically for hyperbolic, whose own
+// reconstruction with node count k returns up to k + 1 nodes. For generalized,
+// it is the family's own reconstruction with node count k, which continues to
+// the same N_G nodes as the full quadrature.
 [[nodiscard]] QmomReconstructionRequest reduced_quadrature_request(const QmomState& state, const std::size_t base_node_count)
 {
-    QmomOptions classical = state.qmom_options();
-    classical.family = QmomFamily::classical;
-    return {base_node_count, classical};
+    QmomOptions options = state.qmom_options();
+    switch (options.family)
+    {
+    case QmomFamily::classical:
+    case QmomFamily::hyperbolic:
+        options.family = QmomFamily::classical;
+        break;
+    case QmomFamily::generalized:
+        break;
+    }
+    return {base_node_count, options};
 }
 
 // The request for a reconstruction at the state's own count.
@@ -350,7 +360,7 @@ struct QmomReconstructionRequest
     if (!options.adaptive)
     {
         QmomResult fixed = reconstruct_qmom(post_source_moments, full_quadrature_request(state));
-        if (fixed.ok() && fixed.weights.size() != maximum_node_count)
+        if (fixed.ok() && fixed.base_node_count != internal::QmomStateAccess::node_count(state))
         {
             fixed.status = QmomStatus::not_realizable;
             fixed.message = "Fixed-count QMOM reconstruction did not return the configured node count.";
@@ -431,7 +441,7 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     {
         throw std::invalid_argument("QMOM phase-space evolution state active node count exceeds the configured maximum.");
     }
-    if (!state.qmom_options().adaptive && state.active_node_count() != state.maximum_node_count())
+    if (!state.qmom_options().adaptive && state.base_node_count() != internal::QmomStateAccess::node_count(state))
     {
         throw std::invalid_argument("Fixed-count QMOM phase-space evolution state must contain the configured node count.");
     }

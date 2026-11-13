@@ -689,8 +689,8 @@ bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, 
     return true;
 }
 
-// The highest moment order the reconstruction reads: 2n - 1 for the classical
-// family, 2n for the hyperbolic one.
+// The highest moment order the reconstruction reads: 2N - 1 for the classical
+// family, 2N for the hyperbolic and generalized ones.
 std::optional<std::size_t> infer_qmom_initial_maximum_order(ParsedFile& parsed, const std::string& source_name, const QmomFamily family)
 {
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
@@ -905,8 +905,17 @@ bool has_explicit_cqmom_moments(const ParsedFile& parsed)
 // can serve all of them.
 std::vector<std::string> qmom_explicit_allowed_keys()
 {
-    return {"format_version",          "phase_space.names", "phase_space.node_counts", "phase_space.support_lower", "phase_space.support_upper",
-            "phase_space.qmom_family", "qmom.adaptive",     "moments.values"};
+    return {"format_version",
+            "phase_space.names",
+            "phase_space.node_counts",
+            "phase_space.support_lower",
+            "phase_space.support_upper",
+            "phase_space.qmom_family",
+            "phase_space.generalized_node_counts",
+            "phase_space.generalized_continuation",
+            "phase_space.generalized_nu",
+            "qmom.adaptive",
+            "moments.values"};
 }
 
 std::vector<std::string> qmom_initial_allowed_keys()
@@ -1544,8 +1553,87 @@ std::optional<QmomFamily> parse_qmom_family(ParsedFile& parsed, const std::strin
     {
         return QmomFamily::hyperbolic;
     }
-    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, "phase_space.qmom_family must be classical or hyperbolic.");
+    if (entry->value == "generalized")
+    {
+        return QmomFamily::generalized;
+    }
+    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line,
+              "phase_space.qmom_family must be classical, hyperbolic or generalized.");
     return std::nullopt;
+}
+
+[[nodiscard]] const char* qmom_family_name(const QmomFamily family)
+{
+    switch (family)
+    {
+    case QmomFamily::classical:
+        return "classical";
+    case QmomFamily::hyperbolic:
+        return "hyperbolic";
+    case QmomFamily::generalized:
+        return "generalized";
+    }
+    return "classical";
+}
+
+// With a family other than generalized, each [phase_space] key of the
+// generalized family is an error, since it would have no effect.
+void reject_generalized_keys_with_other_family(ParsedFile& parsed, const std::string& source_name, const QmomFamily family)
+{
+    if (family == QmomFamily::generalized)
+    {
+        return;
+    }
+    for (const char* const key : {"phase_space.generalized_node_counts", "phase_space.generalized_continuation", "phase_space.generalized_nu"})
+    {
+        if (const Entry* entry = find_entry(parsed, key))
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, entry->line,
+                      "Key '" + std::string(key) + "' has no effect with 'qmom_family = " + qmom_family_name(family) + "'.");
+        }
+    }
+}
+
+// The settings of the generalized family from [phase_space]:
+// generalized_node_counts, required and above node_counts,
+// generalized_continuation, normal when absent, and generalized_nu, 1 when
+// absent.
+GeneralizedOptions parse_generalized_options(ParsedFile& parsed, const std::string& source_name, const QmomFamily family,
+                                             const std::vector<std::size_t>& node_counts)
+{
+    GeneralizedOptions options;
+    if (family != QmomFamily::generalized)
+    {
+        reject_generalized_keys_with_other_family(parsed, source_name, family);
+        return options;
+    }
+
+    if (const Entry* entry = require_entry(parsed, "phase_space.generalized_node_counts", source_name))
+    {
+        std::vector<std::size_t> values;
+        if (!parse_size_list(*entry, values) || values.size() != 1 || values[0] == 0)
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line,
+                      "QMOM generalized_node_counts must contain exactly one positive integer.");
+        }
+        else if (node_counts.size() == 1 && values[0] <= node_counts[0])
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line,
+                      "phase_space.generalized_node_counts must exceed phase_space.node_counts.");
+        }
+        else
+        {
+            options.node_count = values[0];
+        }
+    }
+    const Entry* continuation = find_entry(parsed, "phase_space.generalized_continuation");
+    if (continuation != nullptr && continuation->value != "normal")
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, continuation->line,
+                  "phase_space.generalized_continuation must be normal.");
+    }
+    static_cast<void>(parse_optional_double(parsed, "phase_space.generalized_nu", source_name, options.nu));
+    return options;
 }
 
 void reject_unknown_qmom_option_keys(ParsedFile& parsed, const std::string& source_name)
@@ -2335,6 +2423,10 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_
     static_cast<void>(parse_output_options_from_parsed(parsed, source_name));
     validate_optional_qmom_phase_space(parsed, source_name);
     const std::optional<QmomFamily> family = parse_qmom_family(parsed, source_name);
+    if (family.has_value())
+    {
+        reject_generalized_keys_with_other_family(parsed, source_name, *family);
+    }
     if (!parsed.moments.empty())
     {
         add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, parsed.moments.begin()->second.line,
@@ -2697,6 +2789,8 @@ namespace
         return "QMOM requires at least 2 * node_count moments.";
     case QmomFamily::hyperbolic:
         return "QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.";
+    case QmomFamily::generalized:
+        return "QMOM requires at least 2 * node_count + 1 moments for the generalized family.";
     }
     return "QMOM requires more moments for the node count.";
 }
@@ -2715,8 +2809,9 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
         return failure_result<QmomCase>(
             {ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count is too large to derive the required moment count."});
     }
-    // HyQMOM is defined on the real line; compute_qmom refuses the same, and a
-    // case refuses it before computing moments.
+    // HyQMOM and GQMOM with the normal continuation are defined on the real
+    // line; compute_qmom refuses the same, and a case refuses it before
+    // computing moments.
     switch (options.family)
     {
     case QmomFamily::classical:
@@ -2726,6 +2821,13 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
         {
             return failure_result<QmomCase>(
                 {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "The hyperbolic QMOM family takes no abscissa bounds."});
+        }
+        break;
+    case QmomFamily::generalized:
+        if (abscissa_bounds.has_value())
+        {
+            return failure_result<QmomCase>(
+                {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "The generalized QMOM family takes no abscissa bounds."});
         }
         break;
     }
@@ -2870,6 +2972,11 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
             validate_qmom_phase_space(parsed, source_name, *node_counts_entry, node_counts);
         }
     }
+    GeneralizedOptions generalized;
+    if (family.has_value())
+    {
+        generalized = parse_generalized_options(parsed, source_name, *family, node_counts);
+    }
     if (!parsed.errors.empty())
     {
         return failure_result<QmomCase>(std::move(parsed));
@@ -2881,9 +2988,9 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
         return failure_result<QmomCase>(std::move(parsed));
     }
     const std::optional<AbscissaBounds> abscissa_bounds = coordinate_support->empty() ? std::nullopt : coordinate_support->front();
-    // HyQMOM is defined on the real line. A file reports bounds at the line of
-    // support_lower, which bounds always have; create_qmom_case refuses them
-    // for a case built in code.
+    // HyQMOM and GQMOM with the normal continuation are defined on the real
+    // line. A file reports bounds at the line of support_lower, which bounds
+    // always have; create_qmom_case refuses them for a case built in code.
     switch (*family)
     {
     case QmomFamily::classical:
@@ -2896,6 +3003,14 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
             return failure_result<QmomCase>(std::move(parsed));
         }
         break;
+    case QmomFamily::generalized:
+        if (abscissa_bounds.has_value())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, find_entry(parsed, "phase_space.support_lower")->line,
+                      "The generalized QMOM family takes no abscissa bounds.");
+            return failure_result<QmomCase>(std::move(parsed));
+        }
+        break;
     }
 
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_qmom_initial_condition_from_parsed(std::move(parsed), source_name);
@@ -2905,6 +3020,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     }
     QmomOptions options = qmom_options.value_or(QmomOptions{});
     options.family = *family;
+    options.generalized = generalized;
     return create_qmom_case(initial_condition.value(), node_counts[0], options, std::move(source_name), abscissa_bounds);
 }
 

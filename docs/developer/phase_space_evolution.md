@@ -240,32 +240,39 @@ visitors throw `std::out_of_range`, which fails the update.
 
 ## Node counts
 
-A QMOM state holds one of two kinds of quadrature:
+A QMOM state holds either its family's **full quadrature** or a **reduced
+quadrature**, as listed below for each family, and `holds_full_quadrature`
+tells which.
 
-- its family's **full quadrature**, the quadrature without any reduction: $N$
-  nodes for `classical` and the $N+1$ nodes of HyQMOM for `hyperbolic`. It has
-  `maximum_node_count()` nodes and base node count $N$.
-- a **reduced quadrature**, a quadrature below the full one, with a given base
-  node count. A state holds one after adaptive reconstruction has reduced it,
-  because of the moments or of the `rmin` and `eabs` tests, until the state has
-  grown back to its full quadrature. For `classical` and `hyperbolic`, a
-  reduced quadrature is classical, with fewer than $N$ nodes for `classical`
-  and at most $N$ for `hyperbolic`, and its base node count is its number of
-  nodes.
+| Family | Full quadrature | Reduced quadratures, base node count $k$ |
+| --- | --- | --- |
+| `classical` | $N$ nodes | the classical $k<N$ nodes |
+| `hyperbolic` | the $N+1$ nodes of HyQMOM | the classical $k\le N$ nodes |
+| `generalized` | $N_G$ nodes continued from the classical $N$ nodes. $N_G$ is the generalized node count. | $N_G$ nodes continued from the classical $k<N$ nodes, or the classical $k\le N$ nodes themselves where $\sigma_{k,k}\le\tau_k$ |
 
-Every reconstruction of a state's moments asks for one of the two. This is the
-count rule in [`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp).
+In adaptive mode, a state holds a reduced quadrature after a reconstruction
+has reduced it, because of its moments or of the `rmin` and `eabs` tests, until
+it has grown back to its full quadrature. In fixed mode, a state holds its full
+quadrature, except that a `generalized` state with moments on the boundary
+holds the classical $N$ nodes.
+
+Every reconstruction of a state's moments asks for one of the quadrature
+requests. This is the count rule in
+[`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp).
 `full_quadrature_request` asks for the family's own reconstruction with node
 count $N$. `reduced_quadrature_request` asks for a reduced quadrature with a
-given base node count, which for `classical` and `hyperbolic` is a classical
+given base node count $k$, which for `classical` and `hyperbolic` is a classical
 reconstruction. For `hyperbolic`, the request has to be classical, because
-HyQMOM with node count $k$ returns up to $k+1$ nodes. `holds_full_quadrature`
+HyQMOM with node count $k$ returns up to $k+1$ nodes. For `generalized`, it is
+the family's own reconstruction with node count $k$, which continues to the same
+generalized node count as the full quadrature, since that count is an option of
+its own ([QMOM families](qmom_families.md#generalized)). `holds_full_quadrature`
 tells which kind a state holds, and `current_reconstruction_request` asks for
 the same kind again with the state's own base node count. The source stages and
 the post-source reconstruction at the state's own count use
-`current_reconstruction_request`. After a source
-step, the state has the base node count of its post-source reconstruction, and
-node advection leaves it unchanged.
+`current_reconstruction_request`. After a source step, the state has the base
+node count of its post-source reconstruction, and node advection leaves it
+unchanged.
 
 Active node counts follow one policy:
 
@@ -275,15 +282,20 @@ Active node counts follow one policy:
   below a branch that lost nodes, which condition on other nodes, start from
   their configured maximum.
 - **QMOM post-source reconstruction**, `select_post_source_qmom`: a fixed case
-  must return its maximum count. An adaptive case decides on the state's base
-  node count. It accepts a reduction as it is and keeps its family's full
-  quadrature. Otherwise it makes one trial. Below $N$, the trial asks for one
-  more base node and is accepted only with that base node count. At $N$, it
-  asks for the family's full quadrature and is accepted only with the maximum
-  count. The base node count thus rises by at most one per step, and a
-  `classical` or `hyperbolic` state grows by at most one node per step, through
-  the classical quadratures up to $N$ nodes and then to its family's maximum.
-  With abscissa bounds, which only the classical family takes,
+  must return base node count $N$: its family's full quadrature or, for
+  `generalized` with moments on the boundary, the classical $N$ nodes.
+  The checks of a fixed state at the start of a step test the same. An adaptive
+  case decides on the state's base node count. It accepts a reduction as it is
+  and keeps its family's full quadrature. Otherwise it makes one trial. Below
+  $N$, the trial asks for one more base node and is accepted only with that
+  base node count. At $N$, it asks for the family's full quadrature and is
+  accepted only with the maximum count. The base node count thus rises by at
+  most one per step, and a `classical` or `hyperbolic` state grows by at most
+  one node per step, through the classical quadratures up to $N$ nodes and then
+  to its family's maximum. A `generalized` state holds the generalized node
+  count whenever its moments are resolvably interior at its base node count, so
+  its base node count grows while its active count stays at the maximum. With
+  abscissa bounds, which only the classical family takes,
   `internal::select_bounded_quadrature` decides on the active count, which for
   a classical quadrature is the base node count, and accepts the extra node
   only within the bounds.

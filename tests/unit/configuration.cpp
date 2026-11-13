@@ -378,7 +378,7 @@ void test_qmom_family_rejects_other_values()
 {
     // Another value or a list is invalid at the key's line, also where the
     // initial condition alone is parsed and no order is inferred.
-    const std::string message = "f.qmom:3: phase_space.qmom_family must be classical or hyperbolic.";
+    const std::string message = "f.qmom:3: phase_space.qmom_family must be classical, hyperbolic or generalized.";
     for (const char* value : {"qmom_family = bogus\n", "qmom_family = hyperbolic, classical\n"})
     {
         const std::string text = qmom_file(value, "[moments]\nvalues = 1, 0, 1, 0, 3\n");
@@ -392,9 +392,11 @@ void test_qmom_family_rejects_other_values()
 void test_qmom_family_sets_the_inferred_maximum_order()
 {
     // Without initial.maximum_order, the order is the highest the family
-    // reads: 2n = 4 for the hyperbolic family, 2n - 1 = 3 for the classical one.
-    for (const auto& [family_line, order] :
-         {std::pair<std::string, std::size_t>{"qmom_family = hyperbolic\n", 4}, std::pair<std::string, std::size_t>{"", 3}})
+    // reads: 2N = 4 for the hyperbolic and generalized families, 2N - 1 = 3 for
+    // the classical one.
+    for (const auto& [family_line, order] : {std::pair<std::string, std::size_t>{"qmom_family = hyperbolic\n", 4},
+                                             std::pair<std::string, std::size_t>{"qmom_family = generalized\ngeneralized_node_counts = 6\n", 4},
+                                             std::pair<std::string, std::size_t>{"", 3}})
     {
         const std::string text = qmom_file(family_line, normal_initialization);
         const auto initial_condition = qmomkit::config::parse_qmom_initial_condition(text);
@@ -423,6 +425,9 @@ void test_qmom_family_needs_two_n_plus_one_moments()
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", normal_initialization + "maximum_order = 3\n"), "f.qmom").error() ==
            message);
     assert(qmomkit::config::parse_qmom(qmom_file("", "[moments]\nvalues = 1, 0, 1, 0\n")).ok());
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\n", "[moments]\nvalues = 1, 0, 1, 0\n"),
+                                       "f.qmom")
+               .error() == "f.qmom: QMOM requires at least 2 * node_count + 1 moments for the generalized family.");
 }
 
 void test_qmom_family_takes_no_abscissa_bounds()
@@ -456,6 +461,77 @@ void test_qmom_family_takes_no_abscissa_bounds()
     assert(qmomkit::config::create_qmom_case(four_moments, 2, hyperbolic, "c++", qmomkit::AbscissaBounds{-5.0, 5.0}).error() == "c++: " + message);
     assert(qmomkit::config::create_qmom_case(four_moments, 2, hyperbolic, "c++").error() ==
            "c++: QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.");
+}
+
+void test_qmom_generalized_keys_set_the_generalized_options()
+{
+    // qmom_family = generalized reads generalized_node_counts, and
+    // generalized_continuation and generalized_nu, which default to normal
+    // and 1.
+    const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
+    const auto configured = qmomkit::config::parse_qmom(qmom_file(
+        "qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = normal\ngeneralized_nu = -0.5\n", five_moments));
+    assert(configured.ok());
+    const qmomkit::QmomOptions& options = configured.value().qmom_options;
+    assert(options.family == qmomkit::QmomFamily::generalized);
+    assert(options.generalized.node_count == 6);
+    assert(options.generalized.continuation == qmomkit::GeneralizedContinuation::normal);
+    assert(options.generalized.nu == -0.5);
+
+    const auto defaults = qmomkit::config::parse_qmom(qmom_file("qmom_family = generalized\ngeneralized_node_counts = 3\n", five_moments));
+    assert(defaults.ok());
+    assert(defaults.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::normal);
+    assert(defaults.value().qmom_options.generalized.nu == 1.0);
+    assert(qmomkit::compute_qmom(defaults.value()).weights.size() == 3);
+}
+
+void test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts()
+{
+    // N has no default, and it must be one positive integer above node_counts.
+    const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = generalized\n", five_moments), "f.qmom").error() ==
+           "f.qmom: Missing required key 'phase_space.generalized_node_counts'.");
+    for (const char* value : {"generalized_node_counts = 2\n", "generalized_node_counts = 1\n"})
+    {
+        assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = generalized\n" + std::string(value), five_moments), "f.qmom").error() ==
+               "f.qmom:4: phase_space.generalized_node_counts must exceed phase_space.node_counts.");
+    }
+    for (const char* value : {"generalized_node_counts = 0\n", "generalized_node_counts = 6, 7\n", "generalized_node_counts = many\n"})
+    {
+        assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = generalized\n" + std::string(value), five_moments), "f.qmom").error() ==
+               "f.qmom:4: QMOM generalized_node_counts must contain exactly one positive integer.");
+    }
+}
+
+void test_qmom_generalized_continuation_and_nu_take_valid_values()
+{
+    // The only continuation is normal, and nu is a finite number.
+    const std::string lines = "qmom_family = generalized\ngeneralized_node_counts = 6\n";
+    const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
+    assert(qmomkit::config::parse_qmom(qmom_file(lines + "generalized_continuation = gamma\n", five_moments), "f.qmom").error() ==
+           "f.qmom:5: phase_space.generalized_continuation must be normal.");
+    assert(qmomkit::config::parse_qmom(qmom_file(lines + "generalized_nu = inf\n", five_moments), "f.qmom").error() ==
+           "f.qmom:5: Key 'phase_space.generalized_nu' must be a finite number.");
+}
+
+void test_qmom_generalized_keys_need_the_generalized_family()
+{
+    // With another family, a key of the generalized family would have no
+    // effect.
+    const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
+    assert(qmomkit::config::parse_qmom(qmom_file("generalized_node_counts = 6\n", five_moments), "f.qmom").error() ==
+           "f.qmom:3: Key 'phase_space.generalized_node_counts' has no effect with 'qmom_family = classical'.");
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\ngeneralized_nu = 2\n", five_moments), "f.qmom").error() ==
+           "f.qmom:4: Key 'phase_space.generalized_nu' has no effect with 'qmom_family = hyperbolic'.");
+
+    // The initial condition alone is refused the same way, with explicit
+    // moments and with [initial].
+    for (const std::string& rest : {five_moments, normal_initialization})
+    {
+        assert(qmomkit::config::parse_qmom_initial_condition(qmom_file("generalized_node_counts = 6\n", rest), "f.qmom").error() ==
+               "f.qmom:3: Key 'phase_space.generalized_node_counts' has no effect with 'qmom_family = classical'.");
+    }
+    assert(qmomkit::config::parse_qmom_initial_condition(qmom_file("qmom_family = generalized\ngeneralized_nu = 2\n", five_moments)).ok());
 }
 
 void test_cqmom_rejects_the_qmom_family_key()
@@ -4700,6 +4776,11 @@ int main(const int argc, char** argv)
             {"qmom_family_rejects_other_values", test_qmom_family_rejects_other_values},
             {"qmom_family_sets_the_inferred_maximum_order", test_qmom_family_sets_the_inferred_maximum_order},
             {"qmom_family_needs_two_n_plus_one_moments", test_qmom_family_needs_two_n_plus_one_moments},
+            {"qmom_generalized_keys_set_the_generalized_options", test_qmom_generalized_keys_set_the_generalized_options},
+            {"qmom_generalized_node_counts_is_required_and_exceeds_node_counts",
+             test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts},
+            {"qmom_generalized_continuation_and_nu_take_valid_values", test_qmom_generalized_continuation_and_nu_take_valid_values},
+            {"qmom_generalized_keys_need_the_generalized_family", test_qmom_generalized_keys_need_the_generalized_family},
             {"qmom_family_takes_no_abscissa_bounds", test_qmom_family_takes_no_abscissa_bounds},
             {"cqmom_rejects_the_qmom_family_key", test_cqmom_rejects_the_qmom_family_key},
             {"qmom_distribution_initialization_matches_direct_api", test_qmom_distribution_initialization_matches_direct_api},

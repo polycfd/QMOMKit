@@ -13,10 +13,14 @@ qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
 
 or in a file with `[phase_space] qmom_family = hyperbolic`.
 
-| Family | Moments for node count $N$ | Nodes | Base node count | Bounds | Used with | Also gives |
-| --- | --- | --- | --- | --- | --- | --- |
-| `classical` | $m_0, \ldots, m_{2N-1}$ | up to $N$ | the number of nodes | yes | QMOM, CQMOM | — |
-| `hyperbolic` | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | $N$ for $N + 1$ nodes, otherwise the number of nodes | no | QMOM | characteristic speeds |
+| Family | Use it for | Moments for node count $N$ | Nodes | Bounds | Used with |
+| --- | --- | --- | --- | --- | --- |
+| `classical` | the default, any coordinate | $m_0, \ldots, m_{2N-1}$ | up to $N$ | yes | QMOM, CQMOM |
+| `hyperbolic` | a velocity coordinate whose moments your code transports in physical space | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | QMOM |
+| `generalized` | source terms that $N$ nodes evaluate poorly | $m_0, \ldots, m_{2N}$ | up to $N_G > N$ | no | QMOM |
+
+How each family reconstructs its quadrature is described in the developer
+docs' [QMOM families](../developer/qmom_families.md).
 
 ## Hyperbolic
 
@@ -32,33 +36,10 @@ that the equations are hyperbolic, with real characteristic speeds that are
 distinct inside the realizable set. For the same node count, HyQMOM uses one
 moment and one node more than classical QMOM.
 
-### Reconstruction
-
-From $m_0, \ldots, m_{2N}$, so $2N + 1$ moments, HyQMOM reconstructs $N + 1$
-quadrature nodes that reproduce these moments. The transport equation of
-$m_{2N}$ contains $m_{2N+1}$, and the moment $m_{2N+1}$ computed from the
-quadrature closes the transport equations. Fox & Laurent (2022) show that this
-moment makes the transport equations hyperbolic for $N \le 9$; QMOMKit's tests
-check hyperbolicity for sample moments up to $N = 10$.
-
-Inside the realizable set, the reconstruction returns the $N + 1$ nodes, and
-the `rmin` and `eabs` tests do not apply to these nodes. On the boundary of the
-realizable set, where at most $N$ nodes carry the moments, or outside the set,
-an adaptive reconstruction returns the quadrature that adaptive classical QMOM
-reconstructs from $m_0, \ldots, m_{2N-1}$, with the `rmin` and `eabs` tests,
-and a fixed reconstruction fails.
-
-The base node count of the $N + 1$ nodes is $N$, because HyQMOM builds them
-from the recurrence of the classical $N$-node quadrature of
-$m_0, \ldots, m_{2N-1}$, extended by $m_{2N}$ and by the closure that gives
-$m_{2N+1}$. When the reconstruction returns a classical quadrature, on the
-boundary or outside the realizable set, the base node count is the number of
-nodes of that quadrature.
-
-A state of node count $N$ has at most $N + 1$ nodes, `maximum_node_count()`.
-Having lost nodes, the state regains at most one node per step (see
-[Evolving in time](5_evolving_in_time.md#adaptive-node-counts)), through the
-classical quadratures of up to $N$ nodes to the $N + 1$ nodes of HyQMOM.
+Inside the realizable set, HyQMOM returns $N + 1$ nodes with base node count
+$N$. On the boundary of the realizable set or outside it, an adaptive
+reconstruction returns the classical quadrature of $m_0, \ldots, m_{2N-1}$, and
+a fixed reconstruction fails.
 
 ### Characteristic speeds
 
@@ -77,14 +58,10 @@ if (result.ok())
 }
 ```
 
-The speeds are those of the quadrature that QMOMKit reconstructs from the
-state's moments with the state's options, in ascending order: $2N + 1$ speeds
-for $N + 1$ nodes, and $2k + 1$ speeds for a classical quadrature of $k \le N$
-nodes, namely the abscissas of that quadrature, each twice, and the arithmetic
-mean of these abscissas. After advection has brought nodes closer together than
-the moments resolve, the speeds are those of fewer nodes than the state holds,
-and in fixed mode the computation of the speeds fails. For moments your code
-changed, create a new state with `state_candidate(...)`
+The speeds are those of the quadrature reconstructed from the state's moments:
+$2N + 1$ speeds for $N + 1$ nodes, and $2k + 1$ for a classical quadrature of
+$k \le N$ nodes. For moments your code changed, create a new state with
+`state_candidate(...)`
 ([Coupling QMOMKit](6_coupling_qmomkit.md#moments-changed-by-your-code)). The
 Reference lists the [statuses](8_reference.md#statuses) and
 [messages](8_reference.md#troubleshooting).
@@ -93,3 +70,45 @@ The [`hyqmom_characteristic_speeds`](../../examples/hyqmom_characteristic_speeds
 example computes the speeds of Fig. 1 of Fox & Laurent (2022), and
 [`hyqmom_1d_drag_bgk-collisions`](../../examples/hyqmom_1d_drag_bgk-collisions/README.md)
 evolves a velocity distribution with the hyperbolic family.
+
+## Generalized
+
+The generalized version of QMOM is GQMOM
+[[Fox, Laurent & Passalacqua, 2023](https://doi.org/10.1016/j.jaerosci.2022.106096)].
+From the same moments $m_0, \ldots, m_{2N}$, GQMOM reconstructs many more
+nodes, $N_G$, which still reproduce these moments and represent a continuous
+number density rather than $N$ points. More nodes can improve the evaluation
+of source terms without more moments, but $N$ still controls the accuracy of
+the moment method.
+
+$N_G$ has no default and must exceed $N$:
+
+```cpp
+qmom_case.qmom_options.family = qmomkit::QmomFamily::generalized;
+qmom_case.qmom_options.generalized.node_count = 3 * qmom_case.node_count;
+```
+
+or in a file with `[phase_space] qmom_family = generalized` and
+`generalized_node_counts`.
+
+The only continuation is `normal`, for a number density on the real line, so
+the family takes no bounds. Its parameter $\nu$, `generalized.nu` or
+`generalized_nu`, 1 by default, controls the tails: $\nu = 1$ gives Gaussian
+tails, $\nu = 2$ exponential tails, $\nu = 0$ a number density on a bounded
+interval (Fox et al., 2023, Fig. 1), and a negative $\nu$ can give several
+modes.
+
+An adaptive reconstruction first finds a classical quadrature of $k \le N$
+nodes, with the `rmin` and `eabs` tests. Where $m_0, \ldots, m_{2k}$ lie inside
+the realizable set, GQMOM continues it to $N_G$ nodes, which reproduce these
+moments and have base node count $k$. `rmin` and `eabs` do not apply to the
+$N_G$ nodes. Where these moments lie on or below the boundary, the result is
+the classical quadrature itself. A fixed reconstruction takes $k = N$, so it
+returns $N_G$ nodes or, on the boundary, the classical $N$ nodes, and fails
+otherwise. Each reconstruction solves an eigenproblem of
+$N_G \times N_G$ entries, so keep $N_G$ modest.
+
+The [`gqmom_1d_absolute_value_loss`](../../examples/gqmom_1d_absolute_value_loss/README.md)
+example evolves a number density under a loss at a rate proportional to
+$|\xi|$ with GQMOM and with classical QMOM, and compares both with the exact
+solution.

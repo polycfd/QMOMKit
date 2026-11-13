@@ -1,6 +1,7 @@
 #include "internal/bounded_quadrature.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/generalized_quadrature.hpp"
 #include "internal/hyperbolic_quadrature.hpp"
 #include "internal/moment_reconstruction.hpp"
 #include "internal/numeric_utils.hpp"
@@ -73,6 +74,21 @@ namespace
     return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message, base_node_count};
 }
 
+// GQMOM with the normal continuation is defined on the real line, so abscissa
+// bounds are refused before any reconstruction.
+[[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                                          const std::optional<AbscissaBounds> abscissa_bounds)
+{
+    if (abscissa_bounds.has_value())
+    {
+        return QmomResult{{}, {}, QmomStatus::invalid_input, "The generalized QMOM family takes no abscissa bounds."};
+    }
+    const internal::GeneralizedQuadrature result =
+        internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized);
+    const Quadrature1D& quadrature = result.quadrature;
+    return QmomResult{quadrature.abscissas, quadrature.weights, to_qmom_status(quadrature.status), quadrature.message, result.base_node_count};
+}
+
 [[nodiscard]] QmomResult compute_qmom_from_moments(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
                                                    const std::optional<AbscissaBounds> abscissa_bounds)
 {
@@ -83,6 +99,8 @@ namespace
         return classical_qmom(moments, node_count, options, abscissa_bounds);
     case QmomFamily::hyperbolic:
         return hyperbolic_qmom(moments, node_count, options, abscissa_bounds);
+    case QmomFamily::generalized:
+        return generalized_qmom(moments, node_count, options, abscissa_bounds);
     }
     return QmomResult{{}, {}, QmomStatus::invalid_input, "Unsupported QMOM family."};
 }
@@ -197,6 +215,7 @@ HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState&
     switch (state.qmom_options().family)
     {
     case QmomFamily::classical:
+    case QmomFamily::generalized:
         return HyqmomCharacteristicSpeeds{{}, QmomStatus::invalid_input, "Characteristic speeds require the hyperbolic QMOM family."};
     case QmomFamily::hyperbolic:
     {
@@ -301,8 +320,9 @@ namespace
 }
 
 // The given moments must be finite throughout, including those the
-// reconstruction does not read, above order 2n - 1, or 2n for the hyperbolic
-// family, which the state replaces with the moments of its quadrature.
+// reconstruction does not read, above order 2N - 1, or 2N for the hyperbolic
+// and generalized families, which the state replaces with the moments of its
+// quadrature.
 [[nodiscard]] QmomStateCandidate checked_qmom_state_candidate(const QmomCase& qmom_case, const MomentSet& moments,
                                                               const RealizabilityPolicy* const policy)
 {
@@ -867,6 +887,7 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
     case QmomFamily::classical:
         return true;
     case QmomFamily::hyperbolic:
+    case QmomFamily::generalized:
         return false;
     }
     return false;

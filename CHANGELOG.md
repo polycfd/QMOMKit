@@ -27,6 +27,14 @@ and this project adheres to
   `[phase_space] qmom_family`. With node count N, it reconstructs up to N_G > N
   nodes from 2N + 1 moments. A new example shows the family.
 
+### Changed
+
+- Abscissa bounds accept a node outside them by at most 1e-12 times the
+  largest node magnitude, instead of 1e-12 times the larger bound magnitude. A
+  distant or very large bound therefore no longer widens the margin. Where the
+  nodes are much smaller than the bounds, a node slightly outside a bound may
+  now be rejected.
+
 ## [1.0.0] - 2026-10-28
 
 First public release.

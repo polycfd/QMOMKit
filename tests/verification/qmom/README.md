@@ -221,7 +221,7 @@ bounds $[\ell, u]$. Nodes inside the bounds give the unbounded result
 (`fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping`);
 adaptive inversion keeps the largest admissible count, here one node
 (`adaptive_bounded_qmom_uses_highest_admissible_count`). At scales $10^{-6}$ to
-$10^{6}$, a node half the margin $10^{-12}\max(|\ell|, |u|)$ beyond a bound is
+$10^{6}$, a node half the margin $10^{-12}\max_i|\xi_i|$ beyond a bound is
 accepted and one twice the margin beyond is rejected
 (`bounded_qmom_acceptance_does_not_depend_on_the_unit`).
 

@@ -2241,6 +2241,48 @@ void test_qmom_recovers_bounded_rule_of_large_magnitude()
     }
 }
 
+void test_qmom_bounds_margin_is_relative_to_the_nodes()
+{
+    // With bounds [0, 100] and nodes near 1, the margin is 1e-12, the largest
+    // node magnitude times 1e-12, not 1e-10 from the bounds. A node at -5e-13
+    // is accepted, one at -5e-11 is outside: fixed mode refuses it, and
+    // adaptive mode reduces to the one node of the mean.
+    const qmomkit::AbscissaBounds bounds{0.0, 100.0};
+    const std::vector<double> weights{0.5, 0.5};
+    const qmomkit::QmomResult inside =
+        qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({-5.0e-13, 1.0}, weights, 4)), 2, qmomkit::QmomOptions{false}, bounds);
+    assert(inside.ok());
+    assert(inside.weights.size() == 2);
+
+    const qmomkit::MomentSet outside(raw_moments_1d({-5.0e-11, 1.0}, weights, 4));
+    const qmomkit::QmomResult fixed = qmomkit::compute_qmom(outside, 2, qmomkit::QmomOptions{false}, bounds);
+    assert(fixed.status == qmomkit::QmomStatus::not_realizable);
+    assert(fixed.message == "Bounded-support Wheeler inversion returned nodes outside the configured interval.");
+
+    const qmomkit::QmomResult adaptive = qmomkit::compute_qmom(outside, 2, qmomkit::QmomOptions{}, bounds);
+    assert(adaptive.ok());
+    assert(adaptive.weights.size() == 1);
+    assert(adaptive.base_node_count == 1);
+    assert_relative_near(adaptive.abscissas[0], outside[1] / outside[0], 1.0e-15);
+}
+
+void test_qmom_bounds_with_the_largest_double_as_upper_bound_check_the_lower_bound()
+{
+    // An upper bound of the largest double leaves the margin at the lower
+    // bound to the nodes: with nodes near 1, a node at -1e-13 is accepted and
+    // one at -1e-6 is outside.
+    const qmomkit::AbscissaBounds bounds{0.0, std::numeric_limits<double>::max()};
+    const std::vector<double> weights{0.5, 0.5};
+    const qmomkit::QmomResult inside =
+        qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({-1.0e-13, 1.0}, weights, 4)), 2, qmomkit::QmomOptions{false}, bounds);
+    assert(inside.ok());
+    assert(inside.weights.size() == 2);
+
+    const qmomkit::QmomResult outside =
+        qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({-1.0e-6, 1.0}, weights, 4)), 2, qmomkit::QmomOptions{false}, bounds);
+    assert(outside.status == qmomkit::QmomStatus::not_realizable);
+}
+
 void test_qmom_is_unit_covariant()
 {
     const std::vector<double> reference_abscissas{-0.5, 1.75};
@@ -2730,6 +2772,9 @@ int main(const int argc, char** argv)
             {"qmom_rejects_non_finite_moments_with_or_without_bounds", test_qmom_rejects_non_finite_moments_with_or_without_bounds},
             {"qmom_initial_state_rejects_non_finite_moments_above_2n_minus_1", test_qmom_initial_state_rejects_non_finite_moments_above_2n_minus_1},
             {"qmom_recovers_bounded_rule_of_large_magnitude", test_qmom_recovers_bounded_rule_of_large_magnitude},
+            {"qmom_bounds_margin_is_relative_to_the_nodes", test_qmom_bounds_margin_is_relative_to_the_nodes},
+            {"qmom_bounds_with_the_largest_double_as_upper_bound_check_the_lower_bound",
+             test_qmom_bounds_with_the_largest_double_as_upper_bound_check_the_lower_bound},
             {"qmom_is_unit_covariant", test_qmom_is_unit_covariant},
             {"one_dimensional_cqmom_agrees_with_qmom", test_one_dimensional_cqmom_agrees_with_qmom},
             {"cqmom_public_api_two_dimensional_manufactured_case", test_cqmom_public_api_two_dimensional_manufactured_case},

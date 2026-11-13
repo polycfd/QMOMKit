@@ -844,11 +844,14 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         }
 
         // A node on a bound comes back off it by the rounding of the moments,
-        // amplified by the inversion, which scales with the nodes. Every node
-        // inside the interval is bounded by max(|lower|, |upper|), so a tolerance
-        // relative to that magnitude gives the same decision in any unit.
-        const double coordinate_support_tolerance = 1.0e-12 * std::max(std::abs(interval.lower), std::abs(interval.upper));
-        const bool nodes_inside_interval = std::all_of(candidate.quadrature.abscissas.begin(), candidate.quadrature.abscissas.end(),
+        // amplified by the inversion, which scales with the nodes. A tolerance
+        // relative to the largest node magnitude therefore gives the same
+        // decision in any unit, whatever the bounds. Because the abscissas are
+        // in ascending order, the largest magnitude is that of the first or the
+        // last abscissa.
+        const std::vector<double>& nodes = candidate.quadrature.abscissas;
+        const double coordinate_support_tolerance = 1.0e-12 * std::max(std::abs(nodes.front()), std::abs(nodes.back()));
+        const bool nodes_inside_interval = std::all_of(nodes.begin(), nodes.end(),
                                                        [interval, coordinate_support_tolerance](const double node)
                                                        {
                                                            return std::isfinite(node) && node >= interval.lower - coordinate_support_tolerance &&

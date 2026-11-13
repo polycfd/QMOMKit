@@ -90,15 +90,13 @@ qmom_case.qmom_options.generalized.node_count = 3 * qmom_case.node_count;
 
 or in a file with `[phase_space] qmom_family = generalized` and
 `generalized_node_counts`.
-Fox et al. (2023, Section 4.1) find $N_G = 3N$ adequate in most cases, and more
-for highly localized source terms.
 
 The only continuation is `normal`, for a number density on the real line, so
 the family takes no bounds. Its parameter $\nu$, `generalized.nu` or
 `generalized_nu`, 1 by default, controls the tails: $\nu = 1$ gives Gaussian
 tails, $\nu = 2$ exponential tails, $\nu = 0$ a number density on a bounded
 interval (Fox et al., 2023, Fig. 1), and a negative $\nu$ can give several
-modes (Section 3.1.2).
+modes.
 
 An adaptive reconstruction first finds a classical quadrature of $k \le N$
 nodes, with the `rmin` and `eabs` tests. Where $m_0, \ldots, m_{2k}$ lie inside

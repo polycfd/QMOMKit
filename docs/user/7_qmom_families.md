@@ -129,4 +129,7 @@ $|\xi|$ with GQMOM and with classical QMOM, and compares both with the exact
 solution. The
 [`gqmom_1d_droplet_breakup_with-mc`](../../examples/gqmom_1d_droplet_breakup_with-mc/README.md)
 example compares both for droplets that break up above a critical volume, with
-the `gamma` continuation, against a Monte Carlo reference.
+the `gamma` continuation, against a Monte Carlo reference. The
+[`gqmom_1d_catalyst_deactivation_with-mc`](../../examples/gqmom_1d_catalyst_deactivation_with-mc/README.md)
+example does the same for catalyst particles removed above a critical coked
+fraction, with the `beta` continuation.

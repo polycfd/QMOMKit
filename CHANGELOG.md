@@ -25,9 +25,10 @@ and this project adheres to
 - GQMOM (Fox, Laurent & Passalacqua, 2023) as the `generalized` QMOM family,
   selected with `QmomOptions::family` or `[phase_space] qmom_family`. With
   node count N, it reconstructs up to N_G > N nodes from 2N + 1 moments. Its
-  `normal` continuation is for a number density on the real line, and its
-  `gamma` and `lognormal` continuations for one on [0, inf) or within the
-  abscissa bounds. Two new examples show the family.
+  `normal` continuation is for a number density on the real line, its
+  `gamma` and `lognormal` continuations for one on [0, inf), and its `beta`
+  continuation for one on [0, 1], or within the abscissa bounds. Two new
+  examples show the family.
 
 ### Changed
 

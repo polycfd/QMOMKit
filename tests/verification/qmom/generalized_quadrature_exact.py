@@ -512,8 +512,9 @@ def cases():
     # with the default bounds, N = 2, N_G = 20. Not beta densities, so alpha
     # and beta from p_1 and p_2 differ from those of the last known pair.
     # Every continued p of the first takes the first case of eqs. 34 and 35,
-    # and every continued p of the second the second case, which main()
-    # asserts.
+    # and every continued p of the second the second case, and main() asserts
+    # that the two together take both cases for odd and even canonical
+    # moments.
     for name, parts in (("beta_mixture_first_case_n2_N20", ((F(1, 2), F(2), F(5)), (F(1, 2), F(6), F(1)))),
                         ("beta_mixture_second_case_n2_N20", ((F(1, 4), F(3), F(3)), (F(3, 4), F(30), F(10))))):
         add("beta_mixture", name, beta_mixture_moments(parts, 5), 2, 20, 1, "continued", 2, 4, continuation="beta")

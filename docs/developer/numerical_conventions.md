@@ -134,16 +134,17 @@ realizability check or policy and does not constrain reconstruction
 are acceptance criteria for reconstructed abscissas. A candidate quadrature with
 a node outside the bounds, beyond a rounding margin, is rejected. An adaptive
 reconstruction then tries fewer nodes, and a fixed one fails. Nodes are never
-clipped or projected. The gamma and lognormal continuations of the
-`generalized` family are the one exception to a pure acceptance test: their
-lower bound starts the number density they continue, and without bounds they
-take $[0,\text{DBL\_MAX}]$
-([QMOM families](qmom_families.md#gamma-continuation)). Otherwise, bounds exist
-only when the caller gives them. In a `.qmom`
-file, they are the keys `phase_space.support_lower` and
-`phase_space.support_upper`, which set abscissa bounds despite their names. They
-are never inferred from a realizability support, a coordinate name, or the
-moments. The margin is in [QMOM](qmom.md).
+clipped or projected. The gamma, lognormal and beta continuations of the
+`generalized` family are the one exception to a pure acceptance test: the
+number density that the gamma and lognormal continuations continue starts at
+the lower bound, and that of the beta continuation lies between the bounds.
+Without bounds, they take $[0,\text{DBL\_MAX}]$, and the beta continuation
+$[0,1]$ ([QMOM families](qmom_families.md#gamma-continuation)). Otherwise,
+bounds exist only when the caller gives them. In a `.qmom` file, they are the
+keys `phase_space.support_lower` and `phase_space.support_upper`, which set
+abscissa bounds despite their names. They are never inferred from a
+realizability support, a coordinate name, or the moments. The margin is in
+[QMOM](qmom.md).
 
 ## Units and scales
 

@@ -1,6 +1,9 @@
 #pragma once
 
+#include "monte_carlo/ensemble.hpp"
 #include "qmomkit/moment_source.hpp"
+
+#include <random>
 
 namespace gqmom_1d_droplet_breakup_with_mc
 {
@@ -10,6 +13,7 @@ namespace gqmom_1d_droplet_breakup_with_mc
 // their excess volume.
 constexpr double critical_volume = 1.0;
 constexpr double breakup_coefficient = 1.0;
+constexpr unsigned long long breakup_seed = 67890;
 
 /**
  * Breakup frequency of a droplet of volume V, breakup_coefficient times
@@ -22,5 +26,12 @@ constexpr double breakup_coefficient = 1.0;
  * stage quadrature.
  */
 [[nodiscard]] qmomkit::QmomMomentSource binary_breakup_source();
+
+/**
+ * Breaks each droplet of the Monte Carlo ensemble within a step of the given
+ * size with probability 1 - exp(-g(V) step), where g is breakup_frequency. A
+ * broken droplet of volume V becomes two droplets of volume V/2.
+ */
+void apply_binary_breakup(qmomkit::monte_carlo::Ensemble& droplets, double step_size, std::mt19937_64& generator);
 
 } // namespace gqmom_1d_droplet_breakup_with_mc

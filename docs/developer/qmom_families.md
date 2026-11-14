@@ -212,6 +212,41 @@ does, and fixed mode is `not_realizable` with the message of a negative $b$.
 The base node count is $k$, so fixed mode always returns base node count $N$:
 $N_G$ nodes in the interior and the classical $N$ nodes on the boundary.
 
+The normal or the gamma continuation, below, gives the coefficients of $N_G$
+nodes. The quadrature is the Gauss quadrature of $J_{N_G}$, with diagonal
+$a_0,\ldots,a_{N_G-1}$ and off-diagonal $\sqrt{b_1},\ldots,\sqrt{b_{N_G-1}}$,
+from the dense eigensolver of [Linear algebra](linear_algebra.md). Its memory
+grows as $N_G^2$ and its time faster. Since $N_G$ has no cap, an $N_G$ too large
+for the memory makes `compute_qmom(...)` throw `std::bad_alloc` or
+`std::length_error`. Before the eigensolve, the continued coefficients are
+checked as in [Fixed node count](qmom.md#fixed-node-count), so an overflow gives
+`not_realizable` with the message
+`Wheeler recurrence produced non-finite values.`
+
+`rmin` and `eabs` act on the classical quadratures only. The continued nodes
+carry the tails of the number density, whose weights can be far below `rmin`
+(Fox et al., 2023, Fig. 1), and the test on $b_k$ already excludes nodes made of
+rounding.
+
+$N_G$ is carried in the options, independently of $N$ and $k$, so a reduced
+quadrature is continued to the same $N_G$ nodes as the full one. A
+reconstruction with node count $k$ of the same moments that finds the same $k$
+nodes returns the identical result, which is what the evolution relies on
+([Phase-space evolution](phase_space_evolution.md#node-counts)).
+
+The input checks, in this order:
+
+| Condition | Status | Message |
+| --- | --- | --- |
+| abscissa bounds with the normal continuation | `invalid_input` | `The normal continuation of the generalized QMOM family takes no abscissa bounds.` |
+| abscissa bounds with a non-finite value or $\ell\ge u$, with the gamma continuation | `invalid_input` | `Bounded-support interval must have finite lower < upper values.` |
+| non-finite $\nu$ with the normal continuation | `invalid_input` | `The generalized parameter nu must be finite.` |
+| $N_G\le N$, which includes an unset $N_G=0$ | `invalid_input` | `The generalized node count must exceed node_count.` |
+| a continuation outside `GeneralizedContinuation` | `invalid_input` | `Unsupported generalized continuation.` |
+| the checks of [Input checks and the cutoff](qmom.md#input-checks-and-the-cutoff) with $2N+1$ moments and no one-node shortcut, with the message `Moment sequence has fewer than 2*n+1 entries.` | | |
+
+### Normal continuation
+
 The normal continuation (Fox et al., 2023, Definition 1, eqs. 21 and 22)
 continues the recurrence of $k$ nodes with
 
@@ -225,16 +260,8 @@ Gaussian moments and $\nu=1$, these are the coefficients of the Hermite
 polynomials (eq. 20), and the quadrature is the Gauss-Hermite rule. Larger
 $\nu$ gives heavier tails, and $\nu=0$ with $k=1$ gives the Chebyshev
 polynomials of the second kind on a finite interval (Fox et al., 2023, Fig. 1
-and footnote 2). The quadrature is the Gauss quadrature of $J_{N_G}$, with
-diagonal $a_0,\ldots,a_{N_G-1}$ and off-diagonal
-$\sqrt{b_1},\ldots,\sqrt{b_{N_G-1}}$, from the dense eigensolver of
-[Linear algebra](linear_algebra.md). Its memory grows as $N_G^2$ and its time
-faster. Since $N_G$ has no cap, an $N_G$ too large for the memory makes
-`compute_qmom(...)` throw `std::bad_alloc` or `std::length_error`. Before the
-eigensolve, the continued coefficients are checked as in
-[Fixed node count](qmom.md#fixed-node-count), so an overflow, for example of
-$(i/k)^\nu$ for a large $\nu$, gives `not_realizable` with the message
-`Wheeler recurrence produced non-finite values.`
+and footnote 2). An overflow of $(i/k)^\nu$ for a large $\nu$ fails the check
+of the continued coefficients.
 
 A strongly negative $\nu$ makes the continued $b_i$ tiny. Where their square
 roots fall below the resolution of the diagonal $a_i$, many continued nodes
@@ -279,28 +306,6 @@ puts a node below $\ell$, which the node check rejects. The continued $b_i$ are
 $b_k\,i(i+\alpha)/(k(k+\alpha))$ with $\alpha>-1$, so they stay positive, and
 only a zero $\zeta$ makes them non-finite, which the check of the continued
 recurrence rejects. The continuation does not read $\nu$.
-
-`rmin` and `eabs` act on the classical quadratures only. The continued nodes
-carry the tails of the number density, whose weights can be far below `rmin`
-(Fox et al., 2023, Fig. 1), and the test on $b_k$ already excludes nodes made of
-rounding.
-
-$N_G$ is carried in the options, independently of $N$ and $k$, so a reduced
-quadrature is continued to the same $N_G$ nodes as the full one. A
-reconstruction with node count $k$ of the same moments that finds the same $k$
-nodes returns the identical result, which is what the evolution relies on
-([Phase-space evolution](phase_space_evolution.md#node-counts)).
-
-The input checks, in this order:
-
-| Condition | Status | Message |
-| --- | --- | --- |
-| abscissa bounds with the normal continuation | `invalid_input` | `The normal continuation of the generalized QMOM family takes no abscissa bounds.` |
-| abscissa bounds with a non-finite value or $\ell\ge u$, with the gamma continuation | `invalid_input` | `Bounded-support interval must have finite lower < upper values.` |
-| non-finite $\nu$ with the normal continuation | `invalid_input` | `The generalized parameter nu must be finite.` |
-| $N_G\le N$, which includes an unset $N_G=0$ | `invalid_input` | `The generalized node count must exceed node_count.` |
-| a continuation outside `GeneralizedContinuation` | `invalid_input` | `Unsupported generalized continuation.` |
-| the checks of [Input checks and the cutoff](qmom.md#input-checks-and-the-cutoff) with $2N+1$ moments and no one-node shortcut, with the message `Moment sequence has fewer than 2*n+1 entries.` | | |
 
 ### Where the code lives
 

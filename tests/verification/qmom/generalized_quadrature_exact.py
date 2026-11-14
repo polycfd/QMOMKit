@@ -162,10 +162,13 @@ def beta_recurrence(m, n, N, lower, upper, k):
     # i > 2k (eqs. 34 and 35), zeta_i = p_i (1 - p_{i-1}) for i > 2k, and
     # a_i = zeta_{2i} + zeta_{2i+1}, i >= k, and b_i = zeta_{2i-1} zeta_{2i},
     # i > k (eq. 26). The Jacobi matrix of x takes lower + (upper - lower) a_i
-    # and (upper - lower)^2 b_i. Also returns, for each continued p_i, the case
-    # of eqs. 34 and 35 it takes and the margin of that choice: the larger
-    # amount by which a condition of the first case holds, or the smaller
-    # amount by which the conditions of the second case fail.
+    # and (upper - lower)^2 b_i. Also returns, for each continued p_i, what
+    # decides its case of eqs. 34 and 35, and the margin of that decision. The
+    # first case is decided by its first condition, p_l <= p^J_l, with the
+    # larger amount by which either condition holds, or by its second
+    # condition alone, p^J_l >= p^J_j, with the smaller amount by which the
+    # first fails and the second holds. The second case has the smaller amount
+    # by which both conditions fail.
     width = upper - lower
     M = [sum(comb(j, i) * (-lower) ** (j - i) * m[i] for i in range(j + 1)) / width**j for j in range(len(m))]
     a, b, _ = recurrence(M, n)
@@ -188,12 +191,15 @@ def beta_recurrence(m, n, N, lower, upper, k):
     choices = []
     for j in range(2 * k + 1, 2 * N + 1):
         last = 2 * k - 1 if j % 2 else 2 * k
-        if p[last] <= jacobi(last) or jacobi(last) >= jacobi(j):
+        if p[last] <= jacobi(last):
             p[j] = jacobi(j) / jacobi(last) * p[last]
-            choices.append((j, 1, max(jacobi(last) - p[last], jacobi(last) - jacobi(j))))
+            choices.append((j, "first condition", max(jacobi(last) - p[last], jacobi(last) - jacobi(j))))
+        elif jacobi(last) >= jacobi(j):
+            p[j] = jacobi(j) / jacobi(last) * p[last]
+            choices.append((j, "second condition", min(p[last] - jacobi(last), jacobi(last) - jacobi(j))))
         else:
             p[j] = (p[last] * (1 - jacobi(j)) + jacobi(j) - jacobi(last)) / (1 - jacobi(last))
-            choices.append((j, 2, min(p[last] - jacobi(last), jacobi(j) - jacobi(last))))
+            choices.append((j, "second case", min(p[last] - jacobi(last), jacobi(j) - jacobi(last))))
         zeta[j] = p[j] * (1 - p[j - 1])
     ay = a[:k] + [zeta[2 * i] + zeta[2 * i + 1] for i in range(k, N)]
     by = b[: k + 1] + [zeta[2 * i - 1] * zeta[2 * i] for i in range(k + 1, N)]
@@ -500,23 +506,27 @@ def cases():
                 add("jacobi", f"{prefix}_n{n}_N{N}", m, n, N, 1, "continued", n, 2 * n, continuation="beta",
                     closed=lambda m0=m0, alpha=alpha, beta_=beta_, N=N: jacobi(m0, alpha, beta_, F(0), F(1), N))
     # V16: the beta density with alpha = 3/2, beta = 1/2 and m0 = 2 mapped to
-    # [lower, upper] = [-1, 3] and [2, 5/2], with these bounds, N = 1, 2,
+    # [lower, upper] = [-1, 3] and [1/4, 3/4], with these bounds, N = 1, 2,
     # N_G = 20.
-    for lower, upper in ((F(-1), F(3)), (F(2), F(5, 2))):
+    for lower, upper in ((F(-1), F(3)), (F(1, 4), F(3, 4))):
         for n in (1, 2):
             m = exact_moments(beta_moments(F(2), F(3, 2), F(1, 2), lower, upper, 2 * n + 1))
             add("scaled_jacobi", f"lower{float(lower):g}_upper{float(upper):g}_n{n}_N20", m, n, 20, 1, "continued", n, 2 * n,
                 continuation="beta", bounds=(lower, upper),
                 closed=lambda lower=lower, upper=upper: jacobi(F(2), F(3, 2), F(1, 2), lower, upper, 20))
-    # V17: two mixtures of beta number densities, moments rounded to double,
+    # V17: four mixtures of beta number densities, moments rounded to double,
     # with the default bounds, N = 2, N_G = 20. Not beta densities, so alpha
     # and beta from p_1 and p_2 differ from those of the last known pair.
-    # Every continued p of the first takes the first case of eqs. 34 and 35,
-    # and every continued p of the second the second case, and main() asserts
-    # that the two together take both cases for odd and even canonical
+    # Every continued p of the first takes the first case of eqs. 34 and 35 by
+    # its first condition, and every continued p of the second the second
+    # case. The third takes the first case by its second condition for odd p,
+    # and the fourth for even p. main() asserts that the four together decide
+    # by each condition and take the second case for odd and even canonical
     # moments.
     for name, parts in (("beta_mixture_first_case_n2_N20", ((F(1, 2), F(2), F(5)), (F(1, 2), F(6), F(1)))),
-                        ("beta_mixture_second_case_n2_N20", ((F(1, 4), F(3), F(3)), (F(3, 4), F(30), F(10))))):
+                        ("beta_mixture_second_case_n2_N20", ((F(1, 4), F(3), F(3)), (F(3, 4), F(30), F(10)))),
+                        ("beta_mixture_second_condition_odd_n2_N20", ((F(1, 2), F(1, 4), F(3)), (F(1, 2), F(5), F(5)))),
+                        ("beta_mixture_second_condition_even_n2_N20", ((F(3, 4), F(-1, 4), F(2)), (F(1, 4), F(10), F(-1, 2))))):
         add("beta_mixture", name, beta_mixture_moments(parts, 5), 2, 20, 1, "continued", 2, 4, continuation="beta")
     # V18: moments on the boundary, of dyadic points in (0, 1), as V4.
     m = exact_moments(moments_of([F(1, 8), F(1, 2), F(3, 4)], [F(1, 4), F(1, 2), F(1, 4)], 7))
@@ -637,14 +647,15 @@ CASES = cases()
 def main():
     for case in CASES:
         assert_decisions(case)
-    # The beta mixtures take both cases of eqs. 34 and 35 for both the odd and
-    # the even canonical moments.
+    # The beta mixtures decide by each condition of the first case of eqs. 34
+    # and 35 and take the second case, for both the odd and the even canonical
+    # moments.
     taken = set()
     for case in CASES:
         if case["group"] == "beta_mixture":
             _, _, choices = beta_recurrence(case["m"], case["n"], case["N"], F(0), F(1), case["n"])
             taken |= {(j % 2, which) for j, which, _ in choices}
-    assert taken == {(0, 1), (0, 2), (1, 1), (1, 2)}, taken
+    assert taken == {(parity, decision) for parity in (0, 1) for decision in ("first condition", "second condition", "second case")}, taken
     fmt = lambda values: ", ".join(repr(float(v)) for v in values)
     lines = ["// Generated by generalized_quadrature_exact.py; do not edit.", ""]
     for group in ("hermite", "chebyshev", "figures", "boundary", "reduction", "laguerre", "shifted_laguerre", "gamma_mixture", "gamma_boundary",

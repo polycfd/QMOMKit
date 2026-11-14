@@ -180,13 +180,15 @@ bound of the node and weight tolerances:
   $m_0 = 1$, and $\alpha = 3/2$, $\beta = 1/2$, $m_0 = 2$, with $N = 1, 2, 3$
   and $N_G = 10$ and 51;
 - `scaled_jacobi`: the density with $\alpha = 3/2$, $\beta = 1/2$ and
-  $m_0 = 2$ mapped to $[\ell, u] = [-1, 3]$ and $[2, 5/2]$, with these bounds,
-  $N = 1, 2$, $N_G = 20$;
-- `beta_mixture`: two mixtures of beta densities, moments rounded to double,
+  $m_0 = 2$ mapped to $[\ell, u] = [-1, 3]$ and $[1/4, 3/4]$, with these
+  bounds, $N = 1, 2$, $N_G = 20$;
+- `beta_mixture`: four mixtures of beta densities, moments rounded to double,
   $N = 2$, $N_G = 20$. For a beta density, either case of eqs. 34 and 35 gives
   the canonical moments of the density. Every continued canonical moment of
-  the first mixture takes the first case, and of the second the second case,
-  for odd and even orders alike;
+  the first mixture takes the first case by its first condition,
+  $p_l \le p^J_l$, and of the second the second case, for odd and even orders
+  alike. The third takes the first case by its second condition alone,
+  $p^J_l \ge p^J_j$, for odd orders, and the fourth for even orders;
 - `beta_boundary`: the `boundary` cases with dyadic points in $(0, 1)$;
 - `beta_reduction`: the moments of the points 1/4, 1/2 and 5/4, and of $-1/8$,
   1/4 and 3/4, at $N = 3$ with the default bounds. The classical 3-node rule

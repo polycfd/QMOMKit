@@ -27,8 +27,8 @@ and this project adheres to
   node count N, it reconstructs up to N_G > N nodes from 2N + 1 moments. Its
   `normal` continuation is for a number density on the real line, its
   `gamma` and `lognormal` continuations for one on [0, inf), and its `beta`
-  continuation for one on [0, 1], or within the abscissa bounds. Three new
-  examples show the family.
+  continuation for one on [0, 1]. For these three, abscissa bounds replace
+  the interval. Three new examples show the family.
 
 ### Changed
 

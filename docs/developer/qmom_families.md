@@ -341,8 +341,9 @@ The beta continuation (Fox et al., 2023, Definition 4, eqs. 23, 26 and 31–35)
 is for a number density on $[\ell,u]$, the abscissa bounds, $[0,1]$ without
 explicit bounds. It uses the shifted $\zeta$ form, as the gamma continuation
 does, and dividing every $\zeta$ by $u-\ell$ maps the recurrence to $(0,1)$,
-where the canonical moments $p_i\in(0,1)$ satisfy $\zeta_1=p_1$ and
-$\zeta_i=p_i(1-p_{i-1})$ (eq. 31). The recurrence of $k$ nodes gives $p_1,\ldots,p_{2k}$, and Definition 4's $\alpha$ and $\beta$ from $p_1$ and
+where the canonical moments $p_i$ satisfy $\zeta_1=p_1$ and
+$\zeta_i=p_i(1-p_{i-1})$ (eq. 31). The recurrence of $k$ nodes gives
+$p_1,\ldots,p_{2k}$, and Definition 4's $\alpha$ and $\beta$ from $p_1$ and
 $p_2$ (eq. 33) give the canonical moments of the beta number density
 $x^\beta(1-x)^\alpha$ (eq. 32),
 
@@ -364,15 +365,15 @@ $p_1$ and $p_2$ in $(0,1)$, $\alpha$ and $\beta$ exceed $-1$, so every $p^J$ lie
 in $(0,1)$, and both cases keep every continued $p_j$ in $(0,1)$.
 
 Moments with a known $p_i$ outside $[0,1]$ are not those of a number density on
-$[\ell,u]$. A node then lies outside the bounds or a continued $b$ is negative,
-and the node check or the check of the continued recurrence rejects the
-reconstruction. A known $p_i$ of exactly 0 or 1 puts the moments on the boundary
-of those of a number density on $[\ell,u]$, for example the moments of the
-points 0, 1/2 and 1 on $[0,1]$ at $k=2$. Except for $p_{2k}=1$, such a $p_i$
-makes a known $b$ zero, and the classical quadrature is returned. $p_{2k}=1$
-makes the continued $b_{k+1}$ zero instead: the result holds the $k+1$ points
-that carry the moments, and its other nodes have zero weight. For $k=1$,
-$p_2=1$, which the moments of points at the two ends only give, makes
+$[\ell,u]$. A node then lies outside the bounds, or a continued coefficient is
+negative or not finite, and the node check or the check of the continued
+recurrence rejects the reconstruction. A known $p_i$ of exactly 0 or 1 puts the
+moments on the boundary of those of a number density on $[\ell,u]$. Except for
+$p_{2k}=1$, such a $p_i$ makes a known $b$ zero, and the classical quadrature is
+returned. $p_{2k}=1$, as for the moments of the points 0, 1/2 and 1 on $[0,1]$
+at $k=2$, makes the continued $b_{k+1}$ zero instead: the result holds the
+$k+1$ points that carry the moments, and its other nodes have zero weight. For
+$k=1$, $p_2=1$, which the moments of points at the two ends only give, makes
 $\alpha=\beta=-1$ and $p^J_1=0/0$, which the check of the continued recurrence
 rejects. The continuation does not read $\nu$.
 

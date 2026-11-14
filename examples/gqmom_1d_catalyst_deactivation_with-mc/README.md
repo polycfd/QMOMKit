@@ -18,11 +18,11 @@ $m_k = \int \theta^k n(\theta)\,\mathrm{d}\theta$. Coke builds up on every
 particle as
 
 ```math
-\frac{\mathrm{d}\theta}{\mathrm{d}t} = k\,(1 - \theta),
+\frac{\mathrm{d}\theta}{\mathrm{d}t} = \kappa\,(1 - \theta),
 ```
 
-with $k = 0.1$, which keeps every particle in $[0, 1]$. A particle is withdrawn
-at the frequency
+with $\kappa = 0.1$, which keeps every particle in $[0, 1]$. A particle is
+withdrawn at the frequency
 
 ```math
 g(\theta) = \lambda\,\max(0,\ \theta - \theta_c),
@@ -108,6 +108,7 @@ nodes start at $\theta = 0.23$ and $0.63$, and its upper node reaches
 $\theta_c$ only between $t = 6$ and $7$. Until then, classical QMOM removes no
 particles, while the particles of the tail above $\theta_c$ are already being
 withdrawn. Afterwards, its upper node, which carries 43% of the particles, is
-removed almost entirely by $t = 10$. The 20 nodes of GQMOM lie between $0.007$
-and $0.986$ and follow the tail. The Monte Carlo run is a stochastic reference:
-a different seed for the removal changes its moments by less than 0.1%.
+removed almost entirely by $t = 10$. The 20 nodes of GQMOM start between
+$0.007$ and $0.986$ and follow the tail. The Monte Carlo run is a stochastic
+reference: its random removal changes its moments by about 0.1 to 0.2% from
+run to run.

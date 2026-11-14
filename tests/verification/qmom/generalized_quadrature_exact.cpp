@@ -74,14 +74,16 @@
 //     alpha = 1/2, beta = -1/2 and m0 = 1, and alpha = 3/2, beta = 1/2 and
 //     m0 = 2, with N = 1, 2, 3 and N_G = 10, 51;
 //   - scaled_jacobi: the beta number density with alpha = 3/2, beta = 1/2 and
-//     m0 = 2 mapped to [lower, upper] = [-1, 3] and [2, 5/2], with these
+//     m0 = 2 mapped to [lower, upper] = [-1, 3] and [1/4, 3/4], with these
 //     bounds, N = 1, 2 and N_G = 20;
-//   - beta_mixture: two mixtures of beta number densities, moments rounded to
-//     double, with the default bounds, N = 2 and N_G = 20. For a beta density,
-//     every continued canonical moment p_i equals p^J_i of eq. 32 in either
-//     case of eqs. 34 and 35. For these mixtures, every continued p_i of the
-//     first takes the first case, and of the second the second case, for odd
-//     and even i alike;
+//   - beta_mixture: four mixtures of beta number densities, moments rounded
+//     to double, with the default bounds, N = 2 and N_G = 20. For a beta
+//     density, every continued canonical moment p_i equals p^J_i of eq. 32 in
+//     either case of eqs. 34 and 35. For these mixtures, every continued p_i
+//     of the first takes the first case by its first condition, p_l <= p^J_l,
+//     and of the second the second case, for odd and even i alike. The third
+//     takes the first case by its second condition alone, p^J_l >= p^J_j, for
+//     odd i, and the fourth for even i;
 //   - beta_boundary: the boundary cases with dyadic points in (0, 1);
 //   - beta_reduction: the moments of the points 1/4, 1/2 and 5/4, and of
 //     -1/8, 1/4 and 3/4, at N = 3 with the default bounds. The classical
@@ -109,7 +111,7 @@
 //   classical rules pass or fail with a factor of ten to spare, the nodes the
 //   test expects inside or outside the bounds lie there by at least a
 //   thousandfold the margin of the bounds check, and the beta_mixture cases
-//   take every case of eqs. 34 and 35 with a margin of at least 1e-6 in the
+//   decide every case of eqs. 34 and 35 with a margin of at least 1e-6 in the
 //   canonical moments. The script computes the gamma and lognormal
 //   continuations as Definitions 2 and 3 state them, from the moments of the
 //   coordinate minus the lower bound, and the beta continuation as Definition 4

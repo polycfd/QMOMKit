@@ -138,8 +138,9 @@ clipped or projected. The gamma, lognormal and beta continuations of the
 `generalized` family are the one exception to a pure acceptance test: the
 number density that the gamma and lognormal continuations continue starts at
 the lower bound, and that of the beta continuation lies between the bounds.
-Without bounds, they take $[0,\text{DBL\_MAX}]$, and the beta continuation
-$[0,1]$ ([QMOM families](qmom_families.md#gamma-continuation)). Otherwise,
+Without bounds, the gamma and lognormal continuations take
+$[0,\text{DBL\_MAX}]$ and the beta continuation $[0,1]$
+([QMOM families](qmom_families.md#gamma-continuation)). Otherwise,
 bounds exist only when the caller gives them. In a `.qmom` file, they are the
 keys `phase_space.support_lower` and `phase_space.support_upper`, which set
 abscissa bounds despite their names. They are never inferred from a

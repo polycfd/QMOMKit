@@ -83,8 +83,7 @@ namespace
 [[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
                                           const std::optional<AbscissaBounds> abscissa_bounds, const bool exact_base_node_count)
 {
-    const bool bounded =
-        options.generalized.continuation == GeneralizedContinuation::gamma || options.generalized.continuation == GeneralizedContinuation::lognormal;
+    const bool bounded = internal::takes_abscissa_bounds(options.generalized.continuation);
     if (!bounded && abscissa_bounds.has_value())
     {
         return QmomResult{{}, {}, QmomStatus::invalid_input, "The normal continuation of the generalized QMOM family takes no abscissa bounds."};

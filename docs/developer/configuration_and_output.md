@@ -137,9 +137,9 @@ family, `generalized_node_counts`, required and above `node_counts`,
 `generalized_continuation` and `generalized_nu`, for `parse_qmom`. With another
 family, each of them is an error, since it would have no effect, from
 `parse_qmom` and from `parse_qmom_initial_condition` alike. For the same
-reason, `generalized_nu` is an error with the gamma and lognormal
+reason, `generalized_nu` is an error with the gamma, lognormal and beta
 continuations, from `parse_qmom`. Abscissa bounds are refused with the normal
-continuation and kept with the gamma and lognormal continuations, as
+continuation and kept with the gamma, lognormal and beta continuations, as
 `compute_qmom` does, by the same rule (`internal::takes_abscissa_bounds`).
 
 `with_initial_moments(...)` replaces the moments of a `CqmomCase` or

@@ -33,8 +33,8 @@ struct GeneralizedQuadrature
  * non-finite sigma(k, k) or tau_k is not_realizable in fixed mode. In adaptive
  * mode, an overflowed +-inf returns the classical quadrature and a NaN is
  * not_realizable. The coordinate scale is zero, as in compute_quadrature(...).
- * With exact_base_node_count, a base node count below N is not continued, and
- * the result is not_realizable instead.
+ * With exact_base_node_count, a reconstruction whose classical selection finds
+ * 1 <= k < N base nodes is not_realizable, without a continuation.
  */
 [[nodiscard]] GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, std::size_t node_count, const WheelerOptions& options,
                                                                    const GeneralizedOptions& generalized, bool exact_base_node_count);

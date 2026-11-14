@@ -294,10 +294,10 @@ Active node counts follow one policy:
   $N$, the trial asks for one more base node and is accepted only with that
   base node count. At $N$, it asks for the family's full quadrature and is
   accepted only with the maximum count. For `generalized`, the trial is a
-  single attempt at its base node count (`internal::compute_qmom_growth_trial`),
-  which neither continues a smaller one nor retries below a rejected one, and
-  at $N$ the current reconstruction is already the full quadrature request, so
-  it is the trial. The base node count thus rises by at
+  single attempt at the base node count it asks for
+  (`internal::compute_qmom_growth_trial`). It neither continues a smaller one
+  nor retries below a rejected one. At $N$, the current reconstruction is
+  already the full quadrature request, so it is the trial. The base node count thus rises by at
   most one per step, and a `classical` or `hyperbolic` state grows by at most
   one node per step, through the classical quadratures up to $N$ nodes and then
   to its family's maximum. A `generalized` state holds the generalized node

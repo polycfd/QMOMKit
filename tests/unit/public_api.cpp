@@ -2017,8 +2017,10 @@ void test_qmom_growth_trial_of_the_generalized_family_is_a_single_attempt()
     gamma.rmin = 1.0e-6;
     const qmomkit::MomentSet small_weight(raw_moments_1d({-1.0, 1.0, 3.0}, {0.5, 0.5, 1.0e-8}, 7));
     const qmomkit::MomentSet positive_small_weight(raw_moments_1d({0.5, 1.5, 3.0}, {0.5, 0.5, 1.0e-8}, 7));
-    for (const auto& [moments, options] : {std::pair{small_weight, normal}, std::pair{positive_small_weight, gamma}})
+    for (const auto& entry : {std::pair{small_weight, normal}, std::pair{positive_small_weight, gamma}})
     {
+        const qmomkit::MomentSet& moments = entry.first;
+        const qmomkit::QmomOptions& options = entry.second;
         assert(qmomkit::compute_qmom(moments, 3, options).base_node_count == 2);
         qmomkit::QmomResult trial;
         assert_qmom_reconstructions(1, [&] { trial = qmomkit::internal::compute_qmom_growth_trial(moments, 3, options, std::nullopt); });

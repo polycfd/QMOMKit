@@ -331,6 +331,13 @@ struct QmomReconstructionRequest
     return compute_qmom(MomentSet(moments), request.node_count, request.options, request.abscissa_bounds);
 }
 
+// A growth trial accepts only the base node count it asks for, so the
+// generalized family makes a single attempt at it.
+[[nodiscard]] QmomResult reconstruct_growth_trial(const std::vector<double>& moments, const QmomReconstructionRequest& request)
+{
+    return internal::compute_qmom_growth_trial(MomentSet(moments), request.node_count, request.options, request.abscissa_bounds);
+}
+
 // The reconstruction of the moments after a source step of state. A classical
 // state with bounds takes the bounded selection. Every other adaptive state
 // decides on its base node count, and each of its reconstructions passes the
@@ -391,14 +398,20 @@ struct QmomReconstructionRequest
 
     if (base_node_count < node_count)
     {
-        QmomResult growth = reconstruct_qmom(post_source_moments, reduced_quadrature_request(state, base_node_count + 1));
+        QmomResult growth = reconstruct_growth_trial(post_source_moments, reduced_quadrature_request(state, base_node_count + 1));
         if (growth.ok() && growth.base_node_count == base_node_count + 1)
         {
             return growth;
         }
         return current;
     }
-    QmomResult growth = reconstruct_qmom(post_source_moments, full_quadrature_request(state));
+    // At base node count n, the generalized family's own request is its full
+    // quadrature request, so the current reconstruction is the growth trial.
+    if (options.family == QmomFamily::generalized)
+    {
+        return current;
+    }
+    QmomResult growth = reconstruct_growth_trial(post_source_moments, full_quadrature_request(state));
     if (growth.ok() && growth.weights.size() == maximum_node_count)
     {
         return growth;

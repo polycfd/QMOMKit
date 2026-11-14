@@ -1408,6 +1408,7 @@ struct CountedSourceStep
 {
     qmomkit::QmomPhaseSpaceEvolutionResult result;
     std::size_t reconstructions = 0;
+    std::size_t wheeler_calls = 0;
 };
 
 CountedSourceStep counted_source_step(const qmomkit::QmomState& state, const std::vector<double>& target)
@@ -1418,7 +1419,8 @@ CountedSourceStep counted_source_step(const qmomkit::QmomState& state, const std
         qmomkit::internal::performance::CounterScope scope(session);
         result.emplace(qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, qmom_source_from_to(state.moment_values(), target)));
     }
-    return {std::move(*result), session.snapshot().reconstruction.qmom_reconstructions};
+    const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
+    return {std::move(*result), counters.reconstruction.qmom_reconstructions, counters.reconstruction.wheeler_calls};
 }
 
 void assert_reconstructions(const CountedSourceStep& step, const std::size_t expected)
@@ -1585,12 +1587,12 @@ void test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n()
     // A state holding the classical two-node rule at N = 2, base node count N,
     // grows to its six continued nodes on interior moments, and keeps two nodes
     // on boundary moments. Its own reconstruction at base node count N is the
-    // full quadrature request, so the growth trial repeats it and the step
-    // makes two identical reconstructions.
+    // full quadrature request, so it is also the growth trial, and the step
+    // makes a single reconstruction.
     const qmomkit::QmomState two_nodes = qmom_state_from_moments(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, generalized_qmom_options(6));
     assert(two_nodes.active_node_count() == 2 && two_nodes.base_node_count() == 2);
-    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 6, 2, 2);
-    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 2);
+    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 6, 2, 1);
+    assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 1);
 }
 
 qmomkit::QmomOptions gamma_qmom_options(const bool adaptive)
@@ -1652,6 +1654,25 @@ void test_bounded_gamma_post_source_grows_within_the_state_bounds()
         qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 5), 2, gamma_qmom_options(true), qmomkit::AbscissaBounds{-2.0, 100.0});
     assert(one_node.active_node_count() == 1 && one_node.base_node_count() == 1);
     assert_accepted_counts(counted_source_step(one_node, raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.5, 0.25}, 5)), 6, 2, 2);
+}
+
+void test_bounded_gamma_post_source_refuses_growth_in_a_single_attempt()
+{
+    // A refused growth trial is not retried with fewer nodes. At N = 2, a
+    // state of one point holds one node on a base of one within [0, 100]. The
+    // moments of the points -1, 1 and 2 are continued from one node at its own
+    // base node count, and the trial for two base nodes has negative nodes, so
+    // it is refused without a second Wheeler inversion at one base node.
+    const qmomkit::QmomState one_node =
+        qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 5), 2, gamma_qmom_options(true), qmomkit::AbscissaBounds{0.0, 100.0});
+    assert(one_node.active_node_count() == 1 && one_node.base_node_count() == 1);
+    const CountedSourceStep step = counted_source_step(one_node, raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.5, 0.25}, 5));
+    assert_accepted_counts(step, 6, 1, 2);
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(step.wheeler_calls == 2);
+#else
+    assert(step.wheeler_calls == 0);
+#endif
 }
 
 void test_hyperbolic_qmom_state_with_two_n_moments_is_refused()
@@ -5468,6 +5489,7 @@ int main(const int argc, char** argv)
             {"bounded_gamma_post_source_keeps_the_generalized_quadrature", test_bounded_gamma_post_source_keeps_the_generalized_quadrature},
             {"bounded_gamma_post_source_reduces_within_the_state_bounds", test_bounded_gamma_post_source_reduces_within_the_state_bounds},
             {"bounded_gamma_post_source_grows_within_the_state_bounds", test_bounded_gamma_post_source_grows_within_the_state_bounds},
+            {"bounded_gamma_post_source_refuses_growth_in_a_single_attempt", test_bounded_gamma_post_source_refuses_growth_in_a_single_attempt},
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},
             {"classical_qmom_source_context_visits_its_reduced_quadrature", test_classical_qmom_source_context_visits_its_reduced_quadrature},
             {"hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count",

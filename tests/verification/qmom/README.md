@@ -113,8 +113,8 @@ Three references:
 
 `verification_generalized_quadrature_exact_<case>`
 (`generalized_quadrature_exact.cpp`). `compute_qmom(...)` with the generalized
-family must return the $N_G$ nodes and weights of the normal or gamma
-continuation of [QMOM families](../../../docs/developer/qmom_families.md#generalized),
+family must return the $N_G$ nodes and weights of the normal, gamma or
+lognormal continuation of [QMOM families](../../../docs/developer/qmom_families.md#generalized),
 its base node count, and moments $m_0, \ldots, m_{2k}$ within a first-order
 bound of the node and weight tolerances:
 
@@ -156,21 +156,36 @@ bound of the node and weight tolerances:
 - `gamma_reduction`: the moments of the points $-1$, 1 and 2 at $N = 3$ with the
   default bounds. The classical 3-node rule has the node $-1$ and the
   continuation from the 2-node rule has negative nodes, so adaptive mode
-  continues the 1-node rule and fixed mode is `not_realizable`.
+  continues the 1-node rule and fixed mode is `not_realizable`;
+- `stieltjes_wigert`: the lognormal continuation with the default bounds and
+  the moments $m_0\,s^k\eta^{k^2}$ of the lognormal number density, with
+  $s = e^\mu$ and $\eta = e^{\sigma^2/2}$, whose rule is the Gauss rule of the
+  Stieltjes–Wigert polynomials: $\eta = 9/8$, $m_0 = s = 1$, and
+  $\eta = 5/4$, $m_0 = s = 2$, with $N = 1, 2$ and $N_G = 10$ and 20;
+- `shifted_stieltjes_wigert`: the density with $\eta = 5/4$ and $m_0 = s = 2$
+  shifted to $[\ell, \infty)$, $\ell = -1$ and 4, with the bounds
+  $[\ell, \text{DBL\_MAX}]$, $N = 1, 2$, $N_G = 20$;
+- `lognormal_mixture`: half of the density with $\eta = 1.01$, $s = 1$ and
+  half of that with $\eta = 1.02$, $s = 5/4$, moments rounded to double,
+  $N = 3$, $N_G = 20$. For this mixture, the $\eta$ of $m_0$, $m_1$ and $m_2$,
+  which Definition 3 prescribes, differs from that of the last $\zeta$ pair;
+- `lognormal_reduction`: the `gamma_reduction` case with the lognormal
+  continuation.
 
 Fixed mode must return the identical result where the moments are interior.
 The moments are rounded to double where they are not exact, and the references
 are computed from those doubles: the recurrence and the continuation with
-Python's `fractions`, the eigenpairs with mpmath at 50 digits. The gamma
-continuation follows Definition 2 as the paper states it, from the moments of
-$\xi - \ell$.
+Python's `fractions`, the eigenpairs with mpmath at 50 digits. The gamma and
+lognormal continuations follow Definitions 2 and 3 as the paper states them,
+from the moments of $\xi - \ell$.
 `generalized_quadrature_exact.py` asserts that the closed forms of `hermite`,
-`chebyshev`, `laguerre` and `shifted_laguerre` agree with the references to
-$10^{-40}$, and that the decisions the test expects are not marginal.
+`chebyshev`, `laguerre`, `shifted_laguerre`, `stieltjes_wigert` and
+`shifted_stieltjes_wigert` agree with the references to $10^{-40}$, and that
+the decisions the test expects are not marginal.
 
 For the trimodal case at $N = 9$, QMOMKit's errors against the reference are
 $1.4 \times 10^{-7}$ in positions and $3.9 \times 10^{-7}$ in weights, against
-$6.1 \times 10^{-11}$ at $N = 6$ and at most $1.2 \times 10^{-14}$ in the
+$6.1 \times 10^{-11}$ at $N = 6$ and at most $1.8 \times 10^{-14}$ in the
 well-conditioned cases. A change of one ulp in its moments moves the nodes by
 $9.1 \times 10^{-7}$, so these errors are what the conditioning of the case
 allows in double precision. The same holds for the gamma mixture, whose errors
@@ -277,7 +292,7 @@ one node.
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
 | HyQMOM | $10^{-12}$ up to $N = 7$, $10^{-11}$ for $N = 8$, $5 \times 10^{-10}$ for $N = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ |
 | HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $N$; a safety bound for `normal` and `boundary` |
-| GQMOM | $10^{-12}$; $10^{-11}$ for `reduction` and the gamma mixture at $N = 4$; $10^{-10}$ for the gamma mixture at $N = 5$; $10^{-8}$ and $10^{-4}$ for the trimodal case at $N = 6$ and 9 | positions relative to the largest $\lvert\xi\rvert$, weights relative to $m_0$ | this test's rule: the smallest power of ten at least 30 times the largest error observed in the Debug, Release, GCC 12 and GCC 16 builds: at most $1.2 \times 10^{-14}$, except $3.0 \times 10^{-14}$ for the trimodal case at $N = 3$, $2.7 \times 10^{-13}$ for `reduction`, $2.2 \times 10^{-13}$ and $2.4 \times 10^{-12}$ for the gamma mixture at $N = 4$ and 5, and $6.1 \times 10^{-11}$ and $3.9 \times 10^{-7}$ for the trimodal case at $N = 6$ and 9 |
+| GQMOM | $10^{-12}$; $10^{-11}$ for `reduction`, the gamma mixture at $N = 4$ and the lognormal mixture; $10^{-10}$ for the gamma mixture at $N = 5$; $10^{-8}$ and $10^{-4}$ for the trimodal case at $N = 6$ and 9 | positions relative to the largest $\lvert\xi\rvert$, weights relative to $m_0$ | this test's rule: the smallest power of ten at least 30 times the largest error observed in the Debug, Release, GCC 12 and GCC 16 builds: at most $1.8 \times 10^{-14}$, except $3.0 \times 10^{-14}$ for the trimodal case at $N = 3$, $2.7 \times 10^{-13}$ for `reduction`, $9.4 \times 10^{-14}$ for the lognormal mixture, $2.2 \times 10^{-13}$ and $2.4 \times 10^{-12}$ for the gamma mixture at $N = 4$ and 5, and $6.1 \times 10^{-11}$ and $3.9 \times 10^{-7}$ for the trimodal case at $N = 6$ and 9 |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
 | Failure statuses | none | exact status and message fragment | |

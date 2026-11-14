@@ -95,9 +95,11 @@ every branch follows its parent. Code for both layouts iterates over
 One flag, `QmomOptions::adaptive` (default `true`), governs every inversion; in
 CQMOM, every marginal and conditional inversion and every branch count. An
 adaptive reconstruction returns at most the family's maximum node count,
-`maximum_node_count()`, which is $N + 1$ for `hyperbolic`; a fixed one returns
-exactly that count in every inversion, or fails. Criteria: [QMOM](qmom.md);
-branches: [CQMOM](cqmom.md).
+`maximum_node_count()`, which is $N + 1$ for `hyperbolic` and $N_G$ for
+`generalized`. A fixed one returns exactly that count in every inversion, or
+fails, except that a fixed `generalized` reconstruction returns the classical
+$N$ nodes of moments on the boundary of moment space. Criteria:
+[QMOM](qmom.md); branches: [CQMOM](cqmom.md).
 
 ## Tolerances
 
@@ -155,7 +157,7 @@ Terms the [user guide](../user/3_concepts.md#terms) does not define:
 | Term | Meaning |
 | --- | --- |
 | active node count | Nodes that a branch or a QMOM state uses; at most the configured count, or for a QMOM state its family's maximum. |
-| base node count | `QmomResult::base_node_count` and `QmomState::base_node_count()`, the number of nodes $k\le N$ of the classical quadrature on which a QMOM quadrature rests. It is the number of nodes for `classical`, $N$ for the $N+1$ nodes of `hyperbolic`, and 0 for a failed result. A value below $N$ shows an adaptive reduction in every family. It is also the node count the evolution passes when it reconstructs a state at its own count ([Phase-space evolution](phase_space_evolution.md#node-counts)). |
+| base node count | `QmomResult::base_node_count` and `QmomState::base_node_count()`, the number of nodes $k\le N$ of the classical quadrature on which a QMOM quadrature rests. It is the number of nodes for `classical`, $N$ for the $N+1$ nodes of `hyperbolic`, $k$ for the $N_G$ nodes of `generalized` continued from $k$ nodes, and 0 for a failed result. A value below $N$ shows an adaptive reduction in every family. It is also the node count the evolution passes when it reconstructs a state at its own count ([Phase-space evolution](phase_space_evolution.md#node-counts)). |
 | canonical moments | Moments recomputed from an accepted quadrature; a state stores these, not the moments it was given. |
 | ceiling | The largest node count a branch may return in one reconstruction, apart from the growth trial: its recorded active count when a state's counts are passed in, otherwise its configured count. |
 | child case | Internal layout data for the children of a branch with a given node count ([CQMOM](cqmom.md#branch-layouts)). |
@@ -167,7 +169,7 @@ Terms the [user guide](../user/3_concepts.md#terms) does not define:
 | growth | A branch trying one more node than its active count, allowed only in the post-source reconstruction. |
 | local weight | Weight from one branch inversion; terminal weights are products of local weights. |
 | marginal moments | Moments with every order zero except one. |
-| maximum node count | `QmomState::maximum_node_count()`, the largest number of nodes a QMOM state's quadrature can have. Its case fixes it at $N$ for `classical` and $N+1$ for `hyperbolic`. |
+| maximum node count | `QmomState::maximum_node_count()`, the largest number of nodes a QMOM state's quadrature can have. Its case fixes it at $N$ for `classical`, $N+1$ for `hyperbolic` and $N_G$ for `generalized`. |
 | parent path | Conditioning path of the node on which a branch is conditioned; its length is the level of the branch. |
 | prepared metadata | `internal::PreparedCqmomMetadata`: the immutable branch structure that a prepared case shares with its states and derived cases. |
 | required layout | The user guide's *layout*, `CqmomMomentLayout`: the moments a hierarchy's reconstruction reads, in a fixed order. |

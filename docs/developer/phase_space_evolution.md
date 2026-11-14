@@ -226,10 +226,10 @@ A tracked moment comes from the stage values. An untracked moment, a generalized
 moment, or a node visit uses a quadrature reconstructed from the stage moments
 on first request and cached in the context, so at most once per stage. It is
 never the state's quadrature, which belongs to the start of the step. The
-reconstruction uses the state's settings and its active counts as ceilings. QMOM
-calls `compute_qmom` with the request for the state's own count
+reconstruction uses the state's settings. QMOM calls `compute_qmom` with the
+request for the state's own count and the state's abscissa bounds
 ([Node counts](#node-counts)), so a state that holds its family's full
-quadrature visits it. CQMOM passes `active_branch_counts()` to
+quadrature visits it. CQMOM passes `active_branch_counts()` as ceilings to
 `internal::compute_cqmom_internal` with growth disabled. A failed stage
 reconstruction throws inside the callback and fails the source step.
 
@@ -278,9 +278,13 @@ Active node counts follow one policy:
 
 - **Advection** keeps every count.
 - **Source stages**: a stage reconstruction uses the state's counts as
-  ceilings, so a branch may lose nodes but never grows. Only the branches
-  below a branch that lost nodes, which condition on other nodes, start from
-  their configured maximum.
+  ceilings, so a CQMOM branch or a `classical` or `hyperbolic` state may lose
+  nodes but never grows. Only the branches below a branch that lost nodes,
+  which condition on other nodes, start from their configured maximum. A
+  `generalized` state's stage reconstruction rests on at most its base node
+  count, but continues to $N_G$ nodes wherever the stage moments are interior
+  and, with abscissa bounds, the continued nodes lie inside them, also when the
+  state holds a classical quadrature.
 - **QMOM post-source reconstruction**, `select_post_source_qmom`: a fixed case
   must return base node count $N$: its family's full quadrature or, for
   `generalized` with moments on the boundary, the classical $N$ nodes.
@@ -293,12 +297,14 @@ Active node counts follow one policy:
   most one per step, and a `classical` or `hyperbolic` state grows by at most
   one node per step, through the classical quadratures up to $N$ nodes and then
   to its family's maximum. A `generalized` state holds the generalized node
-  count whenever its moments are resolvably interior at its base node count, so
-  its base node count grows while its active count stays at the maximum. With
-  abscissa bounds, which only the classical family takes,
-  `internal::select_bounded_quadrature` decides on the active count, which for
-  a classical quadrature is the base node count, and accepts the extra node
-  only within the bounds.
+  count whenever its moments are resolvably interior at its base node count
+  and, with abscissa bounds, its continued nodes lie inside them, so its base
+  node count grows while its active count stays at the maximum. A `classical`
+  state with abscissa bounds takes `internal::select_bounded_quadrature`, which
+  decides on the active count, here equal to the base node count, and accepts
+  the extra node only within the bounds. A `generalized` state with bounds
+  follows the rule above, each reconstruction within its bounds
+  ([QMOM families](qmom_families.md#gamma-continuation)).
 - **CQMOM post-source reconstruction**, `internal::compute_cqmom_internal` with
   growth enabled: every branch follows the QMOM rule on its own active count,
   which for its classical quadrature is the base node count. The mechanism,

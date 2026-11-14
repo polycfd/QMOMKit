@@ -2,6 +2,7 @@
 #include "internal/generalized_quadrature.hpp"
 #include "internal/hyperbolic_quadrature.hpp"
 #include "internal/performance.hpp"
+#include "internal/qmom_family.hpp"
 #include "internal/qmom_state_access.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
@@ -1591,7 +1592,7 @@ void test_qmom_generalized_family_is_the_generalized_reconstruction()
             qmomkit::WheelerOptions wheeler;
             wheeler.adaptive = adaptive;
             const qmomkit::internal::GeneralizedQuadrature internal =
-                qmomkit::internal::compute_generalized_quadrature(moments, 2, wheeler, options.generalized);
+                qmomkit::internal::compute_generalized_quadrature(moments, 2, wheeler, options.generalized, false);
             assert(internal.quadrature.ok());
             const qmomkit::QmomResult expected{internal.quadrature.abscissas, internal.quadrature.weights, qmomkit::QmomStatus::success, "",
                                                internal.base_node_count};
@@ -2001,6 +2002,56 @@ void test_qmom_generalized_continues_a_boundary_reduction_by_rmin()
     assert(result.ok());
     assert(result.base_node_count == 2);
     assert(result.weights.size() == 9);
+}
+
+void test_qmom_growth_trial_of_the_generalized_family_is_a_single_attempt()
+{
+    // A growth trial accepts only the base node count it asks for. Where the
+    // classical selection reduces it, here by rmin, neither continuation
+    // continues the smaller count. Where the continued nodes leave the bounds
+    // of the gamma continuation, there is no retry with fewer nodes. In every
+    // case, compute_qmom(...) succeeds with a smaller base node count.
+    qmomkit::QmomOptions normal = generalized_options(true, 9);
+    normal.rmin = 1.0e-6;
+    qmomkit::QmomOptions gamma = gamma_options(true, 9);
+    gamma.rmin = 1.0e-6;
+    const qmomkit::MomentSet small_weight(raw_moments_1d({-1.0, 1.0, 3.0}, {0.5, 0.5, 1.0e-8}, 7));
+    const qmomkit::MomentSet positive_small_weight(raw_moments_1d({0.5, 1.5, 3.0}, {0.5, 0.5, 1.0e-8}, 7));
+    for (const auto& entry : {std::pair{small_weight, normal}, std::pair{positive_small_weight, gamma}})
+    {
+        const qmomkit::MomentSet& moments = entry.first;
+        const qmomkit::QmomOptions& options = entry.second;
+        assert(qmomkit::compute_qmom(moments, 3, options).base_node_count == 2);
+        qmomkit::QmomResult trial;
+        assert_qmom_reconstructions(1, [&] { trial = qmomkit::internal::compute_qmom_growth_trial(moments, 3, options, std::nullopt); });
+        assert(trial.status == qmomkit::QmomStatus::not_realizable);
+        assert(trial.message == "The generalized reconstruction found fewer base nodes than requested.");
+        assert(trial.base_node_count == 0);
+    }
+
+    const qmomkit::MomentSet outside(raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.375, 0.375}, 5));
+    assert(qmomkit::compute_qmom(outside, 2, gamma_options(true, 6)).base_node_count == 1);
+    const qmomkit::QmomResult gamma_trial = qmomkit::internal::compute_qmom_growth_trial(outside, 2, gamma_options(true, 6), std::nullopt);
+    assert(gamma_trial.status == qmomkit::QmomStatus::not_realizable);
+    assert(gamma_trial.message == "Bounded-support Wheeler inversion returned nodes outside the configured interval.");
+    assert(gamma_trial.base_node_count == 0);
+}
+
+void test_qmom_growth_trial_of_the_other_families_is_compute_qmom()
+{
+    // The classical and hyperbolic families reconstruct a growth trial as
+    // compute_qmom(...) does, also where rmin reduces the node count.
+    const qmomkit::MomentSet small_weight(raw_moments_1d({-1.0, 1.0, 3.0}, {0.5, 0.5, 1.0e-8}, 7));
+    qmomkit::QmomOptions classical;
+    classical.rmin = 1.0e-6;
+    qmomkit::QmomOptions hyperbolic = hyperbolic_options(true);
+    hyperbolic.rmin = 1.0e-6;
+    for (const qmomkit::QmomOptions& options : {classical, hyperbolic})
+    {
+        const qmomkit::QmomResult expected = qmomkit::compute_qmom(small_weight, 3, options);
+        assert(expected.ok() && expected.base_node_count < 3);
+        assert_same_qmom_result(qmomkit::internal::compute_qmom_growth_trial(small_weight, 3, options, std::nullopt), expected);
+    }
 }
 
 void test_qmom_generalized_state_holds_up_to_its_node_count()
@@ -2938,6 +2989,8 @@ int main(const int argc, char** argv)
             {"qmom_generalized_gamma_does_not_read_nu", test_qmom_generalized_gamma_does_not_read_nu},
             {"qmom_generalized_gamma_reports_input_failures_at_once", test_qmom_generalized_gamma_reports_input_failures_at_once},
             {"qmom_generalized_continues_a_boundary_reduction_by_rmin", test_qmom_generalized_continues_a_boundary_reduction_by_rmin},
+            {"qmom_growth_trial_of_the_generalized_family_is_a_single_attempt", test_qmom_growth_trial_of_the_generalized_family_is_a_single_attempt},
+            {"qmom_growth_trial_of_the_other_families_is_compute_qmom", test_qmom_growth_trial_of_the_other_families_is_compute_qmom},
             {"qmom_classical_base_node_count_is_the_node_count", test_qmom_classical_base_node_count_is_the_node_count},
             {"qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes", test_qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes},
             {"qmom_failed_reconstructions_have_base_node_count_zero", test_qmom_failed_reconstructions_have_base_node_count_zero},

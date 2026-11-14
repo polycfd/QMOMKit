@@ -33,9 +33,11 @@ struct GeneralizedQuadrature
  * non-finite sigma(k, k) or tau_k is not_realizable in fixed mode. In adaptive
  * mode, an overflowed +-inf returns the classical quadrature and a NaN is
  * not_realizable. The coordinate scale is zero, as in compute_quadrature(...).
+ * With exact_base_node_count, a reconstruction whose classical selection finds
+ * 1 <= k < N base nodes is not_realizable, without a continuation.
  */
 [[nodiscard]] GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, std::size_t node_count, const WheelerOptions& options,
-                                                                   const GeneralizedOptions& generalized);
+                                                                   const GeneralizedOptions& generalized, bool exact_base_node_count);
 
 /**
  * compute_generalized_quadrature(...) within abscissa bounds, which give the
@@ -43,10 +45,13 @@ struct GeneralizedQuadrature
  * reconstruction is accepted when it succeeds with every node inside the
  * bounds. Fixed mode is not_realizable otherwise. Adaptive mode retries below
  * the base node count of a rejected reconstruction, down to one node, and
- * returns the first reconstruction accepted or the last failure.
+ * returns the first reconstruction accepted or the last failure. With
+ * exact_base_node_count, the base node count must be N: a smaller one is not
+ * continued, a rejected reconstruction is not retried, and the result is
+ * not_realizable instead.
  */
 [[nodiscard]] GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& moments, std::size_t node_count,
                                                                            const WheelerOptions& options, const GeneralizedOptions& generalized,
-                                                                           AbscissaBounds bounds);
+                                                                           AbscissaBounds bounds, bool exact_base_node_count);
 
 } // namespace qmomkit::internal

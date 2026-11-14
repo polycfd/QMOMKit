@@ -631,6 +631,14 @@ struct GeneralizedBase
     return GeneralizedBase{std::nullopt, std::move(recurrence), k};
 }
 
+// The result of a reconstruction with exact_base_node_count whose classical
+// selection found fewer base nodes than requested.
+[[nodiscard]] internal::GeneralizedQuadrature fewer_base_nodes_than_requested()
+{
+    return internal::GeneralizedQuadrature{
+        Quadrature1D{{}, {}, QuadratureStatus::not_realizable, "The generalized reconstruction found fewer base nodes than requested."}, 0};
+}
+
 // The continuation of the recurrence of a generalized base without outcome to
 // its N_G = generalized.node_count nodes.
 [[nodiscard]] internal::GeneralizedQuadrature continued_generalized_quadrature(const MomentSet& moments, const GeneralizedBase& base,
@@ -786,9 +794,13 @@ Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, const std::
 }
 
 GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
-                                                     const GeneralizedOptions& generalized)
+                                                     const GeneralizedOptions& generalized, const bool exact_base_node_count)
 {
     GeneralizedBase base = generalized_base(moments, node_count, options, generalized);
+    if (exact_base_node_count && base.k != 0 && base.k < node_count)
+    {
+        return fewer_base_nodes_than_requested();
+    }
     if (base.outcome.has_value())
     {
         return std::move(*base.outcome);
@@ -797,7 +809,8 @@ GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, c
 }
 
 GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
-                                                             const GeneralizedOptions& generalized, const AbscissaBounds bounds)
+                                                             const GeneralizedOptions& generalized, const AbscissaBounds bounds,
+                                                             const bool exact_base_node_count)
 {
     if (!std::isfinite(bounds.lower) || !std::isfinite(bounds.upper) || !(bounds.lower < bounds.upper))
     {
@@ -809,11 +822,17 @@ GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& mo
     // only. Adaptive mode retries below the base node count k of a rejected
     // reconstruction, or below the node count tried if k was not found, down to
     // one node. The continuation runs once per base node count. Invalid input
-    // does not depend on the node count and is returned at once.
+    // does not depend on the node count and is returned at once. With
+    // exact_base_node_count, the base node count must be node_count, so there
+    // is a single attempt.
     std::size_t count = node_count;
     while (true)
     {
         GeneralizedBase base = generalized_base(moments, count, options, generalized);
+        if (exact_base_node_count && base.k != 0 && base.k < count)
+        {
+            return fewer_base_nodes_than_requested();
+        }
         GeneralizedQuadrature candidate =
             base.outcome.has_value() ? std::move(*base.outcome) : continued_generalized_quadrature(moments, base, generalized, bounds.lower);
         Quadrature1D& quadrature = candidate.quadrature;
@@ -828,7 +847,7 @@ GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& mo
             candidate.base_node_count = 0;
         }
         count = (base.k > 0 ? base.k : count) - 1;
-        if (quadrature.ok() || !options.adaptive || count == 0)
+        if (quadrature.ok() || !options.adaptive || exact_base_node_count || count == 0)
         {
             return candidate;
         }

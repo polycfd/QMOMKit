@@ -1,14 +1,14 @@
-// GQMOM reconstructions with the normal, gamma and lognormal continuations,
-// against Gauss rules of the continued recurrence computed in exact rational
-// arithmetic and diagonalized at 50 digits.
+// GQMOM reconstructions with the normal, gamma, lognormal and beta
+// continuations, against Gauss rules of the continued recurrence computed in
+// exact rational arithmetic and diagonalized at 50 digits.
 //
 // What is verified
 //   That compute_qmom(...) with the generalized family returns the N_G nodes and
 //   weights of Definition 1 of Fox, Laurent & Passalacqua (2023), eqs. 21, 22
-//   and 36, of Definition 2, eqs. 23, 25 and 26, or of Definition 3, eqs. 23,
-//   26, 29 and 30, its base node count, and moments m_0, ..., m_{2k}
-//   reproduced to first order in the errors of the nodes and weights
-//   (eq. 14):
+//   and 36, of Definition 2, eqs. 23, 25 and 26, of Definition 3, eqs. 23,
+//   26, 29 and 30, or of Definition 4, eqs. 23, 26 and 31 to 35, its base node
+//   count, and moments m_0, ..., m_{2k} reproduced to first order in the
+//   errors of the nodes and weights (eq. 14):
 //   - hermite: Gaussian moments with nu = 1 and m0 = 2, N_G = 3N and 101, give
 //     the Gauss-Hermite rule of the Gaussian (eq. 20): mean 0 and standard
 //     deviation 1 for N = 1, 3, 5, 8, and mean 3 and 1/2 for N = 1, 3, 5.
@@ -66,7 +66,29 @@
 //     For this mixture, the eta of Definition 3, from m_0, m_1 and m_2,
 //     differs from that of the last known pair;
 //   - lognormal_reduction: the case of gamma_reduction with the lognormal
-//     continuation.
+//     continuation;
+//   - jacobi: with the beta continuation and the default bounds, the moments
+//     of the beta number density
+//     m0 xi^beta (1 - xi)^alpha / B(beta + 1, alpha + 1) on (0, 1), in the
+//     notation of eq. 32, give the Gauss rule of the Jacobi polynomials:
+//     alpha = 1/2, beta = -1/2 and m0 = 1, and alpha = 3/2, beta = 1/2 and
+//     m0 = 2, with N = 1, 2, 3 and N_G = 10, 51;
+//   - scaled_jacobi: the beta number density with alpha = 3/2, beta = 1/2 and
+//     m0 = 2 mapped to [lower, upper] = [-1, 3] and [2, 5/2], with these
+//     bounds, N = 1, 2 and N_G = 20;
+//   - beta_mixture: two mixtures of beta number densities, moments rounded to
+//     double, with the default bounds, N = 2 and N_G = 20. For a beta density,
+//     every continued canonical moment p_i equals p^J_i of eq. 32 in either
+//     case of eqs. 34 and 35. For these mixtures, every continued p_i of the
+//     first takes the first case, and of the second the second case, for odd
+//     and even i alike;
+//   - beta_boundary: the boundary cases with dyadic points in (0, 1);
+//   - beta_reduction: the moments of the points 1/4, 1/2 and 5/4, and of
+//     -1/8, 1/4 and 3/4, at N = 3 with the default bounds. The classical
+//     3-node rule has the point outside [0, 1] as a node, and the continuation
+//     from the 2-node rule has a node above 1 for the first and a negative b
+//     for the second, so adaptive mode continues the 1-node rule to N_G = 9,
+//     and fixed mode is not_realizable.
 //   Every case other than the boundary and reduction ones of every
 //   continuation lies in the interior of moment space, and fixed mode returns
 //   the identical result.
@@ -80,15 +102,20 @@
 //   double. The script generalized_quadrature_exact.py, beside this file,
 //   generated generalized_quadrature_exact.inc. It asserts that the closed
 //   forms of the hermite, chebyshev, laguerre, shifted_laguerre,
-//   stieltjes_wigert and shifted_stieltjes_wigert cases agree with the
-//   references to 1e-40, and that the decisions the test expects are
-//   not marginal: sigma(k, k) exceeds its rounding bound tau_k a thousandfold
-//   where the result is continued, the rmin and eabs tests on the classical
-//   rules pass or fail with a factor of ten to spare, and the nodes the test
-//   expects inside or outside the bounds lie there by at least a thousandfold
-//   the margin of the bounds check. The script computes the gamma and
-//   lognormal continuations as Definitions 2 and 3 state them, from the
-//   moments of the coordinate minus the lower bound.
+//   stieltjes_wigert, shifted_stieltjes_wigert, jacobi and scaled_jacobi cases
+//   agree with the references to 1e-40, and that the decisions the test expects
+//   are not marginal: sigma(k, k) exceeds its rounding bound tau_k a
+//   thousandfold where the result is continued, the rmin and eabs tests on the
+//   classical rules pass or fail with a factor of ten to spare, the nodes the
+//   test expects inside or outside the bounds lie there by at least a
+//   thousandfold the margin of the bounds check, and the beta_mixture cases
+//   take every case of eqs. 34 and 35 with a margin of at least 1e-6 in the
+//   canonical moments. The script computes the gamma and lognormal
+//   continuations as Definitions 2 and 3 state them, from the moments of the
+//   coordinate minus the lower bound, and the beta continuation as Definition 4
+//   states it on (0, 1), from the moments of the coordinate mapped there. The
+//   closed form of the jacobi and scaled_jacobi cases is the recurrence of the
+//   Jacobi polynomials (DLMF 18.9.2), independent of eqs. 31 to 35.
 //
 // Error metric and pass criteria
 //   Positions relative to the largest |position| of the reference, weights
@@ -347,6 +374,31 @@ void test_lognormal_reduction()
     verify_references(lognormal_reduction_references);
 }
 
+void test_jacobi()
+{
+    verify_references(jacobi_references);
+}
+
+void test_scaled_jacobi()
+{
+    verify_references(scaled_jacobi_references);
+}
+
+void test_beta_mixture()
+{
+    verify_references(beta_mixture_references);
+}
+
+void test_beta_boundary()
+{
+    verify_references(beta_boundary_references);
+}
+
+void test_beta_reduction()
+{
+    verify_references(beta_reduction_references);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -367,5 +419,10 @@ int main(const int argc, char** argv)
                                                  {"shifted_stieltjes_wigert", test_shifted_stieltjes_wigert},
                                                  {"lognormal_mixture", test_lognormal_mixture},
                                                  {"lognormal_reduction", test_lognormal_reduction},
+                                                 {"jacobi", test_jacobi},
+                                                 {"scaled_jacobi", test_scaled_jacobi},
+                                                 {"beta_mixture", test_beta_mixture},
+                                                 {"beta_boundary", test_beta_boundary},
+                                                 {"beta_reduction", test_beta_reduction},
                                              });
 }

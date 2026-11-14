@@ -113,8 +113,9 @@ Three references:
 
 `verification_generalized_quadrature_exact_<case>`
 (`generalized_quadrature_exact.cpp`). `compute_qmom(...)` with the generalized
-family must return the $N_G$ nodes and weights of the normal, gamma or
-lognormal continuation of [QMOM families](../../../docs/developer/qmom_families.md#generalized),
+family must return the $N_G$ nodes and weights of the normal, gamma, lognormal
+or beta continuation of
+[QMOM families](../../../docs/developer/qmom_families.md#generalized),
 its base node count, and moments $m_0, \ldots, m_{2k}$ within a first-order
 bound of the node and weight tolerances:
 
@@ -171,18 +172,42 @@ bound of the node and weight tolerances:
   gives the same $\eta$ (eq. 28). For this mixture, the $\eta$ of $m_0$, $m_1$
   and $m_2$, which Definition 3 prescribes, differs from that of the last pair;
 - `lognormal_reduction`: the `gamma_reduction` case with the lognormal
-  continuation.
+  continuation;
+- `jacobi`: the beta continuation with the default bounds and the moments of
+  the beta number density
+  $m_0\,\xi^\beta(1-\xi)^\alpha/B(\beta+1,\alpha+1)$ on $(0, 1)$, whose rule is
+  the Gauss rule of the Jacobi polynomials: $\alpha = 1/2$, $\beta = -1/2$,
+  $m_0 = 1$, and $\alpha = 3/2$, $\beta = 1/2$, $m_0 = 2$, with $N = 1, 2, 3$
+  and $N_G = 10$ and 51;
+- `scaled_jacobi`: the density with $\alpha = 3/2$, $\beta = 1/2$ and
+  $m_0 = 2$ mapped to $[\ell, u] = [-1, 3]$ and $[2, 5/2]$, with these bounds,
+  $N = 1, 2$, $N_G = 20$;
+- `beta_mixture`: two mixtures of beta densities, moments rounded to double,
+  $N = 2$, $N_G = 20$. For a beta density, either case of eqs. 34 and 35 gives
+  the canonical moments of the density. Every continued canonical moment of
+  the first mixture takes the first case, and of the second the second case,
+  for odd and even orders alike;
+- `beta_boundary`: the `boundary` cases with dyadic points in $(0, 1)$;
+- `beta_reduction`: the moments of the points 1/4, 1/2 and 5/4, and of $-1/8$,
+  1/4 and 3/4, at $N = 3$ with the default bounds. The classical 3-node rule
+  has the point outside $[0, 1]$ as a node, and the continuation from the
+  2-node rule has a node above 1 for the first and a negative $b$ for the
+  second, so adaptive mode continues the 1-node rule and fixed mode is
+  `not_realizable`.
 
 Fixed mode must return the identical result where the moments are interior.
 The moments are rounded to double where they are not exact, and the references
 are computed from those doubles: the recurrence and the continuation with
 Python's `fractions`, the eigenpairs with mpmath at 50 digits. The gamma and
 lognormal continuations follow Definitions 2 and 3 as the paper states them,
-from the moments of $\xi - \ell$.
+from the moments of $\xi - \ell$, and the beta continuation follows
+Definition 4 on $(0, 1)$, from the moments of $(\xi - \ell)/(u - \ell)$.
 `generalized_quadrature_exact.py` asserts that the closed forms of `hermite`,
-`chebyshev`, `laguerre`, `shifted_laguerre`, `stieltjes_wigert` and
-`shifted_stieltjes_wigert` agree with the references to $10^{-40}$, and that
-the decisions the test expects are not marginal.
+`chebyshev`, `laguerre`, `shifted_laguerre`, `stieltjes_wigert`,
+`shifted_stieltjes_wigert`, `jacobi` and `scaled_jacobi` agree with the
+references to $10^{-40}$, and that the decisions the test expects are not
+marginal. The closed form of `jacobi` and `scaled_jacobi` is the recurrence of
+the Jacobi polynomials (DLMF 18.9.2), independent of eqs. 31 to 35.
 
 For the trimodal case at $N = 9$, QMOMKit's errors against the reference are
 $1.4 \times 10^{-7}$ in positions and $3.9 \times 10^{-7}$ in weights, against

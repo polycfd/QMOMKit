@@ -2,9 +2,10 @@
 
 GQMOM with the normal continuation (Fox, Laurent & Passalacqua 2023,
 Definition 1, eqs. 21 and 22, and eq. 36), the gamma continuation
-(Definition 2, eqs. 23, 25 and 26) and the lognormal continuation
-(Definition 3, eqs. 23, 26, 29 and 30). For each case, the moments are rounded
-to double, and the reference is computed from those doubles: the recurrence of
+(Definition 2, eqs. 23, 25 and 26), the lognormal continuation (Definition 3,
+eqs. 23, 26, 29 and 30) and the beta continuation (Definition 4, eqs. 23, 26
+and 31 to 35). For each case, the moments are rounded to double, and the
+reference is computed from those doubles: the recurrence of
 docs/developer/qmom.md in exact rational arithmetic, the continuation in exact
 rational arithmetic, and the Gauss quadrature of the Jacobi matrix with mpmath
 at 50 digits. Where a closed form exists, the script asserts that the reference
@@ -150,6 +151,61 @@ def lognormal(m, n, N, lower, k):
     return gauss(ac, bc, m[0], N)
 
 
+def beta_recurrence(m, n, N, lower, upper, k):
+    # Definition 4 of Fox, Laurent & Passalacqua (2023), continued from the
+    # k-node quadrature, k <= N, on [lower, upper], as the paper states it for
+    # (0, 1) after the linear change of variables y = (x - lower) / (upper -
+    # lower): the moments M of y, zeta_1, ..., zeta_{2k} of the recurrence of M
+    # (eq. 23), the canonical moments p_i with zeta_i = p_i (1 - p_{i-1}) and
+    # p_0 = 0 (eq. 31), alpha and beta from p_1 and p_2 (eq. 33), the canonical
+    # moments p^J_i of the beta number density (eq. 32), the continued p_i,
+    # i > 2k (eqs. 34 and 35), zeta_i = p_i (1 - p_{i-1}) for i > 2k, and
+    # a_i = zeta_{2i} + zeta_{2i+1}, i >= k, and b_i = zeta_{2i-1} zeta_{2i},
+    # i > k (eq. 26). The Jacobi matrix of x takes lower + (upper - lower) a_i
+    # and (upper - lower)^2 b_i. Also returns, for each continued p_i, the case
+    # of eqs. 34 and 35 it takes and the margin of that choice: the larger
+    # amount by which a condition of the first case holds, or the smaller
+    # amount by which the conditions of the second case fail.
+    width = upper - lower
+    M = [sum(comb(j, i) * (-lower) ** (j - i) * m[i] for i in range(j + 1)) / width**j for j in range(len(m))]
+    a, b, _ = recurrence(M, n)
+    zeta = [None] * (2 * N + 1)
+    zeta[1] = a[0]
+    for j in range(1, k + 1):
+        zeta[2 * j] = b[j] / zeta[2 * j - 1]
+        if j < k:
+            zeta[2 * j + 1] = a[j] - zeta[2 * j]
+    p = [F(0)] * (2 * N + 1)
+    for i in range(1, 2 * k + 1):
+        p[i] = zeta[i] / (1 - p[i - 1])
+    alpha = (1 - p[1] - 2 * p[2] + p[1] * p[2]) / p[2]
+    beta = (p[1] - p[2] - p[1] * p[2]) / p[2]
+
+    def jacobi(j):
+        i = (j + 1) // 2
+        return (beta + i) / (2 * i + alpha + beta) if j % 2 else F(i) / (2 * i + 1 + alpha + beta)
+
+    choices = []
+    for j in range(2 * k + 1, 2 * N + 1):
+        last = 2 * k - 1 if j % 2 else 2 * k
+        if p[last] <= jacobi(last) or jacobi(last) >= jacobi(j):
+            p[j] = jacobi(j) / jacobi(last) * p[last]
+            choices.append((j, 1, max(jacobi(last) - p[last], jacobi(last) - jacobi(j))))
+        else:
+            p[j] = (p[last] * (1 - jacobi(j)) + jacobi(j) - jacobi(last)) / (1 - jacobi(last))
+            choices.append((j, 2, min(p[last] - jacobi(last), jacobi(j) - jacobi(last))))
+        zeta[j] = p[j] * (1 - p[j - 1])
+    ay = a[:k] + [zeta[2 * i] + zeta[2 * i + 1] for i in range(k, N)]
+    by = b[: k + 1] + [zeta[2 * i - 1] * zeta[2 * i] for i in range(k + 1, N)]
+    return [lower + width * v for v in ay], [width**2 * v for v in by], choices
+
+
+def beta(m, n, N, lower, upper, k):
+    ac, bc, _ = beta_recurrence(m, n, N, lower, upper, k)
+    assert all(v > 0 for v in bc[1:]), "continued b must be positive"
+    return gauss(ac, bc, m[0], N)
+
+
 def classical(m, k):
     # The classical k-node quadrature of m_0, ..., m_{2k-1}.
     a, b, _ = recurrence(m[: 2 * k], k)
@@ -160,6 +216,13 @@ def lower_of(case):
     return case["bounds"][0] if case["bounds"] is not None else F(0)
 
 
+def upper_of(case):
+    # The upper bound, [0, 1] for the beta continuation without bounds.
+    if case["bounds"] is not None:
+        return case["bounds"][1]
+    return F(1) if case["continuation"] == "beta" else F(MAX_DOUBLE)
+
+
 def evaluate(case, m):
     mp.mp.dps = 50
     if case["kind"] == "classical":
@@ -168,6 +231,8 @@ def evaluate(case, m):
         return gamma(m, case["n"], case["N"], lower_of(case), case["base"])
     if case["continuation"] == "lognormal":
         return lognormal(m, case["n"], case["N"], lower_of(case), case["base"])
+    if case["continuation"] == "beta":
+        return beta(m, case["n"], case["N"], lower_of(case), upper_of(case), case["base"])
     return generalized(m, case["n"], case["N"], case["nu"], case["base"])
 
 
@@ -263,6 +328,46 @@ def stieltjes_wigert(m0, scale, eta, lower, N):
         zeta += [scale * eta ** (4 * i - 3), scale * eta ** (2 * i - 1) * (eta ** (2 * i) - 1)]
     a = [zeta[1] + lower] + [zeta[2 * i] + zeta[2 * i + 1] + lower for i in range(1, N)]
     b = [F(0)] + [zeta[2 * i - 1] * zeta[2 * i] for i in range(1, N)]
+    return gauss(a, b, m0, N)
+
+
+def beta_moments(m0, alpha, beta, lower, upper, count):
+    # Raw moments of m0 times the beta number density x^beta (1 - x)^alpha on
+    # (0, 1), in the notation of Fox, Laurent & Passalacqua (2023, eq. 32),
+    # mapped to [lower, upper]: with y the coordinate on (0, 1),
+    # E[y^j] = E[y^(j-1)] (beta + j) / (alpha + beta + 1 + j).
+    y = [F(1)]
+    for j in range(1, count):
+        y.append(y[-1] * (beta + j) / (alpha + beta + 1 + j))
+    width = upper - lower
+    return [m0 * sum(comb(k, j) * lower ** (k - j) * width**j * y[j] for j in range(k + 1)) for k in range(count)]
+
+
+def beta_mixture_moments(parts, count):
+    # The moments of a mixture of beta number densities on (0, 1), parts of
+    # (weight, alpha, beta), rounded to double.
+    exact = [sum(beta_moments(w, alpha, beta, F(0), F(1), count)[k] for w, alpha, beta in parts) for k in range(count)]
+    return [F(float(v)) for v in exact]
+
+
+def jacobi(m0, alpha, beta, lower, upper, N):
+    # Gauss rule of the beta number density x^beta (1 - x)^alpha mapped to
+    # [lower, upper], from the recurrence of the monic Jacobi polynomials
+    # P^(alpha, beta) on (-1, 1) (DLMF 18.9.2, Table 18.9.1), with weight
+    # (1 - t)^alpha (1 + t)^beta, under t = 2 (x - lower) / (upper - lower) - 1,
+    # with b_1 from its own form, which holds for alpha + beta = -1 as well.
+    # Independent of eqs. 31 to 35.
+    mp.mp.dps = 50
+    width = upper - lower
+    a, b = [], [F(0)]
+    for n in range(N):
+        s = 2 * n + alpha + beta
+        diagonal = (beta**2 - alpha**2) / (s * (s + 2)) if s != 0 else (beta - alpha) / (alpha + beta + 2)
+        a.append(lower + width * (1 + diagonal) / 2)
+        if n == 1:
+            b.append(width**2 * (1 + alpha) * (1 + beta) / ((2 + alpha + beta) ** 2 * (3 + alpha + beta)))
+        elif n > 1:
+            b.append(width**2 * n * (n + alpha) * (n + beta) * (n + alpha + beta) / (s**2 * (s + 1) * (s - 1)))
     return gauss(a, b, m0, N)
 
 
@@ -384,6 +489,48 @@ def cases():
     # V14: as V10 with the lognormal continuation.
     m = exact_moments(moments_of([F(-1), F(1), F(2)], [F(1, 4), F(1, 2), F(1, 4)], 7))
     add("lognormal_reduction", "outside_n3", m, 3, 9, 1, "continued", 1, 2, fixed_refused=True, continuation="lognormal")
+    # V15: beta moments with the beta continuation and the default bounds give
+    # the Gauss rule of the Jacobi polynomials: alpha = 1/2 and beta = -1/2
+    # with m0 = 1, and alpha = 3/2 and beta = 1/2 with m0 = 2, N = 1, 2, 3,
+    # N_G = 10 and 51. Their moments are exact in double.
+    for m0, alpha, beta_, prefix in ((F(1), F(1, 2), F(-1, 2), "alpha0.5_beta-0.5"), (F(2), F(3, 2), F(1, 2), "alpha1.5_beta0.5")):
+        for n in (1, 2, 3):
+            m = exact_moments(beta_moments(m0, alpha, beta_, F(0), F(1), 2 * n + 1))
+            for N in (10, 51):
+                add("jacobi", f"{prefix}_n{n}_N{N}", m, n, N, 1, "continued", n, 2 * n, continuation="beta",
+                    closed=lambda m0=m0, alpha=alpha, beta_=beta_, N=N: jacobi(m0, alpha, beta_, F(0), F(1), N))
+    # V16: the beta density with alpha = 3/2, beta = 1/2 and m0 = 2 mapped to
+    # [lower, upper] = [-1, 3] and [2, 5/2], with these bounds, N = 1, 2,
+    # N_G = 20.
+    for lower, upper in ((F(-1), F(3)), (F(2), F(5, 2))):
+        for n in (1, 2):
+            m = exact_moments(beta_moments(F(2), F(3, 2), F(1, 2), lower, upper, 2 * n + 1))
+            add("scaled_jacobi", f"lower{float(lower):g}_upper{float(upper):g}_n{n}_N20", m, n, 20, 1, "continued", n, 2 * n,
+                continuation="beta", bounds=(lower, upper),
+                closed=lambda lower=lower, upper=upper: jacobi(F(2), F(3, 2), F(1, 2), lower, upper, 20))
+    # V17: two mixtures of beta number densities, moments rounded to double,
+    # with the default bounds, N = 2, N_G = 20. Not beta densities, so alpha
+    # and beta from p_1 and p_2 differ from those of the last known pair.
+    # Every continued p of the first takes the first case of eqs. 34 and 35,
+    # and every continued p of the second the second case, which main()
+    # asserts.
+    for name, parts in (("beta_mixture_first_case_n2_N20", ((F(1, 2), F(2), F(5)), (F(1, 2), F(6), F(1)))),
+                        ("beta_mixture_second_case_n2_N20", ((F(1, 4), F(3), F(3)), (F(3, 4), F(30), F(10))))):
+        add("beta_mixture", name, beta_mixture_moments(parts, 5), 2, 20, 1, "continued", 2, 4, continuation="beta")
+    # V18: moments on the boundary, of dyadic points in (0, 1), as V4.
+    m = exact_moments(moments_of([F(1, 8), F(1, 2), F(3, 4)], [F(1, 4), F(1, 2), F(1, 4)], 7))
+    add("beta_boundary", "three_points_n3", m, 3, 9, 1, "classical", 3, 6, continuation="beta")
+    m = exact_moments(moments_of([F(1, 4), F(3, 4)], [F(3, 4), F(1, 4)], 9))
+    add("beta_boundary", "two_points_n4", m, 4, 12, 1, "classical", 2, 8, fixed_refused=True, continuation="beta")
+    # V19: the moments of three dyadic points, one outside [0, 1], at N = 3
+    # with the default bounds. Their classical 3-node rule has that point as a
+    # node. The continuation from the 2-node rule has a node above 1 for the
+    # points 1/4, 1/2 and 5/4, and a negative b for the points -1/8, 1/4 and
+    # 3/4, so adaptive mode continues the 1-node rule, and fixed mode is
+    # not_realizable.
+    for name, points in (("above_n3", [F(1, 4), F(1, 2), F(5, 4)]), ("negative_b_n3", [F(-1, 8), F(1, 4), F(3, 4)])):
+        m = exact_moments(moments_of(points, [F(1, 4), F(1, 2), F(1, 4)], 7))
+        add("beta_reduction", name, m, 3, 9, 1, "continued", 1, 2, fixed_refused=True, continuation="beta")
     return out
 
 
@@ -392,7 +539,7 @@ def assert_decisions(case):
     m, n = case["m"], case["n"]
     mp.mp.dps = 50
     if case["group"] in ("hermite", "chebyshev", "figures", "laguerre", "shifted_laguerre", "gamma_mixture", "stieltjes_wigert",
-                         "shifted_stieltjes_wigert", "lognormal_mixture"):
+                         "shifted_stieltjes_wigert", "lognormal_mixture", "jacobi", "scaled_jacobi", "beta_mixture"):
         _, _, diagonal = recurrence(m, n)
         for k in range(1, n + 1):
             assert diagonal[k][0] > 1000 * diagonal[k][1], (case["name"], k)
@@ -425,15 +572,46 @@ def assert_decisions(case):
         assert x[0] < -1.0e-6 * max(abs(v) for v in x), case["name"]
         # Node count 1: the continued rule follows in main().
         assert diagonal[1][0] > 1000 * diagonal[1][1], case["name"]
+    if case["group"] == "beta_mixture":
+        # Every case of eqs. 34 and 35 is taken with a margin far beyond the
+        # rounding of the canonical moments in double.
+        _, _, choices = beta_recurrence(m, n, case["N"], F(0), F(1), n)
+        assert all(margin > 1.0e-6 for _, _, margin in choices), case["name"]
+    if case["group"] == "beta_reduction":
+        # Node count 3: the classical rule, on the boundary, has the node
+        # outside [0, 1].
+        _, _, diagonal = recurrence(m, n)
+        assert abs(diagonal[3][0]) <= diagonal[3][1], case["name"]
+        x, _ = classical(m, 3)
+        assert x[0] < -0.1 or x[-1] > 1.1, case["name"]
+        # Node count 2: the classical rule is interior and accepted, and its
+        # continuation has a node clearly above 1 or a clearly negative b.
+        x, w = classical(m, 2)
+        assert min(w) / max(w) > 10 * case["rmin"], case["name"]
+        assert diagonal[2][0] > 1000 * diagonal[2][1], case["name"]
+        ac, bc, _ = beta_recurrence(m[:5], 2, case["N"], F(0), F(1), 2)
+        if case["name"] == "negative_b_n3":
+            assert min(bc[1:]) < -0.1 * max(bc[1:]), case["name"]
+        else:
+            assert all(v > 0 for v in bc[1:]), case["name"]
+            x, _ = gauss(ac, bc, m[0], case["N"])
+            assert x[-1] > 1.1, case["name"]
+        # Node count 1: the continued rule follows in main().
+        assert diagonal[1][0] > 1000 * diagonal[1][1], case["name"]
 
 
 def assert_inside(case, x):
     # The continued nodes lie above the lower bound with a margin far beyond
-    # the tolerance 1e-12 max |xi_i| of abscissas_inside_bounds.
-    if case["continuation"] in ("gamma", "lognormal") and case["kind"] == "continued":
-        lower = lower_of(case)
-        assert x[0] - mp.mpf(lower.numerator) / lower.denominator > 1.0e-9 * max(abs(v) for v in x), case["name"]
-        assert case["bounds"] is None or float(x[-1]) < case["bounds"][1], case["name"]
+    # the tolerance 1e-12 max |xi_i| of abscissas_inside_bounds, and below the
+    # upper bound, for the beta continuation with the same margin.
+    if case["continuation"] in ("gamma", "lognormal", "beta") and case["kind"] == "continued":
+        q = lambda v: mp.mpf(v.numerator) / v.denominator
+        margin = 1.0e-9 * max(abs(v) for v in x)
+        assert x[0] - q(lower_of(case)) > margin, case["name"]
+        if case["continuation"] == "beta":
+            assert q(upper_of(case)) - x[-1] > margin, case["name"]
+        else:
+            assert case["bounds"] is None or float(x[-1]) < case["bounds"][1], case["name"]
 
 
 def one_ulp_change(m, n, continued, draws=5):
@@ -458,10 +636,19 @@ CASES = cases()
 def main():
     for case in CASES:
         assert_decisions(case)
+    # The beta mixtures take both cases of eqs. 34 and 35 for both the odd and
+    # the even canonical moments.
+    taken = set()
+    for case in CASES:
+        if case["group"] == "beta_mixture":
+            _, _, choices = beta_recurrence(case["m"], case["n"], case["N"], F(0), F(1), case["n"])
+            taken |= {(j % 2, which) for j, which, _ in choices}
+    assert taken == {(0, 1), (0, 2), (1, 1), (1, 2)}, taken
     fmt = lambda values: ", ".join(repr(float(v)) for v in values)
     lines = ["// Generated by generalized_quadrature_exact.py; do not edit.", ""]
     for group in ("hermite", "chebyshev", "figures", "boundary", "reduction", "laguerre", "shifted_laguerre", "gamma_mixture", "gamma_boundary",
-                  "gamma_reduction", "stieltjes_wigert", "shifted_stieltjes_wigert", "lognormal_mixture", "lognormal_reduction"):
+                  "gamma_reduction", "stieltjes_wigert", "shifted_stieltjes_wigert", "lognormal_mixture", "lognormal_reduction", "jacobi",
+                  "scaled_jacobi", "beta_mixture", "beta_boundary", "beta_reduction"):
         lines.append(f"const std::vector<GeneralizedReference> {group}_references{{")
         for case in CASES:
             if case["group"] != group:

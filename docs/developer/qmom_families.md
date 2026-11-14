@@ -213,8 +213,8 @@ does, and fixed mode is `not_realizable` with the message of a negative $b$.
 The base node count is $k$, so fixed mode always returns base node count $N$:
 $N_G$ nodes in the interior and the classical $N$ nodes on the boundary.
 
-The normal, gamma or lognormal continuation, below, gives the coefficients of $N_G$
-nodes. The quadrature is the Gauss quadrature of $J_{N_G}$, with diagonal
+The normal, gamma or lognormal continuation, below, gives the coefficients of
+$N_G$ nodes. The quadrature is the Gauss quadrature of $J_{N_G}$, with diagonal
 $a_0,\ldots,a_{N_G-1}$ and off-diagonal $\sqrt{b_1},\ldots,\sqrt{b_{N_G-1}}$,
 from the dense eigensolver of [Linear algebra](linear_algebra.md). Its memory
 grows as $N_G^2$ and its time faster. Since $N_G$ has no cap, an $N_G$ too large
@@ -312,13 +312,13 @@ recurrence rejects. The continuation does not read $\nu$.
 
 ### Lognormal continuation
 
-The lognormal continuation (Fox et al., 2023, Definition 3, eqs. 29 and 30) is
-also for a number density on $[\ell,\infty)$. It uses the same shifted $\zeta$
-form, the same continued $\zeta_{2k+1}$ for $a_k$ and the same abscissa bounds
-as the gamma continuation. Definition 3's $\eta=\sqrt{m_2m_0}/m_1$ of the
-shifted moments satisfies $\eta^2=1+\zeta_2/\zeta_1=1+b_1/\zeta_1^2$, so
-$\eta>1$ whenever $b_1>0$. The continuation (eq. 30, with $k$ in place of $n$)
-is
+The lognormal continuation (Fox et al., 2023, Definition 3, eqs. 23, 26, 29 and
+30) is also for a number density on $[\ell,\infty)$. Like the gamma
+continuation, it uses the shifted $\zeta$ form, takes $a_k$ from the continued
+$\zeta_{2k+1}$ and uses the abscissa bounds. Definition 3's
+$\eta=\sqrt{m_2m_0}/m_1$ of the shifted moments satisfies
+$\eta^2=1+\zeta_2/\zeta_1=1+b_1/\zeta_1^2$, so $\eta>1$ whenever $b_1>0$. The
+continuation (eq. 30, with $k$ in place of $n$) is
 
 ```math
 \zeta_{2i-1}=\eta^{4(i-k)}\,\zeta_{2k-1},\qquad \zeta_{2i}=\eta^{2(i-k)}\,\frac{\eta^{2i}-1}{\eta^{2k}-1}\,\zeta_{2k}\qquad(i>k).
@@ -328,14 +328,16 @@ For the moments of a lognormal number density, these are the coefficients of
 the Stieltjes–Wigert polynomials (eq. 28), from every $k$. The continued $b_i$
 are $b_k\,\eta^{6(i-k)}(\eta^{2i}-1)/(\eta^{2k}-1)$, so they stay positive, and
 moments that are not those of a number density on $[\ell,\infty)$ are rejected
-as for the gamma continuation. The continuation does not read $\nu$.
+as for the gamma continuation. For a broad number density and a large $N_G$,
+the powers of $\eta$ can overflow, which fails the check of the continued
+coefficients. The continuation does not read $\nu$.
 
 ### Where the code lives
 
 | Function | File | Role |
 | --- | --- | --- |
 | `compute_generalized_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal GQMOM reconstruction, $s=0$, with its base node count. |
-| `is_supported_continuation`, `normal_continuation`, `gamma_continuation`, `lognormal_continuation` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The check of the continuation; the normal continuation of eqs. 21 and 22; the gamma continuation of eqs. 23–26; the lognormal continuation of eqs. 29 and 30. |
+| `is_supported_continuation`, `normal_continuation`, `gamma_continuation`, `lognormal_continuation` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The check of the continuation; the normal continuation of eqs. 21 and 22; the gamma continuation of eqs. 23–26; the lognormal continuation of eqs. 23, 26, 29 and 30. |
 | `known_zetas`, `recurrence_from_zetas` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The $\zeta$ form of the recurrence of $k$ nodes (eq. 23) and the recurrence of $N_G$ nodes from the continued $\zeta$ (eq. 26), shared by the gamma and lognormal continuations. |
 | `compute_bounded_generalized_quadrature`, `abscissas_inside_bounds` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The selection within abscissa bounds for the gamma and lognormal continuations, with the node check of bounded classical QMOM. |
 | `input_failure_through_m2n` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The input checks of $m_0,\ldots,m_{2N}$, shared with HyQMOM. |

@@ -3,8 +3,8 @@
 GQMOM with the normal continuation (Fox, Laurent & Passalacqua 2023,
 Definition 1, eqs. 21 and 22, and eq. 36), the gamma continuation
 (Definition 2, eqs. 23, 25 and 26) and the lognormal continuation
-(Definition 3, eqs. 29 and 30). For each case, the moments are rounded to
-double, and the reference is computed from those doubles: the recurrence of
+(Definition 3, eqs. 23, 26, 29 and 30). For each case, the moments are rounded
+to double, and the reference is computed from those doubles: the recurrence of
 docs/developer/qmom.md in exact rational arithmetic, the continuation in exact
 rational arithmetic, and the Gauss quadrature of the Jacobi matrix with mpmath
 at 50 digits. Where a closed form exists, the script asserts that the reference
@@ -76,8 +76,9 @@ def gauss(a, b, m0, size):
 
 
 def generalized(m, n, N, nu, k):
-    # Definition 1 continued from the k-node quadrature, k <= N: every a_i,
-    # i >= k, the mean of a_0, ..., a_{k-1}, b_k kept, b_i = (i/k)^nu b_k.
+    # Definition 1 of Fox, Laurent & Passalacqua (2023), continued from the
+    # k-node quadrature, k <= N: every a_i, i >= k, the mean of a_0, ...,
+    # a_{k-1}, b_k kept, b_i = (i/k)^nu b_k.
     a, b, _ = recurrence(m, n)
     mean = sum(a[:k]) / k
     ac = a[:k] + [mean] * (N - k)
@@ -86,11 +87,12 @@ def generalized(m, n, N, nu, k):
 
 
 def gamma_recurrence(m, n, N, lower, k):
-    # Definition 2 continued from the k-node quadrature, k <= N, on
-    # [lower, inf), as the paper states it: the moments M of the coordinate
-    # minus lower, alpha = M_1^2 / (M_2 M_0 - M_1^2) - 1, zeta_1, ..., zeta_{2k}
-    # of the recurrence of M (eq. 23), the continued zeta_i, i > 2k (eq. 25),
-    # and a_i = zeta_{2i} + zeta_{2i+1}, i >= k, and b_i = zeta_{2i-1} zeta_{2i},
+    # Definition 2 of Fox, Laurent & Passalacqua (2023), continued from the
+    # k-node quadrature, k <= N, on [lower, inf), as the paper states it: the
+    # moments M of the coordinate minus lower,
+    # alpha = M_1^2 / (M_2 M_0 - M_1^2) - 1, zeta_1, ..., zeta_{2k} of the
+    # recurrence of M (eq. 23), the continued zeta_i, i > 2k (eq. 25), and
+    # a_i = zeta_{2i} + zeta_{2i+1}, i >= k, and b_i = zeta_{2i-1} zeta_{2i},
     # i > k (eq. 26). The Jacobi matrix of the coordinate adds lower to every
     # a_i.
     M = [sum(comb(j, i) * (-lower) ** (j - i) * m[i] for i in range(j + 1)) for j in range(len(m))]
@@ -117,14 +119,14 @@ def gamma(m, n, N, lower, k):
 
 
 def lognormal_recurrence(m, n, N, lower, k):
-    # Definition 3 continued from the k-node quadrature, k <= N, on
-    # [lower, inf), as the paper states it: the moments M of the coordinate
-    # minus lower, eta^2 = M_2 M_0 / M_1^2 (eq. 29), zeta_1, ..., zeta_{2k} of
-    # the recurrence of M (eq. 23), the continued zeta_i, i > 2k (eq. 30), and
-    # a_i = zeta_{2i} + zeta_{2i+1}, i >= k, and b_i = zeta_{2i-1} zeta_{2i},
-    # i > k (eq. 26). Eq. 30 has only even powers of eta, so eta^2 keeps the
-    # arithmetic exact. The Jacobi matrix of the coordinate adds lower to every
-    # a_i.
+    # Definition 3 of Fox, Laurent & Passalacqua (2023), continued from the
+    # k-node quadrature, k <= N, on [lower, inf), as the paper states it: the
+    # moments M of the coordinate minus lower, eta^2 = M_2 M_0 / M_1^2
+    # (eq. 29), zeta_1, ..., zeta_{2k} of the recurrence of M (eq. 23), the
+    # continued zeta_i, i > 2k (eq. 30), and a_i = zeta_{2i} + zeta_{2i+1},
+    # i >= k, and b_i = zeta_{2i-1} zeta_{2i}, i > k (eq. 26). Eq. 30 has only
+    # even powers of eta, so eta^2 keeps the arithmetic exact. The Jacobi matrix
+    # of the coordinate adds lower to every a_i.
     M = [sum(comb(j, i) * (-lower) ** (j - i) * m[i] for i in range(j + 1)) for j in range(len(m))]
     a, b, _ = recurrence(M, n)
     eta2 = M[2] * M[0] / M[1] ** 2
@@ -194,15 +196,15 @@ def gaussian_moments(m0, mu, sd, count):
 
 
 def trimodal_moments(count):
-    # Fig. 5 (section 4.1): weights 1/3, means -3, 0, 4, standard deviations
-    # 1/10, 1/20, 1/30, rounded to double.
+    # Fig. 5 of Fox, Laurent & Passalacqua (2023, section 4.1): weights 1/3,
+    # means -3, 0, 4, standard deviations 1/10, 1/20, 1/30, rounded to double.
     exact = [sum(gaussian_moments(F(1, 3), mu, sd, count)[k] for mu, sd in ((-3, F(1, 10)), (0, F(1, 20)), (4, F(1, 30)))) for k in range(count)]
     return [F(float(v)) for v in exact]
 
 
 def hermite(m0, mu, sd, N):
-    # Gauss-Hermite rule of m0 N(mu, sd^2), from the Hermite recurrence of
-    # eq. 20: a_i = mu, b_i = i sd^2.
+    # Gauss-Hermite rule of m0 N(mu, sd^2), from the Hermite recurrence
+    # (Fox, Laurent & Passalacqua 2023, eq. 20): a_i = mu, b_i = i sd^2.
     mp.mp.dps = 50
     return gauss([mu] * N, [F(0)] + [i * sd**2 for i in range(1, N)], m0, N)
 
@@ -226,16 +228,17 @@ def gamma_mixture_moments(count):
 
 def laguerre(m0, alpha, beta, lower, N):
     # Gauss rule of the shifted gamma number density, from the recurrence of
-    # the generalized Laguerre polynomials (eq. 24): a_i = (2i + alpha + 1) /
-    # beta + lower, b_i = i (i + alpha) / beta^2.
+    # the generalized Laguerre polynomials (Fox, Laurent & Passalacqua 2023,
+    # eq. 24): a_i = (2i + alpha + 1) / beta + lower, b_i = i (i + alpha) /
+    # beta^2.
     mp.mp.dps = 50
     return gauss([F(2 * i + 1) / beta + alpha / beta + lower for i in range(N)], [F(0)] + [i * (i + alpha) / beta**2 for i in range(1, N)], m0, N)
 
 
 def lognormal_moments(m0, scale, eta, lower, count):
-    # Raw moments of m0 times the lognormal density of eq. 27 with exp(mu) =
-    # scale and eta = exp(sigma^2 / 2), shifted to [lower, inf): with y the
-    # unshifted coordinate, E[y^j] = scale^j eta^(j^2).
+    # Raw moments of m0 times the lognormal density (Fox, Laurent & Passalacqua
+    # 2023, eq. 27) with exp(mu) = scale and eta = exp(sigma^2 / 2), shifted to
+    # [lower, inf): with y the unshifted coordinate, E[y^j] = scale^j eta^(j^2).
     y = [scale ** j * eta ** (j * j) for j in range(count)]
     return [m0 * sum(comb(k, j) * lower ** (k - j) * y[j] for j in range(k + 1)) for k in range(count)]
 
@@ -250,7 +253,8 @@ def lognormal_mixture_moments(count):
 
 def stieltjes_wigert(m0, scale, eta, lower, N):
     # Gauss rule of the shifted lognormal number density, from the zeta of the
-    # Stieltjes-Wigert polynomials (eq. 28): zeta_{2i-1} = scale eta^(4i-3),
+    # Stieltjes-Wigert polynomials (Fox, Laurent & Passalacqua 2023, eq. 28):
+    # zeta_{2i-1} = scale eta^(4i-3) and
     # zeta_{2i} = scale eta^(2i-1) (eta^(2i) - 1), and eq. 23 with every a_i
     # shifted by lower.
     mp.mp.dps = 50
@@ -297,9 +301,9 @@ def cases():
     m = exact_moments([F(2), F(1), F(1)])
     for N in (3, 10, 101):
         add("chebyshev", f"N{N}", m, 1, N, 0, "continued", 1, 2, closed=lambda N=N: chebyshev(F(2), F(1, 2), F(1, 4), N))
-    # V3: the paper's figures. Fig. 1: standardized Gaussian moments, N = 5,
-    # N_G = 101, nu = 0 and 2. Fig. 5: the trimodal case, N = 3, 6, 9, N_G = 101,
-    # nu = 1, and N = 3 with nu = -1.
+    # V3: the figures of Fox, Laurent & Passalacqua (2023). Fig. 1: standardized
+    # Gaussian moments, N = 5, N_G = 101, nu = 0 and 2. Fig. 5: the trimodal
+    # case, N = 3, 6, 9, N_G = 101, nu = 1, and N = 3 with nu = -1.
     m = exact_moments(gaussian_moments(F(1), F(0), F(1), 11))
     for nu in (0, 2):
         add("figures", f"figure1_nu{nu}", m, 5, 101, nu, "continued", 5, 10)
@@ -317,10 +321,10 @@ def cases():
     m = moments_of([F(-1), F(1), F(3), F(-2)], [F(1, 2), F(1, 2), F(1, 10**8), F(1, 10**9)], 7)
     add("reduction", "rmin_n3", m, 3, 9, 1, "continued", 2, 4, check_fixed=False, rmin=1.0e-6)
     # V6: gamma moments with the gamma continuation and the default bounds
-    # give the Gauss rule of the generalized Laguerre polynomials. Fig. 2:
-    # alpha = 10, beta = 1, N = 2, 4, 6, N_G = 101. Then m0 = 2, alpha = 1/2,
-    # beta = 2, N = 1, 3, 5, N_G = 10 and 101. Their moments are exact in
-    # double.
+    # give the Gauss rule of the generalized Laguerre polynomials. Fig. 2 of
+    # Fox, Laurent & Passalacqua (2023): alpha = 10, beta = 1, N = 2, 4, 6,
+    # N_G = 101. Then m0 = 2, alpha = 1/2, beta = 2, N = 1, 3, 5, N_G = 10 and
+    # 101. Their moments are exact in double.
     for m0, alpha, beta, orders, counts, prefix in ((F(1), F(10), F(1), (2, 4, 6), (101,), "figure2"),
                                                     (F(2), F(1, 2), F(2), (1, 3, 5), (10, 101), "alpha0.5_beta2")):
         for n in orders:

@@ -167,8 +167,9 @@ bound of the node and weight tolerances:
   $[\ell, \text{DBL\_MAX}]$, $N = 1, 2$, $N_G = 20$;
 - `lognormal_mixture`: half of the density with $\eta = 1.01$, $s = 1$ and
   half of that with $\eta = 1.02$, $s = 5/4$, moments rounded to double,
-  $N = 3$, $N_G = 20$. For this mixture, the $\eta$ of $m_0$, $m_1$ and $m_2$,
-  which Definition 3 prescribes, differs from that of the last $\zeta$ pair;
+  $N = 3$, $N_G = 20$. For a lognormal density, every pair of known $\zeta$
+  gives the same $\eta$ (eq. 28). For this mixture, the $\eta$ of $m_0$, $m_1$
+  and $m_2$, which Definition 3 prescribes, differs from that of the last pair;
 - `lognormal_reduction`: the `gamma_reduction` case with the lognormal
   continuation.
 

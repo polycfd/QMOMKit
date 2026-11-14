@@ -5,9 +5,10 @@
 // What is verified
 //   That compute_qmom(...) with the generalized family returns the N_G nodes and
 //   weights of Definition 1 of Fox, Laurent & Passalacqua (2023), eqs. 21, 22
-//   and 36, of Definition 2, eqs. 23, 25 and 26, or of Definition 3, eqs. 29
-//   and 30, its base node count, and moments m_0, ..., m_{2k} reproduced to
-//   first order in the errors of the nodes and weights (eq. 14):
+//   and 36, of Definition 2, eqs. 23, 25 and 26, or of Definition 3, eqs. 23,
+//   26, 29 and 30, its base node count, and moments m_0, ..., m_{2k}
+//   reproduced to first order in the errors of the nodes and weights
+//   (eq. 14):
 //   - hermite: Gaussian moments with nu = 1 and m0 = 2, N_G = 3N and 101, give
 //     the Gauss-Hermite rule of the Gaussian (eq. 20): mean 0 and standard
 //     deviation 1 for N = 1, 3, 5, 8, and mean 3 and 1/2 for N = 1, 3, 5.
@@ -60,9 +61,10 @@
 //     the bounds [lower, the largest double], N = 1, 2 and N_G = 20;
 //   - lognormal_mixture: 1/2 of the lognormal number density with eta = 1.01
 //     and scale 1 and 1/2 of that with eta = 1.02 and scale 5/4, moments
-//     rounded to double, with the default bounds, N = 3 and N_G = 20. For this
-//     mixture, the eta of Definition 3, from m_0, m_1 and m_2, differs from
-//     that of the last known zeta pair;
+//     rounded to double, with the default bounds, N = 3 and N_G = 20. For a
+//     lognormal density, every pair of known zeta gives the same eta (eq. 28).
+//     For this mixture, the eta of Definition 3, from m_0, m_1 and m_2,
+//     differs from that of the last known pair;
 //   - lognormal_reduction: the case of gamma_reduction with the lognormal
 //     continuation.
 //   Every case other than the boundary and reduction ones of every

@@ -136,7 +136,10 @@ settings and the evolution options. CQMOM files do not accept the key.
 family, `generalized_node_counts`, required and above `node_counts`,
 `generalized_continuation` and `generalized_nu`, for `parse_qmom`. With another
 family, each of them is an error, since it would have no effect, from
-`parse_qmom` and from `parse_qmom_initial_condition` alike.
+`parse_qmom` and from `parse_qmom_initial_condition` alike. For the same
+reason, `generalized_nu` is an error with `generalized_continuation = gamma`,
+from `parse_qmom`. Abscissa bounds are refused with the normal continuation
+and kept with the gamma continuation, as `compute_qmom` does.
 
 `with_initial_moments(...)` replaces the moments of a `CqmomCase` or
 `CqmomPreparedCase`, given as a `RawMomentTensor` or as `CqmomMomentData`. It

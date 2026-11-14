@@ -17,7 +17,7 @@ or in a file with `[phase_space] qmom_family = hyperbolic`.
 | --- | --- | --- | --- | --- | --- |
 | `classical` | the default, any coordinate | $m_0, \ldots, m_{2N-1}$ | up to $N$ | yes | QMOM, CQMOM |
 | `hyperbolic` | a velocity coordinate whose moments your code transports in physical space | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | QMOM |
-| `generalized` | source terms that $N$ nodes evaluate poorly | $m_0, \ldots, m_{2N}$ | up to $N_G > N$ | with `gamma` or `lognormal` | QMOM |
+| `generalized` | source terms that $N$ nodes evaluate poorly | $m_0, \ldots, m_{2N}$ | up to $N_G > N$ | with `gamma`, `lognormal` or `beta` | QMOM |
 
 How each family reconstructs its quadrature is described in the developer
 docs' [QMOM families](../developer/qmom_families.md).
@@ -98,15 +98,17 @@ controls the tails: $\nu = 1$ gives Gaussian tails, $\nu = 2$ exponential
 tails, $\nu = 0$ a number density on a bounded interval (Fox et al., 2023,
 Fig. 1), and a negative $\nu$ can give several modes. `gamma` and `lognormal`
 are for a number density on $[0, \infty)$, such as that of sizes or volumes,
-and have no parameter:
+and `beta` for one on $[0, 1]$, such as that of fractions. None of them has a
+parameter:
 
 ```cpp
 qmom_case.qmom_options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
 ```
 
-or `generalized_continuation = gamma` in a file, and `lognormal` likewise. With
-abscissa bounds $[\ell, u]$, their number density starts at $\ell$ instead of
-0, and their nodes must lie within the bounds.
+or `generalized_continuation = gamma` in a file, and `lognormal` and `beta`
+likewise. With abscissa bounds $[\ell, u]$, the number density of `gamma` and
+`lognormal` starts at $\ell$ instead of 0, that of `beta` lies in $[\ell, u]$
+instead of $[0, 1]$, and the nodes must lie within the bounds.
 
 An adaptive reconstruction first finds a classical quadrature of $k \le N$
 nodes, with the `rmin` and `eabs` tests. Where $m_0, \ldots, m_{2k}$ lie inside
@@ -115,9 +117,10 @@ moments and have base node count $k$. `rmin` and `eabs` do not apply to the
 $N_G$ nodes. Where these moments lie on or below the boundary, the result is
 the classical quadrature itself. A fixed reconstruction takes $k = N$, so it
 returns $N_G$ nodes or, on the boundary, the classical $N$ nodes, and fails
-otherwise. With `gamma` or `lognormal`, as with bounds in classical QMOM, nodes
-outside the bounds, $[0, \infty)$ without them, make a fixed reconstruction
-fail and an adaptive one take a smaller $k$. Each reconstruction solves an
+otherwise. With `gamma`, `lognormal` or `beta`, as with bounds in classical
+QMOM, nodes outside the bounds, or without them outside the interval of the
+continuation, make a fixed reconstruction fail and an adaptive one take a
+smaller $k$. Each reconstruction solves an
 eigenproblem of $N_G \times N_G$ entries, so keep $N_G$ modest.
 
 The [`gqmom_1d_absolute_value_loss`](../../examples/gqmom_1d_absolute_value_loss/README.md)
@@ -126,4 +129,7 @@ $|\xi|$ with GQMOM and with classical QMOM, and compares both with the exact
 solution. The
 [`gqmom_1d_droplet_breakup_with-mc`](../../examples/gqmom_1d_droplet_breakup_with-mc/README.md)
 example compares both for droplets that break up above a critical volume, with
-the `gamma` continuation, against a Monte Carlo reference.
+the `gamma` continuation, against a Monte Carlo reference. The
+[`gqmom_1d_catalyst_deactivation_with-mc`](../../examples/gqmom_1d_catalyst_deactivation_with-mc/README.md)
+example does the same for catalyst particles removed above a critical coked
+fraction, with the `beta` continuation.

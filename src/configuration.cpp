@@ -1596,9 +1596,9 @@ void reject_generalized_keys_with_other_family(ParsedFile& parsed, const std::st
 
 // The settings of the generalized family from [phase_space].
 // generalized_node_counts is required and must exceed node_counts.
-// generalized_continuation is normal, gamma or lognormal, and normal when
-// absent. generalized_nu, 1 when absent, is read by the normal continuation
-// only and is an error with the others.
+// generalized_continuation is normal, gamma, lognormal or beta, and normal
+// when absent. generalized_nu, 1 when absent, is read by the normal
+// continuation only and is an error with the others.
 GeneralizedOptions parse_generalized_options(ParsedFile& parsed, const std::string& source_name, const QmomFamily family,
                                              const std::vector<std::size_t>& node_counts)
 {
@@ -1636,10 +1636,14 @@ GeneralizedOptions parse_generalized_options(ParsedFile& parsed, const std::stri
     {
         options.continuation = GeneralizedContinuation::lognormal;
     }
+    else if (continuation != nullptr && continuation->value == "beta")
+    {
+        options.continuation = GeneralizedContinuation::beta;
+    }
     else if (continuation != nullptr && continuation->value != "normal")
     {
         add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, continuation->line,
-                  "phase_space.generalized_continuation must be normal, gamma or lognormal.");
+                  "phase_space.generalized_continuation must be normal, gamma, lognormal or beta.");
     }
     if (options.continuation != GeneralizedContinuation::normal)
     {

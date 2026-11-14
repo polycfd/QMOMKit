@@ -2070,6 +2070,123 @@ void test_qmom_generalized_lognormal_does_not_read_nu()
     assert_same_qmom_result(qmomkit::compute_qmom(moments, 2, options), reference);
 }
 
+qmomkit::QmomOptions beta_options(const bool adaptive, const std::size_t continued_node_count)
+{
+    qmomkit::QmomOptions options = generalized_options(adaptive, continued_node_count);
+    options.generalized.continuation = qmomkit::GeneralizedContinuation::beta;
+    return options;
+}
+
+// m_0, ..., m_{count-1} of the beta number density x^beta (1 - x)^alpha on
+// (0, 1) with m_0 = 1, in the notation of Fox, Laurent & Passalacqua (2023,
+// eq. 32): m_k = m_{k-1} (beta + k) / (alpha + beta + 1 + k).
+std::vector<double> beta_moments(const double alpha, const double beta, const std::size_t count)
+{
+    std::vector<double> moments{1.0};
+    for (std::size_t order = 1; order < count; ++order)
+    {
+        const auto k = static_cast<double>(order);
+        moments.push_back(moments.back() * (beta + k) / (alpha + beta + 1.0 + k));
+    }
+    return moments;
+}
+
+void test_qmom_generalized_beta_continues_to_the_jacobi_rule()
+{
+    // For the moments of a beta number density, the beta continuation of Fox,
+    // Laurent & Passalacqua (2023, Definition 4) is the recurrence of the Jacobi
+    // polynomials on (0, 1), so N = 2 and N_G = 4 give the four-node Gauss rule
+    // of the Jacobi polynomials, which classical QMOM reconstructs from the
+    // first eight moments.
+    const std::vector<double> moments = beta_moments(1.0, 3.0, 8);
+    const qmomkit::QmomResult result =
+        qmomkit::compute_qmom(qmomkit::MomentSet(std::vector<double>(moments.begin(), moments.begin() + 5)), 2, beta_options(false, 4));
+    const qmomkit::QmomResult jacobi = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 4, qmomkit::QmomOptions{false});
+    assert(result.ok() && jacobi.ok());
+    assert(result.base_node_count == 2);
+    assert(result.weights.size() == 4);
+    for (std::size_t node = 0; node < 4; ++node)
+    {
+        assert_near(result.abscissas[node], jacobi.abscissas[node], 1.0e-11);
+        assert_near(result.weights[node], jacobi.weights[node], 1.0e-11);
+    }
+}
+
+void test_qmom_generalized_beta_default_support_is_the_unit_interval()
+{
+    // Without abscissa bounds, the beta continuation takes [0, 1], and the
+    // result equals that with these bounds given.
+    const std::vector<double> moments = beta_moments(1.0, 3.0, 5);
+    const qmomkit::QmomResult implicit = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, beta_options(false, 6));
+    const qmomkit::QmomResult explicit_bounds =
+        qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, beta_options(false, 6), qmomkit::AbscissaBounds{0.0, 1.0});
+    assert(implicit.ok());
+    assert_same_qmom_result(explicit_bounds, implicit);
+}
+
+void test_qmom_generalized_beta_maps_to_the_bounds()
+{
+    // The beta continuation on [l, u] is the one on [0, 1] mapped by
+    // x = l + (u - l) y: the moments of the beta number density mapped to
+    // [-1, 3], with these bounds, give the nodes of the unmapped moments mapped
+    // the same way and the same weights.
+    const std::vector<double> moments = beta_moments(1.0, 3.0, 5);
+    const double lower = -1.0;
+    const double width = 4.0;
+    std::vector<double> mapped(5, 0.0);
+    for (std::size_t order = 0; order < 5; ++order)
+    {
+        double binomial = 1.0;
+        for (std::size_t power = 0; power <= order; ++power)
+        {
+            mapped[order] +=
+                binomial * std::pow(width, static_cast<double>(power)) * moments[power] * std::pow(lower, static_cast<double>(order - power));
+            binomial = binomial * static_cast<double>(order - power) / static_cast<double>(power + 1);
+        }
+    }
+    const qmomkit::QmomResult reference = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, beta_options(false, 6));
+    const qmomkit::QmomResult result =
+        qmomkit::compute_qmom(qmomkit::MomentSet(mapped), 2, beta_options(false, 6), qmomkit::AbscissaBounds{lower, lower + width});
+    assert(reference.ok() && result.ok());
+    assert(result.weights.size() == 6);
+    for (std::size_t node = 0; node < 6; ++node)
+    {
+        assert_near(result.abscissas[node], lower + (width * reference.abscissas[node]), 1.0e-12 * width);
+        assert_near(result.weights[node], reference.weights[node], 1.0e-12);
+    }
+}
+
+void test_qmom_generalized_beta_reduces_moments_outside_the_support()
+{
+    // The moments of the points 0.25, 0.5 and 1.25 are not those of a number
+    // density on [0, 1] at N = 2: their continued nodes leave [0, 1]. Fixed
+    // mode refuses them, as for bounded classical QMOM, and adaptive mode
+    // reduces the base node count to 1, whose continuation lies inside.
+    const qmomkit::MomentSet moments(raw_moments_1d({0.25, 0.5, 1.25}, {0.25, 0.375, 0.375}, 5));
+    const qmomkit::QmomResult fixed = qmomkit::compute_qmom(moments, 2, beta_options(false, 6));
+    assert(fixed.status == qmomkit::QmomStatus::not_realizable);
+    assert(fixed.message == "Bounded-support Wheeler inversion returned nodes outside the configured interval.");
+    assert(fixed.base_node_count == 0);
+
+    const qmomkit::QmomResult adaptive = qmomkit::compute_qmom(moments, 2, beta_options(true, 6));
+    assert(adaptive.ok());
+    assert(adaptive.base_node_count == 1);
+    assert(adaptive.weights.size() == 6);
+    assert(adaptive.abscissas.front() > 0.0 && adaptive.abscissas.back() < 1.0);
+}
+
+void test_qmom_generalized_beta_does_not_read_nu()
+{
+    // nu belongs to the normal continuation: the beta continuation gives the
+    // same result for any nu, also a non-finite one.
+    const qmomkit::MomentSet moments(raw_moments_1d({0.125, 0.5, 0.875}, {0.25, 0.375, 0.375}, 5));
+    qmomkit::QmomOptions options = beta_options(true, 6);
+    const qmomkit::QmomResult reference = qmomkit::compute_qmom(moments, 2, options);
+    assert(reference.ok());
+    options.generalized.nu = std::numeric_limits<double>::quiet_NaN();
+    assert_same_qmom_result(qmomkit::compute_qmom(moments, 2, options), reference);
+}
+
 void test_qmom_generalized_gamma_reports_input_failures_at_once()
 {
     // In adaptive mode, an input failure is returned at once rather than retried
@@ -3094,6 +3211,11 @@ int main(const int argc, char** argv)
             {"qmom_generalized_lognormal_shifts_to_the_lower_bound", test_qmom_generalized_lognormal_shifts_to_the_lower_bound},
             {"qmom_generalized_lognormal_reduces_moments_outside_the_support", test_qmom_generalized_lognormal_reduces_moments_outside_the_support},
             {"qmom_generalized_lognormal_does_not_read_nu", test_qmom_generalized_lognormal_does_not_read_nu},
+            {"qmom_generalized_beta_continues_to_the_jacobi_rule", test_qmom_generalized_beta_continues_to_the_jacobi_rule},
+            {"qmom_generalized_beta_default_support_is_the_unit_interval", test_qmom_generalized_beta_default_support_is_the_unit_interval},
+            {"qmom_generalized_beta_maps_to_the_bounds", test_qmom_generalized_beta_maps_to_the_bounds},
+            {"qmom_generalized_beta_reduces_moments_outside_the_support", test_qmom_generalized_beta_reduces_moments_outside_the_support},
+            {"qmom_generalized_beta_does_not_read_nu", test_qmom_generalized_beta_does_not_read_nu},
             {"qmom_generalized_gamma_reports_input_failures_at_once", test_qmom_generalized_gamma_reports_input_failures_at_once},
             {"qmom_generalized_continues_a_boundary_reduction_by_rmin", test_qmom_generalized_continues_a_boundary_reduction_by_rmin},
             {"qmom_growth_trial_of_the_generalized_family_is_a_single_attempt", test_qmom_growth_trial_of_the_generalized_family_is_a_single_attempt},

@@ -76,10 +76,11 @@ namespace
 }
 
 // GQMOM with the normal continuation is defined on the real line, so abscissa
-// bounds are refused before any reconstruction. The gamma and lognormal
+// bounds are refused before any reconstruction. The gamma, lognormal and beta
 // continuations are defined within the abscissa bounds, which default to
-// [0, the largest double]. Every other continuation goes to
-// compute_generalized_quadrature, which also reports an unsupported one.
+// [0, the largest double] for gamma and lognormal and to [0, 1] for beta. Every
+// other continuation goes to compute_generalized_quadrature, which also reports
+// an unsupported one.
 [[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
                                           const std::optional<AbscissaBounds> abscissa_bounds, const bool exact_base_node_count)
 {
@@ -88,11 +89,13 @@ namespace
     {
         return QmomResult{{}, {}, QmomStatus::invalid_input, "The normal continuation of the generalized QMOM family takes no abscissa bounds."};
     }
+    const AbscissaBounds default_bounds = options.generalized.continuation == GeneralizedContinuation::beta
+                                              ? AbscissaBounds{0.0, 1.0}
+                                              : AbscissaBounds{0.0, std::numeric_limits<double>::max()};
     const internal::GeneralizedQuadrature result =
         bounded
             ? internal::compute_bounded_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized,
-                                                               abscissa_bounds.value_or(AbscissaBounds{0.0, std::numeric_limits<double>::max()}),
-                                                               exact_base_node_count)
+                                                               abscissa_bounds.value_or(default_bounds), exact_base_node_count)
             : internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized, exact_base_node_count);
     const Quadrature1D& quadrature = result.quadrature;
     return QmomResult{quadrature.abscissas, quadrature.weights, to_qmom_status(quadrature.status), quadrature.message, result.base_node_count};

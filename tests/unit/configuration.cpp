@@ -493,6 +493,11 @@ void test_qmom_generalized_keys_set_the_generalized_options()
         qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = lognormal\n", five_moments));
     assert(lognormal.ok());
     assert(lognormal.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::lognormal);
+
+    const auto beta = qmomkit::config::parse_qmom(
+        qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = beta\n", five_moments));
+    assert(beta.ok());
+    assert(beta.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::beta);
 }
 
 void test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts()
@@ -515,11 +520,12 @@ void test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts()
 
 void test_qmom_generalized_continuation_and_nu_take_valid_values()
 {
-    // The continuation is normal, gamma or lognormal, and nu is a finite number.
+    // The continuation is normal, gamma, lognormal or beta, and nu is a finite
+    // number.
     const std::string lines = "qmom_family = generalized\ngeneralized_node_counts = 6\n";
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
     assert(qmomkit::config::parse_qmom(qmom_file(lines + "generalized_continuation = uniform\n", five_moments), "f.qmom").error() ==
-           "f.qmom:5: phase_space.generalized_continuation must be normal, gamma or lognormal.");
+           "f.qmom:5: phase_space.generalized_continuation must be normal, gamma, lognormal or beta.");
     assert(qmomkit::config::parse_qmom(qmom_file(lines + "generalized_nu = inf\n", five_moments), "f.qmom").error() ==
            "f.qmom:5: Key 'phase_space.generalized_nu' must be a finite number.");
 }
@@ -546,10 +552,10 @@ void test_qmom_generalized_keys_need_the_generalized_family()
 
 void test_qmom_generalized_nu_has_no_effect_without_the_normal_continuation()
 {
-    // Only the normal continuation reads nu, so nu is an error with the gamma
-    // and lognormal continuations.
+    // Only the normal continuation reads nu, so nu is an error with the gamma,
+    // lognormal and beta continuations.
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
-    for (const std::string continuation : {"gamma", "lognormal"})
+    for (const std::string continuation : {"gamma", "lognormal", "beta"})
     {
         assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = " +
                                                          continuation + "\ngeneralized_nu = 2\n",
@@ -559,13 +565,15 @@ void test_qmom_generalized_nu_has_no_effect_without_the_normal_continuation()
     }
 }
 
-void test_qmom_generalized_abscissa_bounds_need_the_gamma_or_lognormal_continuation()
+void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_continuation()
 {
     // Bounds with the normal continuation are refused, from a file at the line
-    // of support_lower and from a C++ call of create_qmom_case. The gamma and
-    // lognormal continuations keep them: the moments of the exponential number
-    // density give the six gamma nodes within them, and those of a lognormal
-    // number density with eta = 1.1 the six lognormal nodes.
+    // of support_lower and from a C++ call of create_qmom_case. The gamma,
+    // lognormal and beta continuations keep them: the moments of the
+    // exponential number density give the six gamma nodes within [0, 100],
+    // those of a lognormal number density with eta = 1.1 the six lognormal
+    // nodes, and those of the beta number density x^(-1/2) (1 - x)^(1/2)
+    // mapped to [0, 2] the six beta nodes within [0, 2].
     const std::string message = "The normal continuation of the generalized QMOM family takes no abscissa bounds.";
     const std::string lines = "qmom_family = generalized\ngeneralized_node_counts = 6\n";
     const std::string bounds = "support_lower = 0\nsupport_upper = 100\n";
@@ -594,6 +602,17 @@ void test_qmom_generalized_abscissa_bounds_need_the_gamma_or_lognormal_continuat
     const qmomkit::QmomResult lognormal_result = qmomkit::compute_qmom(lognormal.value());
     assert(lognormal_result.ok() && lognormal_result.weights.size() == 6);
     options.generalized.continuation = qmomkit::GeneralizedContinuation::lognormal;
+    assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).ok());
+
+    const std::string beta_moments = "[moments]\nvalues = 1, 0.5, 0.5, 0.625, 0.875\n";
+    const auto beta =
+        qmomkit::config::parse_qmom(qmom_file(lines + "generalized_continuation = beta\nsupport_lower = 0\nsupport_upper = 2\n", beta_moments));
+    assert(beta.ok());
+    assert(beta.value().abscissa_bounds.has_value() && beta.value().abscissa_bounds->lower == 0.0 && beta.value().abscissa_bounds->upper == 2.0);
+    const qmomkit::QmomResult beta_result = qmomkit::compute_qmom(beta.value());
+    assert(beta_result.ok() && beta_result.weights.size() == 6);
+    assert(beta_result.abscissas.front() > 0.0 && beta_result.abscissas.back() < 2.0);
+    options.generalized.continuation = qmomkit::GeneralizedContinuation::beta;
     assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).ok());
 }
 
@@ -4846,8 +4865,8 @@ int main(const int argc, char** argv)
             {"qmom_generalized_keys_need_the_generalized_family", test_qmom_generalized_keys_need_the_generalized_family},
             {"qmom_generalized_nu_has_no_effect_without_the_normal_continuation",
              test_qmom_generalized_nu_has_no_effect_without_the_normal_continuation},
-            {"qmom_generalized_abscissa_bounds_need_the_gamma_or_lognormal_continuation",
-             test_qmom_generalized_abscissa_bounds_need_the_gamma_or_lognormal_continuation},
+            {"qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_continuation",
+             test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_continuation},
             {"qmom_family_takes_no_abscissa_bounds", test_qmom_family_takes_no_abscissa_bounds},
             {"cqmom_rejects_the_qmom_family_key", test_cqmom_rejects_the_qmom_family_key},
             {"qmom_distribution_initialization_matches_direct_api", test_qmom_distribution_initialization_matches_direct_api},

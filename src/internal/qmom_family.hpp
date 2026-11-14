@@ -32,11 +32,12 @@ namespace qmomkit::internal
 }
 
 // Whether a continuation of the generalized family takes abscissa bounds as its
-// support: the gamma and lognormal continuations do, the normal continuation
-// does not.
+// support: the gamma, lognormal and beta continuations do, the normal
+// continuation does not.
 [[nodiscard]] inline bool takes_abscissa_bounds(const GeneralizedContinuation continuation)
 {
-    return continuation == GeneralizedContinuation::gamma || continuation == GeneralizedContinuation::lognormal;
+    return continuation == GeneralizedContinuation::gamma || continuation == GeneralizedContinuation::lognormal ||
+           continuation == GeneralizedContinuation::beta;
 }
 
 // compute_qmom(...) for a growth trial of the evolution, which accepts only

@@ -113,10 +113,10 @@ Three references:
 
 `verification_generalized_quadrature_exact_<case>`
 (`generalized_quadrature_exact.cpp`). `compute_qmom(...)` with the generalized
-family must return the $N_G$ nodes and weights of the normal continuation of
-[QMOM families](../../../docs/developer/qmom_families.md#generalized), its base
-node count, and moments $m_0, \ldots, m_{2k}$ within a first-order bound of the
-node and weight tolerances:
+family must return the $N_G$ nodes and weights of the normal or gamma
+continuation of [QMOM families](../../../docs/developer/qmom_families.md#generalized),
+its base node count, and moments $m_0, \ldots, m_{2k}$ within a first-order
+bound of the node and weight tolerances:
 
 - `hermite`: Gaussian moments, $\nu = 1$, $N_G = 3N$ and 101, mean 0 and
   standard deviation 1 for $N = 1, 3, 5, 8$, and mean 3 and 1/2 for
@@ -136,22 +136,47 @@ node and weight tolerances:
   classical rule in both modes, and of two points at $N = 4$, which give it in
   adaptive mode and `not_realizable` in fixed mode;
 - `reduction`: a point of weight $10^{-8}$ that makes the classical 3-node rule
-  fail `rmin` $= 10^{-6}$, so that adaptive mode continues the 2-node rule.
+  fail `rmin` $= 10^{-6}$, so that adaptive mode continues the 2-node rule;
+- `laguerre`: the gamma continuation with the default bounds and the moments of
+  the gamma number density
+  $m_0\beta^{\alpha+1}\xi^\alpha e^{-\beta\xi}/\Gamma(\alpha+1)$, whose rule is
+  the Gauss rule of the generalized Laguerre polynomials: $\alpha = 10$,
+  $\beta = 1$, $N = 2, 4, 6$, $N_G = 101$ (Fig. 2), and $\alpha = 1/2$,
+  $\beta = 2$, $N = 1, 3, 5$, $N_G = 10$ and 101;
+- `shifted_laguerre`: the density with $\alpha = \beta = 1$ shifted to
+  $[\ell, \infty)$, $\ell = -1$ and 4, with the bounds $[\ell, \text{DBL\_MAX}]$,
+  $N = 1, 3, 5$, $N_G = 101$;
+- `gamma_mixture`: 1/3 of the density with $\alpha = 2$, $\beta = 1$ and 2/3 of
+  that with $\alpha = 9$, $\beta = 1/2$, moments rounded to double,
+  $N = 3, 4, 5$, $N_G = 20$ and 101. For a gamma density, every pair of known
+  $\zeta$ gives the same $\alpha$. For this mixture, the $\alpha$ of the first
+  two moments, which Definition 2 prescribes, differs from that of the last
+  pair;
+- `gamma_boundary`: the `boundary` cases with dyadic points in $(0, \infty)$;
+- `gamma_reduction`: the moments of the points $-1$, 1 and 2 at $N = 3$ with the
+  default bounds. The classical 3-node rule has the node $-1$ and the
+  continuation from the 2-node rule has negative nodes, so adaptive mode
+  continues the 1-node rule and fixed mode is `not_realizable`.
 
 Fixed mode must return the identical result where the moments are interior.
 The moments are rounded to double where they are not exact, and the references
 are computed from those doubles: the recurrence and the continuation with
-Python's `fractions`, the eigenpairs with mpmath at 50 digits.
-`generalized_quadrature_exact.py` asserts that the closed forms of `hermite` and
-`chebyshev` agree with the references to $10^{-40}$, and that the decisions the
-test expects are not marginal.
+Python's `fractions`, the eigenpairs with mpmath at 50 digits. The gamma
+continuation follows Definition 2 as the paper states it, from the moments of
+$\xi - \ell$.
+`generalized_quadrature_exact.py` asserts that the closed forms of `hermite`,
+`chebyshev`, `laguerre` and `shifted_laguerre` agree with the references to
+$10^{-40}$, and that the decisions the test expects are not marginal.
 
 For the trimodal case at $N = 9$, QMOMKit's errors against the reference are
 $1.4 \times 10^{-7}$ in positions and $3.9 \times 10^{-7}$ in weights, against
-$6.1 \times 10^{-11}$ at $N = 6$ and at most $3.7 \times 10^{-15}$ in the
+$6.1 \times 10^{-11}$ at $N = 6$ and at most $1.2 \times 10^{-14}$ in the
 well-conditioned cases. A change of one ulp in its moments moves the nodes by
 $9.1 \times 10^{-7}$, so these errors are what the conditioning of the case
-allows in double precision. Weights are measured
+allows in double precision. The same holds for the gamma mixture, whose errors
+of $2.2 \times 10^{-13}$ at $N = 4$ and $2.4 \times 10^{-12}$ at $N = 5$ lie below
+the changes of $1.6 \times 10^{-12}$ and $7.4 \times 10^{-12}$ that one ulp in
+its moments causes. Weights are measured
 relative to $m_0$, so the small weights of the tails are checked only in
 absolute terms, to the tolerance times $m_0$, $10^{-12} m_0$ in most cases, and
 not to their own relative accuracy.
@@ -252,7 +277,7 @@ one node.
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
 | HyQMOM | $10^{-12}$ up to $N = 7$, $10^{-11}$ for $N = 8$, $5 \times 10^{-10}$ for $N = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $n$ |
 | HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $N$; a safety bound for `normal` and `boundary` |
-| GQMOM | $10^{-12}$; $10^{-11}$ for `reduction`; $10^{-8}$ and $10^{-4}$ for the trimodal case at $N = 6$ and 9 | positions relative to the largest $\lvert\xi\rvert$, weights relative to $m_0$ | this test's rule: the smallest power of ten at least 30 times the largest error observed in the Debug, Release, GCC 12 and GCC 16 builds: at most $3.7 \times 10^{-15}$, except $3.0 \times 10^{-14}$ for the trimodal case at $N = 3$, $2.7 \times 10^{-13}$ for `reduction`, and $6.1 \times 10^{-11}$ and $3.9 \times 10^{-7}$ for the trimodal case at $N = 6$ and 9 |
+| GQMOM | $10^{-12}$; $10^{-11}$ for `reduction` and the gamma mixture at $N = 4$; $10^{-10}$ for the gamma mixture at $N = 5$; $10^{-8}$ and $10^{-4}$ for the trimodal case at $N = 6$ and 9 | positions relative to the largest $\lvert\xi\rvert$, weights relative to $m_0$ | this test's rule: the smallest power of ten at least 30 times the largest error observed in the Debug, Release, GCC 12 and GCC 16 builds: at most $1.2 \times 10^{-14}$, except $3.0 \times 10^{-14}$ for the trimodal case at $N = 3$, $2.7 \times 10^{-13}$ for `reduction`, $2.2 \times 10^{-13}$ and $2.4 \times 10^{-12}$ for the gamma mixture at $N = 4$ and 5, and $6.1 \times 10^{-11}$ and $3.9 \times 10^{-7}$ for the trimodal case at $N = 6$ and 9 |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |
 | Failure statuses | none | exact status and message fragment | |

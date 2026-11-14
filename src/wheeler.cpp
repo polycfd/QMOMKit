@@ -517,6 +517,51 @@ struct Recurrence
     return recurrence_from_zetas(recurrence, zeta, k, continued_count, lower);
 }
 
+// The beta continuation of GQMOM (Fox, Laurent & Passalacqua 2023,
+// Definition 4, eqs. 23, 26 and 31 to 35) on the interval of the bounds.
+// Dividing the shifted zeta by the width of the interval maps the recurrence
+// to (0, 1), where zeta_1 = p_1 and zeta_i = p_i (1 - p_{i-1}) with the
+// canonical moments p_i (eq. 31). alpha and beta from p_1 and p_2 (eq. 33) give
+// the canonical moments p^J_i of the beta number density (eq. 32), and every
+// continued p_i follows from the last known p of the same parity (eqs. 34 and
+// 35). The two cases of eqs. 34 and 35 agree where the choice between them
+// changes, so rounding near that point does not change the result
+// discontinuously.
+[[nodiscard]] Recurrence beta_continuation(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count,
+                                           const AbscissaBounds bounds)
+{
+    std::vector<double> zeta = known_zetas(recurrence, k, continued_count, bounds.lower);
+    const double width = bounds.upper - bounds.lower;
+    std::vector<double> p(zeta.size(), 0.0);
+    for (std::size_t i = 1; i <= 2 * k; ++i)
+    {
+        p[i] = zeta[i] / width / (1.0 - p[i - 1]);
+    }
+    const double alpha = (1.0 - p[1] - (2.0 * p[2]) + (p[1] * p[2])) / p[2];
+    const double beta = (p[1] - p[2] - (p[1] * p[2])) / p[2];
+    const auto jacobi = [alpha, beta](const std::size_t j)
+    {
+        const auto i = static_cast<double>((j + 1) / 2);
+        return j % 2 == 1 ? (beta + i) / ((2.0 * i) + alpha + beta) : i / ((2.0 * i) + 1.0 + alpha + beta);
+    };
+    for (std::size_t j = (2 * k) + 1; j <= 2 * continued_count; ++j)
+    {
+        const std::size_t last = j % 2 == 1 ? (2 * k) - 1 : 2 * k;
+        const double p_jacobi = jacobi(j);
+        const double last_jacobi = jacobi(last);
+        if (p[last] <= last_jacobi || last_jacobi >= p_jacobi)
+        {
+            p[j] = p_jacobi / last_jacobi * p[last];
+        }
+        else
+        {
+            p[j] = ((p[last] * (1.0 - p_jacobi)) + p_jacobi - last_jacobi) / (1.0 - last_jacobi);
+        }
+        zeta[j] = width * p[j] * (1.0 - p[j - 1]);
+    }
+    return recurrence_from_zetas(recurrence, zeta, k, continued_count, bounds.lower);
+}
+
 [[nodiscard]] bool is_supported_continuation(const GeneralizedContinuation continuation)
 {
     switch (continuation)
@@ -524,6 +569,7 @@ struct Recurrence
     case GeneralizedContinuation::normal:
     case GeneralizedContinuation::gamma:
     case GeneralizedContinuation::lognormal:
+    case GeneralizedContinuation::beta:
         return true;
     }
     return false;
@@ -676,9 +722,11 @@ struct GeneralizedBase
 }
 
 // The continuation of the recurrence of a generalized base without outcome to
-// its N_G = generalized.node_count nodes.
+// its N_G = generalized.node_count nodes. The gamma and lognormal continuations
+// read the lower bound and the beta continuation both bounds. The normal
+// continuation reads neither.
 [[nodiscard]] internal::GeneralizedQuadrature continued_generalized_quadrature(const MomentSet& moments, const GeneralizedBase& base,
-                                                                               const GeneralizedOptions& generalized, const double lower)
+                                                                               const GeneralizedOptions& generalized, const AbscissaBounds bounds)
 {
     // The continuation was checked before the moments were read, so
     // is_supported_continuation must accept exactly the cases of this switch.
@@ -689,10 +737,13 @@ struct GeneralizedBase
         continued = normal_continuation(base.recurrence, base.k, generalized.node_count, generalized.nu);
         break;
     case GeneralizedContinuation::gamma:
-        continued = gamma_continuation(base.recurrence, base.k, generalized.node_count, lower);
+        continued = gamma_continuation(base.recurrence, base.k, generalized.node_count, bounds.lower);
         break;
     case GeneralizedContinuation::lognormal:
-        continued = lognormal_continuation(base.recurrence, base.k, generalized.node_count, lower);
+        continued = lognormal_continuation(base.recurrence, base.k, generalized.node_count, bounds.lower);
+        break;
+    case GeneralizedContinuation::beta:
+        continued = beta_continuation(base.recurrence, base.k, generalized.node_count, bounds);
         break;
     }
     if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, continued, generalized.node_count))
@@ -844,7 +895,7 @@ GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, c
     {
         return std::move(*base.outcome);
     }
-    return continued_generalized_quadrature(moments, base, generalized, 0.0);
+    return continued_generalized_quadrature(moments, base, generalized, AbscissaBounds{});
 }
 
 GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
@@ -873,7 +924,7 @@ GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& mo
             return fewer_base_nodes_than_requested();
         }
         GeneralizedQuadrature candidate =
-            base.outcome.has_value() ? std::move(*base.outcome) : continued_generalized_quadrature(moments, base, generalized, bounds.lower);
+            base.outcome.has_value() ? std::move(*base.outcome) : continued_generalized_quadrature(moments, base, generalized, bounds);
         Quadrature1D& quadrature = candidate.quadrature;
         if (quadrature.status == QuadratureStatus::invalid_input)
         {

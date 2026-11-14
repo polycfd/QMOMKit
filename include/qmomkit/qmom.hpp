@@ -37,14 +37,15 @@ enum class QmomFamily
 /**
  * How GQMOM continues the recurrence coefficients of the moments to N_G nodes.
  * `normal` is Definition 1 of Fox, Laurent & Passalacqua (2023), whose
- * parameter nu controls the tails, `gamma` is Definition 2, and `lognormal` is
- * Definition 3.
+ * parameter nu controls the tails, `gamma` is Definition 2, `lognormal` is
+ * Definition 3, and `beta` is Definition 4.
  */
 enum class GeneralizedContinuation
 {
     normal,
     gamma,
-    lognormal
+    lognormal,
+    beta
 };
 
 /**

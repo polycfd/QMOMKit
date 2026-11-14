@@ -105,3 +105,6 @@ the closure itself. The Monte Carlo run is a stochastic reference with sampling
 noise, and it lets each droplet break at most once per step, an error of first
 order in $\Delta t$, so it is not an exact solution: halving $\Delta t$ changes
 its $m_0$ to $m_4$ by at most 0.6%.
+
+Setting `generalized_continuation = lognormal` in `build/configuration.qmom`
+runs the same comparison with the lognormal continuation.

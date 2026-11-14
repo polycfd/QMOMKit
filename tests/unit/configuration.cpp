@@ -483,6 +483,11 @@ void test_qmom_generalized_keys_set_the_generalized_options()
     assert(defaults.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::normal);
     assert(defaults.value().qmom_options.generalized.nu == 1.0);
     assert(qmomkit::compute_qmom(defaults.value()).weights.size() == 3);
+
+    const auto gamma = qmomkit::config::parse_qmom(
+        qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = gamma\n", five_moments));
+    assert(gamma.ok());
+    assert(gamma.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::gamma);
 }
 
 void test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts()
@@ -505,11 +510,11 @@ void test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts()
 
 void test_qmom_generalized_continuation_and_nu_take_valid_values()
 {
-    // The only continuation is normal, and nu is a finite number.
+    // The continuation is normal or gamma, and nu is a finite number.
     const std::string lines = "qmom_family = generalized\ngeneralized_node_counts = 6\n";
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
-    assert(qmomkit::config::parse_qmom(qmom_file(lines + "generalized_continuation = gamma\n", five_moments), "f.qmom").error() ==
-           "f.qmom:5: phase_space.generalized_continuation must be normal.");
+    assert(qmomkit::config::parse_qmom(qmom_file(lines + "generalized_continuation = lognormal\n", five_moments), "f.qmom").error() ==
+           "f.qmom:5: phase_space.generalized_continuation must be normal or gamma.");
     assert(qmomkit::config::parse_qmom(qmom_file(lines + "generalized_nu = inf\n", five_moments), "f.qmom").error() ==
            "f.qmom:5: Key 'phase_space.generalized_nu' must be a finite number.");
 }
@@ -532,6 +537,44 @@ void test_qmom_generalized_keys_need_the_generalized_family()
                "f.qmom:3: Key 'phase_space.generalized_node_counts' has no effect with 'qmom_family = classical'.");
     }
     assert(qmomkit::config::parse_qmom_initial_condition(qmom_file("qmom_family = generalized\ngeneralized_nu = 2\n", five_moments)).ok());
+}
+
+void test_qmom_generalized_nu_has_no_effect_with_the_gamma_continuation()
+{
+    // Only the normal continuation reads nu.
+    const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
+    assert(
+        qmomkit::config::parse_qmom(
+            qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = gamma\ngeneralized_nu = 2\n", five_moments),
+            "f.qmom")
+            .error() == "f.qmom:6: Key 'phase_space.generalized_nu' has no effect with 'generalized_continuation = gamma'.");
+}
+
+void test_qmom_generalized_abscissa_bounds_need_the_gamma_continuation()
+{
+    // Bounds with the normal continuation are refused, from a file at the line
+    // of support_lower and from a C++ call of create_qmom_case. The gamma
+    // continuation keeps them, and the moments of the exponential number
+    // density give its six nodes within them.
+    const std::string message = "The normal continuation of the generalized QMOM family takes no abscissa bounds.";
+    const std::string lines = "qmom_family = generalized\ngeneralized_node_counts = 6\n";
+    const std::string bounds = "support_lower = 0\nsupport_upper = 100\n";
+    const std::string exponential = "[moments]\nvalues = 1, 1, 2, 6, 24\n";
+    assert(qmomkit::config::parse_qmom(qmom_file(lines + bounds, exponential), "f.qmom").error() == "f.qmom:5: " + message);
+    const auto gamma = qmomkit::config::parse_qmom(qmom_file(lines + "generalized_continuation = gamma\n" + bounds, exponential));
+    assert(gamma.ok());
+    assert(gamma.value().abscissa_bounds.has_value() && gamma.value().abscissa_bounds->lower == 0.0 && gamma.value().abscissa_bounds->upper == 100.0);
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(gamma.value());
+    assert(result.ok() && result.weights.size() == 6);
+
+    const qmomkit::config::InitialConditionSpecification initial_condition{
+        qmomkit::config::ExplicitMomentInitialization{qmomkit::MomentSet{1.0, 1.0, 2.0, 6.0, 24.0}}};
+    qmomkit::QmomOptions options;
+    options.family = qmomkit::QmomFamily::generalized;
+    options.generalized.node_count = 6;
+    assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).error() == "c++: " + message);
+    options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
+    assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).ok());
 }
 
 void test_cqmom_rejects_the_qmom_family_key()
@@ -4781,6 +4824,8 @@ int main(const int argc, char** argv)
              test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts},
             {"qmom_generalized_continuation_and_nu_take_valid_values", test_qmom_generalized_continuation_and_nu_take_valid_values},
             {"qmom_generalized_keys_need_the_generalized_family", test_qmom_generalized_keys_need_the_generalized_family},
+            {"qmom_generalized_nu_has_no_effect_with_the_gamma_continuation", test_qmom_generalized_nu_has_no_effect_with_the_gamma_continuation},
+            {"qmom_generalized_abscissa_bounds_need_the_gamma_continuation", test_qmom_generalized_abscissa_bounds_need_the_gamma_continuation},
             {"qmom_family_takes_no_abscissa_bounds", test_qmom_family_takes_no_abscissa_bounds},
             {"cqmom_rejects_the_qmom_family_key", test_cqmom_rejects_the_qmom_family_key},
             {"qmom_distribution_initialization_matches_direct_api", test_qmom_distribution_initialization_matches_direct_api},

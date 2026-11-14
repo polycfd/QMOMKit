@@ -17,7 +17,7 @@ or in a file with `[phase_space] qmom_family = hyperbolic`.
 | --- | --- | --- | --- | --- | --- |
 | `classical` | the default, any coordinate | $m_0, \ldots, m_{2N-1}$ | up to $N$ | yes | QMOM, CQMOM |
 | `hyperbolic` | a velocity coordinate whose moments your code transports in physical space | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | QMOM |
-| `generalized` | source terms that $N$ nodes evaluate poorly | $m_0, \ldots, m_{2N}$ | up to $N_G > N$ | no | QMOM |
+| `generalized` | source terms that $N$ nodes evaluate poorly | $m_0, \ldots, m_{2N}$ | up to $N_G > N$ | with `gamma` | QMOM |
 
 How each family reconstructs its quadrature is described in the developer
 docs' [QMOM families](../developer/qmom_families.md).
@@ -85,18 +85,28 @@ $N_G$ has no default and must exceed $N$:
 
 ```cpp
 qmom_case.qmom_options.family = qmomkit::QmomFamily::generalized;
-qmom_case.qmom_options.generalized.node_count = 3 * qmom_case.node_count;
+qmom_case.qmom_options.generalized.node_count = 20;
 ```
 
 or in a file with `[phase_space] qmom_family = generalized` and
 `generalized_node_counts`.
 
-The only continuation is `normal`, for a number density on the real line, so
-the family takes no bounds. Its parameter $\nu$, `generalized.nu` or
-`generalized_nu`, 1 by default, controls the tails: $\nu = 1$ gives Gaussian
-tails, $\nu = 2$ exponential tails, $\nu = 0$ a number density on a bounded
-interval (Fox et al., 2023, Fig. 1), and a negative $\nu$ can give several
-modes.
+The continuation decides which number density the $N_G$ nodes represent.
+`normal`, the default, is for a number density on the real line and takes no
+bounds. Its parameter $\nu$, `generalized.nu` or `generalized_nu`, 1 by default,
+controls the tails: $\nu = 1$ gives Gaussian tails, $\nu = 2$ exponential
+tails, $\nu = 0$ a number density on a bounded interval (Fox et al., 2023,
+Fig. 1), and a negative $\nu$ can give several modes. `gamma` is for a number
+density on $[0, \infty)$, such as that of sizes or volumes, and has no
+parameter:
+
+```cpp
+qmom_case.qmom_options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
+```
+
+or `generalized_continuation = gamma` in a file. With abscissa bounds
+$[\ell, u]$, its number density starts at $\ell$ instead of 0, and its nodes
+must lie within the bounds.
 
 An adaptive reconstruction first finds a classical quadrature of $k \le N$
 nodes, with the `rmin` and `eabs` tests. Where $m_0, \ldots, m_{2k}$ lie inside
@@ -105,10 +115,15 @@ moments and have base node count $k$. `rmin` and `eabs` do not apply to the
 $N_G$ nodes. Where these moments lie on or below the boundary, the result is
 the classical quadrature itself. A fixed reconstruction takes $k = N$, so it
 returns $N_G$ nodes or, on the boundary, the classical $N$ nodes, and fails
-otherwise. Each reconstruction solves an eigenproblem of
+otherwise. With `gamma`, as with bounds in classical QMOM, nodes outside the
+bounds, $[0, \infty)$ without them, make a fixed reconstruction fail and an
+adaptive one take a smaller $k$. Each reconstruction solves an eigenproblem of
 $N_G \times N_G$ entries, so keep $N_G$ modest.
 
 The [`gqmom_1d_absolute_value_loss`](../../examples/gqmom_1d_absolute_value_loss/README.md)
 example evolves a number density under a loss at a rate proportional to
 $|\xi|$ with GQMOM and with classical QMOM, and compares both with the exact
-solution.
+solution. The
+[`gqmom_1d_droplet_breakup_with-mc`](../../examples/gqmom_1d_droplet_breakup_with-mc/README.md)
+example compares both for droplets that break up above a critical volume, with
+the `gamma` continuation, against a Monte Carlo reference.

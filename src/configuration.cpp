@@ -1596,8 +1596,8 @@ void reject_generalized_keys_with_other_family(ParsedFile& parsed, const std::st
 
 // The settings of the generalized family from [phase_space]:
 // generalized_node_counts, required and above node_counts,
-// generalized_continuation, normal when absent, and generalized_nu, 1 when
-// absent.
+// generalized_continuation, normal or gamma and normal when absent, and
+// generalized_nu, 1 when absent, which only the normal continuation reads.
 GeneralizedOptions parse_generalized_options(ParsedFile& parsed, const std::string& source_name, const QmomFamily family,
                                              const std::vector<std::size_t>& node_counts)
 {
@@ -1627,10 +1627,23 @@ GeneralizedOptions parse_generalized_options(ParsedFile& parsed, const std::stri
         }
     }
     const Entry* continuation = find_entry(parsed, "phase_space.generalized_continuation");
-    if (continuation != nullptr && continuation->value != "normal")
+    if (continuation != nullptr && continuation->value == "gamma")
+    {
+        options.continuation = GeneralizedContinuation::gamma;
+    }
+    else if (continuation != nullptr && continuation->value != "normal")
     {
         add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, continuation->line,
-                  "phase_space.generalized_continuation must be normal.");
+                  "phase_space.generalized_continuation must be normal or gamma.");
+    }
+    if (options.continuation == GeneralizedContinuation::gamma)
+    {
+        if (const Entry* nu = find_entry(parsed, "phase_space.generalized_nu"))
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, nu->line,
+                      "Key 'phase_space.generalized_nu' has no effect with 'generalized_continuation = gamma'.");
+        }
+        return options;
     }
     static_cast<void>(parse_optional_double(parsed, "phase_space.generalized_nu", source_name, options.nu));
     return options;
@@ -2810,8 +2823,8 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
             {ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count is too large to derive the required moment count."});
     }
     // HyQMOM and GQMOM with the normal continuation are defined on the real
-    // line; compute_qmom refuses the same, and a case refuses it before
-    // computing moments.
+    // line, so they take no bounds. compute_qmom refuses the same, and a case
+    // refuses it before computing moments.
     switch (options.family)
     {
     case QmomFamily::classical:
@@ -2824,10 +2837,10 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
         }
         break;
     case QmomFamily::generalized:
-        if (abscissa_bounds.has_value())
+        if (abscissa_bounds.has_value() && options.generalized.continuation != GeneralizedContinuation::gamma)
         {
-            return failure_result<QmomCase>(
-                {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "The generalized QMOM family takes no abscissa bounds."});
+            return failure_result<QmomCase>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                             "The normal continuation of the generalized QMOM family takes no abscissa bounds."});
         }
         break;
     }
@@ -3004,10 +3017,10 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
         }
         break;
     case QmomFamily::generalized:
-        if (abscissa_bounds.has_value())
+        if (abscissa_bounds.has_value() && generalized.continuation != GeneralizedContinuation::gamma)
         {
             add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, find_entry(parsed, "phase_space.support_lower")->line,
-                      "The generalized QMOM family takes no abscissa bounds.");
+                      "The normal continuation of the generalized QMOM family takes no abscissa bounds.");
             return failure_result<QmomCase>(std::move(parsed));
         }
         break;

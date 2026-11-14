@@ -1,5 +1,6 @@
 #pragma once
 
+#include "qmomkit/abscissa_bounds.hpp"
 #include "qmomkit/moment_set.hpp"
 #include "qmomkit/qmom.hpp"
 #include "qmomkit/quadrature.hpp"
@@ -20,8 +21,10 @@ struct GeneralizedQuadrature
 
 /**
  * GQMOM reconstruction (Fox, Laurent & Passalacqua 2023) from m_0, ..., m_{2N},
- * N = node_count, on the real line, with the N_G = generalized.node_count nodes
- * of the continued recurrence. Adaptive mode takes the classical selection of
+ * N = node_count, with the N_G = generalized.node_count nodes of the continued
+ * recurrence. Only the normal continuation reads nu. The gamma continuation,
+ * which needs its bounds, goes through compute_bounded_generalized_quadrature(...)
+ * instead. Adaptive mode takes the classical selection of
  * compute_quadrature(...) for N nodes, with rmin and eabs, and fixed mode the
  * classical N-node checks. The k-node quadrature found is continued to N_G nodes
  * when sigma(k, k) exceeds its rounding bound tau_k, and returned as it is
@@ -33,5 +36,17 @@ struct GeneralizedQuadrature
  */
 [[nodiscard]] GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, std::size_t node_count, const WheelerOptions& options,
                                                                    const GeneralizedOptions& generalized);
+
+/**
+ * compute_generalized_quadrature(...) within abscissa bounds, which give the
+ * gamma continuation its lower bound. As for bounded classical QMOM, a
+ * reconstruction is accepted when it succeeds with every node inside the
+ * bounds. Fixed mode is not_realizable otherwise. Adaptive mode retries below
+ * the base node count of a rejected reconstruction, down to one node, and
+ * returns the first reconstruction accepted or the last failure.
+ */
+[[nodiscard]] GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& moments, std::size_t node_count,
+                                                                           const WheelerOptions& options, const GeneralizedOptions& generalized,
+                                                                           AbscissaBounds bounds);
 
 } // namespace qmomkit::internal

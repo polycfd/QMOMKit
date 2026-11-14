@@ -251,6 +251,18 @@ struct Recurrence
     return smallest_gap / span > options.eabs;
 }
 
+// Whether every abscissa lies in the closed interval, up to a margin for
+// rounding. A margin relative to the largest abscissa magnitude gives the
+// same decision in any unit, whatever the bounds. The abscissas are not empty
+// and in ascending order, so the largest magnitude is that of the first or
+// the last abscissa.
+[[nodiscard]] bool abscissas_inside_bounds(const std::vector<double>& abscissas, const AbscissaBounds bounds)
+{
+    const double margin = 1.0e-12 * std::max(std::abs(abscissas.front()), std::abs(abscissas.back()));
+    return std::all_of(abscissas.begin(), abscissas.end(), [bounds, margin](const double node)
+                       { return std::isfinite(node) && node >= bounds.lower - margin && node <= bounds.upper + margin; });
+}
+
 [[nodiscard]] bool required_moments_are_finite(const MomentSet& moments, const std::size_t moment_count)
 {
     for (std::size_t order = 0; order < moment_count; ++order)
@@ -414,9 +426,7 @@ struct Recurrence
 }
 
 // The normal continuation of GQMOM (Fox, Laurent & Passalacqua 2023,
-// Definition 1, eqs. 21 and 22) of the recurrence a_0, ..., a_{k-1},
-// b_1, ..., b_k of m_0, ..., m_{2k} to the N_G entries of J_{N_G}: every a_i,
-// i >= k, is the mean of a_0, ..., a_{k-1}, and b_i = (i/k)^nu b_k for i > k.
+// Definition 1, eqs. 21 and 22).
 [[nodiscard]] Recurrence normal_continuation(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count, const double nu)
 {
     Recurrence continued{std::vector<double>(continued_count, 0.0), std::vector<double>(continued_count, 0.0), {}};
@@ -435,11 +445,49 @@ struct Recurrence
     return continued;
 }
 
+// The gamma continuation of GQMOM (Fox, Laurent & Passalacqua 2023,
+// Definition 2, eqs. 23, 25 and 26).
+[[nodiscard]] Recurrence gamma_continuation(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count, const double lower)
+{
+    // zeta[i] holds zeta_i, i = 1, ..., 2 N_G; zeta[0] is unused.
+    std::vector<double> zeta((2 * continued_count) + 1, 0.0);
+    zeta[1] = recurrence.a[0] - lower;
+    for (std::size_t j = 1; j <= k; ++j)
+    {
+        zeta[2 * j] = recurrence.b[j] / zeta[(2 * j) - 1];
+        if (j < k)
+        {
+            zeta[(2 * j) + 1] = (recurrence.a[j] - lower) - zeta[2 * j];
+        }
+    }
+    const double alpha = (zeta[1] / zeta[2]) - 1.0;
+    for (std::size_t i = k + 1; i <= continued_count; ++i)
+    {
+        zeta[(2 * i) - 1] = (static_cast<double>(i) + alpha) / (static_cast<double>(k) + alpha) * zeta[(2 * k) - 1];
+        zeta[2 * i] = static_cast<double>(i) / static_cast<double>(k) * zeta[2 * k];
+    }
+
+    Recurrence continued{std::vector<double>(continued_count, 0.0), std::vector<double>(continued_count, 0.0), {}};
+    const auto known = static_cast<std::ptrdiff_t>(k);
+    std::copy(recurrence.a.begin(), recurrence.a.begin() + known, continued.a.begin());
+    std::copy(recurrence.b.begin(), recurrence.b.begin() + known + 1, continued.b.begin());
+    for (std::size_t i = k; i < continued_count; ++i)
+    {
+        continued.a[i] = zeta[2 * i] + zeta[(2 * i) + 1] + lower;
+    }
+    for (std::size_t i = k + 1; i < continued_count; ++i)
+    {
+        continued.b[i] = zeta[(2 * i) - 1] * zeta[2 * i];
+    }
+    return continued;
+}
+
 [[nodiscard]] bool is_supported_continuation(const GeneralizedContinuation continuation)
 {
     switch (continuation)
     {
     case GeneralizedContinuation::normal:
+    case GeneralizedContinuation::gamma:
         return true;
     }
     return false;
@@ -497,6 +545,116 @@ struct HyperbolicRecurrence
     std::optional<Quadrature1D> failure =
         options.adaptive ? recurrence_failure(moments, recurrence, node_count + 1) : fixed_count_failure(moments, recurrence, node_count + 1);
     return HyperbolicRecurrence{std::move(failure), std::move(recurrence)};
+}
+
+// The generalized reconstruction of m_0, ..., m_{2N}, N = node_count, up to its
+// continuation. k is the base node count found by the classical selection, 0
+// if none was found. For moments in the interior of moment space, outcome is
+// empty and recurrence holds the recurrence of m_0, ..., m_{2N}. Otherwise
+// outcome is the result of the reconstruction: a failure, or the classical
+// k-node quadrature of moments on the boundary or, in adaptive mode, below it.
+struct GeneralizedBase
+{
+    std::optional<internal::GeneralizedQuadrature> outcome;
+    Recurrence recurrence;
+    std::size_t k = 0;
+};
+
+[[nodiscard]] GeneralizedBase generalized_base(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
+                                               const GeneralizedOptions& generalized)
+{
+    internal::performance::record_wheeler_call();
+    const auto finished = [](Quadrature1D quadrature, const std::size_t k)
+    { return GeneralizedBase{internal::GeneralizedQuadrature{std::move(quadrature), k}, {}, k}; };
+    if (generalized.continuation == GeneralizedContinuation::normal && !std::isfinite(generalized.nu))
+    {
+        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "The generalized parameter nu must be finite."}, 0);
+    }
+    if (generalized.node_count <= node_count)
+    {
+        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "The generalized node count must exceed node_count."}, 0);
+    }
+    if (!is_supported_continuation(generalized.continuation))
+    {
+        return finished(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Unsupported generalized continuation."}, 0);
+    }
+    if (const std::optional<Quadrature1D> failure = input_failure_through_m2n(moments, node_count, options))
+    {
+        return finished(*failure, 0);
+    }
+
+    // The recurrence of m_0, ..., m_{2N} at coordinate scale zero. Its first N
+    // entries are those of m_0, ..., m_{2N-1}, so the classical quadrature of
+    // k <= N nodes below is the one compute_quadrature(moments, N, options)
+    // returns, and entry N adds sigma(N, N) with tau_N.
+    Recurrence recurrence = compute_recurrence(moments, (2 * node_count) + 1, 0.0);
+    Quadrature1D classical;
+    if (options.adaptive)
+    {
+        classical = adaptive_selection(moments, recurrence, std::min(supported_count(recurrence), node_count), options);
+    }
+    else
+    {
+        if (const std::optional<Quadrature1D> failure = fixed_count_failure(moments, recurrence, node_count))
+        {
+            return finished(*failure, 0);
+        }
+        classical = gauss_rule(moments, recurrence, node_count);
+    }
+    if (!classical.ok())
+    {
+        return finished(std::move(classical), 0);
+    }
+
+    // sigma(k, k) = m0 b_1 ... b_k. Within its rounding bound, b_k is zero, the
+    // moments lie on the boundary of moment space, and GQMOM is the classical
+    // k-node quadrature. Below the bound, b_k is negative and the moments lie
+    // below the boundary. Fixed mode refuses these moments, and a recurrence
+    // that overflowed at k, while adaptive mode keeps the classical selection,
+    // which stopped at this k: an overflowed sigma(k, k) of +-inf has an
+    // infinite bound and so lies within it. A NaN does not, and its b_k fails
+    // the checks of the continued recurrence.
+    const std::size_t k = classical.weights.size();
+    const SigmaDiagonal& diagonal = recurrence.diagonal[k];
+    if (!options.adaptive && (!std::isfinite(diagonal.sigma) || !std::isfinite(diagonal.tolerance)))
+    {
+        return finished(one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values."), 0);
+    }
+    if (!options.adaptive && diagonal.sigma < -diagonal.tolerance)
+    {
+        return finished(negative_b_result(moments, recurrence.b[k]), 0);
+    }
+    if (diagonal.sigma <= diagonal.tolerance)
+    {
+        return finished(std::move(classical), k);
+    }
+    return GeneralizedBase{std::nullopt, std::move(recurrence), k};
+}
+
+// The continuation of the recurrence of a generalized base without outcome to
+// its N_G = generalized.node_count nodes.
+[[nodiscard]] internal::GeneralizedQuadrature continued_generalized_quadrature(const MomentSet& moments, const GeneralizedBase& base,
+                                                                               const GeneralizedOptions& generalized, const double lower)
+{
+    // The continuation was checked before the moments were read, so
+    // is_supported_continuation must accept exactly the cases of this switch.
+    Recurrence continued;
+    switch (generalized.continuation)
+    {
+    case GeneralizedContinuation::normal:
+        continued = normal_continuation(base.recurrence, base.k, generalized.node_count, generalized.nu);
+        break;
+    case GeneralizedContinuation::gamma:
+        continued = gamma_continuation(base.recurrence, base.k, generalized.node_count, lower);
+        break;
+    }
+    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, continued, generalized.node_count))
+    {
+        return internal::GeneralizedQuadrature{*failure, 0};
+    }
+    Quadrature1D quadrature = gauss_rule(moments, continued, generalized.node_count);
+    const std::size_t base_node_count = quadrature.ok() ? base.k : 0;
+    return internal::GeneralizedQuadrature{std::move(quadrature), base_node_count};
 }
 
 [[nodiscard]] Quadrature1D compute_quadrature_at_scale(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
@@ -630,87 +788,51 @@ Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, const std::
 GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
                                                      const GeneralizedOptions& generalized)
 {
-    performance::record_wheeler_call();
-    const auto failed = [](Quadrature1D quadrature) { return GeneralizedQuadrature{std::move(quadrature), 0}; };
-    if (!std::isfinite(generalized.nu))
+    GeneralizedBase base = generalized_base(moments, node_count, options, generalized);
+    if (base.outcome.has_value())
     {
-        return failed(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "The generalized parameter nu must be finite."});
+        return std::move(*base.outcome);
     }
-    if (generalized.node_count <= node_count)
-    {
-        return failed(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "The generalized node count must exceed node_count."});
-    }
-    if (!is_supported_continuation(generalized.continuation))
-    {
-        return failed(Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Unsupported generalized continuation."});
-    }
-    if (const std::optional<Quadrature1D> failure = input_failure_through_m2n(moments, node_count, options))
-    {
-        return failed(*failure);
-    }
+    return continued_generalized_quadrature(moments, base, generalized, 0.0);
+}
 
-    // The recurrence of m_0, ..., m_{2N} at coordinate scale zero. Its first N
-    // entries are those of m_0, ..., m_{2N-1}, so the classical quadrature of
-    // k <= N nodes below is the one compute_quadrature(moments, N, options)
-    // returns, and entry N adds sigma(N, N) with tau_N.
-    const Recurrence recurrence = compute_recurrence(moments, (2 * node_count) + 1, 0.0);
-    Quadrature1D classical;
-    if (options.adaptive)
+GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
+                                                             const GeneralizedOptions& generalized, const AbscissaBounds bounds)
+{
+    if (!std::isfinite(bounds.lower) || !std::isfinite(bounds.upper) || !(bounds.lower < bounds.upper))
     {
-        classical = adaptive_selection(moments, recurrence, std::min(supported_count(recurrence), node_count), options);
+        return GeneralizedQuadrature{
+            Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Bounded-support interval must have finite lower < upper values."}, 0};
     }
-    else
+    // As for bounded classical QMOM, a reconstruction is accepted when it
+    // succeeds with every node inside the bounds. Fixed mode tries node_count
+    // only. Adaptive mode retries below the base node count k of a rejected
+    // reconstruction, or below the node count tried if k was not found, down to
+    // one node. The continuation runs once per base node count. Invalid input
+    // does not depend on the node count and is returned at once.
+    std::size_t count = node_count;
+    while (true)
     {
-        if (const std::optional<Quadrature1D> failure = fixed_count_failure(moments, recurrence, node_count))
+        GeneralizedBase base = generalized_base(moments, count, options, generalized);
+        GeneralizedQuadrature candidate =
+            base.outcome.has_value() ? std::move(*base.outcome) : continued_generalized_quadrature(moments, base, generalized, bounds.lower);
+        Quadrature1D& quadrature = candidate.quadrature;
+        if (quadrature.status == QuadratureStatus::invalid_input)
         {
-            return failed(*failure);
+            return candidate;
         }
-        classical = gauss_rule(moments, recurrence, node_count);
+        if (quadrature.ok() && !abscissas_inside_bounds(quadrature.abscissas, bounds))
+        {
+            quadrature.status = QuadratureStatus::not_realizable;
+            quadrature.message = "Bounded-support Wheeler inversion returned nodes outside the configured interval.";
+            candidate.base_node_count = 0;
+        }
+        count = (base.k > 0 ? base.k : count) - 1;
+        if (quadrature.ok() || !options.adaptive || count == 0)
+        {
+            return candidate;
+        }
     }
-    if (!classical.ok())
-    {
-        return failed(std::move(classical));
-    }
-
-    // sigma(k, k) = m0 b_1 ... b_k. Within its rounding bound, b_k is zero, the
-    // moments lie on the boundary of moment space, and GQMOM is the classical
-    // k-node quadrature. Below the bound, b_k is negative and the moments lie
-    // below the boundary. Fixed mode refuses these moments, and a recurrence
-    // that overflowed at k, while adaptive mode keeps the classical selection,
-    // which stopped at this k: an overflowed sigma(k, k) of +-inf has an
-    // infinite bound and so lies within it. A NaN does not, and its b_k fails
-    // the checks of the continued recurrence.
-    const std::size_t k = classical.weights.size();
-    const SigmaDiagonal& diagonal = recurrence.diagonal[k];
-    if (!options.adaptive && (!std::isfinite(diagonal.sigma) || !std::isfinite(diagonal.tolerance)))
-    {
-        return failed(one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values."));
-    }
-    if (!options.adaptive && diagonal.sigma < -diagonal.tolerance)
-    {
-        return failed(negative_b_result(moments, recurrence.b[k]));
-    }
-    if (diagonal.sigma <= diagonal.tolerance)
-    {
-        return GeneralizedQuadrature{std::move(classical), k};
-    }
-
-    // The continuation was checked before the moments were read, so
-    // is_supported_continuation must accept exactly the cases of this switch.
-    Recurrence continued;
-    switch (generalized.continuation)
-    {
-    case GeneralizedContinuation::normal:
-        continued = normal_continuation(recurrence, k, generalized.node_count, generalized.nu);
-        break;
-    }
-    if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, continued, generalized.node_count))
-    {
-        return failed(*failure);
-    }
-    Quadrature1D quadrature = gauss_rule(moments, continued, generalized.node_count);
-    const std::size_t base_node_count = quadrature.ok() ? k : 0;
-    return GeneralizedQuadrature{std::move(quadrature), base_node_count};
 }
 
 HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const MomentSet& moments, const std::size_t node_count,
@@ -843,21 +965,7 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
             return candidate;
         }
 
-        // A node on a bound comes back off it by the rounding of the moments,
-        // amplified by the inversion, which scales with the nodes. A tolerance
-        // relative to the largest node magnitude therefore gives the same
-        // decision in any unit, whatever the bounds. Because the abscissas are
-        // in ascending order, the largest magnitude is that of the first or the
-        // last abscissa.
-        const std::vector<double>& nodes = candidate.quadrature.abscissas;
-        const double coordinate_support_tolerance = 1.0e-12 * std::max(std::abs(nodes.front()), std::abs(nodes.back()));
-        const bool nodes_inside_interval = std::all_of(nodes.begin(), nodes.end(),
-                                                       [interval, coordinate_support_tolerance](const double node)
-                                                       {
-                                                           return std::isfinite(node) && node >= interval.lower - coordinate_support_tolerance &&
-                                                                  node <= interval.upper + coordinate_support_tolerance;
-                                                       });
-        if (!nodes_inside_interval)
+        if (!abscissas_inside_bounds(candidate.quadrature.abscissas, interval))
         {
             candidate.quadrature.status = QuadratureStatus::not_realizable;
             candidate.message = "Bounded-support Wheeler inversion returned nodes outside the configured interval.";

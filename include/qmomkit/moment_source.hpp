@@ -55,12 +55,14 @@ public:
     /**
      * Visit the nodes of the current source-stage quadrature. The callback
      * receives one weight and one abscissa per node, in the order of that
-     * quadrature: at most the state's active count, which for the hyperbolic
-     * family can be n + 1, with n the node count of its case; an adaptive
-     * reconstruction may have fewer nodes. The quadrature is reconstructed at
-     * most once per stage and shared with `generalized_moment(...)` and
-     * untracked `moment(...)` requests. As for those, contexts without
-     * source-stage reconstruction metadata reject this operation.
+     * quadrature. For the classical and hyperbolic families, the quadrature
+     * has at most the state's active count of nodes. For the generalized
+     * family, it rests on at most the state's base node count and can have up
+     * to the generalized node count, also when the state holds fewer nodes.
+     * The quadrature is reconstructed at most once per stage and shared with
+     * `generalized_moment(...)` and untracked `moment(...)` requests. As for
+     * those, contexts without source-stage reconstruction metadata reject this
+     * operation.
      */
     void for_each_node(const std::function<void(double weight, double abscissa)>& callback) const;
 

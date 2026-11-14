@@ -281,12 +281,14 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
     return QmomPhaseSpaceEvolutionResult{std::move(state), status, std::move(diagnostics), final_time, std::move(message)};
 }
 
-// The node count and options passed to compute_qmom, for either the family's
-// full quadrature or a reduced quadrature with a given base node count.
+// The node count, options and abscissa bounds passed to compute_qmom, for
+// either the family's full quadrature or a reduced quadrature with a given base
+// node count.
 struct QmomReconstructionRequest
 {
     std::size_t node_count = 0;
     QmomOptions options;
+    std::optional<AbscissaBounds> abscissa_bounds;
 };
 
 [[nodiscard]] bool holds_full_quadrature(const QmomState& state)
@@ -296,7 +298,7 @@ struct QmomReconstructionRequest
 
 [[nodiscard]] QmomReconstructionRequest full_quadrature_request(const QmomState& state)
 {
-    return {internal::QmomStateAccess::node_count(state), state.qmom_options()};
+    return {internal::QmomStateAccess::node_count(state), state.qmom_options(), state.abscissa_bounds()};
 }
 
 // A reduced quadrature is reconstructed classically for hyperbolic, whose own
@@ -315,7 +317,7 @@ struct QmomReconstructionRequest
     case QmomFamily::generalized:
         break;
     }
-    return {base_node_count, options};
+    return {base_node_count, options, state.abscissa_bounds()};
 }
 
 // The request for a reconstruction at the state's own count.
@@ -326,21 +328,23 @@ struct QmomReconstructionRequest
 
 [[nodiscard]] QmomResult reconstruct_qmom(const std::vector<double>& moments, const QmomReconstructionRequest& request)
 {
-    return compute_qmom(MomentSet(moments), request.node_count, request.options);
+    return compute_qmom(MomentSet(moments), request.node_count, request.options, request.abscissa_bounds);
 }
 
-// The reconstruction of the moments after a source step of state. An adaptive
-// state without bounds decides on its base node count. It returns a failed or
-// reduced reconstruction as it is and keeps its family's full quadrature.
-// Otherwise it makes one growth trial, for one more base node below n or for
-// the family's full quadrature at n, and accepts the trial only if it gets
-// that.
+// The reconstruction of the moments after a source step of state. A classical
+// state with bounds takes the bounded selection. Every other adaptive state
+// decides on its base node count, and each of its reconstructions passes the
+// state's bounds to compute_qmom. It
+// returns a failed or reduced reconstruction as it is and keeps its family's
+// full quadrature. Otherwise it makes one growth trial, for one more base node
+// below n or for the family's full quadrature at n, and accepts the trial only
+// if it gets that.
 [[nodiscard]] QmomResult select_post_source_qmom(const std::vector<double>& post_source_moments, const QmomState& state)
 {
     const std::size_t active_node_count = state.active_node_count();
     const std::size_t maximum_node_count = state.maximum_node_count();
     const QmomOptions& options = state.qmom_options();
-    if (state.abscissa_bounds().has_value())
+    if (state.abscissa_bounds().has_value() && options.family == QmomFamily::classical)
     {
         const internal::BoundedQuadratureSelectionRequest request{options.adaptive ? active_node_count : maximum_node_count, maximum_node_count,
                                                                   options.adaptive ? std::optional<std::size_t>{active_node_count} : std::nullopt,
@@ -532,9 +536,9 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     const QmomMomentSourceUpdateResult source_update =
         boundary == nullptr
             ? internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, source_options,
-                                                                 stage_request.node_count, stage_request.options, state.abscissa_bounds())
+                                                                 stage_request.node_count, stage_request.options, stage_request.abscissa_bounds)
             : internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, *boundary, source_options,
-                                                                 stage_request.node_count, stage_request.options, state.abscissa_bounds());
+                                                                 stage_request.node_count, stage_request.options, stage_request.abscissa_bounds);
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {

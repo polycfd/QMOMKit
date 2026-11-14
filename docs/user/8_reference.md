@@ -41,9 +41,9 @@ string.
 | `conditioning_order` | `0, 1, …` | CQMOM conditioning order. | `PhaseSpaceHierarchy` |
 | `support_lower`, `support_upper` | none | Interval the nodes must lie in, per coordinate; `none` for no bound. Both or neither, finite, `lower < upper`. | `abscissa_bounds` |
 | `qmom_family` | `classical` | QMOM only: `classical`, `hyperbolic` or `generalized` ([QMOM families](7_qmom_families.md)). | `QmomOptions::family` |
-| `generalized_node_counts` | required with `generalized` | Number of nodes $N_G$ of the GQMOM quadrature, one value above `node_counts`. | `GeneralizedOptions::node_count` |
-| `generalized_continuation` | `normal` | GQMOM continuation of the recurrence; `normal` is the only one. | `GeneralizedOptions::continuation` |
-| `generalized_nu` | `1` | Tail parameter $\nu$ of the `normal` GQMOM continuation, any finite number. | `GeneralizedOptions::nu` |
+| `generalized_node_counts` | required with `generalized` | Number of nodes $N_G$ of the GQMOM quadrature, a single value greater than `node_counts`. | `GeneralizedOptions::node_count` |
+| `generalized_continuation` | `normal` | GQMOM continuation of the recurrence, `normal` or `gamma`. | `GeneralizedOptions::continuation` |
+| `generalized_nu` | `1` | Tail parameter $\nu$ of the `normal` GQMOM continuation, any finite number. Not allowed with `gamma`. | `GeneralizedOptions::nu` |
 
 ### `[moments]`
 
@@ -246,10 +246,10 @@ These throw instead of returning a status:
 | `Moment sequence has fewer than 2*n entries.` | $N$ nodes need $2N$ moments. Supply more, request fewer nodes, or raise `maximum_order`. |
 | `Moment sequence has fewer than 2*n+1 entries.` | The `hyperbolic` and `generalized` families with node count $N$ need $2N + 1$ moments. |
 | `The hyperbolic QMOM family takes no abscissa bounds.` | HyQMOM is defined on the real line. Remove the bounds, or `support_lower` and `support_upper` from the file, or use the classical family. |
-| `The generalized QMOM family takes no abscissa bounds.` | GQMOM with the `normal` continuation is defined on the real line. Remove the bounds, or use the classical family. |
+| `The normal continuation of the generalized QMOM family takes no abscissa bounds.` | GQMOM with the `normal` continuation is defined on the real line. Remove the bounds, or `support_lower` and `support_upper` from the file, or use the `gamma` continuation or the classical family. |
 | `The generalized node count must exceed node_count.` | Set `qmom_options.generalized.node_count`, which has no default, above the node count $N$. |
-| `The generalized parameter nu must be finite.` | Set `qmom_options.generalized.nu` to a finite number. |
-| `Unsupported generalized continuation.` | Set `qmom_options.generalized.continuation` to a value of `GeneralizedContinuation`, which is `normal`. |
+| `The generalized parameter nu must be finite.` | With the `normal` continuation, set `qmom_options.generalized.nu` to a finite number. |
+| `Unsupported generalized continuation.` | Set `qmom_options.generalized.continuation` to a value of `GeneralizedContinuation`, `normal` or `gamma`. |
 | `phase_space.generalized_node_counts must exceed phase_space.node_counts.` | Set $N_G > N$. |
 | `phase_space.qmom_family must be classical, hyperbolic or generalized.` | Set one of the three families; `[phase_space] qmom_family` takes a single value. |
 | `QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.` | Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
@@ -260,7 +260,7 @@ These throw instead of returning a status:
 | `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |
 | `Moment sequence has m0 < cutoff.` | There is no population left; stop evolving it. |
-| `… returned nodes outside the configured interval.` | The moments imply nodes outside the bounds: the bounds or the moments are wrong. |
+| `… returned nodes outside the configured interval.` | The moments imply nodes outside the bounds: the bounds or the moments are wrong. With the `gamma` continuation and no bounds, the interval is $[0, \infty)$, and the moments are not those of a number density on it. |
 | `Wheeler recurrence produced non-finite values.` | The moments are near the range of a double. Use units that keep coordinates near unity. |
 | `Phase-space velocity callback returned a non-finite value …` | The message names the node; a velocity dividing by a coordinate that reached zero is typical. |
 | `… exceeded max_steps.` | The velocity is stiffer than expected, or `max_steps` is too low. Check the velocity first. |

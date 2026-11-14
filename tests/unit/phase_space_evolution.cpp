@@ -1593,6 +1593,67 @@ void test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n()
     assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 2);
 }
 
+qmomkit::QmomOptions gamma_qmom_options(const bool adaptive)
+{
+    qmomkit::QmomOptions options = generalized_qmom_options(6);
+    options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
+    options.adaptive = adaptive;
+    return options;
+}
+
+void test_bounded_gamma_post_source_keeps_the_generalized_quadrature()
+{
+    // A gamma state with bounds keeps its family through a source step. At
+    // N = 2, the moments of four points in (0, 4) give the six nodes continued
+    // from two, as compute_qmom(...) with the state's bounds returns them, and
+    // not the bounded classical two-node rule.
+    const qmomkit::AbscissaBounds bounds{0.0, 100.0};
+    const qmomkit::QmomOptions options = gamma_qmom_options(true);
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({0.5, 1.5, 3.0}, {0.25, 0.375, 0.375}, 5), 2, options, bounds);
+    assert(state.active_node_count() == 6 && state.base_node_count() == 2);
+    const std::vector<double> target = raw_moments_1d({0.25, 1.0, 2.0, 3.5}, {0.2, 0.3, 0.3, 0.2}, 5);
+    const CountedSourceStep step = counted_source_step(state, target);
+    assert_accepted_counts(step, 6, 2, 1);
+    const qmomkit::QmomResult expected = qmomkit::compute_qmom(qmomkit::MomentSet(target), 2, options, bounds);
+    assert_vector_near(step.result.state.quadrature().abscissas, expected.abscissas, 1.0e-12);
+    assert_vector_near(step.result.state.quadrature().weights, expected.weights, 1.0e-12);
+}
+
+void test_bounded_gamma_post_source_reduces_within_the_state_bounds()
+{
+    // The state's bounds decide the reduction. At N = 2, the moments of the
+    // points -1, 1 and 2 keep six nodes on a base of two within [-2, 100].
+    // Within [0, 100], the continuation from two nodes has negative nodes, so
+    // adaptive mode reduces to a base of one, and fixed mode is not_realizable.
+    const std::vector<double> start = raw_moments_1d({0.5, 1.5, 3.0}, {0.25, 0.375, 0.375}, 5);
+    const std::vector<double> target = raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.5, 0.25}, 5);
+    const qmomkit::AbscissaBounds shifted{-2.0, 100.0};
+    const qmomkit::AbscissaBounds positive{0.0, 100.0};
+    assert_accepted_counts(counted_source_step(qmom_state_from_moments(start, 2, gamma_qmom_options(true), shifted), target), 6, 2, 1);
+    assert_accepted_counts(counted_source_step(qmom_state_from_moments(start, 2, gamma_qmom_options(true), positive), target), 6, 1, 1);
+
+    const qmomkit::QmomState fixed = qmom_state_from_moments(start, 2, gamma_qmom_options(false), positive);
+    const CountedSourceStep step = counted_source_step(fixed, target);
+    assert(step.result.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
+    assert(step.result.diagnostics.post_source_qmom_status == qmomkit::QmomStatus::not_realizable);
+    assert(step.result.state.moment_values() == fixed.moment_values());
+    assert_reconstructions(step, 1);
+}
+
+void test_bounded_gamma_post_source_grows_within_the_state_bounds()
+{
+    // The growth trial is reconstructed within the state's bounds. At N = 2, a
+    // state of one point holds one node on a base of one within [-2, 100]. The
+    // moments of the points -1, 1 and 2 are continued from one node at its own
+    // base node count, and the trial for two base nodes is accepted within
+    // [-2, 100], whereas within the default bounds its continuation from two
+    // nodes has negative nodes.
+    const qmomkit::QmomState one_node =
+        qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 5), 2, gamma_qmom_options(true), qmomkit::AbscissaBounds{-2.0, 100.0});
+    assert(one_node.active_node_count() == 1 && one_node.base_node_count() == 1);
+    assert_accepted_counts(counted_source_step(one_node, raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.5, 0.25}, 5)), 6, 2, 2);
+}
+
 void test_hyperbolic_qmom_state_with_two_n_moments_is_refused()
 {
     // No public path makes this state, since a hyperbolic case needs 2n + 1
@@ -5404,6 +5465,9 @@ int main(const int argc, char** argv)
             {"adaptive_generalized_post_source_grows_by_one_base_node_below_n", test_adaptive_generalized_post_source_grows_by_one_base_node_below_n},
             {"adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n",
              test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n},
+            {"bounded_gamma_post_source_keeps_the_generalized_quadrature", test_bounded_gamma_post_source_keeps_the_generalized_quadrature},
+            {"bounded_gamma_post_source_reduces_within_the_state_bounds", test_bounded_gamma_post_source_reduces_within_the_state_bounds},
+            {"bounded_gamma_post_source_grows_within_the_state_bounds", test_bounded_gamma_post_source_grows_within_the_state_bounds},
             {"hyperbolic_qmom_state_with_two_n_moments_is_refused", test_hyperbolic_qmom_state_with_two_n_moments_is_refused},
             {"classical_qmom_source_context_visits_its_reduced_quadrature", test_classical_qmom_source_context_visits_its_reduced_quadrature},
             {"hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count",

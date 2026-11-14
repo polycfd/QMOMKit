@@ -1642,11 +1642,11 @@ void test_qmom_generalized_nu_must_be_finite()
     assert(qmomkit::compute_qmom(moments, 2, negative).weights.size() == 6);
 }
 
-void test_qmom_generalized_family_takes_no_abscissa_bounds()
+void test_qmom_generalized_normal_continuation_takes_no_abscissa_bounds()
 {
     // GQMOM with the normal continuation is defined on the real line: bounds
     // are invalid input before any reconstruction, also for a state candidate.
-    const std::string message = "The generalized QMOM family takes no abscissa bounds.";
+    const std::string message = "The normal continuation of the generalized QMOM family takes no abscissa bounds.";
     const qmomkit::AbscissaBounds bounds{-2.0, 3.0};
     const qmomkit::MomentSet moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
     const qmomkit::QmomCase bounded_case{moments, 2, generalized_options(true, 6), bounds};
@@ -1781,7 +1781,7 @@ void test_qmom_generalized_refuses_an_unsupported_continuation()
     // moments are read, for interior moments, for moments on the boundary, and
     // for too few moments.
     qmomkit::QmomOptions options = generalized_options(true, 6);
-    options.generalized.continuation = static_cast<qmomkit::GeneralizedContinuation>(1);
+    options.generalized.continuation = static_cast<qmomkit::GeneralizedContinuation>(-1);
     for (const qmomkit::MomentSet& moments : {qmomkit::MomentSet(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5)),
                                               qmomkit::MomentSet(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5)), qmomkit::MomentSet{1.0}})
     {
@@ -1822,6 +1822,185 @@ void test_qmom_generalized_overflow_is_not_realizable()
     assert(result.status == qmomkit::QmomStatus::not_realizable);
     assert(result.message == "Wheeler recurrence produced non-finite values.");
     assert(result.base_node_count == 0);
+}
+
+qmomkit::QmomOptions gamma_options(const bool adaptive, const std::size_t continued_node_count)
+{
+    qmomkit::QmomOptions options = generalized_options(adaptive, continued_node_count);
+    options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
+    return options;
+}
+
+// m_0, ..., m_{count-1} of a gamma number density with shape alpha and rate
+// beta: m_k = m_{k-1} (alpha + k) / beta.
+std::vector<double> gamma_moments(const double alpha, const double beta, const std::size_t count)
+{
+    std::vector<double> moments{1.0};
+    for (std::size_t order = 1; order < count; ++order)
+    {
+        moments.push_back(moments.back() * (alpha + static_cast<double>(order)) / beta);
+    }
+    return moments;
+}
+
+void test_qmom_generalized_gamma_continues_to_the_laguerre_rule()
+{
+    // For the moments of a gamma number density, the gamma continuation of
+    // Fox, Laurent & Passalacqua (2023, Definition 2) is the Laguerre
+    // recurrence, so N = 2 and N_G = 6 give the six-node Gauss-Laguerre rule,
+    // which classical QMOM reconstructs from the first twelve moments.
+    const std::vector<double> moments = gamma_moments(2.5, 1.5, 12);
+    const qmomkit::QmomResult result =
+        qmomkit::compute_qmom(qmomkit::MomentSet(std::vector<double>(moments.begin(), moments.begin() + 5)), 2, gamma_options(false, 6));
+    const qmomkit::QmomResult laguerre = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 6, qmomkit::QmomOptions{false});
+    assert(result.ok() && laguerre.ok());
+    assert(result.base_node_count == 2);
+    assert(result.weights.size() == 6);
+    for (std::size_t node = 0; node < 6; ++node)
+    {
+        assert_near(result.abscissas[node], laguerre.abscissas[node], 1.0e-10 * laguerre.abscissas.back());
+        assert_near(result.weights[node], laguerre.weights[node], 1.0e-10);
+    }
+}
+
+void test_qmom_generalized_gamma_default_support_is_zero_to_the_largest_double()
+{
+    // Without abscissa bounds, the gamma continuation takes [0, the largest
+    // double], and the result equals that with these bounds given.
+    const std::vector<double> moments = gamma_moments(2.5, 1.5, 5);
+    const qmomkit::QmomResult implicit = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, gamma_options(false, 6));
+    const qmomkit::QmomResult explicit_bounds = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, gamma_options(false, 6),
+                                                                      qmomkit::AbscissaBounds{0.0, std::numeric_limits<double>::max()});
+    assert(implicit.ok());
+    assert_same_qmom_result(explicit_bounds, implicit);
+}
+
+void test_qmom_generalized_gamma_shifts_to_the_lower_bound()
+{
+    // The gamma continuation on [l, inf) is the one on [0, inf) shifted by l:
+    // the moments of the gamma number density shifted by l = 7/3, with bounds
+    // [l, the largest double], give the nodes of the unshifted moments plus l
+    // and the same weights.
+    const std::vector<double> moments = gamma_moments(2.5, 1.5, 5);
+    const double lower = 7.0 / 3.0;
+    std::vector<double> shifted(5, 0.0);
+    for (std::size_t order = 0; order < 5; ++order)
+    {
+        double binomial = 1.0;
+        for (std::size_t power = 0; power <= order; ++power)
+        {
+            shifted[order] += binomial * moments[power] * std::pow(lower, static_cast<double>(order - power));
+            binomial = binomial * static_cast<double>(order - power) / static_cast<double>(power + 1);
+        }
+    }
+    const qmomkit::QmomResult reference = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, gamma_options(false, 6));
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet(shifted), 2, gamma_options(false, 6),
+                                                             qmomkit::AbscissaBounds{lower, std::numeric_limits<double>::max()});
+    assert(result.ok());
+    assert(result.weights.size() == 6);
+    for (std::size_t node = 0; node < 6; ++node)
+    {
+        assert_near(result.abscissas[node], reference.abscissas[node] + lower, 1.0e-12 * (reference.abscissas.back() + lower));
+        assert_near(result.weights[node], reference.weights[node], 1.0e-12);
+    }
+}
+
+void test_qmom_generalized_gamma_reduces_moments_outside_the_support()
+{
+    // The moments of the points -1, 1 and 2 are not those of a number density
+    // on [0, inf) at N = 2: their continued nodes leave [0, inf). Fixed mode
+    // refuses them, as for bounded classical QMOM, and adaptive mode reduces
+    // the base node count to 1, whose continuation lies inside.
+    const qmomkit::MomentSet moments(raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.375, 0.375}, 5));
+    const qmomkit::QmomResult fixed = qmomkit::compute_qmom(moments, 2, gamma_options(false, 6));
+    assert(fixed.status == qmomkit::QmomStatus::not_realizable);
+    assert(fixed.message == "Bounded-support Wheeler inversion returned nodes outside the configured interval.");
+    assert(fixed.base_node_count == 0);
+
+    const qmomkit::QmomResult adaptive = qmomkit::compute_qmom(moments, 2, gamma_options(true, 6));
+    assert(adaptive.ok());
+    assert(adaptive.base_node_count == 1);
+    assert(adaptive.weights.size() == 6);
+    assert(adaptive.abscissas.front() > 0.0);
+}
+
+void test_qmom_generalized_gamma_returns_the_classical_quadrature_on_the_boundary()
+{
+    // The moments of two points at N = 2 lie on the boundary of moment space,
+    // where GQMOM is the classical two-node quadrature, in both modes.
+    const qmomkit::MomentSet moments(raw_moments_1d({0.5, 1.5}, {0.25, 0.75}, 5));
+    for (const bool adaptive : {true, false})
+    {
+        const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 2, gamma_options(adaptive, 6));
+        assert(result.ok());
+        assert(result.base_node_count == 2);
+        assert(result.weights.size() == 2);
+        assert_near(result.abscissas[0], 0.5, 1.0e-12);
+        assert_near(result.abscissas[1], 1.5, 1.0e-12);
+    }
+}
+
+void test_qmom_generalized_gamma_refuses_nodes_beyond_the_upper_bound()
+{
+    // For gamma moments, every base node count continues to the Laguerre rule,
+    // whose largest of six nodes lies near 13.4. Bounds [0, 5] cut it off at
+    // every count, so both modes are not_realizable.
+    const qmomkit::MomentSet moments(gamma_moments(2.5, 1.5, 5));
+    for (const bool adaptive : {true, false})
+    {
+        const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 2, gamma_options(adaptive, 6), qmomkit::AbscissaBounds{0.0, 5.0});
+        assert(result.status == qmomkit::QmomStatus::not_realizable);
+        assert(result.message == "Bounded-support Wheeler inversion returned nodes outside the configured interval.");
+        assert(result.base_node_count == 0);
+    }
+}
+
+void test_qmom_generalized_gamma_does_not_read_nu()
+{
+    // nu belongs to the normal continuation: the gamma continuation gives the
+    // same result for any nu, also a non-finite one.
+    const qmomkit::MomentSet moments(raw_moments_1d({0.5, 1.25, 2.75}, {0.25, 0.375, 0.375}, 5));
+    qmomkit::QmomOptions options = gamma_options(true, 6);
+    const qmomkit::QmomResult reference = qmomkit::compute_qmom(moments, 2, options);
+    assert(reference.ok());
+    options.generalized.nu = std::numeric_limits<double>::quiet_NaN();
+    assert_same_qmom_result(qmomkit::compute_qmom(moments, 2, options), reference);
+}
+
+void test_qmom_generalized_gamma_reports_input_failures_at_once()
+{
+    // In adaptive mode, an input failure is returned at once rather than retried
+    // with fewer nodes, which would read fewer moments. N = 2 reconstructs the
+    // moments of three points, but N = 3 needs m_6: without it, and with a
+    // non-finite m_6, the result is invalid_input.
+    const std::vector<double> five = raw_moments_1d({0.5, 1.25, 2.75}, {0.25, 0.375, 0.375}, 5);
+    assert(qmomkit::compute_qmom(qmomkit::MomentSet(five), 2, gamma_options(true, 6)).ok());
+    std::vector<double> seven = raw_moments_1d({0.5, 1.25, 2.75}, {0.25, 0.375, 0.375}, 7);
+    seven[6] = std::numeric_limits<double>::infinity();
+    const std::vector<std::pair<qmomkit::QmomResult, std::string>> cases{
+        {qmomkit::compute_qmom(qmomkit::MomentSet(five), 3, gamma_options(true, 9)), "Moment sequence has fewer than 2*n+1 entries."},
+        {qmomkit::compute_qmom(qmomkit::MomentSet(seven), 3, gamma_options(true, 9)), "Moment sequence contains non-finite values."}};
+    for (const auto& [result, message] : cases)
+    {
+        assert(result.status == qmomkit::QmomStatus::invalid_input);
+        assert(result.message == message);
+        assert(result.base_node_count == 0);
+    }
+}
+
+void test_qmom_generalized_continues_a_boundary_reduction_by_rmin()
+{
+    // The moments of three points at N = 3 lie on the boundary at three nodes,
+    // but the point of weight 1e-8 fails rmin = 1e-6. The classical selection
+    // reduces to two nodes, whose moments lie inside moment space, so the
+    // normal continuation continues them to N_G = 9 nodes with base node
+    // count 2.
+    qmomkit::QmomOptions options = generalized_options(true, 9);
+    options.rmin = 1.0e-6;
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({-1.0, 1.0, 3.0}, {0.5, 0.5, 1.0e-8}, 7)), 3, options);
+    assert(result.ok());
+    assert(result.base_node_count == 2);
+    assert(result.weights.size() == 9);
 }
 
 void test_qmom_generalized_state_holds_up_to_its_node_count()
@@ -2737,7 +2916,7 @@ int main(const int argc, char** argv)
             {"qmom_generalized_family_is_the_generalized_reconstruction", test_qmom_generalized_family_is_the_generalized_reconstruction},
             {"qmom_generalized_node_count_must_exceed_n", test_qmom_generalized_node_count_must_exceed_n},
             {"qmom_generalized_nu_must_be_finite", test_qmom_generalized_nu_must_be_finite},
-            {"qmom_generalized_family_takes_no_abscissa_bounds", test_qmom_generalized_family_takes_no_abscissa_bounds},
+            {"qmom_generalized_normal_continuation_takes_no_abscissa_bounds", test_qmom_generalized_normal_continuation_takes_no_abscissa_bounds},
             {"qmom_generalized_reports_the_input_checks_of_m0_to_m2n", test_qmom_generalized_reports_the_input_checks_of_m0_to_m2n},
             {"qmom_generalized_reads_no_moments_beyond_m2n", test_qmom_generalized_reads_no_moments_beyond_m2n},
             {"qmom_generalized_continues_a_reduced_quadrature_to_the_generalized_node_count",
@@ -2748,6 +2927,17 @@ int main(const int argc, char** argv)
             {"qmom_generalized_strongly_negative_nu_reproduces_the_moments", test_qmom_generalized_strongly_negative_nu_reproduces_the_moments},
             {"qmom_generalized_overflow_is_not_realizable", test_qmom_generalized_overflow_is_not_realizable},
             {"qmom_generalized_state_holds_up_to_its_node_count", test_qmom_generalized_state_holds_up_to_its_node_count},
+            {"qmom_generalized_gamma_continues_to_the_laguerre_rule", test_qmom_generalized_gamma_continues_to_the_laguerre_rule},
+            {"qmom_generalized_gamma_default_support_is_zero_to_the_largest_double",
+             test_qmom_generalized_gamma_default_support_is_zero_to_the_largest_double},
+            {"qmom_generalized_gamma_shifts_to_the_lower_bound", test_qmom_generalized_gamma_shifts_to_the_lower_bound},
+            {"qmom_generalized_gamma_reduces_moments_outside_the_support", test_qmom_generalized_gamma_reduces_moments_outside_the_support},
+            {"qmom_generalized_gamma_returns_the_classical_quadrature_on_the_boundary",
+             test_qmom_generalized_gamma_returns_the_classical_quadrature_on_the_boundary},
+            {"qmom_generalized_gamma_refuses_nodes_beyond_the_upper_bound", test_qmom_generalized_gamma_refuses_nodes_beyond_the_upper_bound},
+            {"qmom_generalized_gamma_does_not_read_nu", test_qmom_generalized_gamma_does_not_read_nu},
+            {"qmom_generalized_gamma_reports_input_failures_at_once", test_qmom_generalized_gamma_reports_input_failures_at_once},
+            {"qmom_generalized_continues_a_boundary_reduction_by_rmin", test_qmom_generalized_continues_a_boundary_reduction_by_rmin},
             {"qmom_classical_base_node_count_is_the_node_count", test_qmom_classical_base_node_count_is_the_node_count},
             {"qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes", test_qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes},
             {"qmom_failed_reconstructions_have_base_node_count_zero", test_qmom_failed_reconstructions_have_base_node_count_zero},

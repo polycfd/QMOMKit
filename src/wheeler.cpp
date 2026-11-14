@@ -445,11 +445,12 @@ struct Recurrence
     return continued;
 }
 
-// The gamma continuation of GQMOM (Fox, Laurent & Passalacqua 2023,
-// Definition 2, eqs. 23, 25 and 26).
-[[nodiscard]] Recurrence gamma_continuation(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count, const double lower)
+// The zeta form of the recurrence of k nodes, shifted by lower (Fox, Laurent &
+// Passalacqua 2023, eq. 23): zeta[i] holds zeta_i for i = 1, ..., 2k, in a
+// vector of the size the continuation to N_G nodes fills. zeta[0] is unused.
+[[nodiscard]] std::vector<double> known_zetas(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count,
+                                              const double lower)
 {
-    // zeta[i] holds zeta_i, i = 1, ..., 2 N_G; zeta[0] is unused.
     std::vector<double> zeta((2 * continued_count) + 1, 0.0);
     zeta[1] = recurrence.a[0] - lower;
     for (std::size_t j = 1; j <= k; ++j)
@@ -460,13 +461,15 @@ struct Recurrence
             zeta[(2 * j) + 1] = (recurrence.a[j] - lower) - zeta[2 * j];
         }
     }
-    const double alpha = (zeta[1] / zeta[2]) - 1.0;
-    for (std::size_t i = k + 1; i <= continued_count; ++i)
-    {
-        zeta[(2 * i) - 1] = (static_cast<double>(i) + alpha) / (static_cast<double>(k) + alpha) * zeta[(2 * k) - 1];
-        zeta[2 * i] = static_cast<double>(i) / static_cast<double>(k) * zeta[2 * k];
-    }
+    return zeta;
+}
 
+// The recurrence of N_G nodes from that of k nodes and the continued zeta (Fox,
+// Laurent & Passalacqua 2023, eq. 26): a_i = zeta_{2i} + zeta_{2i+1}, shifted
+// back by lower, for i >= k, and b_i = zeta_{2i-1} zeta_{2i} for i > k.
+[[nodiscard]] Recurrence recurrence_from_zetas(const Recurrence& recurrence, const std::vector<double>& zeta, const std::size_t k,
+                                               const std::size_t continued_count, const double lower)
+{
     Recurrence continued{std::vector<double>(continued_count, 0.0), std::vector<double>(continued_count, 0.0), {}};
     const auto known = static_cast<std::ptrdiff_t>(k);
     std::copy(recurrence.a.begin(), recurrence.a.begin() + known, continued.a.begin());
@@ -482,12 +485,45 @@ struct Recurrence
     return continued;
 }
 
+// The gamma continuation of GQMOM (Fox, Laurent & Passalacqua 2023,
+// Definition 2, eqs. 23, 25 and 26).
+[[nodiscard]] Recurrence gamma_continuation(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count, const double lower)
+{
+    std::vector<double> zeta = known_zetas(recurrence, k, continued_count, lower);
+    const double alpha = (zeta[1] / zeta[2]) - 1.0;
+    for (std::size_t i = k + 1; i <= continued_count; ++i)
+    {
+        zeta[(2 * i) - 1] = (static_cast<double>(i) + alpha) / (static_cast<double>(k) + alpha) * zeta[(2 * k) - 1];
+        zeta[2 * i] = static_cast<double>(i) / static_cast<double>(k) * zeta[2 * k];
+    }
+    return recurrence_from_zetas(recurrence, zeta, k, continued_count, lower);
+}
+
+// The lognormal continuation of GQMOM (Fox, Laurent & Passalacqua 2023,
+// Definition 3, eqs. 23, 26, 29 and 30). eta^2 = M_2 M_0 / M_1^2 of the
+// shifted moments is 1 + zeta_2 / zeta_1.
+[[nodiscard]] Recurrence lognormal_continuation(const Recurrence& recurrence, const std::size_t k, const std::size_t continued_count,
+                                                const double lower)
+{
+    std::vector<double> zeta = known_zetas(recurrence, k, continued_count, lower);
+    const double eta_squared = 1.0 + (zeta[2] / zeta[1]);
+    const double base_factor = std::pow(eta_squared, static_cast<double>(k)) - 1.0;
+    for (std::size_t i = k + 1; i <= continued_count; ++i)
+    {
+        const auto steps = static_cast<double>(i - k);
+        zeta[(2 * i) - 1] = std::pow(eta_squared, 2.0 * steps) * zeta[(2 * k) - 1];
+        zeta[2 * i] = std::pow(eta_squared, steps) * (std::pow(eta_squared, static_cast<double>(i)) - 1.0) / base_factor * zeta[2 * k];
+    }
+    return recurrence_from_zetas(recurrence, zeta, k, continued_count, lower);
+}
+
 [[nodiscard]] bool is_supported_continuation(const GeneralizedContinuation continuation)
 {
     switch (continuation)
     {
     case GeneralizedContinuation::normal:
     case GeneralizedContinuation::gamma:
+    case GeneralizedContinuation::lognormal:
         return true;
     }
     return false;
@@ -654,6 +690,9 @@ struct GeneralizedBase
         break;
     case GeneralizedContinuation::gamma:
         continued = gamma_continuation(base.recurrence, base.k, generalized.node_count, lower);
+        break;
+    case GeneralizedContinuation::lognormal:
+        continued = lognormal_continuation(base.recurrence, base.k, generalized.node_count, lower);
         break;
     }
     if (const std::optional<Quadrature1D> failure = recurrence_failure(moments, continued, generalized.node_count))

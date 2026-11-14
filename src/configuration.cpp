@@ -1594,10 +1594,11 @@ void reject_generalized_keys_with_other_family(ParsedFile& parsed, const std::st
     }
 }
 
-// The settings of the generalized family from [phase_space]:
-// generalized_node_counts, required and above node_counts,
-// generalized_continuation, normal or gamma and normal when absent, and
-// generalized_nu, 1 when absent, which only the normal continuation reads.
+// The settings of the generalized family from [phase_space].
+// generalized_node_counts is required and must exceed node_counts.
+// generalized_continuation is normal, gamma or lognormal, and normal when
+// absent. generalized_nu, 1 when absent, is read by the normal continuation
+// only and is an error with the others.
 GeneralizedOptions parse_generalized_options(ParsedFile& parsed, const std::string& source_name, const QmomFamily family,
                                              const std::vector<std::size_t>& node_counts)
 {
@@ -1631,17 +1632,21 @@ GeneralizedOptions parse_generalized_options(ParsedFile& parsed, const std::stri
     {
         options.continuation = GeneralizedContinuation::gamma;
     }
+    else if (continuation != nullptr && continuation->value == "lognormal")
+    {
+        options.continuation = GeneralizedContinuation::lognormal;
+    }
     else if (continuation != nullptr && continuation->value != "normal")
     {
         add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, continuation->line,
-                  "phase_space.generalized_continuation must be normal or gamma.");
+                  "phase_space.generalized_continuation must be normal, gamma or lognormal.");
     }
-    if (options.continuation == GeneralizedContinuation::gamma)
+    if (options.continuation != GeneralizedContinuation::normal)
     {
         if (const Entry* nu = find_entry(parsed, "phase_space.generalized_nu"))
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, nu->line,
-                      "Key 'phase_space.generalized_nu' has no effect with 'generalized_continuation = gamma'.");
+                      "Key 'phase_space.generalized_nu' has no effect with 'generalized_continuation = " + continuation->value + "'.");
         }
         return options;
     }
@@ -2837,7 +2842,7 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
         }
         break;
     case QmomFamily::generalized:
-        if (abscissa_bounds.has_value() && options.generalized.continuation != GeneralizedContinuation::gamma)
+        if (abscissa_bounds.has_value() && !internal::takes_abscissa_bounds(options.generalized.continuation))
         {
             return failure_result<QmomCase>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
                                              "The normal continuation of the generalized QMOM family takes no abscissa bounds."});
@@ -3017,7 +3022,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
         }
         break;
     case QmomFamily::generalized:
-        if (abscissa_bounds.has_value() && generalized.continuation != GeneralizedContinuation::gamma)
+        if (abscissa_bounds.has_value() && !internal::takes_abscissa_bounds(generalized.continuation))
         {
             add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, find_entry(parsed, "phase_space.support_lower")->line,
                       "The normal continuation of the generalized QMOM family takes no abscissa bounds.");

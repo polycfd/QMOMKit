@@ -1,9 +1,10 @@
 """Generate the references of generalized_quadrature_exact.cpp.
 
 GQMOM with the normal continuation (Fox, Laurent & Passalacqua 2023,
-Definition 1, eqs. 21 and 22, and eq. 36) and the gamma continuation
-(Definition 2, eqs. 23, 25 and 26). For each case, the moments are rounded to
-double, and the reference is computed from those doubles: the recurrence of
+Definition 1, eqs. 21 and 22, and eq. 36), the gamma continuation
+(Definition 2, eqs. 23, 25 and 26) and the lognormal continuation
+(Definition 3, eqs. 23, 26, 29 and 30). For each case, the moments are rounded
+to double, and the reference is computed from those doubles: the recurrence of
 docs/developer/qmom.md in exact rational arithmetic, the continuation in exact
 rational arithmetic, and the Gauss quadrature of the Jacobi matrix with mpmath
 at 50 digits. Where a closed form exists, the script asserts that the reference
@@ -75,8 +76,9 @@ def gauss(a, b, m0, size):
 
 
 def generalized(m, n, N, nu, k):
-    # Definition 1 continued from the k-node quadrature, k <= N: every a_i,
-    # i >= k, the mean of a_0, ..., a_{k-1}, b_k kept, b_i = (i/k)^nu b_k.
+    # Definition 1 of Fox, Laurent & Passalacqua (2023), continued from the
+    # k-node quadrature, k <= N: every a_i, i >= k, the mean of a_0, ...,
+    # a_{k-1}, b_k kept, b_i = (i/k)^nu b_k.
     a, b, _ = recurrence(m, n)
     mean = sum(a[:k]) / k
     ac = a[:k] + [mean] * (N - k)
@@ -85,11 +87,12 @@ def generalized(m, n, N, nu, k):
 
 
 def gamma_recurrence(m, n, N, lower, k):
-    # Definition 2 continued from the k-node quadrature, k <= N, on
-    # [lower, inf), as the paper states it: the moments M of the coordinate
-    # minus lower, alpha = M_1^2 / (M_2 M_0 - M_1^2) - 1, zeta_1, ..., zeta_{2k}
-    # of the recurrence of M (eq. 23), the continued zeta_i, i > 2k (eq. 25),
-    # and a_i = zeta_{2i} + zeta_{2i+1}, i >= k, and b_i = zeta_{2i-1} zeta_{2i},
+    # Definition 2 of Fox, Laurent & Passalacqua (2023), continued from the
+    # k-node quadrature, k <= N, on [lower, inf), as the paper states it: the
+    # moments M of the coordinate minus lower,
+    # alpha = M_1^2 / (M_2 M_0 - M_1^2) - 1, zeta_1, ..., zeta_{2k} of the
+    # recurrence of M (eq. 23), the continued zeta_i, i > 2k (eq. 25), and
+    # a_i = zeta_{2i} + zeta_{2i+1}, i >= k, and b_i = zeta_{2i-1} zeta_{2i},
     # i > k (eq. 26). The Jacobi matrix of the coordinate adds lower to every
     # a_i.
     M = [sum(comb(j, i) * (-lower) ** (j - i) * m[i] for i in range(j + 1)) for j in range(len(m))]
@@ -115,6 +118,38 @@ def gamma(m, n, N, lower, k):
     return gauss(ac, bc, m[0], N)
 
 
+def lognormal_recurrence(m, n, N, lower, k):
+    # Definition 3 of Fox, Laurent & Passalacqua (2023), continued from the
+    # k-node quadrature, k <= N, on [lower, inf), as the paper states it: the
+    # moments M of the coordinate minus lower, eta^2 = M_2 M_0 / M_1^2
+    # (eq. 29), zeta_1, ..., zeta_{2k} of the recurrence of M (eq. 23), the
+    # continued zeta_i, i > 2k (eq. 30), and a_i = zeta_{2i} + zeta_{2i+1},
+    # i >= k, and b_i = zeta_{2i-1} zeta_{2i}, i > k (eq. 26). Eq. 30 has only
+    # even powers of eta, so eta^2 keeps the arithmetic exact. The Jacobi matrix
+    # of the coordinate adds lower to every a_i.
+    M = [sum(comb(j, i) * (-lower) ** (j - i) * m[i] for i in range(j + 1)) for j in range(len(m))]
+    a, b, _ = recurrence(M, n)
+    eta2 = M[2] * M[0] / M[1] ** 2
+    zeta = [None] * (2 * N + 1)
+    zeta[1] = a[0]
+    for j in range(1, k + 1):
+        zeta[2 * j] = b[j] / zeta[2 * j - 1]
+        if j < k:
+            zeta[2 * j + 1] = a[j] - zeta[2 * j]
+    for i in range(k + 1, N + 1):
+        zeta[2 * i - 1] = eta2 ** (2 * (i - k)) * zeta[2 * k - 1]
+        zeta[2 * i] = eta2 ** (i - k) * (eta2 ** i - 1) / (eta2 ** k - 1) * zeta[2 * k]
+    ac = [v + lower for v in a[:k]] + [zeta[2 * i] + zeta[2 * i + 1] + lower for i in range(k, N)]
+    bc = b[: k + 1] + [zeta[2 * i - 1] * zeta[2 * i] for i in range(k + 1, N)]
+    return ac, bc
+
+
+def lognormal(m, n, N, lower, k):
+    ac, bc = lognormal_recurrence(m, n, N, lower, k)
+    assert all(v > 0 for v in bc[1:]), "continued b must be positive"
+    return gauss(ac, bc, m[0], N)
+
+
 def classical(m, k):
     # The classical k-node quadrature of m_0, ..., m_{2k-1}.
     a, b, _ = recurrence(m[: 2 * k], k)
@@ -131,6 +166,8 @@ def evaluate(case, m):
         return classical(m, case["base"])
     if case["continuation"] == "gamma":
         return gamma(m, case["n"], case["N"], lower_of(case), case["base"])
+    if case["continuation"] == "lognormal":
+        return lognormal(m, case["n"], case["N"], lower_of(case), case["base"])
     return generalized(m, case["n"], case["N"], case["nu"], case["base"])
 
 
@@ -159,15 +196,15 @@ def gaussian_moments(m0, mu, sd, count):
 
 
 def trimodal_moments(count):
-    # Fig. 5 (section 4.1): weights 1/3, means -3, 0, 4, standard deviations
-    # 1/10, 1/20, 1/30, rounded to double.
+    # Fig. 5 of Fox, Laurent & Passalacqua (2023, section 4.1): weights 1/3,
+    # means -3, 0, 4, standard deviations 1/10, 1/20, 1/30, rounded to double.
     exact = [sum(gaussian_moments(F(1, 3), mu, sd, count)[k] for mu, sd in ((-3, F(1, 10)), (0, F(1, 20)), (4, F(1, 30)))) for k in range(count)]
     return [F(float(v)) for v in exact]
 
 
 def hermite(m0, mu, sd, N):
-    # Gauss-Hermite rule of m0 N(mu, sd^2), from the Hermite recurrence of
-    # eq. 20: a_i = mu, b_i = i sd^2.
+    # Gauss-Hermite rule of m0 N(mu, sd^2), from the Hermite recurrence
+    # (Fox, Laurent & Passalacqua 2023, eq. 20): a_i = mu, b_i = i sd^2.
     mp.mp.dps = 50
     return gauss([mu] * N, [F(0)] + [i * sd**2 for i in range(1, N)], m0, N)
 
@@ -191,10 +228,42 @@ def gamma_mixture_moments(count):
 
 def laguerre(m0, alpha, beta, lower, N):
     # Gauss rule of the shifted gamma number density, from the recurrence of
-    # the generalized Laguerre polynomials (eq. 24): a_i = (2i + alpha + 1) /
-    # beta + lower, b_i = i (i + alpha) / beta^2.
+    # the generalized Laguerre polynomials (Fox, Laurent & Passalacqua 2023,
+    # eq. 24): a_i = (2i + alpha + 1) / beta + lower, b_i = i (i + alpha) /
+    # beta^2.
     mp.mp.dps = 50
     return gauss([F(2 * i + 1) / beta + alpha / beta + lower for i in range(N)], [F(0)] + [i * (i + alpha) / beta**2 for i in range(1, N)], m0, N)
+
+
+def lognormal_moments(m0, scale, eta, lower, count):
+    # Raw moments of m0 times the lognormal density (Fox, Laurent & Passalacqua
+    # 2023, eq. 27) with exp(mu) = scale and eta = exp(sigma^2 / 2), shifted to
+    # [lower, inf): with y the unshifted coordinate, E[y^j] = scale^j eta^(j^2).
+    y = [scale ** j * eta ** (j * j) for j in range(count)]
+    return [m0 * sum(comb(k, j) * lower ** (k - j) * y[j] for j in range(k + 1)) for k in range(count)]
+
+
+def lognormal_mixture_moments(count):
+    # 1/2 of the lognormal density with scale 1 and eta = 101/100 and 1/2 of
+    # that with scale 5/4 and eta = 51/50, rounded to double.
+    exact = [u + v for u, v in zip(lognormal_moments(F(1, 2), F(1), F(101, 100), F(0), count),
+                                   lognormal_moments(F(1, 2), F(5, 4), F(51, 50), F(0), count))]
+    return [F(float(v)) for v in exact]
+
+
+def stieltjes_wigert(m0, scale, eta, lower, N):
+    # Gauss rule of the shifted lognormal number density, from the zeta of the
+    # Stieltjes-Wigert polynomials (Fox, Laurent & Passalacqua 2023, eq. 28):
+    # zeta_{2i-1} = scale eta^(4i-3) and
+    # zeta_{2i} = scale eta^(2i-1) (eta^(2i) - 1), and eq. 23 with every a_i
+    # shifted by lower.
+    mp.mp.dps = 50
+    zeta = [None]
+    for i in range(1, N + 1):
+        zeta += [scale * eta ** (4 * i - 3), scale * eta ** (2 * i - 1) * (eta ** (2 * i) - 1)]
+    a = [zeta[1] + lower] + [zeta[2 * i] + zeta[2 * i + 1] + lower for i in range(1, N)]
+    b = [F(0)] + [zeta[2 * i - 1] * zeta[2 * i] for i in range(1, N)]
+    return gauss(a, b, m0, N)
 
 
 def chebyshev(m0, a0, b1, N):
@@ -232,9 +301,9 @@ def cases():
     m = exact_moments([F(2), F(1), F(1)])
     for N in (3, 10, 101):
         add("chebyshev", f"N{N}", m, 1, N, 0, "continued", 1, 2, closed=lambda N=N: chebyshev(F(2), F(1, 2), F(1, 4), N))
-    # V3: the paper's figures. Fig. 1: standardized Gaussian moments, N = 5,
-    # N_G = 101, nu = 0 and 2. Fig. 5: the trimodal case, N = 3, 6, 9, N_G = 101,
-    # nu = 1, and N = 3 with nu = -1.
+    # V3: the figures of Fox, Laurent & Passalacqua (2023). Fig. 1: standardized
+    # Gaussian moments, N = 5, N_G = 101, nu = 0 and 2. Fig. 5: the trimodal
+    # case, N = 3, 6, 9, N_G = 101, nu = 1, and N = 3 with nu = -1.
     m = exact_moments(gaussian_moments(F(1), F(0), F(1), 11))
     for nu in (0, 2):
         add("figures", f"figure1_nu{nu}", m, 5, 101, nu, "continued", 5, 10)
@@ -252,10 +321,10 @@ def cases():
     m = moments_of([F(-1), F(1), F(3), F(-2)], [F(1, 2), F(1, 2), F(1, 10**8), F(1, 10**9)], 7)
     add("reduction", "rmin_n3", m, 3, 9, 1, "continued", 2, 4, check_fixed=False, rmin=1.0e-6)
     # V6: gamma moments with the gamma continuation and the default bounds
-    # give the Gauss rule of the generalized Laguerre polynomials. Fig. 2:
-    # alpha = 10, beta = 1, N = 2, 4, 6, N_G = 101. Then m0 = 2, alpha = 1/2,
-    # beta = 2, N = 1, 3, 5, N_G = 10 and 101. Their moments are exact in
-    # double.
+    # give the Gauss rule of the generalized Laguerre polynomials. Fig. 2 of
+    # Fox, Laurent & Passalacqua (2023): alpha = 10, beta = 1, N = 2, 4, 6,
+    # N_G = 101. Then m0 = 2, alpha = 1/2, beta = 2, N = 1, 3, 5, N_G = 10 and
+    # 101. Their moments are exact in double.
     for m0, alpha, beta, orders, counts, prefix in ((F(1), F(10), F(1), (2, 4, 6), (101,), "figure2"),
                                                     (F(2), F(1, 2), F(2), (1, 3, 5), (10, 101), "alpha0.5_beta2")):
         for n in orders:
@@ -273,9 +342,7 @@ def cases():
     # V8: a mixture of two gamma number densities, 1/3 of alpha = 2, beta = 1
     # and 2/3 of alpha = 9, beta = 1/2, moments rounded to double, with the
     # default bounds. Not a gamma density, so alpha from m_0, m_1 and m_2
-    # differs from the alpha of the last known zeta pair: an alpha taken from
-    # that pair moves the nodes by more than 3e-2 of their largest magnitude in
-    # every case.
+    # differs from the alpha of the last known zeta pair.
     for n in (3, 4, 5):
         m = gamma_mixture_moments(2 * n + 1)
         for N in (20, 101):
@@ -291,6 +358,32 @@ def cases():
     # 1-node rule and fixed mode is not_realizable.
     m = exact_moments(moments_of([F(-1), F(1), F(2)], [F(1, 4), F(1, 2), F(1, 4)], 7))
     add("gamma_reduction", "outside_n3", m, 3, 9, 1, "continued", 1, 2, fixed_refused=True, continuation="gamma")
+    # V11: lognormal moments with the lognormal continuation and the default
+    # bounds give the Gauss rule of the Stieltjes-Wigert polynomials: eta = 9/8
+    # with m0 = 1 and scale 1, and eta = 5/4 with m0 = 2 and scale 2, N = 1, 2,
+    # N_G = 10 and 20. Their moments are exact in double.
+    for m0, scale, eta, prefix in ((F(1), F(1), F(9, 8), "eta1.125"), (F(2), F(2), F(5, 4), "eta1.25")):
+        for n in (1, 2):
+            m = exact_moments(lognormal_moments(m0, scale, eta, F(0), 2 * n + 1))
+            for N in (10, 20):
+                add("stieltjes_wigert", f"{prefix}_n{n}_N{N}", m, n, N, 1, "continued", n, 2 * n, continuation="lognormal",
+                    closed=lambda m0=m0, scale=scale, eta=eta, N=N: stieltjes_wigert(m0, scale, eta, F(0), N))
+    # V12: the lognormal density with eta = 5/4, m0 = 2 and scale 2 shifted to
+    # [lower, inf), lower = -1 and 4, with the bounds [lower, the largest
+    # double], N = 1, 2, N_G = 20.
+    for lower in (F(-1), F(4)):
+        for n in (1, 2):
+            m = exact_moments(lognormal_moments(F(2), F(2), F(5, 4), lower, 2 * n + 1))
+            add("shifted_stieltjes_wigert", f"lower{float(lower):g}_n{n}_N20", m, n, 20, 1, "continued", n, 2 * n, continuation="lognormal",
+                bounds=(lower, F(MAX_DOUBLE)), closed=lambda lower=lower: stieltjes_wigert(F(2), F(2), F(5, 4), lower, 20))
+    # V13: a mixture of two lognormal number densities, moments rounded to
+    # double, with the default bounds, N = 3, N_G = 20. Not a lognormal
+    # density, so eta from m_0, m_1 and m_2 differs from the eta of the last
+    # known zeta pair.
+    add("lognormal_mixture", "lognormal_mixture_n3_N20", lognormal_mixture_moments(7), 3, 20, 1, "continued", 3, 6, continuation="lognormal")
+    # V14: as V10 with the lognormal continuation.
+    m = exact_moments(moments_of([F(-1), F(1), F(2)], [F(1, 4), F(1, 2), F(1, 4)], 7))
+    add("lognormal_reduction", "outside_n3", m, 3, 9, 1, "continued", 1, 2, fixed_refused=True, continuation="lognormal")
     return out
 
 
@@ -298,7 +391,8 @@ def assert_decisions(case):
     # The decisions QMOMKit takes on the moments in double, with margins.
     m, n = case["m"], case["n"]
     mp.mp.dps = 50
-    if case["group"] in ("hermite", "chebyshev", "figures", "laguerre", "shifted_laguerre", "gamma_mixture"):
+    if case["group"] in ("hermite", "chebyshev", "figures", "laguerre", "shifted_laguerre", "gamma_mixture", "stieltjes_wigert",
+                         "shifted_stieltjes_wigert", "lognormal_mixture"):
         _, _, diagonal = recurrence(m, n)
         for k in range(1, n + 1):
             assert diagonal[k][0] > 1000 * diagonal[k][1], (case["name"], k)
@@ -315,7 +409,7 @@ def assert_decisions(case):
         x, w = classical(m, 2)
         assert min(w) / max(w) > 10 * case["rmin"], case["name"]
         assert diagonal[2][0] > 1000 * diagonal[2][1], case["name"]
-    if case["group"] == "gamma_reduction":
+    if case["group"] in ("gamma_reduction", "lognormal_reduction"):
         # Node count 3: the classical rule, on the boundary, has the node -1.
         _, _, diagonal = recurrence(m, n)
         assert abs(diagonal[3][0]) <= diagonal[3][1], case["name"]
@@ -326,7 +420,8 @@ def assert_decisions(case):
         x, w = classical(m, 2)
         assert min(w) / max(w) > 10 * case["rmin"], case["name"]
         assert diagonal[2][0] > 1000 * diagonal[2][1], case["name"]
-        x, _ = gamma(m[:5], 2, case["N"], F(0), 2)
+        continued = gamma if case["continuation"] == "gamma" else lognormal
+        x, _ = continued(m[:5], 2, case["N"], F(0), 2)
         assert x[0] < -1.0e-6 * max(abs(v) for v in x), case["name"]
         # Node count 1: the continued rule follows in main().
         assert diagonal[1][0] > 1000 * diagonal[1][1], case["name"]
@@ -335,7 +430,7 @@ def assert_decisions(case):
 def assert_inside(case, x):
     # The continued nodes lie above the lower bound with a margin far beyond
     # the tolerance 1e-12 max |xi_i| of abscissas_inside_bounds.
-    if case["continuation"] == "gamma" and case["kind"] == "continued":
+    if case["continuation"] in ("gamma", "lognormal") and case["kind"] == "continued":
         lower = lower_of(case)
         assert x[0] - mp.mpf(lower.numerator) / lower.denominator > 1.0e-9 * max(abs(v) for v in x), case["name"]
         assert case["bounds"] is None or float(x[-1]) < case["bounds"][1], case["name"]
@@ -366,7 +461,7 @@ def main():
     fmt = lambda values: ", ".join(repr(float(v)) for v in values)
     lines = ["// Generated by generalized_quadrature_exact.py; do not edit.", ""]
     for group in ("hermite", "chebyshev", "figures", "boundary", "reduction", "laguerre", "shifted_laguerre", "gamma_mixture", "gamma_boundary",
-                  "gamma_reduction"):
+                  "gamma_reduction", "stieltjes_wigert", "shifted_stieltjes_wigert", "lognormal_mixture", "lognormal_reduction"):
         lines.append(f"const std::vector<GeneralizedReference> {group}_references{{")
         for case in CASES:
             if case["group"] != group:
@@ -387,7 +482,7 @@ def main():
             else:
                 bounds = "std::nullopt" if case["bounds"] is None else f"qmomkit::AbscissaBounds{{{fmt(case['bounds'])}}}"
                 lines.append(f"     {{{fmt(w)}}},")
-                lines.append(f"     qmomkit::GeneralizedContinuation::gamma, {bounds}}},")
+                lines.append(f"     qmomkit::GeneralizedContinuation::{case['continuation']}, {bounds}}},")
         lines.append("};")
         lines.append("")
     Path(__file__).with_suffix(".inc").write_text("\n".join(lines))

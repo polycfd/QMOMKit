@@ -31,6 +31,14 @@ namespace qmomkit::internal
     return even_moment_count;
 }
 
+// Whether a continuation of the generalized family takes abscissa bounds as its
+// support: the gamma and lognormal continuations do, the normal continuation
+// does not.
+[[nodiscard]] inline bool takes_abscissa_bounds(const GeneralizedContinuation continuation)
+{
+    return continuation == GeneralizedContinuation::gamma || continuation == GeneralizedContinuation::lognormal;
+}
+
 // compute_qmom(...) for a growth trial of the evolution, which accepts only
 // node_count as the base node count. The generalized family then neither
 // continues a smaller base node count nor retries below a rejected one, and

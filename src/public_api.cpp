@@ -76,20 +76,20 @@ namespace
 }
 
 // GQMOM with the normal continuation is defined on the real line, so abscissa
-// bounds are refused before any reconstruction. The gamma continuation is
-// defined within the abscissa bounds, which default to [0, the largest double].
-// Every continuation other than gamma goes to compute_generalized_quadrature,
-// which also reports an unsupported one.
+// bounds are refused before any reconstruction. The gamma and lognormal
+// continuations are defined within the abscissa bounds, which default to
+// [0, the largest double]. Every other continuation goes to
+// compute_generalized_quadrature, which also reports an unsupported one.
 [[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
                                           const std::optional<AbscissaBounds> abscissa_bounds, const bool exact_base_node_count)
 {
-    const bool gamma = options.generalized.continuation == GeneralizedContinuation::gamma;
-    if (!gamma && abscissa_bounds.has_value())
+    const bool bounded = internal::takes_abscissa_bounds(options.generalized.continuation);
+    if (!bounded && abscissa_bounds.has_value())
     {
         return QmomResult{{}, {}, QmomStatus::invalid_input, "The normal continuation of the generalized QMOM family takes no abscissa bounds."};
     }
     const internal::GeneralizedQuadrature result =
-        gamma
+        bounded
             ? internal::compute_bounded_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized,
                                                                abscissa_bounds.value_or(AbscissaBounds{0.0, std::numeric_limits<double>::max()}),
                                                                exact_base_node_count)

@@ -1,13 +1,14 @@
-// GQMOM reconstructions with the normal and gamma continuations, against Gauss
-// rules of the continued recurrence computed in exact rational arithmetic and
-// diagonalized at 50 digits.
+// GQMOM reconstructions with the normal, gamma and lognormal continuations,
+// against Gauss rules of the continued recurrence computed in exact rational
+// arithmetic and diagonalized at 50 digits.
 //
 // What is verified
 //   That compute_qmom(...) with the generalized family returns the N_G nodes and
 //   weights of Definition 1 of Fox, Laurent & Passalacqua (2023), eqs. 21, 22
-//   and 36, or of Definition 2, eqs. 23, 25 and 26, its base node count, and
-//   moments m_0, ..., m_{2k} reproduced to first order in the errors of the
-//   nodes and weights (eq. 14):
+//   and 36, of Definition 2, eqs. 23, 25 and 26, or of Definition 3, eqs. 23,
+//   26, 29 and 30, its base node count, and moments m_0, ..., m_{2k}
+//   reproduced to first order in the errors of the nodes and weights
+//   (eq. 14):
 //   - hermite: Gaussian moments with nu = 1 and m0 = 2, N_G = 3N and 101, give
 //     the Gauss-Hermite rule of the Gaussian (eq. 20): mean 0 and standard
 //     deviation 1 for N = 1, 3, 5, 8, and mean 3 and 1/2 for N = 1, 3, 5.
@@ -48,8 +49,25 @@
 //   - gamma_reduction: the moments of the points -1, 1 and 2 at N = 3 with the
 //     default bounds. The classical 3-node rule has the node -1, and the
 //     continuation from the 2-node rule has negative nodes, so adaptive mode
-//     continues the 1-node rule to N_G = 9, and fixed mode is not_realizable.
-//   Every case other than the boundary and reduction ones of either
+//     continues the 1-node rule to N_G = 9, and fixed mode is not_realizable;
+//   - stieltjes_wigert: with the lognormal continuation and the default bounds,
+//     the moments m0 scale^k eta^(k^2) of the lognormal number density
+//     (eq. 27, with exp(mu) = scale and eta = exp(sigma^2 / 2)) give the Gauss
+//     rule of the Stieltjes-Wigert polynomials (eq. 28): eta = 9/8, m0 = 1 and
+//     scale 1, and eta = 5/4, m0 = 2 and scale 2, with N = 1, 2 and
+//     N_G = 10, 20;
+//   - shifted_stieltjes_wigert: the lognormal number density with eta = 5/4,
+//     m0 = 2 and scale 2, shifted to [lower, inf) for lower = -1 and 4, with
+//     the bounds [lower, the largest double], N = 1, 2 and N_G = 20;
+//   - lognormal_mixture: 1/2 of the lognormal number density with eta = 1.01
+//     and scale 1 and 1/2 of that with eta = 1.02 and scale 5/4, moments
+//     rounded to double, with the default bounds, N = 3 and N_G = 20. For a
+//     lognormal density, every pair of known zeta gives the same eta (eq. 28).
+//     For this mixture, the eta of Definition 3, from m_0, m_1 and m_2,
+//     differs from that of the last known pair;
+//   - lognormal_reduction: the case of gamma_reduction with the lognormal
+//     continuation.
+//   Every case other than the boundary and reduction ones of every
 //   continuation lies in the interior of moment space, and fixed mode returns
 //   the identical result.
 //
@@ -61,15 +79,16 @@
 //   components of the Jacobi matrix with mpmath at 50 digits, rounded to
 //   double. The script generalized_quadrature_exact.py, beside this file,
 //   generated generalized_quadrature_exact.inc. It asserts that the closed
-//   forms of the hermite, chebyshev, laguerre and shifted_laguerre cases agree
-//   with the references to 1e-40, and that the decisions the test expects are
+//   forms of the hermite, chebyshev, laguerre, shifted_laguerre,
+//   stieltjes_wigert and shifted_stieltjes_wigert cases agree with the
+//   references to 1e-40, and that the decisions the test expects are
 //   not marginal: sigma(k, k) exceeds its rounding bound tau_k a thousandfold
 //   where the result is continued, the rmin and eabs tests on the classical
 //   rules pass or fail with a factor of ten to spare, and the nodes the test
 //   expects inside or outside the bounds lie there by at least a thousandfold
-//   the margin of the bounds check. The script computes the gamma
-//   continuation as Definition 2 states it, from the moments of the
-//   coordinate minus the lower bound.
+//   the margin of the bounds check. The script computes the gamma and
+//   lognormal continuations as Definitions 2 and 3 state them, from the
+//   moments of the coordinate minus the lower bound.
 //
 // Error metric and pass criteria
 //   Positions relative to the largest |position| of the reference, weights
@@ -86,8 +105,9 @@
 //   - 1e-10 for the gamma mixture at N = 5, 2.4e-12, and 1e-11 at N = 4,
 //     2.2e-13. A change of one ulp in their moments moves the nodes by
 //     7.4e-12 and 1.6e-12, which the script prints;
-//   - 1e-11 for reduction (rmin_n3), 2.7e-13;
-//   - 1e-12 for every other case, whose largest error is 1.2e-14, except
+//   - 1e-11 for reduction (rmin_n3), 2.7e-13, and for the lognormal mixture,
+//     9.4e-14;
+//   - 1e-12 for every other case, whose largest error is 1.8e-14, except
 //     3.0e-14 for the trimodal case at N = 3.
 //   The moments of the result must lie within the first-order bound
 //   sum_i (dw |xi_i|^k + w_i k |xi_i|^(k-1) dxi) of the tolerance, plus
@@ -157,7 +177,7 @@ double tolerance_for(const GeneralizedReference& reference)
     {
         return 1.0e-10;
     }
-    if (name == "rmin_n3" || name == "mixture_n4_N20" || name == "mixture_n4_N101")
+    if (name == "rmin_n3" || name == "mixture_n4_N20" || name == "mixture_n4_N101" || name == "lognormal_mixture_n3_N20")
     {
         return 1.0e-11;
     }
@@ -307,6 +327,26 @@ void test_gamma_reduction()
     verify_references(gamma_reduction_references);
 }
 
+void test_stieltjes_wigert()
+{
+    verify_references(stieltjes_wigert_references);
+}
+
+void test_shifted_stieltjes_wigert()
+{
+    verify_references(shifted_stieltjes_wigert_references);
+}
+
+void test_lognormal_mixture()
+{
+    verify_references(lognormal_mixture_references);
+}
+
+void test_lognormal_reduction()
+{
+    verify_references(lognormal_reduction_references);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -323,5 +363,9 @@ int main(const int argc, char** argv)
                                                  {"gamma_mixture", test_gamma_mixture},
                                                  {"gamma_boundary", test_gamma_boundary},
                                                  {"gamma_reduction", test_gamma_reduction},
+                                                 {"stieltjes_wigert", test_stieltjes_wigert},
+                                                 {"shifted_stieltjes_wigert", test_shifted_stieltjes_wigert},
+                                                 {"lognormal_mixture", test_lognormal_mixture},
+                                                 {"lognormal_reduction", test_lognormal_reduction},
                                              });
 }

@@ -272,7 +272,7 @@ def cases():
                 bounds=(lower, F(MAX_DOUBLE)), closed=lambda lower=lower: laguerre(F(1), F(1), F(1), lower, 101))
     # V8: a mixture of two gamma number densities, 1/3 of alpha = 2, beta = 1
     # and 2/3 of alpha = 9, beta = 1/2, moments rounded to double, with the
-    # default bounds. Not a gamma density, so alpha from the first two moments
+    # default bounds. Not a gamma density, so alpha from m_0, m_1 and m_2
     # differs from the alpha of the last known zeta pair: an alpha taken from
     # that pair moves the nodes by more than 3e-2 of their largest magnitude in
     # every case.

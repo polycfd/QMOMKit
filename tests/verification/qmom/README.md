@@ -149,8 +149,8 @@ bound of the node and weight tolerances:
 - `gamma_mixture`: 1/3 of the density with $\alpha = 2$, $\beta = 1$ and 2/3 of
   that with $\alpha = 9$, $\beta = 1/2$, moments rounded to double,
   $N = 3, 4, 5$, $N_G = 20$ and 101. For a gamma density, every pair of known
-  $\zeta$ gives the same $\alpha$. For this mixture, the $\alpha$ of the first
-  two moments, which Definition 2 prescribes, differs from that of the last
+  $\zeta$ gives the same $\alpha$. For this mixture, the $\alpha$ of $m_0$,
+  $m_1$ and $m_2$, which Definition 2 prescribes, differs from that of the last
   pair;
 - `gamma_boundary`: the `boundary` cases with dyadic points in $(0, \infty)$;
 - `gamma_reduction`: the moments of the points $-1$, 1 and 2 at $N = 3$ with the

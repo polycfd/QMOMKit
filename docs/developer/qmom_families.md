@@ -16,7 +16,7 @@ other than `classical`.
 | --- | --- | --- |
 | Moments read | `internal::qmom_required_moment_count` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) | $2N$ for `classical` and $2N+1$ otherwise, for node count $N$, the one definition cases, state candidates, the evolution and the configuration use. |
 | Maximum node count | `QmomState::maximum_node_count()` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp)) | $N$, $N+1$ or $N_G$ for the case's node count $N$. |
-| Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` and `generalized` calls `compute_generalized_quadrature`, through `compute_bounded_generalized_quadrature` for the gamma continuation, each with `node_count` as $N$. Abscissa bounds with `hyperbolic` or the normal continuation are `invalid_input` before any reconstruction. |
+| Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` and `generalized` calls `compute_generalized_quadrature` for the normal continuation and `compute_bounded_generalized_quadrature` for the gamma continuation, each with `node_count` as $N$. Abscissa bounds with `hyperbolic` or the normal continuation are `invalid_input` before any reconstruction. |
 | Evolution | `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts). The family's full quadrature is requested from the family. A reduced quadrature is requested from the classical family for `classical` and `hyperbolic`, and from the family itself for `generalized`. Every request carries the state's abscissa bounds. |
 | Configuration | `parse_qmom_family`, `parse_generalized_options`, `infer_qmom_initial_maximum_order` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, the `generalized_node_counts`, `generalized_continuation` and `generalized_nu` of the generalized family, and the default `[initial] maximum_order` from the moments the family reads ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
 | CQMOM | `compute_cqmom(const CqmomCase&)`, `internal::compute_cqmom_internal` ([`src/public_api.cpp`](../../src/public_api.cpp)) | Every family other than `classical` is `invalid_input` ([CQMOM](cqmom.md)). |
@@ -260,23 +260,25 @@ normal continuation) is
 ```
 
 and eq. 26 gives $a_i=\zeta_{2i}+\zeta_{2i+1}$ for $i\ge k$ and
-$b_i=\zeta_{2i-1}\zeta_{2i}$ for $i>k$, shifted back by $\ell$. Eq. 26 is
+$b_i=\zeta_{2i-1}\zeta_{2i}$ for $i>k$, with every $a_i$ shifted back by $\ell$. Eq. 26 is
 stated for $i>n$, but $a_n$ needs the continued $\zeta_{2n+1}$ as well, as the
 paper's selection of every $\zeta_i$ with $i>2n$ implies. For the moments of a
 gamma number density, these are the coefficients of the Laguerre polynomials
 (eq. 24), from every $k$.
 
-The abscissa bounds $[\ell,u]$ are the support, $[0,\text{DBL\_MAX}]$ without
-bounds. `compute_bounded_generalized_quadrature` selects as bounded classical
-QMOM does ([Abscissa bounds](qmom.md#abscissa-bounds)): a reconstruction is
-accepted when it succeeds and its nodes pass `abscissas_inside_bounds`, the
-check of bounded classical QMOM. Fixed mode tries node count $N$ only. Adaptive
+The abscissa bounds $[\ell,u]$, $[0,\text{DBL\_MAX}]$ without explicit bounds, are the
+interval of the continuation. `compute_bounded_generalized_quadrature` selects
+as bounded classical QMOM does ([Abscissa bounds](qmom.md#abscissa-bounds)): a
+reconstruction is accepted when it succeeds and its nodes pass
+`abscissas_inside_bounds`, the check of bounded classical QMOM. Fixed mode tries node count $N$ only. Adaptive
 mode retries below the base node count of a rejected reconstruction, down to
 one node, so the continuation runs once per base node count. Moments that are
-not those of a number density on $[\ell,\infty)$ give a non-positive $\zeta$,
-so the continued recurrence fails the check of a negative or non-finite $b$, or
-its nodes leave the bounds. Both reject the reconstruction. The continuation
-does not read $\nu$.
+not those of a number density on $[\ell,\infty)$ give a negative or zero
+$\zeta$. The pivots of $J-\ell I$ are the odd $\zeta$, so a negative $\zeta$
+puts a node below $\ell$, which the node check rejects. The continued $b_i$ are
+$b_k\,i(i+\alpha)/(k(k+\alpha))$ with $\alpha>-1$, so they stay positive, and
+only a zero $\zeta$ makes them non-finite, which the check of the continued
+recurrence rejects. The continuation does not read $\nu$.
 
 `rmin` and `eabs` act on the classical quadratures only. The continued nodes
 carry the tails of the number density, whose weights can be far below `rmin`

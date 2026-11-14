@@ -283,8 +283,8 @@ Active node counts follow one policy:
   which condition on other nodes, start from their configured maximum. A
   `generalized` state's stage reconstruction rests on at most its base node
   count, but continues to $N_G$ nodes wherever the stage moments are interior
-  and, with abscissa bounds, the continued nodes lie inside them, also when the
-  state holds a classical quadrature.
+  and, for the gamma continuation, the continued nodes lie within the bounds,
+  $[0,\infty)$ without them, also when the state holds a classical quadrature.
 - **QMOM post-source reconstruction**, `select_post_source_qmom`: a fixed case
   must return base node count $N$: its family's full quadrature or, for
   `generalized` with moments on the boundary, the classical $N$ nodes.
@@ -298,13 +298,13 @@ Active node counts follow one policy:
   one node per step, through the classical quadratures up to $N$ nodes and then
   to its family's maximum. A `generalized` state holds the generalized node
   count whenever its moments are resolvably interior at its base node count
-  and, with abscissa bounds, its continued nodes lie inside them, so its base
-  node count grows while its active count stays at the maximum. A `classical`
-  state with abscissa bounds takes `internal::select_bounded_quadrature`, which
+  and, for the gamma continuation, its continued nodes lie within the bounds,
+  $[0,\infty)$ without them
+  ([QMOM families](qmom_families.md#gamma-continuation)), so its base node
+  count grows while its active count stays at the maximum. A `classical` state
+  with abscissa bounds takes `internal::select_bounded_quadrature`, which
   decides on the active count, here equal to the base node count, and accepts
-  the extra node only within the bounds. A `generalized` state with bounds
-  follows the rule above, each reconstruction within its bounds
-  ([QMOM families](qmom_families.md#gamma-continuation)).
+  the extra node only within the bounds.
 - **CQMOM post-source reconstruction**, `internal::compute_cqmom_internal` with
   growth enabled: every branch follows the QMOM rule on its own active count,
   which for its classical quadrature is the base node count. The mechanism,

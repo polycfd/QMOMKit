@@ -22,9 +22,9 @@ struct GeneralizedQuadrature
 /**
  * GQMOM reconstruction (Fox, Laurent & Passalacqua 2023) from m_0, ..., m_{2N},
  * N = node_count, with the N_G = generalized.node_count nodes of the continued
- * recurrence: the normal continuation on the real line, the gamma continuation
- * on [lower, inf). lower is read by the gamma continuation only, and nu by the
- * normal continuation only. Adaptive mode takes the classical selection of
+ * recurrence. Only the normal continuation reads nu. The gamma continuation,
+ * which needs its bounds, goes through compute_bounded_generalized_quadrature(...)
+ * instead. Adaptive mode takes the classical selection of
  * compute_quadrature(...) for N nodes, with rmin and eabs, and fixed mode the
  * classical N-node checks. The k-node quadrature found is continued to N_G nodes
  * when sigma(k, k) exceeds its rounding bound tau_k, and returned as it is
@@ -35,7 +35,7 @@ struct GeneralizedQuadrature
  * not_realizable. The coordinate scale is zero, as in compute_quadrature(...).
  */
 [[nodiscard]] GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, std::size_t node_count, const WheelerOptions& options,
-                                                                   const GeneralizedOptions& generalized, double lower);
+                                                                   const GeneralizedOptions& generalized);
 
 /**
  * compute_generalized_quadrature(...) within abscissa bounds, which give the

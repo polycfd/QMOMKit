@@ -33,8 +33,8 @@ and expected output. In order of increasing scope:
 | [`cqmom_2d_batch_host_data`](../../examples/cqmom_2d_batch_host_data/README.md) | Many states at once, with host data per state. |
 | **With a Monte Carlo reference** | |
 | [`qmom_1d_breakage_advection_with-mc`](../../examples/qmom_1d_breakage_advection_with-mc/README.md) | QMOM breakage and advection beside a particle simulation. |
-| [`gqmom_1d_droplet_breakup_with-mc`](../../examples/gqmom_1d_droplet_breakup_with-mc/README.md) | Droplet breakup above a critical volume with the `gamma` continuation of GQMOM and classical QMOM beside a particle simulation. |
 | [`cqmom_2d_breakage_advection_with-mc`](../../examples/cqmom_2d_breakage_advection_with-mc/README.md) | The same in two dimensions. |
+| [`gqmom_1d_droplet_breakup_with-mc`](../../examples/gqmom_1d_droplet_breakup_with-mc/README.md) | Droplet breakup above a critical volume with the `gamma` continuation of GQMOM and classical QMOM beside a particle simulation. |
 | **Physical models** (with a Monte Carlo reference) | |
 | [`cqmom_2d_bubbles_cavitation`](../../examples/cqmom_2d_bubbles_cavitation/README.md) | Nonlinear node advection of a cavitating bubble population. |
 | [`cqmom_3d_droplets_condensation-nucleation`](../../examples/cqmom_3d_droplets_condensation-nucleation/README.md) | Condensation and nucleation as a boundary contribution. |

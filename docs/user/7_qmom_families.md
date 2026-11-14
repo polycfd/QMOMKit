@@ -125,5 +125,5 @@ example evolves a number density under a loss at a rate proportional to
 $|\xi|$ with GQMOM and with classical QMOM, and compares both with the exact
 solution. The
 [`gqmom_1d_droplet_breakup_with-mc`](../../examples/gqmom_1d_droplet_breakup_with-mc/README.md)
-example does the same for droplets that break up above a critical volume, with
-the `gamma` continuation and a Monte Carlo reference.
+example compares both for droplets that break up above a critical volume, with
+the `gamma` continuation, against a Monte Carlo reference.

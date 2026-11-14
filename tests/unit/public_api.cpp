@@ -1591,7 +1591,7 @@ void test_qmom_generalized_family_is_the_generalized_reconstruction()
             qmomkit::WheelerOptions wheeler;
             wheeler.adaptive = adaptive;
             const qmomkit::internal::GeneralizedQuadrature internal =
-                qmomkit::internal::compute_generalized_quadrature(moments, 2, wheeler, options.generalized, 0.0);
+                qmomkit::internal::compute_generalized_quadrature(moments, 2, wheeler, options.generalized);
             assert(internal.quadrature.ok());
             const qmomkit::QmomResult expected{internal.quadrature.abscissas, internal.quadrature.weights, qmomkit::QmomStatus::success, "",
                                                internal.base_node_count};
@@ -1965,6 +1965,27 @@ void test_qmom_generalized_gamma_does_not_read_nu()
     assert(reference.ok());
     options.generalized.nu = std::numeric_limits<double>::quiet_NaN();
     assert_same_qmom_result(qmomkit::compute_qmom(moments, 2, options), reference);
+}
+
+void test_qmom_generalized_gamma_reports_input_failures_at_once()
+{
+    // In adaptive mode, an input failure is returned at once rather than retried
+    // with fewer nodes, which would read fewer moments. N = 2 reconstructs the
+    // moments of three points, but N = 3 needs m_6: without it, and with a
+    // non-finite m_6, the result is invalid_input.
+    const std::vector<double> five = raw_moments_1d({0.5, 1.25, 2.75}, {0.25, 0.375, 0.375}, 5);
+    assert(qmomkit::compute_qmom(qmomkit::MomentSet(five), 2, gamma_options(true, 6)).ok());
+    std::vector<double> seven = raw_moments_1d({0.5, 1.25, 2.75}, {0.25, 0.375, 0.375}, 7);
+    seven[6] = std::numeric_limits<double>::infinity();
+    const std::vector<std::pair<qmomkit::QmomResult, std::string>> cases{
+        {qmomkit::compute_qmom(qmomkit::MomentSet(five), 3, gamma_options(true, 9)), "Moment sequence has fewer than 2*n+1 entries."},
+        {qmomkit::compute_qmom(qmomkit::MomentSet(seven), 3, gamma_options(true, 9)), "Moment sequence contains non-finite values."}};
+    for (const auto& [result, message] : cases)
+    {
+        assert(result.status == qmomkit::QmomStatus::invalid_input);
+        assert(result.message == message);
+        assert(result.base_node_count == 0);
+    }
 }
 
 void test_qmom_generalized_continues_a_boundary_reduction_by_rmin()
@@ -2915,6 +2936,7 @@ int main(const int argc, char** argv)
              test_qmom_generalized_gamma_returns_the_classical_quadrature_on_the_boundary},
             {"qmom_generalized_gamma_refuses_nodes_beyond_the_upper_bound", test_qmom_generalized_gamma_refuses_nodes_beyond_the_upper_bound},
             {"qmom_generalized_gamma_does_not_read_nu", test_qmom_generalized_gamma_does_not_read_nu},
+            {"qmom_generalized_gamma_reports_input_failures_at_once", test_qmom_generalized_gamma_reports_input_failures_at_once},
             {"qmom_generalized_continues_a_boundary_reduction_by_rmin", test_qmom_generalized_continues_a_boundary_reduction_by_rmin},
             {"qmom_classical_base_node_count_is_the_node_count", test_qmom_classical_base_node_count_is_the_node_count},
             {"qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes", test_qmom_hyperbolic_base_node_count_is_n_for_its_n_plus_one_nodes},

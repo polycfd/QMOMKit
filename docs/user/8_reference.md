@@ -260,7 +260,7 @@ These throw instead of returning a status:
 | `Moment sequence has negative recurrence b = …` | The moments are not realizable. Check them first: mixing normalized and raw moments is a common cause. `check_realizability(...)` names the failing matrix. |
 | `Moment sequence supports at most k nodes …` | A fixed reconstruction asked for more nodes than the moments carry. Use adaptive mode or fewer nodes. |
 | `Moment sequence has m0 < cutoff.` | There is no population left; stop evolving it. |
-| `… returned nodes outside the configured interval.` | The moments imply nodes outside the bounds: the bounds or the moments are wrong. |
+| `… returned nodes outside the configured interval.` | The moments imply nodes outside the bounds: the bounds or the moments are wrong. With the `gamma` continuation and no bounds, the interval is $[0, \infty)$, and the moments are not those of a number density on it. |
 | `Wheeler recurrence produced non-finite values.` | The moments are near the range of a double. Use units that keep coordinates near unity. |
 | `Phase-space velocity callback returned a non-finite value …` | The message names the node; a velocity dividing by a coordinate that reached zero is typical. |
 | `… exceeded max_steps.` | The velocity is stiffer than expected, or `max_steps` is too low. Check the velocity first. |

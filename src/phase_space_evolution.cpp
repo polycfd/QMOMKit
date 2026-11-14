@@ -333,7 +333,8 @@ struct QmomReconstructionRequest
 
 // The reconstruction of the moments after a source step of state. A classical
 // state with bounds takes the bounded selection. Every other adaptive state
-// decides on its base node count, within its bounds where it has them. It
+// decides on its base node count, and each of its reconstructions passes the
+// state's bounds to compute_qmom. It
 // returns a failed or reduced reconstruction as it is and keeps its family's
 // full quadrature. Otherwise it makes one growth trial, for one more base node
 // below n or for the family's full quadrature at n, and accepts the trial only

@@ -41,8 +41,8 @@
 //     to double, with the default bounds, N = 3, 4, 5 and N_G = 20, 101. For a
 //     gamma density, every pair of known zeta gives the same alpha, so the
 //     laguerre cases cannot tell which pair the continuation reads. For this
-//     mixture, the alpha of Definition 2, from the first two moments, differs
-//     from that of the last known pair, and its rounded moments test rounding
+//     mixture, the alpha of Definition 2, from m_0, m_1 and m_2, differs from
+//     that of the last known pair, and its rounded moments test rounding
 //     along the zeta path;
 //   - gamma_boundary: the boundary cases with dyadic points in (0, inf);
 //   - gamma_reduction: the moments of the points -1, 1 and 2 at N = 3 with the

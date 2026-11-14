@@ -1,8 +1,8 @@
 # 1D GQMOM droplet breakup with a Monte Carlo reference
 
 This example evolves a population of droplets that break up when they are
-larger than a critical volume. It compares GQMOM with its `gamma`
-continuation, with classical QMOM. `main.cpp` runs both from the raw
+larger than a critical volume. It compares GQMOM, with its `gamma`
+continuation, and classical QMOM. `main.cpp` runs both from the raw
 moments of a finite sample of droplets, and `main_mc.cpp`, the Monte Carlo
 reference, breaks the sampled droplets themselves with the Monte Carlo
 companion. The breakup frequency is zero below the critical volume, and the
@@ -30,8 +30,8 @@ conserves the total volume $m_1$, and the moments change as
 ```
 
 $g$ is zero below $V_c$, so the right-hand side is not a combination of the
-moments, and QMOMKit sums it over the nodes of the quadrature it reconstructs
-at each Runge–Kutta stage. In the Monte Carlo run, each droplet breaks within a
+moments, and the moment source sums it over the nodes of the quadrature
+QMOMKit reconstructs at each Runge–Kutta stage. In the Monte Carlo run, each droplet breaks within a
 step $\Delta t$ with probability $1 - \exp(-g(V)\,\Delta t)$. $g$, $V_c$,
 $\lambda$, the moment source and the stochastic breakup are in
 [physics.hpp](./physics.hpp) and [physics.cpp](./physics.cpp). Both drivers
@@ -92,12 +92,13 @@ all three keep $m_1 = 2.99134$. At $t = 8$:
 ```
 
 GQMOM is 0.2% below the Monte Carlo $m_0$ and within 4% of its $m_2$ to
-$m_4$. Classical QMOM ends with 22% fewer droplets and a 40% larger $m_3$. Its
+$m_4$. Classical QMOM ends with 22% fewer droplets and a 40% larger $m_3$ than
+the Monte Carlo run. Its
 larger node keeps breaking and losing weight, while its other node settles just
 below $V_c = 1$, where the breakup frequency vanishes, so classical QMOM ends
 with nearly all its droplets near volume $1$ and its $m_0$ stops near $m_1$.
-The droplets themselves spread over volumes below $V_c$: each one above $V_c$
-keeps breaking into halves until they are stable, which the 20 nodes of GQMOM
+The droplets themselves spread over volumes below $V_c$: each droplet above
+$V_c$ keeps breaking until its fragments are stable, which the 20 nodes of GQMOM
 resolve. Raising `generalized_node_counts` in `build/configuration.qmom`
 changes the GQMOM results little, so the remaining difference is mostly that of
 the closure itself. The Monte Carlo run is a stochastic reference with sampling

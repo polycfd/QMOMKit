@@ -786,14 +786,14 @@ Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, const std::
 }
 
 GeneralizedQuadrature compute_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
-                                                     const GeneralizedOptions& generalized, const double lower)
+                                                     const GeneralizedOptions& generalized)
 {
     GeneralizedBase base = generalized_base(moments, node_count, options, generalized);
     if (base.outcome.has_value())
     {
         return std::move(*base.outcome);
     }
-    return continued_generalized_quadrature(moments, base, generalized, lower);
+    return continued_generalized_quadrature(moments, base, generalized, 0.0);
 }
 
 GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,

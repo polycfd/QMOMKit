@@ -91,7 +91,7 @@ namespace
     const internal::GeneralizedQuadrature result =
         gamma ? internal::compute_bounded_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized,
                                                                  abscissa_bounds.value_or(AbscissaBounds{0.0, std::numeric_limits<double>::max()}))
-              : internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized, 0.0);
+              : internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized);
     const Quadrature1D& quadrature = result.quadrature;
     return QmomResult{quadrature.abscissas, quadrature.weights, to_qmom_status(quadrature.status), quadrature.message, result.base_node_count};
 }

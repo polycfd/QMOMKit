@@ -1,9 +1,7 @@
 # 1D GQMOM droplet breakup with a Monte Carlo reference
 
 This example evolves a population of droplets that break up when they are
-larger than a critical volume. It compares GQMOM, the `generalized` QMOM family
-[[Fox, Laurent & Passalacqua,
-2023](https://doi.org/10.1016/j.jaerosci.2022.106096)] with its `gamma`
+larger than a critical volume. It compares GQMOM with its `gamma`
 continuation, with classical QMOM. `main.cpp` runs both from the raw
 moments of a finite sample of droplets, and `main_mc.cpp`, the Monte Carlo
 reference, breaks the sampled droplets themselves with the Monte Carlo

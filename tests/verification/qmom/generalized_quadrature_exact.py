@@ -359,9 +359,10 @@ def beta_mixture_moments(parts, count):
 def jacobi(m0, alpha, beta, lower, upper, N):
     # Gauss rule of the beta number density x^beta (1 - x)^alpha mapped to
     # [lower, upper], from the recurrence of the monic Jacobi polynomials
-    # P^(alpha, beta) on (-1, 1) (DLMF 18.9.2, Table 18.9.1), with weight
-    # (1 - t)^alpha (1 + t)^beta, under t = 2 (x - lower) / (upper - lower) - 1,
-    # with b_1 from its own form, which holds for alpha + beta = -1 as well.
+    # P^(alpha, beta) on (-1, 1), with weight (1 - t)^alpha (1 + t)^beta, under
+    # t = 2 (x - lower) / (upper - lower) - 1. The coefficients are those of
+    # DLMF eq. 3.5.33_1, with the first diagonal entry and b_1 from
+    # eq. 3.5.33_2, whose b_1 holds for alpha + beta = -1 as well.
     # Independent of eqs. 31 to 35.
     mp.mp.dps = 50
     width = upper - lower

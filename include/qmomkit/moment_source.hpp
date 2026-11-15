@@ -271,14 +271,27 @@ struct MomentSourceUpdateOptions
     std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies{};
 };
 
+// Diagnostics of one moment-source update. After a retry, the update covers
+// the rest of the interval in further calls of `ssp_rk3_step` from the
+// accepted state. `rejected` and `retries` cover the whole update, while
+// `ssp_rk3_status`, `accepted`, `time_step_used` and `error_estimate` describe
+// the last call only.
 struct MomentSourceUpdateDiagnostics
 {
+    // The status of the last call.
     SspRk3Status ssp_rk3_status = SspRk3Status::success;
+    // Whether the last call accepted its step.
     bool accepted = false;
+    // Whether any step of the update was rejected, or the update failed.
     bool rejected = false;
+    // How often a step was halved, summed over all calls.
     std::size_t retries = 0;
+    // The step the last call accepted, or the step at which it gave up.
     double time_step_used = 0.0;
+    // The error estimate of the last call, set only when
+    // `SspRk3Options::estimate_error` is true.
     std::optional<double> error_estimate;
+    // The result's `message`, empty on success.
     std::string message;
 };
 

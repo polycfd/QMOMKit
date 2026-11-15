@@ -45,9 +45,10 @@ All names start with `component_regression_`.
   relative, so solver selection is verified in
   [`vandermonde/`](../verification/vandermonde/README.md) instead.
 
-`cqmom_reference_values.inc` has no shipped generator; changing it needs the
-justification of any numerical change, and its source header says how to
-record it.
+`cqmom_reference_values.inc` has no shipped generator. Changing it needs the
+justification of any numerical change, and the header of
+[`cqmom_reference_values.cpp`](cqmom_reference_values.cpp) says how to record
+it.
 
 ## Tolerances
 

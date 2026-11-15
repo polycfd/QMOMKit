@@ -219,7 +219,9 @@ nothing there.
 `failed_phase_space_dimension` is the coordinate of the failing level and has
 no meaning on success or for input rejected before the traversal. Check `ok()`
 first: after a failure, rectangular storage holds zeros where no terminal node
-was assembled and ragged storage is empty; either is diagnostic only.
+was assembled and ragged storage is empty; either is diagnostic only. A QMOM
+family or node counts that `compute_cqmom` refuses before the reconstruction
+starts leave either storage empty.
 
 ## Moments from a quadrature
 

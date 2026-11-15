@@ -52,12 +52,17 @@ parser also fixes these, which are equally part of the file format:
 
 ## Every key is checked
 
-The case parsers, `parse_qmom`, `parse_cqmom` and `parse_cqmom_prepared`, and
-the initial-condition parsers `parse_qmom_initial_condition` and
-`parse_cqmom_initial_condition` validate the whole file, including
-`[time_integration]` and `[output]`, though they return only part of it. The
-option parsers check their own sections, the QMOM evolution options also the
-`[qmom]` keys, and ignore the rest, so one file can serve all of them.
+The case parsers, `parse_qmom`, `parse_cqmom` and `parse_cqmom_prepared`,
+validate the whole file, including `[time_integration]` and `[output]`, though
+they return only part of it. The initial-condition parsers
+`parse_qmom_initial_condition` and `parse_cqmom_initial_condition` reject
+unknown keys and sections in the whole file as well, and check
+`[time_integration]`, `[output]` and `node_counts`. They leave unchecked what
+only a case reads: the value of `[qmom] adaptive`, `conditioning_order`, the
+abscissa bounds, the values of the `generalized_*` keys, the coordinate indices
+of the realizability sections, and whether the moments suffice for the node
+counts. The option parsers check their own sections, the QMOM evolution options
+also the `[qmom]` keys, and ignore the rest, so one file can serve all of them.
 
 An unknown key or section is an error, and so is a key the selected settings
 would not read:
@@ -83,12 +88,14 @@ When a QMOM file has `[moments] values`, or a CQMOM file has `[moments] extents`
 or `M[...]` entries, every key and section under `initial` is accepted without
 being read or checked.
 
-Two keys are accepted although they can be without effect.
+Some keys are accepted although they can be without effect.
 `[vandermonde] rcond` is stored for every solver but read only by
 `moore_penrose`, since a loaded `CqmomCase` can still change its solver.
-`[initial] maximum_orders` is read only by
-`initialize_cqmom_moment_tensor(...)`; the case parsers generate just the
-moments the layout requires.
+The `[time_integration.node_advection.adaptive]` keys are checked and stored
+with every node-advection scheme but read only by `rk23` and `rk45`, since
+loaded options can still change their scheme. `[initial] maximum_orders` is
+read only by `initialize_cqmom_moment_tensor(...)`; the case parsers generate
+just the moments the layout requires.
 
 ## Mapping to objects
 

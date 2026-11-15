@@ -86,6 +86,7 @@ struct NodeAdvectionDiagnostics
     std::size_t rhs_evaluations = 0;
     double final_time = 0.0;
     double last_step = 0.0;
+    // Always empty: node advection does not report an error estimate.
     std::optional<double> estimated_error;
     // The status of the RK23 or RK45 integration. Empty for SSP-RK3, and empty
     // when the integration did not complete because the velocity callback

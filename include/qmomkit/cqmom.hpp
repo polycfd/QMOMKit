@@ -120,6 +120,10 @@ struct CqmomDiagnostics
     std::size_t requested_node_count = 0;
     std::size_t actual_node_count = 0;
     bool adaptive_branch_counts_enabled = false;
+    // True when an adaptive branch accepted fewer nodes than it first tried.
+    // When the abscissa bounds made the branch fall back to fewer nodes,
+    // `requested_node_count` is the count of that fallback, which equals
+    // `actual_node_count`.
     bool adaptive_node_count_reduced = false;
     QmomStatus qmom_status = QmomStatus::success;
     ConditionalMomentStatus conditional_moment_status = ConditionalMomentStatus::success;
@@ -156,8 +160,8 @@ struct CqmomActiveBranchCount
 };
 
 /**
- * Layout of the raw moments that fixed-node recursive CQMOM reconstruction
- * requires.
+ * Layout of the raw moments that recursive CQMOM reconstruction requires for
+ * the node counts of the hierarchy, in fixed and adaptive mode alike.
  *
  * The hierarchy owns phase-space dimensions, node counts, and conditioning
  * order. `required_indices` stores phase-space-order raw moment multi-indices
@@ -174,7 +178,7 @@ struct CqmomMomentLayout
  * Values of the raw moments identified by a `CqmomMomentLayout`.
  *
  * `values[i]` stores the raw moment for `layout.required_indices[i]`. Only the
- * moments required by fixed-node recursive CQMOM reconstruction are stored.
+ * moments required by recursive CQMOM reconstruction are stored.
  */
 struct CqmomMomentData
 {
@@ -419,8 +423,8 @@ struct CqmomResult
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case);
 
 /**
- * Enumerate the minimal fixed-node raw moment multi-indices required by
- * recursive CQMOM reconstruction for the supplied hierarchy.
+ * Enumerate the minimal raw moment multi-indices required by recursive CQMOM
+ * reconstruction for the supplied hierarchy.
  */
 [[nodiscard]] CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarchy);
 

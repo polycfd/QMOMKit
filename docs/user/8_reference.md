@@ -19,13 +19,15 @@ A `.qmom` file holds `[sections]` of `key = value` lines.
   read nor checked.
 - An optional top-level `format_version = 1` states the format version.
 
-The case loaders check every key they read; the other loaders read only their
-own sections:
+The case loaders check the whole file. The initial-condition parsers check it
+too, except the settings only a case uses, such as `[qmom] adaptive` and the
+abscissa bounds. The other loaders check only their own sections:
 
 | Function | Returns |
 | --- | --- |
 | `config::load_qmom(path)`, `config::load_cqmom_prepared(path)`, `config::load_cqmom(path)` | the case |
 | `config::load_qmom_phase_space_evolution_options(path)`, `config::load_cqmom_phase_space_evolution_options(path)` | the evolution options |
+| `config::load_node_advection_options(path)`, `config::load_realizability_policy(path)`, `config::parse_coordinate_realizability_policies(text)`, `config::parse_phase_space_evolution_scheme(text)` | parts of the evolution options: the node-advection options, the QMOM realizability policy, the CQMOM policies per coordinate, the splitting scheme |
 | `config::load_output_options(path)` | the output options |
 | `config::parse_qmom_initial_condition(text)`, `config::parse_cqmom_initial_condition(text)` | the `[initial]` distribution, for example to sample it |
 
@@ -108,7 +110,7 @@ and `chisquared` for `chi-squared`. All parameters must be finite.
 | Key | Default | Meaning | C++ (`QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`) |
 | --- | --- | --- | --- |
 | `[time_integration] scheme` | `strang` | Splitting: `strang`, `advsrc`, or `srcadv`. | `scheme` |
-| `[time_integration.node_advection] scheme` | `rk23` | Node advection: `rk23`, `rk45`, or `ssp_rk3`. | `node_options.scheme` |
+| `[time_integration.node_advection] scheme` | `rk23` | Node advection: `rk23`, `rk45`, or `ssp_rk3`, which takes one step and ignores the `adaptive` keys. | `node_options.scheme` |
 | `[time_integration.node_advection.adaptive]` `relative_tolerance`, `absolute_tolerance` | `1e-6`, `1e-9` | Error tolerances of `rk23` and `rk45`. | `node_options.adaptive_options` |
 | `initial_step` | `1e-6` | First step tried. | 〃 |
 | `max_step` | whole interval | Largest step. | 〃 |
@@ -235,7 +237,7 @@ These throw instead of returning a status:
 | `create_cqmom_moment_data(...)` | `std::invalid_argument` when the result failed, or its indices, count or values do not match the layout |
 | `reconstruct_raw_moments(...)`, `reconstruct_cqmom_moments(...)`, `evaluate_generalized_moment(...)` | `std::invalid_argument` for malformed input, `std::domain_error` for a fractional order with a negative abscissa, `std::overflow_error` for a value beyond the range of a double |
 | `weight(index)`, `abscissa(dimension, index)` of an adaptive `CqmomQuadrature` | `std::logic_error`; iterate over `weights()` and `abscissas()` instead |
-| `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written; `MomentWriter` also `std::domain_error` for a fractional generalized order with a negative abscissa |
+| `MomentWriter`, `QuadratureWriter` | `std::runtime_error` when a file cannot be written; `std::invalid_argument` for invalid generalized orders, non-finite values, or data that do not match the writer's columns; `MomentWriter` also `std::out_of_range` when the data lack a selected moment, and `std::domain_error` for a fractional generalized order with a negative abscissa |
 | `value()` of a failed configuration result | `std::bad_optional_access` |
 | `ssp_rk3_step(...)`, `integrate_embedded_rk(...)` | exceptions from your callbacks, unchanged; `std::invalid_argument` when `rhs` changes the size of its buffer, returns a non-finite value or, in a Debug build, leaves an entry unwritten, and from `ssp_rk3_step` also when a candidate state is not finite |
 
@@ -252,6 +254,7 @@ These throw instead of returning a status:
 | `Unsupported generalized continuation.` | Set `qmom_options.generalized.continuation` to a value of `GeneralizedContinuation`, `normal`, `gamma`, `lognormal` or `beta`. |
 | `phase_space.generalized_node_counts must exceed phase_space.node_counts.` | Set $N_G > N$. |
 | `phase_space.qmom_family must be classical, hyperbolic or generalized.` | Set one of the three families; `[phase_space] qmom_family` takes a single value. |
+| `QMOM requires at least 2 * node_count moments.` | Give $2N$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N - 1$. |
 | `QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.` | Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
 | `QMOM requires at least 2 * node_count + 1 moments for the generalized family.` | GQMOM with node count $N$ reads $m_0, \ldots, m_{2N}$. Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
 | `CQMOM supports only the classical QMOM family.` | Set `qmom_options.family` of the CQMOM case to `classical`. |

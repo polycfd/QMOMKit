@@ -199,7 +199,8 @@ levels and extrapolate linearly to the requested time; a value held constant
 over the step makes the step first order. The first step, with one level only,
 loses accuracy for that step alone.
 [`cqmom_5d_non-spherical-particles`](../../examples/cqmom_5d_non-spherical-particles/README.md#supplying-host-data-to-a-callback)
-shows the pattern and measures both orders, and
+shows the pattern and reports the order of both choices, measured with a
+modified copy of the example, and
 [`cqmom_2d_batch_host_data`](../../examples/cqmom_2d_batch_host_data/README.md)
 applies it per state.
 

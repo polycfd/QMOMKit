@@ -209,7 +209,8 @@ Definition 4 on $(0, 1)$, from the moments of $(\xi - \ell)/(u - \ell)$.
 `shifted_stieltjes_wigert`, `jacobi` and `scaled_jacobi` agree with the
 references to $10^{-40}$, and that the decisions the test expects are not
 marginal. The closed form of `jacobi` and `scaled_jacobi` is the recurrence of
-the Jacobi polynomials (DLMF 18.9.2), independent of eqs. 31 to 35.
+the monic Jacobi polynomials (DLMF eqs. 3.5.33_1 and 3.5.33_2), independent of
+eqs. 31 to 35.
 
 For the trimodal case at $N = 9$, QMOMKit's errors against the reference are
 $1.4 \times 10^{-7}$ in positions and $3.9 \times 10^{-7}$ in weights, against

@@ -117,7 +117,8 @@
 //   coordinate minus the lower bound, and the beta continuation as Definition 4
 //   states it on (0, 1), from the moments of the coordinate mapped there. The
 //   closed form of the jacobi and scaled_jacobi cases is the recurrence of the
-//   Jacobi polynomials (DLMF 18.9.2), independent of eqs. 31 to 35.
+//   monic Jacobi polynomials (DLMF eqs. 3.5.33_1 and 3.5.33_2), independent of
+//   eqs. 31 to 35.
 //
 // Error metric and pass criteria
 //   Positions relative to the largest |position| of the reference, weights

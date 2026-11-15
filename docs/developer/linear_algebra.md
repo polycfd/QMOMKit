@@ -2,8 +2,13 @@
 
 QMOMKit has no mandatory numerical backend. The few dense operations it needs
 are small internal kernels under [`src/internal/`](../../src/internal/), none
-of them public. The matrices are $n\times n$ with $n$ the node count of one
-coordinate, so plain $O(n^3)$ algorithms suffice. `DenseMatrix`
+of them public. The matrices are small. The conditional systems are
+$n\times n$, with $n$ the node count of one coordinate. The eigensolver
+diagonalizes Jacobi matrices of size $n$, of size $n+1$ for the hyperbolic
+family and of size $N_G$ for the generalized family, as well as the moment
+matrices of the realizability checks. At these sizes plain algorithms suffice,
+although the Jacobi eigensolver below costs $O(m^4)$ for a matrix of size $m$
+and the solvers $O(m^3)$. `DenseMatrix`
 ([`src/internal/linear_algebra.hpp`](../../src/internal/linear_algebra.hpp)) is
 row-major, with bounds asserted in Debug builds.
 

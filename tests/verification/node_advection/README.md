@@ -62,9 +62,9 @@ on the position:
 Every node then moves by the integral of its velocity. For such a velocity, an
 SSP-RK3 step is Simpson's rule on the stage times $t$, $t + \Delta t$ and
 $t + \Delta t/2$, which is exact for cubic polynomials. Four steps of 0.25 from
-$t = 0.5$ must therefore reproduce that displacement, and a stage at a wrong
-time, or at the time since the start of the step, does not. The cases above
-use velocities that do not depend on time, and
+$t = 0.5$ must therefore reproduce that displacement, and the wrong stage times
+listed under Tolerances do not. The cases above use velocities that do not
+depend on time, and
 [`time_dependent_splitting.cpp`](../phase_space_evolution/time_dependent_splitting.cpp)
 advects its nodes with RK45.
 

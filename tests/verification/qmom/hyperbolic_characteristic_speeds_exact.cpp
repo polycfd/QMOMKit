@@ -55,7 +55,7 @@
 //   safety bound. The deviations depend on the build, for example on whether
 //   it fuses multiply-adds. The largest errors observed in the Debug, Release,
 //   GCC 12 and GCC 16 builds are 2.5e-13 up to n = 7, 1.1e-12 for n = 8 and
-//   6.7e-11 for n = 9 and 10, all for the skewed rule, and 2.0e-16 for the
+//   6.7e-11 for n = 9 and 10, all for the skewed case, and 2.0e-16 for the
 //   normal and boundary cases.
 //
 // Reproduce

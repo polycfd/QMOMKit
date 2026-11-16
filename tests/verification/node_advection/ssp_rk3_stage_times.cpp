@@ -3,10 +3,13 @@
 //
 // What is verified
 //   That SSP-RK3 node advection evaluates the velocity at its stage times t,
-//   t + dt and t + dt/2, in absolute time, for QMOM and CQMOM. The other
-//   node-advection cases use velocities that do not depend on time, and
-//   time_dependent_splitting.cpp advects its nodes with RK45, so none of them
-//   would detect a wrong SSP-RK3 stage time.
+//   t + dt and t + dt/2, in absolute time, for QMOM and CQMOM. The first two
+//   stages enter with the same weight, so these cases cannot tell their times
+//   apart. unit_node_advection_non_finite_velocity_diagnostic_reports_callback_context
+//   checks that the first is at t. The other node-advection cases use
+//   velocities that do not depend on time, and time_dependent_splitting.cpp
+//   advects its nodes with RK45, so none of them would detect a wrong SSP-RK3
+//   stage time.
 //
 // How the reference is constructed
 //   By hand. The velocity of each coordinate is a cubic polynomial in t and

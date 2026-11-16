@@ -81,7 +81,9 @@ would not read:
 - `M[...]` entries in a QMOM file.
 
 In a realizability section, `support` is required whenever `check_mode` is not
-`none`.
+`none`. In a file with `node_counts`, every exponent vector of
+`[output] generalized_moments` has one exponent per coordinate, as the moment
+writer requires.
 
 One exception is deliberate: explicit moments take precedence over `[initial]`.
 When a QMOM file has `[moments] values`, or a CQMOM file has `[moments] extents`

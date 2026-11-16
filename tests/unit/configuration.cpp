@@ -4697,6 +4697,25 @@ void test_case_loaders_validate_output_settings()
     assert(qmomkit::config::parse_qmom(qmom_case_text_with_runtime("\n[output]\ninterval = 0.5\ngeneralized_moments = 0.5 | 1.5\n")).ok());
 }
 
+// A file with node_counts must give every exponent vector of
+// generalized_moments one exponent per coordinate, as the moment writer
+// requires. Every loader that reads [output] reports it at the line of the key.
+// Without node_counts, only the writer checks the vectors.
+void test_generalized_output_moments_need_one_exponent_per_coordinate()
+{
+    const std::string message = "output.generalized_moments must give one exponent per phase-space coordinate.";
+    const std::string qmom_orders = "\n[output]\ngeneralized_moments = 0.5 | 0.5, 1\n";
+    assert(qmomkit::config::parse_qmom(qmom_case_text_with_runtime(qmom_orders), "f.qmom").error() == "f.qmom:9: " + message);
+    assert(qmomkit::config::parse_qmom_initial_condition(qmom_case_text_with_runtime(qmom_orders), "f.qmom").error() == "f.qmom:9: " + message);
+    assert(qmomkit::config::parse_output_options(qmom_case_text_with_runtime(qmom_orders), "f.qmom").error() == "f.qmom:9: " + message);
+    const std::string cqmom_orders = "\n[output]\ngeneralized_moments = 0.5, 0 | 1\n";
+    assert(qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(cqmom_orders), "f.qmom").error() == "f.qmom:13: " + message);
+
+    assert(qmomkit::config::parse_qmom(qmom_case_text_with_runtime("\n[output]\ngeneralized_moments = 0.5 | 1.5\n")).ok());
+    assert(qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime("\n[output]\ngeneralized_moments = 0.5, 0 | 1, 1.5\n")).ok());
+    assert(qmomkit::config::parse_output_options(qmom_orders).ok());
+}
+
 // QMOM reads the unnumbered realizability policy and CQMOM the per-coordinate
 // policies. Each parser reports the other formulation's settings, which would
 // otherwise be accepted and have no effect.
@@ -4966,6 +4985,7 @@ int main(const int argc, char** argv)
             {"indexed_sections_require_canonical_indices", test_indexed_sections_require_canonical_indices},
             {"indexed_entries_that_nothing_reads_are_reported", test_indexed_entries_that_nothing_reads_are_reported},
             {"case_loaders_validate_output_settings", test_case_loaders_validate_output_settings},
+            {"generalized_output_moments_need_one_exponent_per_coordinate", test_generalized_output_moments_need_one_exponent_per_coordinate},
             {"realizability_settings_match_the_formulation", test_realizability_settings_match_the_formulation},
             {"oversized_requests_are_reported_not_thrown", test_oversized_requests_are_reported_not_thrown},
             {"numbers_are_read_independently_of_the_locale", test_numbers_are_read_independently_of_the_locale},

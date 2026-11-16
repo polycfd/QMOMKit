@@ -161,7 +161,7 @@ bound without the floor.
 ([`src/internal/bounded_quadrature.hpp`](../../src/internal/bounded_quadrature.hpp)).
 The bounds are an acceptance test around ordinary Wheeler inversion. A
 candidate count $c$ inverts the first $2c$ moments and is accepted when it
-succeeds with exactly $c$ nodes, all in $[\ell-t,\ u+t]$ with
+succeeds with all nodes in $[\ell-t,\ u+t]$ with
 
 ```math
 t=10^{-12}\max_i|\xi_i|.
@@ -170,9 +170,15 @@ t=10^{-12}\max_i|\xi_i|.
 Rounding can move a node that lies on a bound slightly outside it. That
 rounding scales with the nodes, so the margin is relative to the largest node
 magnitude. It decides the same in any unit and does not depend on the bounds. A
-fixed reconstruction evaluates $c=N$ only; an adaptive one tries
-$c=N,\ldots,1$ and keeps the first accepted, and if $c=1$ also fails,
-returns its status and message. In evolution, an adaptive reconstruction starts
+fixed reconstruction evaluates $c=N$ only and needs exactly $N$ nodes. An
+adaptive one tries counts from $N$ down and keeps the first accepted. If none
+is accepted, it returns the status and message of the last one tried. Its
+inversion at $c$ returns fewer
+nodes, $k$, when the moments carry fewer points or a larger rule fails the
+`rmin` or `eabs` test. Each recurrence entry depends only on the moments up to
+its own order, so every count from $k$ to $c$ gives the same rule. A rule of
+$k$ nodes inside the bounds is therefore accepted, and one outside them makes
+$k-1$ the next candidate. In evolution, an adaptive reconstruction starts
 from the state's active count instead of $N$, and the post-source one may then
 try one node more ([Phase-space evolution](phase_space_evolution.md#node-counts)).
 Bounds must be finite with $\ell<u$, and $2N$ finite moments are required

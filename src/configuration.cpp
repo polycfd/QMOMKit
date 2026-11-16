@@ -2408,6 +2408,16 @@ OutputOptions parse_output_options_from_parsed(ParsedFile& parsed, const std::st
     }
     else if (generalized_moments != nullptr)
     {
+        // A file that declares its phase space fixes the length of every
+        // exponent vector to one exponent per coordinate, as the moment writer
+        // requires.
+        std::optional<std::size_t> rank;
+        std::vector<std::size_t> node_counts;
+        if (const Entry* node_counts_entry = find_entry(parsed, "phase_space.node_counts");
+            node_counts_entry != nullptr && parse_size_list(*node_counts_entry, node_counts))
+        {
+            rank = node_counts.size();
+        }
         std::istringstream requests(generalized_moments->value);
         std::string request;
         while (std::getline(requests, request, '|'))
@@ -2419,6 +2429,12 @@ OutputOptions parse_output_options_from_parsed(ParsedFile& parsed, const std::st
             {
                 add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
                           "output.generalized_moments must contain non-negative finite comma-separated exponent vectors separated by '|'.");
+                break;
+            }
+            if (rank.has_value() && orders.size() != *rank)
+            {
+                add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, generalized_moments->line,
+                          "output.generalized_moments must give one exponent per phase-space coordinate.");
                 break;
             }
             options.generalized_moment_orders.push_back(std::move(orders));

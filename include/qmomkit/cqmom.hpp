@@ -121,9 +121,8 @@ struct CqmomDiagnostics
     std::size_t actual_node_count = 0;
     bool adaptive_branch_counts_enabled = false;
     // True when an adaptive branch accepted fewer nodes than it first tried.
-    // When the abscissa bounds made the branch fall back to fewer nodes,
-    // `requested_node_count` is the count of that fallback, which equals
-    // `actual_node_count`.
+    // When the abscissa bounds made the branch fall back to a smaller count,
+    // `requested_node_count` is that count.
     bool adaptive_node_count_reduced = false;
     QmomStatus qmom_status = QmomStatus::success;
     ConditionalMomentStatus conditional_moment_status = ConditionalMomentStatus::success;

@@ -37,7 +37,10 @@
 //   moments of the interior case to 1.0e-11. Those are the moments of the
 //   accepted rule, up to order 8 for n = 4, and carry the conditioning of the
 //   map from nodes to moments, which worsens with n. The deviations depend on
-//   the build, for example on whether it fuses multiply-adds.
+//   the build, for example on whether it fuses multiply-adds. The largest
+//   errors observed in the Debug, Release, GCC 12 and GCC 16 builds are
+//   2.1e-15 for positions, weights, m_0 and m_1, and 1.3e-15, 2.4e-15, 1.4e-14
+//   and 1.4e-13 for the stored moments at n = 1 to 4.
 //
 // Reproduce
 //   ctest -R verification_phase_space_evolution_hyperbolic_relaxation_

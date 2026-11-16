@@ -15,3 +15,6 @@ foreach(case_name IN ITEMS constant_velocity linear_growth affine_evolution line
     )
     set_tests_properties(${test_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()
+
+qmomkit_add_test_executable(test_node_advection_ssp_rk3_stage_times ssp_rk3_stage_times.cpp)
+qmomkit_register_source_logical_cases(test_node_advection_ssp_rk3_stage_times verification "${CMAKE_CURRENT_LIST_DIR}/ssp_rk3_stage_times.cpp")

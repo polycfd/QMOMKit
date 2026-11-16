@@ -30,7 +30,10 @@
 //   wheeler_analytical.cpp. The map from 2n + 1 moments to the rule worsens in
 //   conditioning with n, and the tolerances grow with it: 1e-12 up to n = 7,
 //   1e-11 for n = 8 and 5e-10 for n = 9 and 10. The deviations depend on the
-//   build, for example on whether it fuses multiply-adds.
+//   build, for example on whether it fuses multiply-adds. The largest errors
+//   observed in the Debug, Release, GCC 12 and GCC 16 builds are 1.8e-13 up to
+//   n = 7, 8.4e-13 for n = 8 and 4.5e-11 for n = 9 and 10, all for the skewed
+//   rule.
 //
 // Reproduce
 //   ctest -R verification_hyperbolic_quadrature_exact

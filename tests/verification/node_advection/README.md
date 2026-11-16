@@ -49,6 +49,25 @@ including $m_0$ and the cross moments, match those of the exact nodes.
 (`1e-3`, `1e-6`) tolerances and with those below, and requires the second run
 to be more accurate.
 
+`verification_node_advection_ssp_rk3_stage_times_{qmom,cqmom}_nodes_move_by_the_exact_displacement`
+(`ssp_rk3_stage_times.cpp`) advance three QMOM nodes and four CQMOM nodes with
+SSP-RK3 under velocities that are cubic polynomials in time and do not depend
+on the position:
+
+```math
+\dot\xi_0 = 0.6 + 0.8\,t - 1.1\,t^2 + 0.5\,t^3,\qquad
+\dot\xi_1 = -0.3 + 0.9\,t - 0.5\,t^2 + 0.8\,t^3 .
+```
+
+Every node then moves by the integral of its velocity. For such a velocity, an
+SSP-RK3 step is Simpson's rule on the stage times $t$, $t + \Delta t$ and
+$t + \Delta t/2$, which is exact for cubic polynomials. Four steps of 0.25 from
+$t = 0.5$ must therefore reproduce that displacement, and a stage at a wrong
+time, or at the time since the start of the step, does not. The cases above
+use velocities that do not depend on time, and
+[`time_dependent_splitting.cpp`](../phase_space_evolution/time_dependent_splitting.cpp)
+advects its nodes with RK45.
+
 ## Tolerances
 
 RK23 runs with relative tolerance `1e-10`, absolute `1e-12`, initial step
@@ -58,6 +77,12 @@ absolute moment errors within `1e-5`. The moments stay below 60, where the
 relative bound is the tighter one, so the absolute bound is only a backstop.
 Observed node errors are of order `1e-10` or below, so these are safety bounds
 above the accuracy requested from the controller.
+
+The SSP-RK3 cases compare positions with the exact displacement to `1e-12`
+absolute. The largest error observed in the Debug, Release, GCC 12 and GCC 16
+builds is `6.7e-16`. A stage at $t$ instead of $t + \Delta t$, at
+$t + \Delta t$ instead of $t + \Delta t/2$, or at the time since the start of
+the step moves the nodes by at least `9.4e-3`.
 
 ## Reproduce
 

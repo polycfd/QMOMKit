@@ -107,6 +107,11 @@ covers one to three dimensions, both 2D orders, node counts 2 and 3, and
 adaptive branches with fewer points than requested, mostly through the rebuilt
 tensor. In one dimension, `recursive_1d_reduces_to_wheeler`, the result must
 equal the Wheeler result of `compute_quadrature`.
+`recursive_adaptive_reduction_to_an_intermediate_count` requests three nodes
+in each coordinate from five points, three of them at $\xi_0 = -1$ and two at
+$\xi_0 = 2$. The root and the branch at $\xi_0 = 2$ must each return two nodes
+and report the reduction, and the positions and weights must be those of the
+points.
 `recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders`
 uses non-realizable moments {1, 0, -1, 0} for $\xi_1$ instead of a rule and
 checks only its reduction to one node in either conditioning order.

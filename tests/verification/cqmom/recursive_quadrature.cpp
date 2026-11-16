@@ -4,7 +4,8 @@
 //   That the recursion recovers the quadrature the moments came from, for one
 //   to three dimensions, for identity and non-identity conditioning orders, for
 //   non-uniform node counts per axis, and for adaptive cases where individual
-//   branches must return fewer nodes than requested. Also that the one
+//   branches must return fewer nodes than requested, including a reduction
+//   from three nodes to two at the root and in a branch. Also that the one
 //   dimensional case reduces to plain Wheeler, and that a branch which collapses
 //   does so for either conditioning order.
 //
@@ -21,13 +22,13 @@
 //   only the node counts and paths.
 //
 // Error metric and pass criteria
-//   Maximum absolute deviation of the rebuilt moments from the prescribed ones,
-//   and in the one- and three-dimensional cases of positions and weights; node
-//   counts, where checked, must match exactly. Tolerances are per case, from
-//   1.0e-12 to 1.0e-7. They are safety bounds at least three orders of
-//   magnitude above the observed errors; the loosest belong to the
-//   three-dimensional case, whose larger moments carry absolute errors of
-//   order 1.0e-11.
+//   Maximum absolute deviation of the rebuilt moments from the prescribed ones.
+//   The one- and three-dimensional cases and the reduction from three nodes to
+//   two also compare positions and weights. Node counts, where checked, must
+//   match exactly. Tolerances are per case, from 1.0e-12 to 1.0e-7. They are
+//   safety bounds at least three orders of magnitude above the observed
+//   errors; the loosest belong to the three-dimensional case, whose larger
+//   moments carry absolute errors of order 1.0e-11.
 //
 // Reproduce
 //   ctest -R verification_recursive_quadrature
@@ -501,6 +502,50 @@ void test_recursive_adaptive_3d_branch_specific_reduction()
     QMOMKIT_VERIFY_CHECK(saw_z_reduction);
 }
 
+// Five weighted points on two positions in xi_0, with three positions in xi_1
+// at the first and two at the second. With three nodes requested in each
+// coordinate, the root, which inverts given moments, and the second branch,
+// which inverts conditional moments, must each reduce to two nodes, a count
+// between one node and the count requested. The first branch keeps all three.
+void test_recursive_adaptive_reduction_to_an_intermediate_count()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({3, 3});
+    const std::vector<std::size_t> extents{6, 6};
+    const std::vector<double> weights{0.1, 0.2, 0.15, 0.35, 0.2};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, -1.0, 2.0, 2.0}, {-2.0, 0.5, 3.0, -1.0, 1.5}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{}, qmomkit::CqmomDiagnosticLevel::basic));
+
+    QMOMKIT_VERIFY_CHECK(result.ok());
+    assert_ragged_tree_consistent(result.quadrature);
+    assert_terminal_paths_equal(result.quadrature,
+                                {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({0, 2}),
+                                 qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})});
+    for (std::size_t node = 0; node < weights.size(); ++node)
+    {
+        assert_near(result.quadrature.weights()[node], weights[node], 1.0e-11);
+        for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
+        {
+            assert_near(result.quadrature.abscissas()[dimension][node], abscissas[dimension][node], 1.0e-11);
+        }
+    }
+
+    // The root, then the branches at xi_0 = -1 and xi_0 = 2.
+    const std::vector<qmomkit::ConditioningPath> paths{qmomkit::ConditioningPath(), qmomkit::ConditioningPath({0}), qmomkit::ConditioningPath({1})};
+    const std::vector<std::size_t> node_counts{2, 3, 2};
+    QMOMKIT_VERIFY_CHECK(result.diagnostics.size() == paths.size());
+    for (std::size_t branch = 0; branch < paths.size(); ++branch)
+    {
+        const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostics = result.diagnostics[branch];
+        QMOMKIT_VERIFY_CHECK(diagnostics.path == paths[branch]);
+        QMOMKIT_VERIFY_CHECK(diagnostics.requested_node_count == 3);
+        QMOMKIT_VERIFY_CHECK(diagnostics.actual_node_count == node_counts[branch]);
+        QMOMKIT_VERIFY_CHECK(diagnostics.adaptive_node_count_reduced == (node_counts[branch] < 3));
+    }
+}
+
 void test_recursive_adaptive_non_identity_conditioning_order()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
@@ -595,6 +640,7 @@ int main(const int argc, char** argv)
             {"recursive_non_uniform_fixed_node_counts", test_recursive_non_uniform_fixed_node_counts},
             {"recursive_adaptive_2d_branch_specific_reduction", test_recursive_adaptive_2d_branch_specific_reduction},
             {"recursive_adaptive_3d_branch_specific_reduction", test_recursive_adaptive_3d_branch_specific_reduction},
+            {"recursive_adaptive_reduction_to_an_intermediate_count", test_recursive_adaptive_reduction_to_an_intermediate_count},
             {"recursive_adaptive_non_identity_conditioning_order", test_recursive_adaptive_non_identity_conditioning_order},
             {"recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders",
              test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders},

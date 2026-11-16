@@ -140,7 +140,7 @@ For QMOM; a CQMOM file gives one section per checked coordinate,
 | `directory` | `.` | For your code: where to write. |
 | `write_moments`, `write_quadrature` | `false` | For your code: what to write. |
 | `interval` | none | For your code: when to write; positive. |
-| `generalized_moments` | none | Extra moment columns: orders separated by `\|`, for example `0.5 \| 1.5`, or for CQMOM `0.5, 0 \| 1, 1.5`. Non-negative. |
+| `generalized_moments` | none | Extra moment columns: orders separated by `\|`, for example `0.5 \| 1.5`, or for CQMOM `0.5, 0 \| 1, 1.5`. One non-negative exponent per coordinate. |
 
 ## C++ entry points
 

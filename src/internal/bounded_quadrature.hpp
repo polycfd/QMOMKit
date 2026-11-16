@@ -18,6 +18,9 @@ struct BoundedQuadratureCandidate
     std::string attempt_type;
     Quadrature1D quadrature;
     bool inversion_attempted = false;
+    // The number of nodes of a successful inversion, which in adaptive mode
+    // can be below node_count, and zero otherwise.
+    std::size_t inverted_node_count = 0;
     bool accepted = false;
     std::string message;
 };

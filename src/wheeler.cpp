@@ -1010,11 +1010,10 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
                                                      const double coordinate_scale)
 {
     // Both selection branches below assume at least one requested node. The
-    // adaptive branch counts candidates down to one, so a zero initial count
-    // skips its loop entirely and would leave the default-constructed selection,
-    // whose quadrature still carries the default success status, as the result.
-    // Rejecting the malformed request here keeps the bounded path's status for a
-    // zero node count the same as the unbounded Wheeler path's.
+    // adaptive branch counts candidates down to one, and from a zero initial
+    // count its unsigned count would wrap around. Rejecting the malformed
+    // request here keeps the bounded path's status for a zero node count the
+    // same as the unbounded Wheeler path's.
     if (request.initial_node_count == 0 || request.configured_node_count == 0)
     {
         BoundedQuadratureSelection rejected;
@@ -1067,12 +1066,20 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
             candidate.message = "Bounded-support Wheeler inversion failed: " + candidate.quadrature.message;
             return candidate;
         }
-        if (candidate.quadrature.weights.size() != node_count || candidate.quadrature.abscissas.size() != node_count)
+        // An adaptive inversion returns fewer nodes than node_count when the
+        // moments carry fewer points or a larger rule fails the rmin or eabs
+        // test. Each recurrence entry depends only on the moments up to its
+        // own order, so every count from that number of nodes up to node_count
+        // gives the same rule, and the bounds alone decide on it.
+        const std::size_t inverted_node_count = candidate.quadrature.weights.size();
+        if ((request.adaptive ? inverted_node_count > node_count : inverted_node_count != node_count) ||
+            candidate.quadrature.abscissas.size() != inverted_node_count)
         {
             candidate.quadrature.status = QuadratureStatus::not_realizable;
             candidate.message = "Bounded-support Wheeler inversion returned an unexpected node count.";
             return candidate;
         }
+        candidate.inverted_node_count = inverted_node_count;
 
         if (!abscissas_inside_bounds(candidate.quadrature.abscissas, interval))
         {
@@ -1104,7 +1111,8 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
 
     const std::size_t first_count = request.initial_node_count;
     std::optional<BoundedQuadratureCandidate> rejected_candidate;
-    for (std::size_t candidate_count = first_count; candidate_count >= 1; --candidate_count)
+    std::size_t candidate_count = first_count;
+    while (true)
     {
         const char* attempt_type =
             candidate_count == first_count ? (request.previous_active_node_count.has_value() ? "current" : "configured") : "fallback";
@@ -1116,14 +1124,18 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = candidate_count;
             selection.reduced = reduced;
-            selection.accepted_fallback_node_count = candidate_count;
+            selection.accepted_fallback_node_count = selection.quadrature.weights.size();
             break;
         }
         if (!rejected_candidate.has_value())
         {
             rejected_candidate = candidate;
         }
-        if (candidate_count == 1)
+        // A rule rejected for its bounds is also the rule of every smaller
+        // count down to its own number of nodes, so the next candidate has one
+        // node less than the rule.
+        const std::size_t next_count = (candidate.inverted_node_count > 0 ? candidate.inverted_node_count : candidate_count) - 1;
+        if (next_count == 0)
         {
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = first_count;
@@ -1131,6 +1143,7 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
             selection.quadrature.message = candidate.message;
             return selection;
         }
+        candidate_count = next_count;
     }
 
     if (request.allow_growth && request.adaptive && wheeler_options.adaptive && request.previous_active_node_count.has_value() &&
@@ -1140,7 +1153,8 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         const std::size_t growth_count = *request.previous_active_node_count + 1;
         BoundedQuadratureCandidate growth = evaluate(growth_count, "growth");
         selection.diagnostic_candidate = growth;
-        if (growth.accepted)
+        // The trial counts only if it gets the one node more it tried for.
+        if (growth.accepted && growth.inverted_node_count == growth_count)
         {
             selection.quadrature = std::move(growth.quadrature);
             selection.selected_node_count_ceiling = growth_count;

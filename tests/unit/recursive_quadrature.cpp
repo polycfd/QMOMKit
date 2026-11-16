@@ -826,6 +826,74 @@ void test_recursive_bounded_support_rejects_growth_and_preserves_current_count()
     assert(!diagnostic.adaptive_node_count_reduced);
 }
 
+void test_recursive_bounded_support_reports_the_count_tried_for_a_rule_of_fewer_points()
+{
+    // Six moments of the first coordinate carry the two points 0.25 and 0.75,
+    // inside [0, 1]. The inversion at the configured three nodes gives their
+    // rule, which the bounds accept at once. The branch reports the count it
+    // tried, three, with two nodes, as the unbounded branch does, and the
+    // nodes are those of the unbounded reconstruction.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({3, 1});
+    const std::vector<std::size_t> extents{6, 2};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature({{0.25, 0.75}, {0.0, 0.0}}, {0.4, 0.6}, extents);
+    const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult bounded = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
+        hierarchy, {extents, moments}, {}, wheeler_options, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::dense, support));
+    const qmomkit::internal::RecursiveQuadratureResult unbounded =
+        qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
+            hierarchy, {extents, moments}, {}, wheeler_options, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::dense));
+
+    assert(bounded.ok());
+    assert(unbounded.ok());
+    assert(bounded.quadrature.weights() == unbounded.quadrature.weights());
+    assert(bounded.quadrature.abscissas() == unbounded.quadrature.abscissas());
+    const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic = bounded.diagnostics.front();
+    assert(diagnostic.requested_node_count == 3);
+    assert(diagnostic.requested_node_count == unbounded.diagnostics.front().requested_node_count);
+    assert(diagnostic.actual_node_count == 2);
+    assert(diagnostic.adaptive_node_count_reduced);
+    assert(diagnostic.bounded_candidate_node_count == 3);
+    assert(diagnostic.bounded_accepted_fallback_node_count == 2);
+}
+
+void test_recursive_bounded_support_growth_counts_only_with_one_node_more()
+{
+    // A branch held at two of its three nodes tries one node more. Its
+    // moments carry only the two points 0.25 and 0.75, so the trial gives
+    // their rule again, within the bounds, which is no growth: the branch
+    // keeps two nodes at the count it holds, without a reduction.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({3, 1});
+    const std::vector<std::size_t> extents{6, 2};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature({{0.25, 0.75}, {0.0, 0.0}}, {0.4, 0.6}, extents);
+    const qmomkit::CqmomMomentData moment_data = qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy));
+    const std::vector<qmomkit::CqmomActiveBranchCount> active_counts{
+        {0, {}, 0, 3, 2}, {1, qmomkit::ConditioningPath({0}), 1, 1, 1}, {1, qmomkit::ConditioningPath({1}), 1, 1, 1}};
+    const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result =
+        qmomkit::internal::compute_recursive_quadrature_from_moment_data({hierarchy,
+                                                                          moment_data,
+                                                                          {},
+                                                                          wheeler_options,
+                                                                          qmomkit::CqmomDiagnosticLevel::basic,
+                                                                          qmomkit::VandermondeSolver::dense,
+                                                                          active_counts,
+                                                                          true,
+                                                                          support});
+
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == 2);
+    const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic = result.diagnostics.front();
+    assert(diagnostic.bounded_candidate_attempt_type == "growth");
+    assert(diagnostic.bounded_candidate_node_count == 3);
+    assert(diagnostic.requested_node_count == 2);
+    assert(diagnostic.bounded_accepted_fallback_node_count == 2);
+    assert(!diagnostic.adaptive_node_count_reduced);
+}
+
 void test_recursive_bounded_support_uses_phase_space_coordinate_index()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
@@ -2075,6 +2143,9 @@ int main(const int argc, char** argv)
              test_recursive_bounded_support_adaptive_applies_relative_weight_check},
             {"recursive_bounded_support_rejects_growth_and_preserves_current_count",
              test_recursive_bounded_support_rejects_growth_and_preserves_current_count},
+            {"recursive_bounded_support_reports_the_count_tried_for_a_rule_of_fewer_points",
+             test_recursive_bounded_support_reports_the_count_tried_for_a_rule_of_fewer_points},
+            {"recursive_bounded_support_growth_counts_only_with_one_node_more", test_recursive_bounded_support_growth_counts_only_with_one_node_more},
             {"recursive_bounded_support_uses_phase_space_coordinate_index", test_recursive_bounded_support_uses_phase_space_coordinate_index},
             {"fixed_public_terminal_paths_align_with_physical_storage", test_fixed_public_terminal_paths_align_with_physical_storage},
             {"recursive_bounded_support_applies_to_conditional_phase_space_dimension",

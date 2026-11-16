@@ -1004,9 +1004,13 @@ void test_qmom_public_api_matches_wheeler()
     }
 }
 
-// Counts the QMOM reconstructions of a call in instrumented builds; elsewhere
-// the count is not checked.
-template <typename Function> void assert_qmom_reconstructions(const std::size_t expected, Function function)
+using ReconstructionCounters = qmomkit::internal::performance::ReconstructionCounters;
+
+// Counts one kind of reconstruction work of a call, such as
+// &ReconstructionCounters::qmom_reconstructions, in instrumented builds;
+// elsewhere the count is not checked.
+template <typename Function>
+void assert_reconstruction_count(std::size_t ReconstructionCounters::* const counter, const std::size_t expected, Function function)
 {
     qmomkit::internal::performance::CounterSession session;
     {
@@ -1015,7 +1019,7 @@ template <typename Function> void assert_qmom_reconstructions(const std::size_t 
     }
     if (qmomkit::internal::performance::enabled())
     {
-        assert(session.snapshot().reconstruction.qmom_reconstructions == expected);
+        assert(session.snapshot().reconstruction.*counter == expected);
     }
 }
 
@@ -1031,7 +1035,7 @@ void test_qmom_state_candidate_matches_initial_state()
     const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(raw_moments_1d({-0.5, 1.75}, {0.25, 0.75}, 4)), 2, options, bounds};
     const qmomkit::MomentSet other(raw_moments_1d({0.25, 3.0}, {0.6, 0.4}, 6));
     qmomkit::QmomStateCandidate from_other;
-    assert_qmom_reconstructions(1, [&] { from_other = qmom_case.state_candidate(other); });
+    assert_reconstruction_count(&ReconstructionCounters::qmom_reconstructions, 1, [&] { from_other = qmom_case.state_candidate(other); });
     assert(from_other.ok());
     assert(!from_other.realizability.has_value());
     assert(from_other.reconstruction_status == qmomkit::QmomStatus::success);
@@ -1080,7 +1084,8 @@ void test_qmom_state_candidate_applies_the_realizability_policy()
     {
         nonnegative.check_mode = mode;
         qmomkit::QmomStateCandidate rejected;
-        assert_qmom_reconstructions(0, [&] { rejected = qmom_case.state_candidate(negative_point, nonnegative); });
+        assert_reconstruction_count(&ReconstructionCounters::qmom_reconstructions, 0,
+                                    [&] { rejected = qmom_case.state_candidate(negative_point, nonnegative); });
         assert(rejected.status == qmomkit::StateCandidateStatus::realizability_rejected);
         assert(!rejected.state.has_value());
         assert(rejected.realizability->status == qmomkit::RealizabilityStatus::not_realizable);
@@ -1309,7 +1314,8 @@ void test_qmom_hyperbolic_family_is_the_hyperbolic_reconstruction()
             wheeler.adaptive = adaptive;
             const qmomkit::Quadrature1D expected = qmomkit::internal::compute_hyperbolic_quadrature(moments, 2, wheeler);
             qmomkit::QmomResult result;
-            assert_qmom_reconstructions(1, [&] { result = qmomkit::compute_qmom(moments, 2, options); });
+            assert_reconstruction_count(&ReconstructionCounters::qmom_reconstructions, 1,
+                                        [&] { result = qmomkit::compute_qmom(moments, 2, options); });
             assert_same_as_hyperbolic_quadrature(result, expected);
             assert_same_as_hyperbolic_quadrature(qmomkit::compute_qmom(moments, 2, options, std::nullopt), expected);
             assert_same_as_hyperbolic_quadrature(qmomkit::compute_qmom(qmomkit::QmomCase{moments, 2, options}), expected);
@@ -1597,7 +1603,8 @@ void test_qmom_generalized_family_is_the_generalized_reconstruction()
             const qmomkit::QmomResult expected{internal.quadrature.abscissas, internal.quadrature.weights, qmomkit::QmomStatus::success, "",
                                                internal.base_node_count};
             qmomkit::QmomResult result;
-            assert_qmom_reconstructions(1, [&] { result = qmomkit::compute_qmom(moments, 2, options); });
+            assert_reconstruction_count(&ReconstructionCounters::qmom_reconstructions, 1,
+                                        [&] { result = qmomkit::compute_qmom(moments, 2, options); });
             assert_same_qmom_result(result, expected);
             assert_same_qmom_result(qmomkit::compute_qmom(moments, 2, options, std::nullopt), expected);
             assert_same_qmom_result(qmomkit::compute_qmom(qmomkit::QmomCase{moments, 2, options}), expected);
@@ -2242,7 +2249,8 @@ void test_qmom_growth_trial_of_the_generalized_family_is_a_single_attempt()
         const qmomkit::QmomOptions& options = entry.second;
         assert(qmomkit::compute_qmom(moments, 3, options).base_node_count == 2);
         qmomkit::QmomResult trial;
-        assert_qmom_reconstructions(1, [&] { trial = qmomkit::internal::compute_qmom_growth_trial(moments, 3, options, std::nullopt); });
+        assert_reconstruction_count(&ReconstructionCounters::qmom_reconstructions, 1,
+                                    [&] { trial = qmomkit::internal::compute_qmom_growth_trial(moments, 3, options, std::nullopt); });
         assert(trial.status == qmomkit::QmomStatus::not_realizable);
         assert(trial.message == "The generalized reconstruction found fewer base nodes than requested.");
         assert(trial.base_node_count == 0);
@@ -2730,6 +2738,47 @@ void test_qmom_bounds_with_the_largest_double_as_upper_bound_check_the_lower_bou
     const qmomkit::QmomResult outside =
         qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({-1.0e-6, 1.0}, weights, 4)), 2, qmomkit::QmomOptions{false}, bounds);
     assert(outside.status == qmomkit::QmomStatus::not_realizable);
+}
+
+void test_qmom_bounds_accept_a_rule_of_fewer_points_at_once()
+{
+    // Eight moments of the two points 0.25 and 0.75 ask for four nodes. The
+    // adaptive inversion at four gives the rule of the two points, which every
+    // count down to two gives as well, and the bounds [0, 1] accept it after
+    // that one inversion. It is the rule without bounds and the rule of a
+    // request for two nodes.
+    const qmomkit::MomentSet moments(raw_moments_1d({0.25, 0.75}, {0.4, 0.6}, 8));
+    const qmomkit::AbscissaBounds bounds{0.0, 1.0};
+    qmomkit::QmomResult bounded;
+    assert_reconstruction_count(&ReconstructionCounters::wheeler_calls, 1, [&] { bounded = qmomkit::compute_qmom(moments, 4, {}, bounds); });
+    assert(bounded.ok());
+    assert(bounded.weights.size() == 2);
+    assert(bounded.base_node_count == 2);
+    for (const qmomkit::QmomResult& other : {qmomkit::compute_qmom(moments, 4, {}), qmomkit::compute_qmom(moments, 2, {}, bounds)})
+    {
+        assert(bounded.abscissas == other.abscissas);
+        assert(bounded.weights == other.weights);
+    }
+    assert_relative_near(bounded.abscissas[0], 0.25, 1.0e-12);
+    assert_relative_near(bounded.abscissas[1], 0.75, 1.0e-12);
+}
+
+void test_qmom_bounds_skip_the_counts_of_a_rule_outside_them()
+{
+    // The two points 0.25 and 1.25 carry the eight moments, and 1.25 lies
+    // outside [0, 1]. The inversion at four gives these two points, which
+    // every count down to two would give again, so the next candidate is one
+    // node, at the mean 0.75, which the bounds accept. That takes two
+    // inversions, and the result is the rule of a request for one node.
+    const qmomkit::MomentSet moments(raw_moments_1d({0.25, 1.25}, {0.5, 0.5}, 8));
+    const qmomkit::AbscissaBounds bounds{0.0, 1.0};
+    qmomkit::QmomResult bounded;
+    assert_reconstruction_count(&ReconstructionCounters::wheeler_calls, 2, [&] { bounded = qmomkit::compute_qmom(moments, 4, {}, bounds); });
+    assert(bounded.ok());
+    const qmomkit::QmomResult one_node = qmomkit::compute_qmom(moments, 1, {}, bounds);
+    assert(bounded.abscissas == one_node.abscissas);
+    assert(bounded.weights == one_node.weights);
+    assert(bounded.abscissas == std::vector<double>{moments[1] / moments[0]});
 }
 
 void test_qmom_is_unit_covariant()
@@ -3247,6 +3296,8 @@ int main(const int argc, char** argv)
             {"qmom_bounds_margin_is_relative_to_the_nodes", test_qmom_bounds_margin_is_relative_to_the_nodes},
             {"qmom_bounds_with_the_largest_double_as_upper_bound_check_the_lower_bound",
              test_qmom_bounds_with_the_largest_double_as_upper_bound_check_the_lower_bound},
+            {"qmom_bounds_accept_a_rule_of_fewer_points_at_once", test_qmom_bounds_accept_a_rule_of_fewer_points_at_once},
+            {"qmom_bounds_skip_the_counts_of_a_rule_outside_them", test_qmom_bounds_skip_the_counts_of_a_rule_outside_them},
             {"qmom_is_unit_covariant", test_qmom_is_unit_covariant},
             {"one_dimensional_cqmom_agrees_with_qmom", test_one_dimensional_cqmom_agrees_with_qmom},
             {"cqmom_public_api_two_dimensional_manufactured_case", test_cqmom_public_api_two_dimensional_manufactured_case},

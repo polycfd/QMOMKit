@@ -37,6 +37,16 @@ and this project adheres to
   distant or very large bound therefore no longer widens the margin. Where the
   nodes are much smaller than the bounds, a node slightly outside a bound may
   now be rejected.
+- An adaptive reconstruction with abscissa bounds is faster when the moments
+  support fewer nodes than requested. Before, it rejected those fewer nodes
+  and repeated the inversion with one node fewer each time, which returned
+  the same nodes, until it asked for exactly that many. It now accepts them
+  at once if they lie within the bounds. The nodes are unchanged. A CQMOM
+  branch in this situation now reports the node count it started from as
+  `requested_node_count`, as a branch without bounds does.
+- `[output] generalized_moments` with the wrong number of exponents for the
+  phase space is now reported when the file is loaded. Before, the error only
+  appeared when the moment writer was created.
 
 ## [1.0.0] - 2026-10-28
 

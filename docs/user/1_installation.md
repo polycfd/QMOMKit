@@ -1,7 +1,7 @@
 # Installation
 
 QMOMKit does not have any third-party dependencies. It needs only a C++17
-compiler and CMake 3.16 or newer.
+compiler (GCC 10 or newer, or Clang 9 or newer) and CMake 3.16 or newer.
 
 ## Build and install
 

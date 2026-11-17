@@ -852,28 +852,6 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
     return diagnostics;
 }
 
-[[nodiscard]] ConditioningPathTable terminal_paths_for_public_quadrature(const internal::RecursiveQuadrature& quadrature)
-{
-    if (!quadrature.terminal_paths().empty() || !quadrature.has_rectangular_storage())
-    {
-        return quadrature.terminal_paths();
-    }
-
-    // Built flat: one table allocation rather than one vector per path.
-    const PhaseSpaceHierarchy& hierarchy = quadrature.hierarchy();
-    const std::size_t levels = hierarchy.number_of_dimensions();
-    std::vector<std::size_t> node_indices;
-    node_indices.reserve(quadrature.weights().size() * levels);
-    for (const MultiIndex& node_index : enumerate_multi_indices(hierarchy.node_counts()))
-    {
-        for (std::size_t level = 0; level < levels; ++level)
-        {
-            node_indices.push_back(node_index[hierarchy.conditioning_order()[level]]);
-        }
-    }
-    return ConditioningPathTable(levels, std::move(node_indices));
-}
-
 [[nodiscard]] std::size_t failed_phase_space_dimension(const internal::RecursiveQuadratureResult& result, const PhaseSpaceHierarchy& hierarchy)
 {
     std::size_t failed_dimension = 0;
@@ -886,12 +864,11 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
 
 [[nodiscard]] CqmomResult to_cqmom_result(const internal::RecursiveQuadratureResult& result, const PhaseSpaceHierarchy& hierarchy)
 {
-    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(
-                           result.quadrature.hierarchy(), result.quadrature.weights(), result.quadrature.abscissas(),
-                           result.quadrature.adaptive_branch_counts_enabled(), result.quadrature.has_rectangular_storage(),
-                           terminal_paths_for_public_quadrature(result.quadrature)),
-                       to_cqmom_status(result.status), result.message, to_cqmom_diagnostics(result.diagnostics),
-                       failed_phase_space_dimension(result, hierarchy)};
+    return CqmomResult{
+        internal::CqmomConstructionAccess::create_quadrature(result.quadrature.hierarchy(), result.quadrature.weights(),
+                                                             result.quadrature.abscissas(), result.quadrature.adaptive_branch_counts_enabled(),
+                                                             result.quadrature.has_rectangular_storage(), result.quadrature.terminal_paths()),
+        to_cqmom_status(result.status), result.message, to_cqmom_diagnostics(result.diagnostics), failed_phase_space_dimension(result, hierarchy)};
 }
 
 [[nodiscard]] CqmomResult invalid_cqmom_result(const PhaseSpaceHierarchy& hierarchy, const bool adaptive, std::string message)

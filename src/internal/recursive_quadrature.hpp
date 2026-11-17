@@ -109,7 +109,9 @@ struct BranchMomentSlice
 class RecursiveQuadrature
 {
 public:
-    explicit RecursiveQuadrature(PhaseSpaceHierarchy hierarchy);
+    // Fixed storage holds every node of the hierarchy, zero until set. Adaptive
+    // storage is empty until the traversal sets the terminal quadrature.
+    explicit RecursiveQuadrature(PhaseSpaceHierarchy hierarchy, bool adaptive_branch_counts_enabled = false);
     RecursiveQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas);
 
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
@@ -146,7 +148,6 @@ public:
 
     void set_weight(const MultiIndex& node_index, double weight);
     void set_abscissa(std::size_t dimension, const MultiIndex& node_index, double value);
-    void set_adaptive_branch_counts_enabled(bool enabled);
     std::size_t add_tree_node(TreeNode node);
     void set_terminal_quadrature(std::vector<double> weights, std::vector<std::vector<double>> abscissas, ConditioningPathTable paths,
                                  std::vector<std::size_t> terminal_node_ids);

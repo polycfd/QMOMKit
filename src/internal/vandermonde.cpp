@@ -300,25 +300,9 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         bjorck_pereyra = kernel_result.success ? std::move(kernel_result) : failure_result(n, rhs_cols, singular_message);
     }
 
-    if (bjorck_pereyra.success)
-    {
-        for (std::size_t row = 0; row < n; ++row)
-        {
-            // The BP kernel solves V^T Y = RHS; dividing by weights converts Y
-            // into the conditional-moment unknowns C for A*C = RHS.
-            for (std::size_t col = 0; col < rhs_cols; ++col)
-            {
-                bjorck_pereyra.solution(row, col) /= weights[row];
-            }
-        }
-
-        if (!matrix_all_finite(bjorck_pereyra.solution))
-        {
-            bjorck_pereyra = failure_result(n, rhs_cols, "Weighted Vandermonde solve produced non-finite values.");
-        }
-    }
-
-    return vandermonde_result(std::move(bjorck_pereyra), requested_solver, selected_solver);
+    // The BP kernel solves V^T Y = RHS. Dividing by the weights converts Y into
+    // the conditional-moment unknowns C of A*C = RHS.
+    return vandermonde_result(divide_by_weights(std::move(bjorck_pereyra), weights), requested_solver, selected_solver);
 }
 
 } // namespace qmomkit::internal

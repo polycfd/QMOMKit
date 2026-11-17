@@ -965,21 +965,6 @@ QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std:
 }
 
 CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step,
-                                                                        const CqmomMomentSource& source, const MomentSourceUpdateOptions& options)
-{
-    try
-    {
-        validate_trusted_moment_data_request(moments, t, time_step, source, options);
-    }
-    catch (const std::exception& error)
-    {
-        return invalid_moment_data_result(moments, error.what());
-    }
-
-    return advance_validated_cqmom_moments_with_source(moments, t, time_step, source, options);
-}
-
-CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step,
                                                                         const CqmomMomentSource& source, const MomentSourceUpdateOptions& options,
                                                                         const CqmomCase& reconstruction_cqmom_case,
                                                                         const std::vector<CqmomActiveBranchCount>& active_branch_counts,
@@ -996,23 +981,6 @@ CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const Cq
 
     return advance_validated_cqmom_moments_with_source(moments, t, time_step, source, options, &reconstruction_cqmom_case, &active_branch_counts,
                                                        prepared_metadata);
-}
-
-CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step,
-                                                                        const CqmomMomentSource& source,
-                                                                        const CqmomMomentBoundaryContribution& boundary,
-                                                                        const MomentSourceUpdateOptions& options)
-{
-    try
-    {
-        validate_trusted_moment_data_request(moments, t, time_step, source, boundary, options);
-    }
-    catch (const std::exception& error)
-    {
-        return invalid_moment_data_result(moments, error.what());
-    }
-
-    return advance_validated_cqmom_moments_with_source(moments, t, time_step, compose_cqmom_source_and_boundary(source, boundary), options);
 }
 
 CqmomMomentSourceUpdateResult

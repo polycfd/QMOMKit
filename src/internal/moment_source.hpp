@@ -47,19 +47,10 @@ advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, dou
 // values, source controls, callbacks, and callback rates are still validated.
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
                                                                                       const CqmomMomentSource& source,
-                                                                                      const MomentSourceUpdateOptions& options);
-
-[[nodiscard]] CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
-                                                                                      const CqmomMomentSource& source,
                                                                                       const MomentSourceUpdateOptions& options,
                                                                                       const CqmomCase& reconstruction_cqmom_case,
                                                                                       const std::vector<CqmomActiveBranchCount>& active_branch_counts,
                                                                                       const PreparedCqmomMetadata* prepared_metadata);
-
-[[nodiscard]] CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
-                                                                                      const CqmomMomentSource& source,
-                                                                                      const CqmomMomentBoundaryContribution& boundary,
-                                                                                      const MomentSourceUpdateOptions& options);
 
 [[nodiscard]] CqmomMomentSourceUpdateResult
 advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step, const CqmomMomentSource& source,

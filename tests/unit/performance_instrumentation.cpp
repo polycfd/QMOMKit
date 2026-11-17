@@ -581,11 +581,15 @@ void test_trusted_cqmom_source_update_matches_general_path_and_skips_layout_vali
         return qmomkit::CqmomMomentRate{std::move(rate)};
     };
 
+    // The callback never asks for the stage quadrature, so the context never
+    // reads the prepared metadata, which is null here.
+    const qmomkit::CqmomCase reconstruction_case{moments};
     qmomkit::internal::performance::CounterSession trusted_session;
     std::optional<qmomkit::CqmomMomentSourceUpdateResult> trusted_result;
     {
         qmomkit::internal::performance::CounterScope scope(trusted_session);
-        trusted_result.emplace(qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.2, 0.1, trusted_source, options));
+        trusted_result.emplace(qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.2, 0.1, trusted_source, options,
+                                                                                            reconstruction_case, {}, nullptr));
     }
 
     assert(general_result.has_value());
@@ -628,12 +632,16 @@ void test_trusted_cqmom_source_update_matches_general_boundary_failures()
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
+    // The callbacks never ask for the stage quadrature, so the context never
+    // reads the prepared metadata, which is null here.
+    const qmomkit::CqmomCase reconstruction_case{moments};
+
     const qmomkit::CqmomMomentBoundaryContribution throwing_boundary = [](double, const qmomkit::CqmomSourceContext&) -> qmomkit::CqmomMomentRate
     { throw std::runtime_error("boundary failure"); };
     const qmomkit::CqmomMomentSourceUpdateResult general =
         qmomkit::advance_cqmom_moments_with_source(moments, 0.0, 0.1, zero_source, throwing_boundary, {});
-    const qmomkit::CqmomMomentSourceUpdateResult trusted =
-        qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.0, 0.1, zero_source, throwing_boundary, {});
+    const qmomkit::CqmomMomentSourceUpdateResult trusted = qmomkit::internal::advance_trusted_cqmom_moments_with_source(
+        moments, 0.0, 0.1, zero_source, throwing_boundary, {}, reconstruction_case, {}, nullptr);
 
     assert(!general.ok());
     assert(!trusted.ok());
@@ -647,7 +655,7 @@ void test_trusted_cqmom_source_update_matches_general_boundary_failures()
     const qmomkit::CqmomMomentSourceUpdateResult general_wrong_size =
         qmomkit::advance_cqmom_moments_with_source(moments, 0.0, 0.1, wrong_size_source, {});
     const qmomkit::CqmomMomentSourceUpdateResult trusted_wrong_size =
-        qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.0, 0.1, wrong_size_source, {});
+        qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.0, 0.1, wrong_size_source, {}, reconstruction_case, {}, nullptr);
     assert(!general_wrong_size.ok());
     assert(!trusted_wrong_size.ok());
     assert(general_wrong_size.status == trusted_wrong_size.status);

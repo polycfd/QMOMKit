@@ -119,11 +119,8 @@ template <typename ApplyAdvection, typename ApplySource>
     throw std::invalid_argument("Unsupported phase-space evolution scheme.");
 }
 
-void validate_qmom_input(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
-                         const QmomMomentSource& source, const PhaseSpaceEvolutionScheme scheme)
+void validate_qmom_state_for_phase_space_evolution(const QmomState& state)
 {
-    validate_time_input(t, time_step);
-    validate_phase_space_evolution_scheme(scheme);
     if (internal::QmomStateAccess::node_count(state) == 0)
     {
         throw std::invalid_argument("QMOM phase-space evolution requires at least one configured node.");
@@ -150,6 +147,14 @@ void validate_qmom_input(const QmomState& state, const double t, const double ti
     {
         throw std::invalid_argument("Fixed-count QMOM phase-space evolution state must contain the configured node count.");
     }
+}
+
+void validate_qmom_input(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                         const QmomMomentSource& source, const PhaseSpaceEvolutionScheme scheme)
+{
+    validate_time_input(t, time_step);
+    validate_phase_space_evolution_scheme(scheme);
+    validate_qmom_state_for_phase_space_evolution(state);
     if (!velocity)
     {
         throw std::invalid_argument("A phase-space velocity callback must be provided for phase-space evolution.");
@@ -436,32 +441,7 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
                                        const QmomMomentBoundaryContribution* const boundary)
 {
     validate_time_input(t, time_step);
-    if (internal::QmomStateAccess::node_count(state) == 0)
-    {
-        throw std::invalid_argument("QMOM phase-space evolution requires at least one configured node.");
-    }
-    const std::optional<std::size_t> required_moment_count =
-        internal::qmom_required_moment_count(internal::QmomStateAccess::node_count(state), state.qmom_options().family);
-    if (!required_moment_count.has_value())
-    {
-        throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
-    }
-    if (state.moment_values().size() < *required_moment_count)
-    {
-        throw std::invalid_argument("QMOM phase-space evolution state has too few moments for the configured maximum node count.");
-    }
-    if (!internal::all_finite(state.moment_values()))
-    {
-        throw std::invalid_argument("QMOM phase-space evolution state moments must be finite.");
-    }
-    if (state.active_node_count() > state.maximum_node_count())
-    {
-        throw std::invalid_argument("QMOM phase-space evolution state active node count exceeds the configured maximum.");
-    }
-    if (!state.qmom_options().adaptive && state.base_node_count() != internal::QmomStateAccess::node_count(state))
-    {
-        throw std::invalid_argument("Fixed-count QMOM phase-space evolution state must contain the configured node count.");
-    }
+    validate_qmom_state_for_phase_space_evolution(state);
     if (!source)
     {
         throw std::invalid_argument("A moment-source callback must be provided for phase-space evolution.");
@@ -942,46 +922,18 @@ void validate_cqmom_phase_space_evolution_input(const CqmomState& state, const d
     validate_cqmom_boundary(boundary);
 }
 
-struct CqmomStageOutcome
-{
-    CqmomState state;
-    std::optional<CqmomQuadrature> diagnostic_quadrature;
-    PhaseSpaceEvolutionStatus status = PhaseSpaceEvolutionStatus::success;
-    PhaseSpaceEvolutionDiagnostics diagnostics;
-    double final_time = 0.0;
-    std::string message;
-
-    [[nodiscard]] bool ok() const noexcept
-    {
-        return status == PhaseSpaceEvolutionStatus::success;
-    }
-};
-
-[[nodiscard]] CqmomStageOutcome cqmom_state_failure(const CqmomState& rollback_state, std::optional<CqmomQuadrature> quadrature,
-                                                    const PhaseSpaceEvolutionStatus status, const PhaseSpaceEvolutionStage stage,
-                                                    PhaseSpaceEvolutionDiagnostics diagnostics, const double final_time, std::string message)
+[[nodiscard]] CqmomPhaseSpaceEvolutionResult cqmom_state_failure(const CqmomState& rollback_state, std::optional<CqmomQuadrature> quadrature,
+                                                                 const PhaseSpaceEvolutionStatus status, const PhaseSpaceEvolutionStage stage,
+                                                                 PhaseSpaceEvolutionDiagnostics diagnostics, const double final_time,
+                                                                 std::string message)
 {
     record_failure_diagnostics(diagnostics, stage, message);
-    return CqmomStageOutcome{rollback_state, std::move(quadrature), status, std::move(diagnostics), final_time, std::move(message)};
+    return CqmomPhaseSpaceEvolutionResult{rollback_state, std::move(quadrature), status, std::move(diagnostics), final_time, std::move(message)};
 }
 
-[[nodiscard]] CqmomStageOutcome cqmom_success(CqmomState state, PhaseSpaceEvolutionDiagnostics diagnostics, const double final_time)
+[[nodiscard]] CqmomPhaseSpaceEvolutionResult cqmom_success(CqmomState state, PhaseSpaceEvolutionDiagnostics diagnostics, const double final_time)
 {
-    return CqmomStageOutcome{std::move(state), std::nullopt, PhaseSpaceEvolutionStatus::success, std::move(diagnostics), final_time, ""};
-}
-
-[[nodiscard]] CqmomPhaseSpaceEvolutionResult materialize_cqmom_phase_space_evolution_result(CqmomStageOutcome outcome)
-{
-    if (!outcome.ok())
-    {
-        return CqmomPhaseSpaceEvolutionResult{std::move(outcome.state), std::move(outcome.diagnostic_quadrature),
-                                              outcome.status,           std::move(outcome.diagnostics),
-                                              outcome.final_time,       std::move(outcome.message)};
-    }
-
-    finalize_diagnostics(outcome.diagnostics);
-    return CqmomPhaseSpaceEvolutionResult{std::move(outcome.state),       std::nullopt,       PhaseSpaceEvolutionStatus::success,
-                                          std::move(outcome.diagnostics), outcome.final_time, ""};
+    return CqmomPhaseSpaceEvolutionResult{std::move(state), std::nullopt, PhaseSpaceEvolutionStatus::success, std::move(diagnostics), final_time, ""};
 }
 
 [[nodiscard]] CqmomState cqmom_state_from_accepted_quadrature(const CqmomCase& base_cqmom_case, CqmomMomentData moments,
@@ -993,10 +945,10 @@ struct CqmomStageOutcome
                                                            prepared_metadata);
 }
 
-[[nodiscard]] CqmomStageOutcome advance_cqmom_advection_stage(const CqmomState& state, const CqmomState& rollback_state, const double t,
-                                                              const double time_step, const PhaseSpaceVelocity& velocity,
-                                                              const CqmomPhaseSpaceEvolutionOptions& options, const bool final_advection,
-                                                              PhaseSpaceEvolutionDiagnostics& diagnostics)
+[[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_advection_stage(const CqmomState& state, const CqmomState& rollback_state, const double t,
+                                                                           const double time_step, const PhaseSpaceVelocity& velocity,
+                                                                           const CqmomPhaseSpaceEvolutionOptions& options, const bool final_advection,
+                                                                           PhaseSpaceEvolutionDiagnostics& diagnostics)
 {
     CqmomNodeAdvectionResult advection = advance_nodes(state.quadrature(), t, time_step, velocity, options.node_options);
     record_advection_diagnostics(diagnostics, final_advection, advection.status, advection.diagnostics);
@@ -1042,11 +994,10 @@ struct CqmomStageOutcome
     }
 }
 
-[[nodiscard]] CqmomStageOutcome advance_cqmom_moment_source_stage(const CqmomState& state, const CqmomState& rollback_state, const double t,
-                                                                  const double time_step, const CqmomMomentSource& source,
-                                                                  const CqmomMomentBoundaryContribution* const boundary,
-                                                                  const CqmomPhaseSpaceEvolutionOptions& options,
-                                                                  PhaseSpaceEvolutionDiagnostics& diagnostics)
+[[nodiscard]] CqmomPhaseSpaceEvolutionResult
+advance_cqmom_moment_source_stage(const CqmomState& state, const CqmomState& rollback_state, const double t, const double time_step,
+                                  const CqmomMomentSource& source, const CqmomMomentBoundaryContribution* const boundary,
+                                  const CqmomPhaseSpaceEvolutionOptions& options, PhaseSpaceEvolutionDiagnostics& diagnostics)
 {
     const CqmomCase& cqmom_case = internal::CqmomConstructionAccess::state_definition(state);
     const internal::PreparedCqmomMetadataPtr& prepared_metadata = internal::CqmomConstructionAccess::state_prepared_metadata(state);
@@ -1095,20 +1046,6 @@ struct CqmomStageOutcome
     }
 }
 
-CqmomStageOutcome advance_cqmom_advection_impl(const CqmomState& state, const CqmomState& rollback_state, const double t, const double time_step,
-                                               const PhaseSpaceVelocity& velocity, const CqmomPhaseSpaceEvolutionOptions& options,
-                                               const bool final_advection, PhaseSpaceEvolutionDiagnostics& diagnostics)
-{
-    return advance_cqmom_advection_stage(state, rollback_state, t, time_step, velocity, options, final_advection, diagnostics);
-}
-
-CqmomStageOutcome advance_cqmom_moment_source_impl(const CqmomState& state, const CqmomState& rollback_state, const double t, const double time_step,
-                                                   const CqmomMomentSource& source, const CqmomMomentBoundaryContribution* const boundary,
-                                                   const CqmomPhaseSpaceEvolutionOptions& options, PhaseSpaceEvolutionDiagnostics& diagnostics)
-{
-    return advance_cqmom_moment_source_stage(state, rollback_state, t, time_step, source, boundary, options, diagnostics);
-}
-
 CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomState& state, const double t, const double time_step,
                                                                     const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                                     const CqmomMomentBoundaryContribution* const boundary,
@@ -1125,17 +1062,17 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomS
     }
     catch (const std::exception& error)
     {
-        return materialize_cqmom_phase_space_evolution_result(cqmom_state_failure(state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input,
-                                                                                  PhaseSpaceEvolutionStage::none, diagnostics, t, error.what()));
+        return cqmom_state_failure(state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input, PhaseSpaceEvolutionStage::none, diagnostics, t,
+                                   error.what());
     }
 
     const CqmomState* current_state = &state;
     std::optional<CqmomState> owned_current_state;
-    std::optional<CqmomStageOutcome> failure;
+    std::optional<CqmomPhaseSpaceEvolutionResult> failure;
     const auto apply_advection = [&](const double start_time, const double step, const bool final_advection)
     {
-        CqmomStageOutcome result =
-            advance_cqmom_advection_impl(*current_state, state, start_time, step, velocity, options, final_advection, diagnostics);
+        CqmomPhaseSpaceEvolutionResult result =
+            advance_cqmom_advection_stage(*current_state, state, start_time, step, velocity, options, final_advection, diagnostics);
         if (!result.ok())
         {
             failure = std::move(result);
@@ -1148,8 +1085,8 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomS
 
     const auto apply_source = [&](const double start_time)
     {
-        CqmomStageOutcome result =
-            advance_cqmom_moment_source_impl(*current_state, state, start_time, time_step, source, boundary, options, diagnostics);
+        CqmomPhaseSpaceEvolutionResult result =
+            advance_cqmom_moment_source_stage(*current_state, state, start_time, time_step, source, boundary, options, diagnostics);
         if (!result.ok())
         {
             failure = std::move(result);
@@ -1165,10 +1102,11 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomS
         // A failed stage reports its own start time, but the macro step returns
         // its input state, so the reported time is that state's time.
         failure->final_time = t;
-        return materialize_cqmom_phase_space_evolution_result(std::move(*failure));
+        return std::move(*failure);
     }
 
-    return materialize_cqmom_phase_space_evolution_result(cqmom_success(std::move(*owned_current_state), std::move(diagnostics), t + time_step));
+    finalize_diagnostics(diagnostics);
+    return cqmom_success(std::move(*owned_current_state), std::move(diagnostics), t + time_step);
 }
 
 } // namespace
@@ -1186,20 +1124,24 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_advection(const CqmomState& state, 
     }
     catch (const std::exception& error)
     {
-        return materialize_cqmom_phase_space_evolution_result(cqmom_state_failure(state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input,
-                                                                                  PhaseSpaceEvolutionStage::none, diagnostics, t, error.what()));
+        return cqmom_state_failure(state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input, PhaseSpaceEvolutionStage::none, diagnostics, t,
+                                   error.what());
     }
-    return materialize_cqmom_phase_space_evolution_result(
-        advance_cqmom_advection_impl(state, state, t, time_step, velocity, options, false, diagnostics));
+    CqmomPhaseSpaceEvolutionResult result = advance_cqmom_advection_stage(state, state, t, time_step, velocity, options, false, diagnostics);
+    if (result.ok())
+    {
+        finalize_diagnostics(result.diagnostics);
+    }
+    return result;
 }
 
 namespace
 {
 
-CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source_public_impl(const CqmomState& state, const double t, const double time_step,
-                                                                       const CqmomMomentSource& source,
-                                                                       const CqmomMomentBoundaryContribution* const boundary,
-                                                                       const CqmomPhaseSpaceEvolutionOptions& options)
+CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source_impl(const CqmomState& state, const double t, const double time_step,
+                                                                const CqmomMomentSource& source,
+                                                                const CqmomMomentBoundaryContribution* const boundary,
+                                                                const CqmomPhaseSpaceEvolutionOptions& options)
 {
     PhaseSpaceEvolutionDiagnostics diagnostics;
     diagnostics.scheme = options.scheme;
@@ -1211,11 +1153,15 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source_public_impl(const Cqm
     }
     catch (const std::exception& error)
     {
-        return materialize_cqmom_phase_space_evolution_result(cqmom_state_failure(state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input,
-                                                                                  PhaseSpaceEvolutionStage::none, diagnostics, t, error.what()));
+        return cqmom_state_failure(state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input, PhaseSpaceEvolutionStage::none, diagnostics, t,
+                                   error.what());
     }
-    return materialize_cqmom_phase_space_evolution_result(
-        advance_cqmom_moment_source_impl(state, state, t, time_step, source, boundary, options, diagnostics));
+    CqmomPhaseSpaceEvolutionResult result = advance_cqmom_moment_source_stage(state, state, t, time_step, source, boundary, options, diagnostics);
+    if (result.ok())
+    {
+        finalize_diagnostics(result.diagnostics);
+    }
+    return result;
 }
 
 } // namespace
@@ -1223,14 +1169,14 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source_public_impl(const Cqm
 CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source(const CqmomState& state, const double t, const double time_step,
                                                            const CqmomMomentSource& source, const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    return advance_cqmom_moment_source_public_impl(state, t, time_step, source, nullptr, options);
+    return advance_cqmom_moment_source_impl(state, t, time_step, source, nullptr, options);
 }
 
 CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source(const CqmomState& state, const double t, const double time_step,
                                                            const CqmomMomentSource& source, const CqmomMomentBoundaryContribution& boundary,
                                                            const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    return advance_cqmom_moment_source_public_impl(state, t, time_step, source, &boundary, options);
+    return advance_cqmom_moment_source_impl(state, t, time_step, source, &boundary, options);
 }
 
 CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, const double t, const double time_step,

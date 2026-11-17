@@ -127,11 +127,19 @@ struct SspRk3Attempt
 
     internal::performance::record_source_rk_stage();
     internal::rhs_checked(rhs, t + time_step, stage_1, derivative);
-    std::vector<double> test_state(state.size(), 0.0);
+    // The embedded second-order state is needed only for the error estimate.
+    std::vector<double> test_state;
+    if (options.estimate_error)
+    {
+        test_state.resize(state.size());
+        for (std::size_t i = 0; i < state.size(); ++i)
+        {
+            test_state[i] = 0.5 * (state[i] + (stage_1[i] + time_step * derivative[i]));
+        }
+    }
     std::vector<double> stage_2(state.size(), 0.0);
     for (std::size_t i = 0; i < state.size(); ++i)
     {
-        test_state[i] = 0.5 * (state[i] + (stage_1[i] + time_step * derivative[i]));
         stage_2[i] = 0.75 * state[i] + 0.25 * (stage_1[i] + time_step * derivative[i]);
     }
     if (!stage_accepted(options.stage_accept, SspRk3Stage::Stage2, stage_2))

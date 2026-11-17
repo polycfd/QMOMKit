@@ -567,12 +567,20 @@ struct ConditionalSliceResult
     }
     const std::size_t rhs_cols = child_case->rhs_columns.size();
     DenseMatrix rhs = internal::make_branch_rhs_matrix(parent_slice, parent_node_count);
+    // The solver takes the right-hand side by value. Only the detailed
+    // diagnostics read it after the solve, so only they keep a copy.
+    const bool detailed_diagnostics = diagnostic_level == CqmomDiagnosticLevel::detailed;
+    std::optional<DenseMatrix> diagnostic_rhs;
+    if (detailed_diagnostics)
+    {
+        diagnostic_rhs = rhs;
+    }
 
     // Solve (V^T diag(w)) C = RHS for C: branch-local conditional moments of
     // the remaining axes at each parent node.
     const internal::VandermondeSolveOptions solve_options{vandermonde_solver, options.singular_tolerance, options.moore_penrose_rcond};
-    internal::VandermondeSolveResult solve = internal::solve_conditional_vandermonde_system(parent_abscissas, parent_weights, rhs, solve_options,
-                                                                                            "Branch-local weighted Vandermonde system is singular.");
+    internal::VandermondeSolveResult solve = internal::solve_conditional_vandermonde_system(
+        parent_abscissas, parent_weights, std::move(rhs), solve_options, "Branch-local weighted Vandermonde system is singular.");
     result.vandermonde_requested_solver = solve.requested_solver;
     result.vandermonde_selected_solver = solve.selected_solver;
     if (!solve.success)
@@ -582,29 +590,27 @@ struct ConditionalSliceResult
         return result;
     }
 
-    if (diagnostic_level == CqmomDiagnosticLevel::detailed)
+    if (detailed_diagnostics)
     {
-        const internal::ConditionalVandermondeDiagnostics diagnostics =
-            internal::conditional_vandermonde_diagnostics(parent_abscissas, parent_weights, rhs, solve.solution, options.singular_tolerance);
+        const internal::ConditionalVandermondeDiagnostics diagnostics = internal::conditional_vandermonde_diagnostics(
+            parent_abscissas, parent_weights, std::move(*diagnostic_rhs), solve.solution, options.singular_tolerance);
         result.diagnostics.residual_norm = diagnostics.relative_residual;
         result.diagnostics.condition_estimate = diagnostics.condition_estimate;
         result.diagnostics.conditioning_warning = diagnostics.condition_estimate > options.conditioning_warning_threshold;
     }
 
-    const BranchMomentSlice empty_child_slice{child_case->child_layout.get(), std::vector<double>(rhs_cols, 0.0)};
-    result.child_slices.assign(parent_node_count, empty_child_slice);
-    for (BranchMomentSlice& slice : result.child_slices)
-    {
-        slice.values.assign(rhs_cols, 0.0);
-    }
+    result.child_slices.reserve(parent_node_count);
     for (std::size_t node = 0; node < parent_node_count; ++node)
     {
         // Solution row 'node' is the complete moment slice for the child
         // branch conditioned on that parent node.
+        std::vector<double> values;
+        values.reserve(rhs_cols);
         for (std::size_t col = 0; col < rhs_cols; ++col)
         {
-            result.child_slices[node].values[col] = solve.solution(node, col);
+            values.push_back(solve.solution(node, col));
         }
+        result.child_slices.push_back(BranchMomentSlice{child_case->child_layout.get(), std::move(values)});
     }
 
     result.status = ConditionalMomentStatus::success;
@@ -612,10 +618,10 @@ struct ConditionalSliceResult
     return result;
 }
 
-[[nodiscard]] internal::RecursiveQuadratureResult create_recursive_result(const PhaseSpaceHierarchy& hierarchy)
+[[nodiscard]] internal::RecursiveQuadratureResult create_recursive_result(const PhaseSpaceHierarchy& hierarchy, const bool adaptive)
 {
     return internal::RecursiveQuadratureResult{
-        internal::RecursiveQuadrature(hierarchy), internal::RecursiveQuadratureStatus::success, "", {}, {}, 0, {}};
+        internal::RecursiveQuadrature(hierarchy, adaptive), internal::RecursiveQuadratureStatus::success, "", {}, {}, 0, {}};
 }
 
 void record_failure(internal::RecursiveQuadratureResult& result, const internal::RecursiveQuadratureStatus status, const ConditioningPath& path,
@@ -1285,11 +1291,20 @@ namespace
 namespace internal
 {
 
-RecursiveQuadrature::RecursiveQuadrature(PhaseSpaceHierarchy hierarchy)
-    : hierarchy_(std::move(hierarchy)), weights_(hierarchy_.total_nodes(), 0.0),
-      abscissas_(hierarchy_.number_of_dimensions(), std::vector<double>(hierarchy_.total_nodes(), 0.0)),
-      terminal_paths_(rectangular_terminal_paths(hierarchy_))
+RecursiveQuadrature::RecursiveQuadrature(PhaseSpaceHierarchy hierarchy, const bool adaptive_branch_counts_enabled)
+    : hierarchy_(std::move(hierarchy)), adaptive_branch_counts_enabled_(adaptive_branch_counts_enabled),
+      rectangular_storage_(!adaptive_branch_counts_enabled)
 {
+    const std::size_t dimensions = hierarchy_.number_of_dimensions();
+    if (adaptive_branch_counts_enabled_)
+    {
+        abscissas_.resize(dimensions);
+        terminal_paths_ = ConditioningPathTable(dimensions, {});
+        return;
+    }
+    weights_.assign(hierarchy_.total_nodes(), 0.0);
+    abscissas_.assign(dimensions, std::vector<double>(hierarchy_.total_nodes(), 0.0));
+    terminal_paths_ = rectangular_terminal_paths(hierarchy_);
 }
 
 RecursiveQuadrature::RecursiveQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas)
@@ -1407,19 +1422,6 @@ void RecursiveQuadrature::set_abscissa(const std::size_t dimension, const MultiI
     abscissas_[dimension].at(hierarchy_.flatten_node_index(node_index)) = value;
 }
 
-void RecursiveQuadrature::set_adaptive_branch_counts_enabled(const bool enabled)
-{
-    adaptive_branch_counts_enabled_ = enabled;
-    if (enabled)
-    {
-        rectangular_storage_ = false;
-        weights_.clear();
-        abscissas_.assign(number_of_dimensions(), {});
-        terminal_paths_.clear();
-        terminal_node_ids_.clear();
-    }
-}
-
 std::size_t RecursiveQuadrature::add_tree_node(TreeNode node)
 {
     node.id = tree_nodes_.size();
@@ -1474,8 +1476,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     // 2. run Wheeler on the leading axis of each branch;
     // 3. reconstruct child conditional moments for the remaining axes;
     // 4. multiply local weights along each path to assemble terminal nodes.
-    RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
-    result.quadrature.set_adaptive_branch_counts_enabled(wheeler_options.adaptive);
+    RecursiveQuadratureResult result = create_recursive_result(request.hierarchy, wheeler_options.adaptive);
     const std::size_t dimensions = request.hierarchy.number_of_dimensions();
 
     std::string coordinate_support_message;
@@ -1760,7 +1761,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                 }
                 else
                 {
-                    child.moment_slice = conditional_slices.child_slices[node];
+                    child.moment_slice = std::move(conditional_slices.child_slices[node]);
                     next_branches.push_back(std::move(child));
                 }
             }
@@ -1788,8 +1789,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
-    RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
-    result.quadrature.set_adaptive_branch_counts_enabled(request.wheeler_options.adaptive);
+    RecursiveQuadratureResult result = create_recursive_result(request.hierarchy, request.wheeler_options.adaptive);
 
     if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
     {
@@ -1814,8 +1814,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
-    RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
-    result.quadrature.set_adaptive_branch_counts_enabled(request.wheeler_options.adaptive);
+    RecursiveQuadratureResult result = create_recursive_result(request.hierarchy, request.wheeler_options.adaptive);
 
     if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
     {

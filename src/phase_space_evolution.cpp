@@ -286,15 +286,7 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
     return QmomPhaseSpaceEvolutionResult{std::move(state), status, std::move(diagnostics), final_time, std::move(message)};
 }
 
-// The node count, options and abscissa bounds passed to compute_qmom, for
-// either the family's full quadrature or a reduced quadrature with a given base
-// node count.
-struct QmomReconstructionRequest
-{
-    std::size_t node_count = 0;
-    QmomOptions options;
-    std::optional<AbscissaBounds> abscissa_bounds;
-};
+using internal::QmomReconstructionRequest;
 
 [[nodiscard]] bool holds_full_quadrature(const QmomState& state)
 {
@@ -303,7 +295,8 @@ struct QmomReconstructionRequest
 
 [[nodiscard]] QmomReconstructionRequest full_quadrature_request(const QmomState& state)
 {
-    return {internal::QmomStateAccess::node_count(state), state.qmom_options(), state.abscissa_bounds()};
+    const QmomOptions& options = state.qmom_options();
+    return {internal::QmomStateAccess::node_count(state), options.family, options.generalized, options, state.abscissa_bounds()};
 }
 
 // A reduced quadrature is reconstructed classically for hyperbolic, whose own
@@ -312,17 +305,18 @@ struct QmomReconstructionRequest
 // the same N_G nodes as the full quadrature.
 [[nodiscard]] QmomReconstructionRequest reduced_quadrature_request(const QmomState& state, const std::size_t base_node_count)
 {
-    QmomOptions options = state.qmom_options();
-    switch (options.family)
+    QmomReconstructionRequest request = full_quadrature_request(state);
+    request.node_count = base_node_count;
+    switch (request.family)
     {
     case QmomFamily::classical:
     case QmomFamily::hyperbolic:
-        options.family = QmomFamily::classical;
+        request.family = QmomFamily::classical;
         break;
     case QmomFamily::generalized:
         break;
     }
-    return {base_node_count, options, state.abscissa_bounds()};
+    return request;
 }
 
 // The request for a reconstruction at the state's own count.
@@ -333,14 +327,14 @@ struct QmomReconstructionRequest
 
 [[nodiscard]] QmomResult reconstruct_qmom(const std::vector<double>& moments, const QmomReconstructionRequest& request)
 {
-    return compute_qmom(MomentSet(moments), request.node_count, request.options, request.abscissa_bounds);
+    return internal::compute_qmom(MomentSet(moments), request);
 }
 
 // A growth trial accepts only the base node count it asks for, so the
 // generalized family makes a single attempt at it.
 [[nodiscard]] QmomResult reconstruct_growth_trial(const std::vector<double>& moments, const QmomReconstructionRequest& request)
 {
-    return internal::compute_qmom_growth_trial(MomentSet(moments), request.node_count, request.options, request.abscissa_bounds);
+    return internal::compute_qmom_growth_trial(MomentSet(moments), request);
 }
 
 // The reconstruction of the moments after a source step of state. A classical
@@ -528,10 +522,9 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     const QmomReconstructionRequest stage_request = current_reconstruction_request(state);
     const QmomMomentSourceUpdateResult source_update =
         boundary == nullptr
-            ? internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, source_options,
-                                                                 stage_request.node_count, stage_request.options, stage_request.abscissa_bounds)
+            ? internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, source_options, stage_request)
             : internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, *boundary, source_options,
-                                                                 stage_request.node_count, stage_request.options, stage_request.abscissa_bounds);
+                                                                 stage_request);
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {

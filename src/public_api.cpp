@@ -81,40 +81,41 @@ namespace
 // [0, the largest double] for gamma and lognormal and to [0, 1] for beta. Every
 // other continuation goes to compute_generalized_quadrature, which also reports
 // an unsupported one.
-[[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
-                                          const std::optional<AbscissaBounds> abscissa_bounds, const bool exact_base_node_count)
+[[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const GeneralizedOptions& generalized,
+                                          const QmomOptions& options, const std::optional<AbscissaBounds> abscissa_bounds,
+                                          const bool exact_base_node_count)
 {
-    const bool bounded = internal::takes_abscissa_bounds(options.generalized.continuation);
+    const bool bounded = internal::takes_abscissa_bounds(generalized.continuation);
     if (!bounded && abscissa_bounds.has_value())
     {
         return QmomResult{{}, {}, QmomStatus::invalid_input, "The normal continuation of the generalized QMOM family takes no abscissa bounds."};
     }
-    const AbscissaBounds default_bounds = options.generalized.continuation == GeneralizedContinuation::beta
+    const AbscissaBounds default_bounds = generalized.continuation == GeneralizedContinuation::beta
                                               ? AbscissaBounds{0.0, 1.0}
                                               : AbscissaBounds{0.0, std::numeric_limits<double>::max()};
     const internal::GeneralizedQuadrature result =
-        bounded
-            ? internal::compute_bounded_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized,
-                                                               abscissa_bounds.value_or(default_bounds), exact_base_node_count)
-            : internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), options.generalized, exact_base_node_count);
+        bounded ? internal::compute_bounded_generalized_quadrature(moments, node_count, to_wheeler_options(options), generalized,
+                                                                   abscissa_bounds.value_or(default_bounds), exact_base_node_count)
+                : internal::compute_generalized_quadrature(moments, node_count, to_wheeler_options(options), generalized, exact_base_node_count);
     const Quadrature1D& quadrature = result.quadrature;
     return QmomResult{quadrature.abscissas, quadrature.weights, to_qmom_status(quadrature.status), quadrature.message, result.base_node_count};
 }
 
 // exact_base_node_count is read by the generalized family only, see
 // internal::compute_qmom_growth_trial.
-[[nodiscard]] QmomResult compute_qmom_from_moments(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+[[nodiscard]] QmomResult compute_qmom_from_moments(const MomentSet& moments, const std::size_t node_count, const QmomFamily family,
+                                                   const GeneralizedOptions& generalized, const QmomOptions& options,
                                                    const std::optional<AbscissaBounds> abscissa_bounds, const bool exact_base_node_count)
 {
     internal::performance::record_qmom_reconstruction();
-    switch (options.family)
+    switch (family)
     {
     case QmomFamily::classical:
         return classical_qmom(moments, node_count, options, abscissa_bounds);
     case QmomFamily::hyperbolic:
         return hyperbolic_qmom(moments, node_count, options, abscissa_bounds);
     case QmomFamily::generalized:
-        return generalized_qmom(moments, node_count, options, abscissa_bounds, exact_base_node_count);
+        return generalized_qmom(moments, node_count, generalized, options, abscissa_bounds, exact_base_node_count);
     }
     return QmomResult{{}, {}, QmomStatus::invalid_input, "Unsupported QMOM family."};
 }
@@ -203,13 +204,13 @@ namespace
 
 QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options)
 {
-    return compute_qmom_from_moments(moments, node_count, options, std::nullopt, false);
+    return compute_qmom_from_moments(moments, node_count, options.family, options.generalized, options, std::nullopt, false);
 }
 
 QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
                         const std::optional<AbscissaBounds> abscissa_bounds)
 {
-    return compute_qmom_from_moments(moments, node_count, options, abscissa_bounds, false);
+    return compute_qmom_from_moments(moments, node_count, options.family, options.generalized, options, abscissa_bounds, false);
 }
 
 QmomResult compute_qmom(const QmomCase& qmom_case)
@@ -220,10 +221,16 @@ QmomResult compute_qmom(const QmomCase& qmom_case)
 namespace internal
 {
 
-QmomResult compute_qmom_growth_trial(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
-                                     const std::optional<AbscissaBounds> abscissa_bounds)
+QmomResult compute_qmom(const MomentSet& moments, const QmomReconstructionRequest& request)
 {
-    return compute_qmom_from_moments(moments, node_count, options, abscissa_bounds, true);
+    return compute_qmom_from_moments(moments, request.node_count, request.family, request.generalized, request.options, request.abscissa_bounds,
+                                     false);
+}
+
+QmomResult compute_qmom_growth_trial(const MomentSet& moments, const QmomReconstructionRequest& request)
+{
+    return compute_qmom_from_moments(moments, request.node_count, request.family, request.generalized, request.options, request.abscissa_bounds,
+                                     true);
 }
 
 } // namespace internal

@@ -17,6 +17,7 @@ namespace internal
 class CqmomSourceContextAccess;
 class QmomSourceContextAccess;
 struct PreparedCqmomMetadata;
+struct QmomReconstructionRequest;
 } // namespace internal
 
 /**
@@ -69,14 +70,11 @@ public:
 private:
     friend class internal::QmomSourceContextAccess;
 
-    QmomSourceContext(double time, const std::vector<double>& values, std::size_t reconstruction_node_count,
-                      const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds);
+    QmomSourceContext(double time, const std::vector<double>& values, const internal::QmomReconstructionRequest& reconstruction_request);
 
     double time_ = 0.0;
     const std::vector<double>* values_ = nullptr;
-    std::size_t reconstruction_node_count_ = 0;
-    const QmomOptions* reconstruction_options_ = nullptr;
-    std::optional<AbscissaBounds> reconstruction_bounds_;
+    const internal::QmomReconstructionRequest* reconstruction_request_ = nullptr;
     mutable std::optional<QmomResult> reconstructed_stage_quadrature_;
 
     [[nodiscard]] const QmomResult& reconstructed_stage_quadrature() const;

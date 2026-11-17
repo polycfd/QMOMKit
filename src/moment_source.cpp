@@ -515,10 +515,10 @@ void validate_cqmom_moment_source_options(const MomentSourceUpdateOptions& optio
     }
 }
 
-QmomSourceContext QmomSourceContextAccess::create(const double time, const std::vector<double>& values, const std::size_t reconstruction_node_count,
-                                                  const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds)
+QmomSourceContext QmomSourceContextAccess::create(const double time, const std::vector<double>& values,
+                                                  const QmomReconstructionRequest& reconstruction_request)
 {
-    return QmomSourceContext{time, values, reconstruction_node_count, reconstruction_options, std::move(reconstruction_bounds)};
+    return QmomSourceContext{time, values, reconstruction_request};
 }
 
 CqmomSourceContext CqmomSourceContextAccess::create(const double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices,
@@ -539,17 +539,15 @@ QmomSourceContext::QmomSourceContext(const double time, const std::vector<double
     }
 }
 
-QmomSourceContext::QmomSourceContext(const double time, const std::vector<double>& values, const std::size_t reconstruction_node_count,
-                                     const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds)
+QmomSourceContext::QmomSourceContext(const double time, const std::vector<double>& values,
+                                     const internal::QmomReconstructionRequest& reconstruction_request)
     : QmomSourceContext(time, values)
 {
-    if (reconstruction_node_count == 0)
+    if (reconstruction_request.node_count == 0)
     {
         throw std::invalid_argument("QMOM source-stage quadrature reconstruction requires at least one node.");
     }
-    reconstruction_node_count_ = reconstruction_node_count;
-    reconstruction_options_ = &reconstruction_options;
-    reconstruction_bounds_ = std::move(reconstruction_bounds);
+    reconstruction_request_ = &reconstruction_request;
 }
 
 double QmomSourceContext::time() const noexcept
@@ -583,7 +581,7 @@ double QmomSourceContext::moment(const std::size_t order) const
     {
         return (*values_)[order];
     }
-    if (reconstruction_options_ == nullptr)
+    if (reconstruction_request_ == nullptr)
     {
         throw std::out_of_range("Requested QMOM source moment is not tracked by this context.");
     }
@@ -616,13 +614,13 @@ void QmomSourceContext::for_each_node(const std::function<void(double, double)>&
 
 const QmomResult& QmomSourceContext::reconstructed_stage_quadrature() const
 {
-    if (reconstruction_options_ == nullptr)
+    if (reconstruction_request_ == nullptr)
     {
         throw std::out_of_range("QMOM source-stage quadrature is unavailable for this context.");
     }
     if (!reconstructed_stage_quadrature_.has_value())
     {
-        QmomResult quadrature = compute_qmom(MomentSet(*values_), reconstruction_node_count_, *reconstruction_options_, reconstruction_bounds_);
+        QmomResult quadrature = internal::compute_qmom(MomentSet(*values_), *reconstruction_request_);
         if (!quadrature.ok())
         {
             throw std::runtime_error("QMOM source-stage quadrature reconstruction failed: " + quadrature.message);
@@ -914,9 +912,7 @@ namespace internal
 
 QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, const double t, const double time_step,
                                                                       const QmomMomentSource& source, const MomentSourceUpdateOptions& options,
-                                                                      const std::size_t reconstruction_node_count,
-                                                                      const QmomOptions& reconstruction_options,
-                                                                      const std::optional<AbscissaBounds> reconstruction_bounds)
+                                                                      const QmomReconstructionRequest& reconstruction_request)
 {
     try
     {
@@ -927,11 +923,9 @@ QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std:
         return invalid_result(moments, error.what());
     }
 
-    const OdeRhs rhs = [&source, reconstruction_node_count, &reconstruction_options,
-                        reconstruction_bounds](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
+    const OdeRhs rhs = [&source, &reconstruction_request](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
     {
-        const QmomSourceContext context =
-            QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options, reconstruction_bounds);
+        const QmomSourceContext context = QmomSourceContextAccess::create(stage_time, state, reconstruction_request);
         assign_source_rates(source(stage_time, context).values, derivative);
     };
     return advance_qmom_moments_with_source(moments, t, time_step, rhs, options);
@@ -940,9 +934,7 @@ QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std:
 QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, const double t, const double time_step,
                                                                       const QmomMomentSource& source, const QmomMomentBoundaryContribution& boundary,
                                                                       const MomentSourceUpdateOptions& options,
-                                                                      const std::size_t reconstruction_node_count,
-                                                                      const QmomOptions& reconstruction_options,
-                                                                      const std::optional<AbscissaBounds> reconstruction_bounds)
+                                                                      const QmomReconstructionRequest& reconstruction_request)
 {
     try
     {
@@ -954,11 +946,10 @@ QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std:
     }
 
     const QmomMomentSource composed_source = compose_source_and_boundary(source, boundary);
-    const OdeRhs rhs = [&composed_source, reconstruction_node_count, &reconstruction_options,
-                        reconstruction_bounds](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
+    const OdeRhs rhs =
+        [&composed_source, &reconstruction_request](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
     {
-        const QmomSourceContext context =
-            QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options, reconstruction_bounds);
+        const QmomSourceContext context = QmomSourceContextAccess::create(stage_time, state, reconstruction_request);
         assign_source_rates(composed_source(stage_time, context).values, derivative);
     };
     return advance_qmom_moments_with_source(moments, t, time_step, rhs, options);

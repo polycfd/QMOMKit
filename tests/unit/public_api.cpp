@@ -2249,8 +2249,9 @@ void test_qmom_growth_trial_of_the_generalized_family_is_a_single_attempt()
         const qmomkit::QmomOptions& options = entry.second;
         assert(qmomkit::compute_qmom(moments, 3, options).base_node_count == 2);
         qmomkit::QmomResult trial;
-        assert_reconstruction_count(&ReconstructionCounters::qmom_reconstructions, 1,
-                                    [&] { trial = qmomkit::internal::compute_qmom_growth_trial(moments, 3, options, std::nullopt); });
+        assert_reconstruction_count(
+            &ReconstructionCounters::qmom_reconstructions, 1,
+            [&] { trial = qmomkit::internal::compute_qmom_growth_trial(moments, {3, options.family, options.generalized, options, std::nullopt}); });
         assert(trial.status == qmomkit::QmomStatus::not_realizable);
         assert(trial.message == "The generalized reconstruction found fewer base nodes than requested.");
         assert(trial.base_node_count == 0);
@@ -2258,7 +2259,9 @@ void test_qmom_growth_trial_of_the_generalized_family_is_a_single_attempt()
 
     const qmomkit::MomentSet outside(raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.375, 0.375}, 5));
     assert(qmomkit::compute_qmom(outside, 2, gamma_options(true, 6)).base_node_count == 1);
-    const qmomkit::QmomResult gamma_trial = qmomkit::internal::compute_qmom_growth_trial(outside, 2, gamma_options(true, 6), std::nullopt);
+    const qmomkit::QmomOptions gamma_six = gamma_options(true, 6);
+    const qmomkit::QmomResult gamma_trial =
+        qmomkit::internal::compute_qmom_growth_trial(outside, {2, gamma_six.family, gamma_six.generalized, gamma_six, std::nullopt});
     assert(gamma_trial.status == qmomkit::QmomStatus::not_realizable);
     assert(gamma_trial.message == "Bounded-support Wheeler inversion returned nodes outside the configured interval.");
     assert(gamma_trial.base_node_count == 0);
@@ -2277,7 +2280,8 @@ void test_qmom_growth_trial_of_the_other_families_is_compute_qmom()
     {
         const qmomkit::QmomResult expected = qmomkit::compute_qmom(small_weight, 3, options);
         assert(expected.ok() && expected.base_node_count < 3);
-        assert_same_qmom_result(qmomkit::internal::compute_qmom_growth_trial(small_weight, 3, options, std::nullopt), expected);
+        assert_same_qmom_result(
+            qmomkit::internal::compute_qmom_growth_trial(small_weight, {3, options.family, options.generalized, options, std::nullopt}), expected);
     }
 }
 

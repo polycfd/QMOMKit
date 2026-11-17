@@ -2829,9 +2829,9 @@ namespace
 // family reads. The .qmom loader refuses abscissa bounds that the family does
 // not take before it gets here, at the line of support_lower.
 [[nodiscard]] ConfigurationResult<QmomCase> create_family_qmom_case(const InitialConditionSpecification& initial_condition,
-                                                                    const std::size_t node_count, const QmomFamily family,
-                                                                    const GeneralizedOptions& generalized_options, const QmomOptions& options,
-                                                                    std::string source_name, std::optional<AbscissaBounds> abscissa_bounds)
+                                                                    const std::size_t node_count, const QmomOptions& options, std::string source_name,
+                                                                    std::optional<AbscissaBounds> abscissa_bounds, const QmomFamily family,
+                                                                    const GeneralizedOptions& generalized_options)
 {
     if (node_count == 0)
     {
@@ -2862,8 +2862,8 @@ namespace
 ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, const std::size_t node_count,
                                                const QmomOptions& options, std::string source_name, std::optional<AbscissaBounds> abscissa_bounds)
 {
-    return create_family_qmom_case(initial_condition, node_count, QmomFamily::classical, {}, options, std::move(source_name),
-                                   std::move(abscissa_bounds));
+    return create_family_qmom_case(initial_condition, node_count, options, std::move(source_name), std::move(abscissa_bounds), QmomFamily::classical,
+                                   {});
 }
 
 ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition, const PhaseSpaceHierarchy& hierarchy,
@@ -3039,8 +3039,8 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     {
         return ConfigurationResult<QmomCase>::failure(initial_condition.error());
     }
-    return create_family_qmom_case(initial_condition.value(), node_counts[0], *family, generalized, qmom_options.value_or(QmomOptions{}),
-                                   std::move(source_name), abscissa_bounds);
+    return create_family_qmom_case(initial_condition.value(), node_counts[0], qmom_options.value_or(QmomOptions{}), std::move(source_name),
+                                   abscissa_bounds, *family, generalized);
 }
 
 ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::string source_name)

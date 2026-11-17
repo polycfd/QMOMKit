@@ -517,7 +517,7 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
         { return (!caller_accept || caller_accept(stage, candidate)) && policy_accept(stage, candidate); };
     }
     // The source context reconstructs the stage moments at the state's own count
-    // and keeps a pointer to the options, which live until the update returns.
+    // and keeps a pointer to this request, which lives until the update returns.
     const QmomReconstructionRequest stage_request = current_reconstruction_request(state);
     const QmomMomentSourceUpdateResult source_update =
         boundary == nullptr

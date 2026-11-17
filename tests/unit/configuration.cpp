@@ -419,9 +419,11 @@ void test_qmom_family_sets_the_inferred_maximum_order()
 void test_qmom_family_needs_two_n_plus_one_moments()
 {
     // Four moments, given or generated, are too few for the hyperbolic family
-    // with n = 2.
+    // with n = 2. Three, fewer than even the classical family reads, give the
+    // message of the hyperbolic family too.
     const std::string message = "f.qmom: QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.";
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", "[moments]\nvalues = 1, 0, 1, 0\n"), "f.qmom").error() == message);
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", "[moments]\nvalues = 1, 0, 1\n"), "f.qmom").error() == message);
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", normal_initialization + "maximum_order = 3\n"), "f.qmom").error() ==
            message);
     assert(qmomkit::config::parse_qmom(qmom_file("", "[moments]\nvalues = 1, 0, 1, 0\n")).ok());
@@ -551,8 +553,9 @@ void test_qmom_generalized_nu_has_no_effect_without_the_normal_continuation()
 void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_continuation()
 {
     // Bounds with the normal continuation are refused from a file at the line
-    // of support_lower. The gamma, lognormal and beta continuations keep them: the moments of the
-    // exponential number density give the six gamma nodes within [0, 100],
+    // of support_lower. The gamma, lognormal and beta continuations keep them:
+    // the moments of the exponential number density give the six gamma nodes
+    // within [0, 100],
     // those of a lognormal number density with eta = 1.1 the six lognormal
     // nodes, and those of the beta number density x^(-1/2) (1 - x)^(1/2)
     // mapped to [0, 2] the six beta nodes within [0, 2].

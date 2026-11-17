@@ -116,7 +116,7 @@ those of $Q_N$ (Fox & Laurent, 2022, Theorem 4.8), so the speeds are distinct.
 The public `compute_hyqmom_characteristic_speeds(state)`
 ([`src/public_api.cpp`](../../src/public_api.cpp)) returns the speeds of the
 quadrature that `compute_qmom(...)` reconstructs from the state's stored moments
-with its node count and options:
+with its node count, family and options:
 
 | Reconstruction of the stored moments | Speeds |
 | --- | --- |
@@ -232,8 +232,8 @@ carry the tails of the number density, whose weights can be far below `rmin`
 (Fox et al., 2023, Fig. 1), and the test on $b_k$ already excludes nodes made of
 rounding.
 
-$N_G$ is carried in the options, independently of $N$ and $k$, so a reduced
-quadrature is continued to the same $N_G$ nodes as the full one. A
+$N_G$ is carried in `generalized_options`, independently of $N$ and $k$, so a
+reduced quadrature is continued to the same $N_G$ nodes as the full one. A
 reconstruction with node count $k$ of the same moments that finds the same $k$
 nodes returns the identical result, which is what the evolution relies on
 ([Phase-space evolution](phase_space_evolution.md#node-counts)).

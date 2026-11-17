@@ -81,8 +81,8 @@ namespace
 // [0, the largest double] for gamma and lognormal and to [0, 1] for beta. Every
 // other continuation goes to compute_generalized_quadrature, which also reports
 // an unsupported one.
-[[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const GeneralizedOptions& generalized,
-                                          const QmomOptions& options, const std::optional<AbscissaBounds> abscissa_bounds,
+[[nodiscard]] QmomResult generalized_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                                          const std::optional<AbscissaBounds> abscissa_bounds, const GeneralizedOptions& generalized,
                                           const bool exact_base_node_count)
 {
     const bool bounded = internal::takes_abscissa_bounds(generalized.continuation);
@@ -115,7 +115,7 @@ namespace
     case QmomFamily::hyperbolic:
         return hyperbolic_qmom(moments, node_count, options, abscissa_bounds);
     case QmomFamily::generalized:
-        return generalized_qmom(moments, node_count, generalized, options, abscissa_bounds, exact_base_node_count);
+        return generalized_qmom(moments, node_count, options, abscissa_bounds, generalized, exact_base_node_count);
     }
     return QmomResult{{}, {}, QmomStatus::invalid_input, "Unsupported QMOM family."};
 }
@@ -252,7 +252,7 @@ HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState&
         return HyqmomCharacteristicSpeeds{{}, QmomStatus::invalid_input, "Characteristic speeds require the hyperbolic QMOM family."};
     case QmomFamily::hyperbolic:
     {
-        // The speeds of the quadrature that the stored moments reconstruct to
+        // The speeds of the hyperbolic reconstruction of the stored moments
         // with the state's options, so that they count only the nodes the
         // moments resolve, also after advection has moved the nodes.
         internal::HyperbolicCharacteristicSpeeds result = internal::compute_hyperbolic_characteristic_speeds(

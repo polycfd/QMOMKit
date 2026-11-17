@@ -1616,6 +1616,36 @@ FamilySettings gamma_qmom_options(const bool adaptive)
     return settings;
 }
 
+void test_qmom_state_keeps_the_family_and_generalized_options_of_its_case()
+{
+    // A state keeps the family and the settings of the generalized family of
+    // its case, from state_candidate(...) and initial_state(), through an
+    // advection step and a source step. nu is kept although the gamma
+    // continuation does not read it.
+    FamilySettings gamma = gamma_qmom_options(true);
+    gamma.generalized_options.nu = 0.25;
+    const std::vector<double> positive = raw_moments_1d({0.5, 1.5, 3.0}, {0.25, 0.375, 0.375}, 5);
+    const std::vector<double> real_line = raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5);
+    for (const auto& [settings, moments] : {std::pair{gamma, positive}, std::pair{hyperbolic_qmom_options(true), real_line}})
+    {
+        const qmomkit::QmomCase qmom_case = family_case(qmomkit::MomentSet(moments), 2, settings);
+        const qmomkit::QmomStateCandidate candidate = qmom_case.state_candidate(qmom_case.moments);
+        assert(candidate.ok());
+        const qmomkit::QmomState initial = qmom_case.initial_state();
+        const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(initial, 0.0, 0.5, zero_qmom_velocity());
+        assert(advected.ok());
+        const qmomkit::QmomPhaseSpaceEvolutionResult source_step = qmomkit::advance_qmom_moment_source(advected.state, 0.5, 0.5, zero_qmom_rate);
+        assert(source_step.ok());
+        for (const qmomkit::QmomState* state : {&*candidate.state, &initial, &advected.state, &source_step.state})
+        {
+            assert(state->family() == settings.family);
+            assert(state->generalized_options().node_count == settings.generalized_options.node_count);
+            assert(state->generalized_options().continuation == settings.generalized_options.continuation);
+            assert(state->generalized_options().nu == settings.generalized_options.nu);
+        }
+    }
+}
+
 void test_bounded_gamma_post_source_keeps_the_generalized_quadrature()
 {
     // A gamma state with bounds keeps its family through a source step. At
@@ -5499,6 +5529,7 @@ int main(const int argc, char** argv)
             {"adaptive_generalized_post_source_grows_by_one_base_node_below_n", test_adaptive_generalized_post_source_grows_by_one_base_node_below_n},
             {"adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n",
              test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n},
+            {"qmom_state_keeps_the_family_and_generalized_options_of_its_case", test_qmom_state_keeps_the_family_and_generalized_options_of_its_case},
             {"bounded_gamma_post_source_keeps_the_generalized_quadrature", test_bounded_gamma_post_source_keeps_the_generalized_quadrature},
             {"bounded_gamma_post_source_reduces_within_the_state_bounds", test_bounded_gamma_post_source_reduces_within_the_state_bounds},
             {"bounded_gamma_post_source_grows_within_the_state_bounds", test_bounded_gamma_post_source_grows_within_the_state_bounds},

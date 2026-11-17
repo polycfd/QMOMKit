@@ -1322,8 +1322,8 @@ void test_qmom_hyperbolic_family_is_the_hyperbolic_reconstruction()
 {
     // Three points are interior at n = 2 and give the J_3 rule; two put the
     // moments on the boundary, where adaptive mode returns the classical rule
-    // and fixed mode refuses. Every overload returns what the reconstruction
-    // returns, with one QMOM reconstruction per call.
+    // and fixed mode refuses. compute_qmom(...) of the case returns what the
+    // reconstruction returns, with one QMOM reconstruction per call.
     const qmomkit::MomentSet interior(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
     const qmomkit::MomentSet boundary(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5));
     for (const qmomkit::MomentSet& moments : {interior, boundary})
@@ -1597,9 +1597,9 @@ void test_qmom_generalized_family_is_the_generalized_reconstruction()
 {
     // Three points are interior at N = 2 and give the six nodes of J_6 with
     // base node count 2. Two put the moments on the boundary, where both modes
-    // return the classical two-node rule with base node count 2. Every
-    // overload returns what the reconstruction returns, with one QMOM
-    // reconstruction per call.
+    // return the classical two-node rule with base node count 2.
+    // compute_qmom(...) of the case returns what the reconstruction returns,
+    // with one QMOM reconstruction per call.
     const qmomkit::MomentSet interior(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5));
     const qmomkit::MomentSet boundary(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5));
     for (const auto& moments_and_nodes : {std::pair{interior, std::size_t{6}}, std::pair{boundary, std::size_t{2}}})

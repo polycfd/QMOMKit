@@ -96,10 +96,10 @@ The continuation decides which number density the $N_G$ nodes represent.
 bounds. Its parameter $\nu$, `generalized_options.nu` or `generalized_nu`, 1
 by default, controls the tails: $\nu = 1$ gives Gaussian tails, $\nu = 2$
 exponential tails, $\nu = 0$ a number density on a bounded interval (Fox et
-al., 2023, Fig. 1), and a negative $\nu$ can give several modes. `gamma` and `lognormal`
-are for a number density on $[0, \infty)$, such as that of sizes or volumes,
-and `beta` for one on $[0, 1]$, such as that of fractions. None of them has a
-parameter:
+al., 2023, Fig. 1), and a negative $\nu$ can give several modes. `gamma` and
+`lognormal` are for a number density on $[0, \infty)$, such as that of sizes
+or volumes, and `beta` for one on $[0, 1]$, such as that of fractions. None of
+them has a parameter:
 
 ```cpp
 qmom_case.generalized_options.continuation = qmomkit::GeneralizedContinuation::gamma;

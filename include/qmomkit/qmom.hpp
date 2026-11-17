@@ -180,12 +180,13 @@ public:
         return node_count_;
     }
 
-    /** The family and the settings of the generalized family of the state's case. */
+    /** The family of the state's case. */
     [[nodiscard]] QmomFamily family() const noexcept
     {
         return family_;
     }
 
+    /** The settings of the generalized family of the state's case. */
     [[nodiscard]] const GeneralizedOptions& generalized_options() const noexcept
     {
         return generalized_options_;
@@ -236,12 +237,13 @@ struct HyqmomCharacteristicSpeeds
 /**
  * The characteristic speeds of the stored moments of `state`: those of the
  * quadrature that `compute_qmom(...)` reconstructs from them with the state's
- * node count n and options. For n + 1 nodes, they are the eigenvalues of J_n
- * and K_{n+1}, which are those of the Jacobian of the closed system (shown for
- * n <= 9 by Fox & Laurent 2022, checked by QMOMKit's tests for sample moments
- * up to n = 10); for a classical quadrature of k <= n nodes, its k abscissas,
- * each twice, and their mean. The speeds thus count only the nodes that the
- * moments resolve, which after advection can be fewer than the state holds.
+ * node count n, family and options. For n + 1 nodes, they are the eigenvalues
+ * of J_n and K_{n+1}, which are those of the Jacobian of the closed system
+ * (shown for n <= 9 by Fox & Laurent 2022, checked by QMOMKit's tests for
+ * sample moments up to n = 10); for a classical quadrature of k <= n nodes,
+ * its k abscissas, each twice, and their mean. The speeds thus count only the
+ * nodes that the moments resolve, which after advection can be fewer than the
+ * state holds.
  * `invalid_input` for a family other than `hyperbolic`; otherwise the status
  * and message of a failed reconstruction, such as `not_realizable` in fixed
  * mode when the moments no longer support n + 1 nodes, and `not_realizable`
@@ -314,13 +316,14 @@ struct QmomCase
 
     /**
      * Create an evolution state from other moments, with the node count,
-     * family, options and abscissa bounds of this case; the moments of the
-     * case are not used. This is how a host rebuilds the state of moments it
-     * changed itself, for example by transport in physical space. All moments
-     * must be finite, including those the reconstruction does not use, above
-     * order 2N - 1, or 2N for `hyperbolic` and `generalized`. The quadrature
-     * is reconstructed once, the stored moments are those of the accepted
-     * quadrature, and a failure is reported in the result rather than thrown.
+     * options, abscissa bounds, family and `generalized_options` of this case.
+     * The moments of the case are not used. This is how a host rebuilds the
+     * state of moments it changed itself, for example by transport in physical
+     * space. All moments must be finite, including those the reconstruction
+     * does not use, above order 2N - 1, or 2N for `hyperbolic` and
+     * `generalized`. The quadrature is reconstructed once, the stored moments
+     * are those of the accepted quadrature, and a failure is reported in the
+     * result rather than thrown.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments) const;
 
@@ -351,7 +354,7 @@ struct QmomCase
  *
  * The input moments are raw moments in ascending order. Returned abscissas are
  * sorted in ascending order, and weights use the same ordering. This and the
- * next overload reconstruct the `classical` family; the other families are
+ * next overload reconstruct the `classical` family. The other families are
  * reconstructed from a `QmomCase`.
  */
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options = {});

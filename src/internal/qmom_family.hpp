@@ -57,9 +57,10 @@ struct QmomReconstructionRequest
 
 // compute_qmom(...) for a growth trial of the evolution, which accepts only
 // request.node_count as the base node count. The generalized family then
-// neither continues a smaller base node count nor retries below a rejected
-// one, and returns not_realizable instead. For the classical and hyperbolic
-// families, it is compute_qmom(...).
+// makes a single attempt at that count: where the moments give fewer base
+// nodes, or where the nodes at that count lie outside the abscissa bounds, it
+// returns not_realizable instead of continuing a smaller base node count. For
+// the classical and hyperbolic families, it is compute_qmom(...).
 [[nodiscard]] QmomResult compute_qmom_growth_trial(const MomentSet& moments, const QmomReconstructionRequest& request);
 
 } // namespace qmomkit::internal

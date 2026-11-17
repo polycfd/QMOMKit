@@ -1750,27 +1750,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                     {
                         // Fixed-node hierarchies also populate rectangular
                         // storage indexed directly by the full node multi-index.
-                        MultiIndex node_index;
-                        try
-                        {
-                            node_index = recursive_path_to_node_index(request.hierarchy, child.path);
-                        }
-                        catch (const std::exception& ex)
-                        {
-                            branch_diagnostics.message = ex.what();
-                            if (records_success_branch_diagnostics(request.diagnostic_level) && !result.diagnostics.empty() &&
-                                result.diagnostics.back().conditioning_level == branch_diagnostics.conditioning_level &&
-                                result.diagnostics.back().path == branch.path)
-                            {
-                                result.diagnostics.back().message = branch_diagnostics.message;
-                            }
-                            else
-                            {
-                                publish_branch_diagnostics(branch_diagnostics);
-                            }
-                            record_failure(result, RecursiveQuadratureStatus::invalid_input, child.path, level, ex.what());
-                            return result;
-                        }
+                        const MultiIndex node_index = recursive_path_to_node_index(request.hierarchy, child.path);
                         result.quadrature.set_weight(node_index, child.accumulated_weight);
                         for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
                         {
@@ -1791,16 +1771,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
 
     if (wheeler_options.adaptive)
     {
-        try
-        {
-            result.quadrature.set_terminal_quadrature(std::move(terminal_weights), std::move(terminal_abscissas), std::move(terminal_paths),
-                                                      std::move(terminal_node_ids));
-        }
-        catch (const std::exception& ex)
-        {
-            record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, dimensions == 0 ? 0 : dimensions - 1, ex.what());
-            return result;
-        }
+        result.quadrature.set_terminal_quadrature(std::move(terminal_weights), std::move(terminal_abscissas), std::move(terminal_paths),
+                                                  std::move(terminal_node_ids));
         // The traversal visits the branches level by level. Lexicographic
         // parent-path order lists every branch before its descendants, as the
         // terminal paths do.

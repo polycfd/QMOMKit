@@ -2367,15 +2367,7 @@ OutputOptions parse_output_options_from_parsed(ParsedFile& parsed, const std::st
     const Entry* directory = find_entry(parsed, "output.directory");
     if (directory != nullptr)
     {
-        const std::string cleaned_directory = trim(directory->value);
-        if (cleaned_directory.empty())
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, directory->line, "output.directory must be non-empty.");
-        }
-        else
-        {
-            options.directory = cleaned_directory;
-        }
+        options.directory = directory->value;
     }
 
     parse_optional_bool(parsed, "output.write_moments", source_name, options.write_moments);

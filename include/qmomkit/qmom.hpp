@@ -25,7 +25,7 @@ enum class QmomStatus
  * HyQMOM (Fox & Laurent 2022): up to N + 1 nodes from m_0, ..., m_{2N}, on
  * the real line only. `generalized` is GQMOM (Fox, Laurent & Passalacqua
  * 2023): up to N_G nodes from m_0, ..., m_{2N}, with N_G > N set in
- * `QmomOptions::generalized`.
+ * `QmomCase::generalized_options`.
  */
 enum class QmomFamily
 {
@@ -68,12 +68,11 @@ struct GeneralizedOptions
  * Numerical controls for one-dimensional QMOM quadrature construction.
  *
  * Adaptive node reduction is on by default; set `adaptive = false` to require
- * the family's full quadrature: N nodes for `classical`, N + 1 for
- * `hyperbolic`, and for `generalized` N_G nodes, or the classical N nodes of
- * moments on the boundary. `rmin` and `eabs`
- * apply only to classical quadratures, not to the N + 1 nodes of `hyperbolic`
- * or the continued nodes of `generalized`. `family` selects the quadrature
- * family; CQMOM supports only `classical`.
+ * the full quadrature of the family (`QmomCase::family`): N nodes for
+ * `classical`, N + 1 for `hyperbolic`, and for `generalized` N_G nodes, or the
+ * classical N nodes of moments on the boundary. `rmin` and `eabs` apply only
+ * to classical quadratures, not to the N + 1 nodes of `hyperbolic` or the
+ * continued nodes of `generalized`.
  */
 struct QmomOptions
 {
@@ -81,8 +80,6 @@ struct QmomOptions
     double rmin = 1.0e-10;
     double eabs = 1.0e-10;
     double cutoff = 1.0e-30;
-    QmomFamily family = QmomFamily::classical;
-    GeneralizedOptions generalized{};
 };
 
 struct QmomResult
@@ -171,16 +168,27 @@ public:
      */
     [[nodiscard]] std::size_t maximum_node_count() const noexcept
     {
-        switch (qmom_options_.family)
+        switch (family_)
         {
         case QmomFamily::classical:
             return node_count_;
         case QmomFamily::hyperbolic:
             return node_count_ + 1;
         case QmomFamily::generalized:
-            return qmom_options_.generalized.node_count;
+            return generalized_options_.node_count;
         }
         return node_count_;
+    }
+
+    /** The family and the settings of the generalized family of the state's case. */
+    [[nodiscard]] QmomFamily family() const noexcept
+    {
+        return family_;
+    }
+
+    [[nodiscard]] const GeneralizedOptions& generalized_options() const noexcept
+    {
+        return generalized_options_;
     }
 
     [[nodiscard]] const QmomOptions& qmom_options() const noexcept
@@ -195,7 +203,7 @@ public:
 
 private:
     QmomState(std::vector<double> moments, QmomResult quadrature, std::size_t node_count, QmomOptions qmom_options,
-              std::optional<AbscissaBounds> abscissa_bounds);
+              std::optional<AbscissaBounds> abscissa_bounds, QmomFamily family, GeneralizedOptions generalized_options);
     friend class internal::QmomStateAccess;
 
     std::vector<double> moments_;
@@ -203,6 +211,8 @@ private:
     std::size_t node_count_ = 0;
     QmomOptions qmom_options_;
     std::optional<AbscissaBounds> abscissa_bounds_;
+    QmomFamily family_ = QmomFamily::classical;
+    GeneralizedOptions generalized_options_;
 };
 
 /**
@@ -290,7 +300,8 @@ struct QmomStateCandidate
  * `moments` stores unnormalized raw moments in ascending order:
  * `moments[k] == m_k`. A case with `node_count == N` requires at least
  * `2 * N` moments, or `2 * N + 1` for the `hyperbolic` and `generalized`
- * families.
+ * families. `family` selects the quadrature family, and `generalized_options`
+ * holds the settings of the `generalized` family.
  */
 struct QmomCase
 {
@@ -298,15 +309,17 @@ struct QmomCase
     std::size_t node_count = 0;
     QmomOptions qmom_options{};
     std::optional<AbscissaBounds> abscissa_bounds{};
+    QmomFamily family = QmomFamily::classical;
+    GeneralizedOptions generalized_options{};
 
     /**
      * Create an evolution state from other moments, with the node count,
-     * options and abscissa bounds of this case; the moments of the case are
-     * not used. This is how a host rebuilds the state of moments it changed
-     * itself, for example by transport in physical space. All moments must be
-     * finite, including those the reconstruction does not use, above order
-     * 2N - 1, or 2N for `hyperbolic` and `generalized`. The quadrature is
-     * reconstructed once, the stored moments are those of the accepted
+     * family, options and abscissa bounds of this case; the moments of the
+     * case are not used. This is how a host rebuilds the state of moments it
+     * changed itself, for example by transport in physical space. All moments
+     * must be finite, including those the reconstruction does not use, above
+     * order 2N - 1, or 2N for `hyperbolic` and `generalized`. The quadrature
+     * is reconstructed once, the stored moments are those of the accepted
      * quadrature, and a failure is reported in the result rather than thrown.
      */
     [[nodiscard]] QmomStateCandidate state_candidate(const MomentSet& candidate_moments) const;
@@ -337,21 +350,23 @@ struct QmomCase
  * Construct a one-dimensional QMOM quadrature from raw moments.
  *
  * The input moments are raw moments in ascending order. Returned abscissas are
- * sorted in ascending order, and weights use the same ordering.
+ * sorted in ascending order, and weights use the same ordering. This and the
+ * next overload reconstruct the `classical` family; the other families are
+ * reconstructed from a `QmomCase`.
  */
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options = {});
 
 /**
  * Construct a one-dimensional QMOM quadrature and require returned abscissas
- * to lie in the optional closed interval. The hyperbolic family and the
- * normal continuation of the generalized family take no interval: with one,
- * the result is `invalid_input`.
+ * to lie in the optional closed interval.
  */
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options,
                                       std::optional<AbscissaBounds> abscissa_bounds);
 
 /**
- * Construct a one-dimensional QMOM quadrature from a case object.
+ * Construct a one-dimensional QMOM quadrature from a case object, with its
+ * family. The hyperbolic family and the normal continuation of the generalized
+ * family take no abscissa bounds: with them, the result is `invalid_input`.
  */
 [[nodiscard]] QmomResult compute_qmom(const QmomCase& qmom_case);
 

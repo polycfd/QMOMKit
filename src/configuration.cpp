@@ -2824,42 +2824,24 @@ namespace
     }
     return "QMOM requires more moments for the node count.";
 }
-} // namespace
 
-ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, const std::size_t node_count,
-                                               const QmomOptions& options, std::string source_name, std::optional<AbscissaBounds> abscissa_bounds)
+// A QMOM case of the given family, whose moments must be as many as that
+// family reads. The .qmom loader refuses abscissa bounds that the family does
+// not take before it gets here, at the line of support_lower.
+[[nodiscard]] ConfigurationResult<QmomCase> create_family_qmom_case(const InitialConditionSpecification& initial_condition,
+                                                                    const std::size_t node_count, const QmomFamily family,
+                                                                    const GeneralizedOptions& generalized_options, const QmomOptions& options,
+                                                                    std::string source_name, std::optional<AbscissaBounds> abscissa_bounds)
 {
     if (node_count == 0)
     {
         return failure_result<QmomCase>({ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count must be positive."});
     }
-    const std::optional<std::size_t> required_moment_count = internal::qmom_required_moment_count(node_count, options.family);
+    const std::optional<std::size_t> required_moment_count = internal::qmom_required_moment_count(node_count, family);
     if (!required_moment_count.has_value())
     {
         return failure_result<QmomCase>(
             {ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count is too large to derive the required moment count."});
-    }
-    // HyQMOM and GQMOM with the normal continuation are defined on the real
-    // line, so they take no bounds. compute_qmom refuses the same, and a case
-    // refuses it before computing moments.
-    switch (options.family)
-    {
-    case QmomFamily::classical:
-        break;
-    case QmomFamily::hyperbolic:
-        if (abscissa_bounds.has_value())
-        {
-            return failure_result<QmomCase>(
-                {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "The hyperbolic QMOM family takes no abscissa bounds."});
-        }
-        break;
-    case QmomFamily::generalized:
-        if (abscissa_bounds.has_value() && !internal::takes_abscissa_bounds(options.generalized.continuation))
-        {
-            return failure_result<QmomCase>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-                                             "The normal continuation of the generalized QMOM family takes no abscissa bounds."});
-        }
-        break;
     }
 
     ConfigurationResult<MomentSet> initialized = initialize_qmom_moments(initial_condition, source_name);
@@ -2870,9 +2852,18 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
     if (initialized.value().size() < *required_moment_count)
     {
         return failure_result<QmomCase>(
-            {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, too_few_qmom_moments_message(options.family)});
+            {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, too_few_qmom_moments_message(family)});
     }
-    return ConfigurationResult<QmomCase>{QmomCase{std::move(initialized).value(), node_count, options, std::move(abscissa_bounds)}};
+    return ConfigurationResult<QmomCase>{
+        QmomCase{std::move(initialized).value(), node_count, options, std::move(abscissa_bounds), family, generalized_options}};
+}
+} // namespace
+
+ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, const std::size_t node_count,
+                                               const QmomOptions& options, std::string source_name, std::optional<AbscissaBounds> abscissa_bounds)
+{
+    return create_family_qmom_case(initial_condition, node_count, QmomFamily::classical, {}, options, std::move(source_name),
+                                   std::move(abscissa_bounds));
 }
 
 ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition, const PhaseSpaceHierarchy& hierarchy,
@@ -3020,7 +3011,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     const std::optional<AbscissaBounds> abscissa_bounds = coordinate_support->empty() ? std::nullopt : coordinate_support->front();
     // HyQMOM and GQMOM with the normal continuation are defined on the real
     // line. A file reports bounds at the line of support_lower, which bounds
-    // always have; create_qmom_case refuses them for a case built in code.
+    // always have; compute_qmom refuses them for a case built in code.
     switch (*family)
     {
     case QmomFamily::classical:
@@ -3048,10 +3039,8 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     {
         return ConfigurationResult<QmomCase>::failure(initial_condition.error());
     }
-    QmomOptions options = qmom_options.value_or(QmomOptions{});
-    options.family = *family;
-    options.generalized = generalized;
-    return create_qmom_case(initial_condition.value(), node_counts[0], options, std::move(source_name), abscissa_bounds);
+    return create_family_qmom_case(initial_condition.value(), node_counts[0], *family, generalized, qmom_options.value_or(QmomOptions{}),
+                                   std::move(source_name), abscissa_bounds);
 }
 
 ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::string source_name)

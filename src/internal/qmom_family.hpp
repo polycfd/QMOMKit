@@ -40,16 +40,16 @@ namespace qmomkit::internal
            continuation == GeneralizedContinuation::beta;
 }
 
-// The node count, family, GQMOM settings, options and abscissa bounds of one
+// The node count, options, abscissa bounds, family and GQMOM settings of one
 // reconstruction of the evolution: the family's full quadrature, a reduced
 // quadrature with a given base node count, or the source-stage quadrature.
 struct QmomReconstructionRequest
 {
     std::size_t node_count = 0;
-    QmomFamily family = QmomFamily::classical;
-    GeneralizedOptions generalized{};
     QmomOptions options;
     std::optional<AbscissaBounds> abscissa_bounds;
+    QmomFamily family = QmomFamily::classical;
+    GeneralizedOptions generalized{};
 };
 
 // compute_qmom(...) for a request.

@@ -50,7 +50,7 @@ int main()
     // The same case with classical QMOM, for comparison: N nodes from the same
     // moments instead of the N_G nodes of GQMOM.
     qmomkit::QmomCase qmom_case = gqmom_case;
-    qmom_case.qmom_options.family = qmomkit::QmomFamily::classical;
+    qmom_case.family = qmomkit::QmomFamily::classical;
 
     // The model, defined in physics.cpp, is the coking velocity, which moves
     // the nodes, and the removal source, which both states evaluate on the

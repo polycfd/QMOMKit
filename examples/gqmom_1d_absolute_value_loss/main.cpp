@@ -37,7 +37,7 @@ int main()
     // The same case with classical QMOM, for comparison: N nodes from the same
     // moments instead of the N_G nodes of GQMOM.
     qmomkit::QmomCase qmom_case = gqmom_case;
-    qmom_case.qmom_options.family = qmomkit::QmomFamily::classical;
+    qmom_case.family = qmomkit::QmomFamily::classical;
 
     // The model is one moment source, defined in physics.cpp, which both
     // states evaluate on the nodes of their own quadratures.

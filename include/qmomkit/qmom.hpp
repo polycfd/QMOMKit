@@ -38,7 +38,10 @@ enum class QmomFamily
  * How GQMOM continues the recurrence coefficients of the moments to N_G nodes.
  * `normal` is Definition 1 of Fox, Laurent & Passalacqua (2023), whose
  * parameter nu controls the tails, `gamma` is Definition 2, `lognormal` is
- * Definition 3, and `beta` is Definition 4.
+ * Definition 3, and `beta` is Definition 4. Abscissa bounds [l, u] set the
+ * interval of the last three: the number density of `gamma` and `lognormal`
+ * starts at l instead of 0, that of `beta` lies in [l, u] instead of [0, 1],
+ * and the nodes must lie within the bounds. `normal` takes no bounds.
  */
 enum class GeneralizedContinuation
 {
@@ -65,9 +68,9 @@ struct GeneralizedOptions
  * Numerical controls for one-dimensional QMOM quadrature construction.
  *
  * Adaptive node reduction is on by default; set `adaptive = false` to require
- * the base node count N (see `QmomResult::base_node_count`): N nodes for
- * `classical`, N + 1 for `hyperbolic`, and for `generalized` N_G nodes, or the
- * classical N nodes of moments on the boundary. `rmin` and `eabs`
+ * the family's full quadrature: N nodes for `classical`, N + 1 for
+ * `hyperbolic`, and for `generalized` N_G nodes, or the classical N nodes of
+ * moments on the boundary. `rmin` and `eabs`
  * apply only to classical quadratures, not to the N + 1 nodes of `hyperbolic`
  * or the continued nodes of `generalized`. `family` selects the quadrature
  * family; CQMOM supports only `classical`.

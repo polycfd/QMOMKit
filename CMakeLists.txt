@@ -43,6 +43,10 @@ add_library(
 )
 add_library(qmomkit::qmomkit ALIAS qmomkit)
 
+# A host may link the static library into a shared library of its own, which on
+# Linux requires position-independent code.
+set_target_properties(qmomkit PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 target_compile_features(qmomkit PUBLIC cxx_std_17)
 target_include_directories(
     qmomkit

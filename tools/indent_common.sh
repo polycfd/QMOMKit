@@ -15,6 +15,8 @@
 ##     of DEAL_II_CLANG_FORMAT.
 ##   - deal.II's commit-authorship checks and the helpers QMOMKit has no use
 ##     for (format_inst, format_python_file, process_changed) were removed.
+##   - process() takes its files from 'git ls-files' instead of 'find', so it
+##     leaves ignored build trees alone, and runs 2 processes instead of 10.
 ##
 ## Detailed license information governing the original source code can be
 ## found in LICENSE.md and CONTRIBUTING.md at the top level directory of
@@ -210,34 +212,32 @@ ensure_single_trailing_newline()
 export -f ensure_single_trailing_newline
 
 #
-# Collect all files found in a list of directories "${1}" matching a
-# regular expression "${2}", and process them with a command "${3}" on 10
-# threads in parallel.
+# Collect all files in a list of directories "${1}" that git tracks or would
+# track, that is, all files .gitignore does not exclude, keep those matching a
+# regular expression "${2}", and process them with a command "${3}" on 2
+# processes in parallel. Ignored files, such as those in build trees, are left
+# alone.
 #
 # The command line is a bit complicated, so let's discuss the more
 # complicated arguments:
-# - For 'find', -print0 makes sure that file names are separated by \0
-#   characters, as opposed to the default \n. That's because, surprisingly,
-#   \n is a valid character in a file name, whereas \0 is not -- so it
-#   serves as a good candidate to separate individual file names.
+# - For 'git ls-files' and 'grep', -z makes sure that file names are
+#   separated by \0 characters, as opposed to the default \n. That's because,
+#   surprisingly, \n is a valid character in a file name, whereas \0 is not --
+#   so it serves as a good candidate to separate individual file names.
 # - For 'xargs', -0 does the opposite: it separates filenames that are
 #   delimited by \0
-# - the option "-P 10" starts up to 10 processes in parallel. -0 implies '-L 1'
+# - the option "-P 2" starts up to 2 processes in parallel. -I implies '-L 1'
 #   (one argument to each command) so each launch of clang-format corresponds
 #   to exactly one file.
+# - git also lists a tracked file that was deleted but not yet staged. The
+#   test for its existence skips it, which keeps the commands from writing it
+#   anew.
 #
 
 process()
 {
   directories=$1
-  case "${OSTYPE}" in
-    darwin*)
-      find -E ${directories} -regex "${2}" -print0 |
-        xargs -0 -P 10 -I {} bash -c "${3} {}"
-      ;;
-    *)
-      find ${directories} -regextype egrep -regex "${2}" -print0 |
-        xargs -0 -P 10 -I {} bash -c "${3} {}"
-      ;;
-  esac
+  git ls-files -z --cached --others --exclude-standard -- ${directories} |
+    grep -z -E "^${2}$" |
+    xargs -0 -P 2 -I {} bash -c "test -f {} || exit 0; ${3} {}"
 }

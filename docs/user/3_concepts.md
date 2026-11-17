@@ -101,7 +101,7 @@ and output writers, when a file cannot be written. The
 | callback | A function you supply with the physics: a velocity, a source, or a boundary contribution. |
 | case | The fixed setup of a reconstruction: moments, node counts, options. |
 | conditioning order | The order in which CQMOM reconstructs the coordinates. |
-| family | How the moments of a coordinate become nodes, `QmomOptions::family`; `classical` by default. |
+| family | How the moments of a coordinate become nodes, `QmomCase::family`; `classical` by default. |
 | hierarchy | The node counts of a CQMOM case and its conditioning order, `PhaseSpaceHierarchy`. |
 | layout | The moments a CQMOM hierarchy requires, in a fixed order, `CqmomMomentLayout`. |
 | node | A weighted point of a quadrature. |

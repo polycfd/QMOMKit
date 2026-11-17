@@ -12,11 +12,8 @@ order is a separate permutation that only sets the traversal; see
 [Numerical conventions](numerical_conventions.md). Below, $c_l$ is the
 coordinate at conditioning level $l$ and $N_l$ its configured node count.
 
-Every inversion of CQMOM is classical: `compute_cqmom(const CqmomCase&)` and
-`internal::compute_cqmom_internal`, through which every CQMOM reconstruction
-passes, refuse a `QmomOptions::family` other than `classical` as
-`invalid_input`, so cases, prepared cases, state candidates and the evolution
-all refuse it ([QMOM families](qmom_families.md)).
+Every inversion of CQMOM is classical: a `CqmomCase` holds `QmomOptions`,
+which carry no family ([QMOM families](qmom_families.md)).
 
 ## The recursion
 
@@ -212,16 +209,16 @@ nothing there.
 
 | `CqmomStatus` | Cause |
 | --- | --- |
-| `invalid_input` | Invalid conditional options or diagnostic level, a layout or values that do not fit the hierarchy, non-finite moments, invalid bounds or active counts, node counts whose $2N$ overflows, a QMOM family other than `classical`. |
+| `invalid_input` | Invalid conditional options or diagnostic level, a layout or values that do not fit the hierarchy, non-finite moments, invalid bounds or active counts, node counts whose $2N$ overflows. |
 | `qmom_failed` | A branch's Wheeler inversion failed, or a fixed branch returned another count. |
 | `conditional_moment_failed` | A branch's conditional system could not be solved or had non-finite inputs. |
 
 `failed_phase_space_dimension` is the coordinate of the failing level and has
 no meaning on success or for input rejected before the traversal. Check `ok()`
 first: after a failure, rectangular storage holds zeros where no terminal node
-was assembled and ragged storage is empty; either is diagnostic only. A QMOM
-family or node counts that `compute_cqmom` refuses before the reconstruction
-starts leave either storage empty.
+was assembled and ragged storage is empty; either is diagnostic only. Node
+counts that `compute_cqmom` refuses before the reconstruction starts leave
+either storage empty.
 
 ## Moments from a quadrature
 

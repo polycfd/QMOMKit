@@ -18,7 +18,7 @@ access classes ([Architecture](architecture.md#public-and-internal-boundary)).
 | | `QmomState` | `CqmomState` |
 | --- | --- | --- |
 | Moments | $m_0, \ldots, m_{K-1}$, as many as the case or candidate gave | the required moments of the hierarchy's layout |
-| Reconstruction settings | the case's node count $N$, `QmomOptions` with its family, abscissa bounds, copied from the case; `maximum_node_count()` is the family's maximum ([QMOM families](qmom_families.md)) | the settings of the `CqmomCase`, and the prepared branch structure, shared read-only along the lineage |
+| Reconstruction settings | the case's node count $N$, `QmomOptions`, abscissa bounds, family and the settings of the generalized family, copied from the case; `maximum_node_count()` is the family's maximum ([QMOM families](qmom_families.md)) | the settings of the `CqmomCase`, and the prepared branch structure, shared read-only along the lineage |
 | Node counts | `active_node_count()`, the number of quadrature nodes, and `base_node_count()`, the number of nodes of the classical quadrature on which they rest | `active_branch_counts()`, one entry per branch; empty for a fixed case |
 | Quadrature | `quadrature()`, the accepted `QmomResult` | `quadrature()`, the accepted `CqmomQuadrature` |
 

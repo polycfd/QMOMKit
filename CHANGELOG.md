@@ -47,6 +47,14 @@ and this project adheres to
 - `[output] generalized_moments` with the wrong number of exponents for the
   phase space is now reported when the file is loaded. Before, the error only
   appeared when the moment writer was created.
+- The static libraries of QMOMKit and of the Monte Carlo companion are
+  compiled as position-independent code, so a host can link them into a
+  shared library of its own on Linux.
+- The Monte Carlo companion requires a QMOMKit of at least its own version
+  and of the same major version. Its installed package requires exactly the
+  QMOMKit it was built against. An optional lookup of the installed companion
+  now reports it as not found when QMOMKit is missing, instead of stopping
+  with an error.
 
 ## [1.0.0] - 2026-10-28
 

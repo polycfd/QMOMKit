@@ -15,6 +15,12 @@
 ##     of DEAL_II_CLANG_FORMAT.
 ##   - deal.II's commit-authorship checks and the helpers QMOMKit has no use
 ##     for (format_inst, format_python_file, process_changed) were removed.
+##   - process() takes its files from 'git ls-files' instead of 'find', so it
+##     leaves ignored build trees alone, passes each file to the command as an
+##     argument, and runs 2 processes instead of 10. checks() therefore also
+##     requires a git checkout, and fix_permissions() quotes the file name.
+##   - fix_permissions() reads the permission bits on macOS with '%Lp'
+##     instead of '%a', which BSD stat takes as the access time.
 ##
 ## Detailed license information governing the original source code can be
 ## found in LICENSE.md and CONTRIBUTING.md at the top level directory of
@@ -43,13 +49,19 @@ CLANG_FORMAT_REQUIRED_MAJOR_VERSION=22
 CLANG_FORMAT_REQUIRED_MINOR_VERSION=1
 
 #
-# This function checks that we are in the root directory and that
-# clang-format is available with the right version.
+# This function checks that we are in the root directory of a git checkout and
+# that clang-format is available with the right version.
 #
 
 checks() {
   if test ! -d src -o ! -d include -o ! -d tests ; then
     echo "*** This script must be run from the top-level directory of QMOMKit."
+    exit 1
+  fi
+
+  # The files to process come from git.
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "*** This script must be run in a git checkout of QMOMKit."
     exit 1
   fi
 
@@ -176,12 +188,14 @@ fix_permissions()
 {
   file="${1}"
 
+  # BSD stat prints the permission bits in octal with '%Lp' ('%a' is the
+  # access time), GNU stat with '%a'.
   case "${OSTYPE}" in
     darwin*)
-      PERMISSIONS="$(stat -f '%a' ${file})"
+      PERMISSIONS="$(stat -f '%Lp' "${file}")"
       ;;
     *)
-      PERMISSIONS="$(stat -c '%a' ${file})"
+      PERMISSIONS="$(stat -c '%a' "${file}")"
       ;;
   esac
 
@@ -210,34 +224,34 @@ ensure_single_trailing_newline()
 export -f ensure_single_trailing_newline
 
 #
-# Collect all files found in a list of directories "${1}" matching a
-# regular expression "${2}", and process them with a command "${3}" on 10
-# threads in parallel.
+# Collect the files in a list of directories "${1}" that git tracks, and the
+# untracked files that git's exclude rules, such as .gitignore, do not exclude.
+# Keep those matching a regular expression "${2}", and process them with a
+# command "${3}" on 2 processes in parallel. Ignored files, such as those in
+# build trees, are left alone.
 #
 # The command line is a bit complicated, so let's discuss the more
 # complicated arguments:
-# - For 'find', -print0 makes sure that file names are separated by \0
-#   characters, as opposed to the default \n. That's because, surprisingly,
-#   \n is a valid character in a file name, whereas \0 is not -- so it
-#   serves as a good candidate to separate individual file names.
+# - For 'git ls-files' and 'grep', -z makes sure that file names are
+#   separated by \0 characters, as opposed to the default \n. That's because,
+#   surprisingly, \n is a valid character in a file name, whereas \0 is not --
+#   so it serves as a good candidate to separate individual file names.
 # - For 'xargs', -0 does the opposite: it separates filenames that are
 #   delimited by \0
-# - the option "-P 10" starts up to 10 processes in parallel. -0 implies '-L 1'
-#   (one argument to each command) so each launch of clang-format corresponds
-#   to exactly one file.
+# - "-n 1" passes one file to each command, so each launch of clang-format
+#   corresponds to exactly one file. bash receives it as "$1", after the
+#   placeholder "_" that becomes "$0", so a file name with spaces stays one
+#   argument and the length of the command does not depend on the name.
+# - the option "-P 2" starts up to 2 processes in parallel.
+# - git also lists a tracked file that was deleted but not yet staged. The
+#   test for its existence skips it, which keeps the commands from writing it
+#   anew.
 #
 
 process()
 {
   directories=$1
-  case "${OSTYPE}" in
-    darwin*)
-      find -E ${directories} -regex "${2}" -print0 |
-        xargs -0 -P 10 -I {} bash -c "${3} {}"
-      ;;
-    *)
-      find ${directories} -regextype egrep -regex "${2}" -print0 |
-        xargs -0 -P 10 -I {} bash -c "${3} {}"
-      ;;
-  esac
+  git ls-files -z --cached --others --exclude-standard -- ${directories} |
+    grep -z -E "^${2}$" |
+    xargs -0 -n 1 -P 2 bash -c 'test -f "$1" || exit 0; '"${3}"' "$1"' _
 }

@@ -21,7 +21,9 @@ include(CMakePackageConfigHelpers)
 option(BUILD_TESTING "Build QMOMKitMonteCarlo tests" OFF)
 include(CTest)
 
-find_package(QMOMKit CONFIG REQUIRED)
+# The companion is versioned with QMOMKit and needs a QMOMKit of at least its own
+# version and of the same major version.
+find_package(QMOMKit ${PROJECT_VERSION} CONFIG REQUIRED)
 
 add_library(
     qmomkit_monte_carlo
@@ -33,6 +35,10 @@ add_library(
     src/sampled_initialization.cpp
 )
 add_library(qmomkit_monte_carlo::qmomkit_monte_carlo ALIAS qmomkit_monte_carlo)
+
+# A host may link the static library into a shared library of its own, which on
+# Linux requires position-independent code.
+set_target_properties(qmomkit_monte_carlo PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_compile_features(qmomkit_monte_carlo PUBLIC cxx_std_17)
 target_include_directories(
@@ -106,7 +112,7 @@ install(
 )
 
 configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/QMOMKitMonteCarloConfig.cmake.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/QMOMKitMonteCarloConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/QMOMKitMonteCarloConfig.cmake"
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QMOMKitMonteCarlo
 )

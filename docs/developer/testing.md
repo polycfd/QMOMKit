@@ -14,7 +14,7 @@ are in [AGENTS.md](../../AGENTS.md#testing-and-verification).
 | [`tests/component_regression/`](../../tests/component_regression) | `component_regression` | an interaction between components, status propagation, or fragile behavior a maintainer could break while verification passes |
 | [`tests/verification/`](../../tests/verification) | `verification` | a mathematical property or public workflow against an analytical, manufactured, convergence or otherwise independent reference |
 | [`tests/public_headers/`](../../tests/public_headers) | `public_headers` | that each installed header compiles when included first; add an `include_<header>.cpp` with every public header |
-| [`tests/package_consumer/`](../../tests/package_consumer) | not in CTest | that an external project finds, includes and links the installed package |
+| [`tests/package_consumer/`](../../tests/package_consumer) | not in CTest | that an external project finds, includes and links the installed package, also into a shared library |
 
 Examples under [`examples/`](../../examples) are user documentation built
 against the installed package, never tests
@@ -156,8 +156,10 @@ cmake --build build-monte-carlo-consumer -j8
 
 The consumer uses only `find_package(QMOMKit CONFIG REQUIRED)` and
 `qmomkit::qmomkit`, includes `<qmomkit/qmomkit.hpp>`, and runs a short QMOM and
-CQMOM workflow; it returns non-zero if any step fails. Run it when changing
-installation, exports, package metadata or installed headers.
+CQMOM workflow; it returns non-zero if any step fails. Its build also links
+the library into a shared library, which on Linux needs position-independent
+code. Run it when changing installation, exports, package metadata or installed
+headers.
 `tools/monte_carlo/tests/package_consumer/` checks the installed companion
 package the same way, from the same prefix.
 
@@ -187,9 +189,10 @@ Formatting follows [`.clang-format`](../../.clang-format) and requires
 clang-format 22.1 exactly; the scripts check the version.
 `./tools/download_clang_format` installs it into `tools/programs/`.
 [`tools/indent-all`](../../tools/indent-all) formats every `.cpp` and `.hpp`
-under `include`, `src`, `tests`, `examples` and `tools`, and also fixes
-trailing whitespace, line endings and final newlines; `check_indentation.sh`
-runs it and fails if any file changed. Run from the repository root:
+that git lists under `include`, `src`, `tests`, `examples` and `tools`, so it
+skips ignored files such as build trees, and also fixes trailing whitespace,
+line endings and final newlines; `check_indentation.sh` runs it and fails if
+any file changed. Run it from the root of a git checkout:
 
 ```bash
 ./tools/download_clang_format          # once

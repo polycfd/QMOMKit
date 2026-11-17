@@ -21,8 +21,8 @@ include(CMakePackageConfigHelpers)
 option(BUILD_TESTING "Build QMOMKitMonteCarlo tests" OFF)
 include(CTest)
 
-# The companion is versioned with QMOMKit and needs at least the QMOMKit of its
-# own version.
+# The companion is versioned with QMOMKit and needs a QMOMKit of at least its own
+# version and of the same major version.
 find_package(QMOMKit ${PROJECT_VERSION} CONFIG REQUIRED)
 
 add_library(

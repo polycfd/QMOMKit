@@ -50,9 +50,11 @@ and this project adheres to
 - The static libraries of QMOMKit and of the Monte Carlo companion are
   compiled as position-independent code, so a host can link them into a
   shared library of its own on Linux.
-- The Monte Carlo companion requires a QMOMKit of at least its own version.
-  Its installed package requires the QMOMKit it was built against, or a newer
-  one of the same major version.
+- The Monte Carlo companion requires a QMOMKit of at least its own version
+  and of the same major version. Its installed package requires exactly the
+  QMOMKit it was built against. An optional lookup of the installed companion
+  now reports it as not found when QMOMKit is missing, instead of stopping
+  with an error.
 
 ## [1.0.0] - 2026-10-28
 

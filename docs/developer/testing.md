@@ -161,7 +161,7 @@ the library into a shared library, which on Linux needs position-independent
 code. Run it when changing installation, exports, package metadata or installed
 headers.
 `tools/monte_carlo/tests/package_consumer/` checks the installed companion
-package the same way, from the same prefix, but without a shared library.
+package the same way, from the same prefix.
 
 ## CI gates
 
@@ -189,9 +189,10 @@ Formatting follows [`.clang-format`](../../.clang-format) and requires
 clang-format 22.1 exactly; the scripts check the version.
 `./tools/download_clang_format` installs it into `tools/programs/`.
 [`tools/indent-all`](../../tools/indent-all) formats every `.cpp` and `.hpp`
-under `include`, `src`, `tests`, `examples` and `tools`, and also fixes
-trailing whitespace, line endings and final newlines; `check_indentation.sh`
-runs it and fails if any file changed. Run from the repository root:
+that git lists under `include`, `src`, `tests`, `examples` and `tools`, so it
+skips ignored files such as build trees, and also fixes trailing whitespace,
+line endings and final newlines; `check_indentation.sh` runs it and fails if
+any file changed. Run it from the root of a git checkout:
 
 ```bash
 ./tools/download_clang_format          # once

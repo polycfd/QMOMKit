@@ -10,3 +10,12 @@ target_link_libraries(
     consumer
     PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo
 )
+
+# Building this library is the check: it links the installed static companion
+# into a shared one.
+add_library(shared_library_consumer SHARED shared_library.cpp)
+
+target_link_libraries(
+    shared_library_consumer
+    PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo
+)

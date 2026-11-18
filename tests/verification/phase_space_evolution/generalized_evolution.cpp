@@ -99,13 +99,11 @@ std::vector<double> point_moments(const std::vector<double>& abscissas, const st
     return moments;
 }
 
-qmomkit::QmomOptions generalized_options(const std::size_t n, const bool adaptive)
+qmomkit::QmomCase generalized_case(const qmomkit::MomentSet& moments, const std::size_t n, const bool adaptive)
 {
-    qmomkit::QmomOptions options;
-    options.adaptive = adaptive;
-    options.family = qmomkit::QmomFamily::generalized;
-    options.generalized.node_count = 3 * n;
-    return options;
+    qmomkit::QmomCase qmom_case{moments, n, {adaptive}, {}, qmomkit::QmomFamily::generalized};
+    qmom_case.generalized_options.node_count = 3 * n;
+    return qmom_case;
 }
 
 qmomkit::QmomMomentSource relaxation_towards(const std::vector<double>& equilibrium)
@@ -147,7 +145,7 @@ void verify_decay_on_the_nodes()
     for (const std::size_t n : {std::size_t{2}, std::size_t{3}})
     {
         const std::vector<double> initial = normal_moments(2.0, 0.75, 0.5, (2 * n) + 1);
-        qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, generalized_options(n, true)}.initial_state();
+        qmomkit::QmomState state = generalized_case(qmomkit::MomentSet(initial), n, true).initial_state();
         QMOMKIT_VERIFY_CHECK(state.active_node_count() == 3 * n && state.base_node_count() == n);
         for (std::size_t step = 1; step <= steps; ++step)
         {
@@ -172,7 +170,7 @@ void verify_constant_velocity_shifts_the_distribution()
     for (const std::size_t n : {std::size_t{2}, std::size_t{3}})
     {
         const std::vector<double> initial = normal_moments(2.0, 0.75, 0.5, (2 * n) + 1);
-        const qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, generalized_options(n, true)}.initial_state();
+        const qmomkit::QmomState state = generalized_case(qmomkit::MomentSet(initial), n, true).initial_state();
         const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_advection(state, 0.0, time_step, constant);
         QMOMKIT_VERIFY_CHECK(result.ok());
         QMOMKIT_VERIFY_CHECK(result.state.active_node_count() == 3 * n && result.state.base_node_count() == n);
@@ -195,7 +193,7 @@ void verify_growth_from_one_point()
     const std::vector<double> equilibrium = normal_moments(1.0, 0.0, 1.0, (2 * n) + 1);
     const std::vector<double> initial = point_moments({0.5}, {2.0}, (2 * n) + 1);
     const qmomkit::QmomMomentSource source = relaxation_towards(equilibrium);
-    qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, generalized_options(n, true)}.initial_state();
+    qmomkit::QmomState state = generalized_case(qmomkit::MomentSet(initial), n, true).initial_state();
     QMOMKIT_VERIFY_CHECK(state.active_node_count() == 1 && state.base_node_count() == 1);
     const double z = -time_step / theta;
     for (std::size_t step = 1; step <= n + 2; ++step)
@@ -225,7 +223,7 @@ void verify_fixed_boundary_start()
             abscissas[point] = 0.5 + (0.75 * static_cast<double>(point));
         }
         const std::vector<double> initial = point_moments(abscissas, std::vector<double>(n, 2.0 / static_cast<double>(n)), (2 * n) + 1);
-        const qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, generalized_options(n, false)}.initial_state();
+        const qmomkit::QmomState state = generalized_case(qmomkit::MomentSet(initial), n, false).initial_state();
         QMOMKIT_VERIFY_CHECK(state.active_node_count() == n && state.base_node_count() == n);
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_qmom_moment_source(state, 0.0, time_step, relaxation_towards(equilibrium));

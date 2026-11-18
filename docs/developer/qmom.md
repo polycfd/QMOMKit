@@ -186,9 +186,9 @@ whatever count is accepted.
 
 ## Cases, results and statuses
 
-`QmomCase` holds `moments`, `node_count`, `qmom_options` and
-`abscissa_bounds`; `compute_qmom(case)` forwards all four. `compute_qmom(...)`
-maps `QuadratureStatus` one to one onto `QmomStatus`:
+`QmomCase` holds `moments`, `node_count`, `qmom_options`, `abscissa_bounds`,
+`family` and `generalized_options`, and `compute_qmom(case)` forwards all six.
+`compute_qmom(...)` maps `QuadratureStatus` one to one onto `QmomStatus`:
 
 | Status | Cause |
 | --- | --- |

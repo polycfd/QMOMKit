@@ -433,11 +433,9 @@ void test_hyqmom_characteristic_speeds_record_one_wheeler_call_when_enabled()
     // The speeds invert the stored moments once, whether they give the n + 1
     // nodes or a classical quadrature on the boundary, and return no
     // quadrature, so no QMOM reconstruction is recorded.
-    qmomkit::QmomOptions options;
-    options.family = qmomkit::QmomFamily::hyperbolic;
     for (const qmomkit::MomentSet& moments : {qmomkit::MomentSet{1.0, 0.0, 1.0, 0.25, 2.0}, qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 1.0}})
     {
-        const qmomkit::QmomState state = qmomkit::QmomCase{moments, 2, options}.initial_state();
+        const qmomkit::QmomState state = qmomkit::QmomCase{moments, 2, {}, {}, qmomkit::QmomFamily::hyperbolic}.initial_state();
         qmomkit::internal::performance::CounterSession session;
         {
             qmomkit::internal::performance::CounterScope scope(session);

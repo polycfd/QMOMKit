@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cqmom_case.hpp"
+#include "qmom_family.hpp"
 #include "qmomkit/moment_source.hpp"
 
 namespace qmomkit::internal
@@ -9,8 +10,8 @@ namespace qmomkit::internal
 class QmomSourceContextAccess
 {
 public:
-    [[nodiscard]] static QmomSourceContext create(double time, const std::vector<double>& values, std::size_t reconstruction_node_count,
-                                                  const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds);
+    [[nodiscard]] static QmomSourceContext create(double time, const std::vector<double>& values,
+                                                  const QmomReconstructionRequest& reconstruction_request);
 };
 
 class CqmomSourceContextAccess
@@ -31,16 +32,16 @@ void validate_cqmom_moment_source_options(const MomentSourceUpdateOptions& optio
 // This entry point is for validated QMOM phase-space evolution only. The
 // caller owns the source-stage reconstruction metadata; evolving values,
 // source controls, callbacks, and callback rates are still validated.
-[[nodiscard]] QmomMomentSourceUpdateResult
-advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step, const QmomMomentSource& source,
-                                         const MomentSourceUpdateOptions& options, std::size_t reconstruction_node_count,
-                                         const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds);
+[[nodiscard]] QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step,
+                                                                                    const QmomMomentSource& source,
+                                                                                    const MomentSourceUpdateOptions& options,
+                                                                                    const QmomReconstructionRequest& reconstruction_request);
 
-[[nodiscard]] QmomMomentSourceUpdateResult
-advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step, const QmomMomentSource& source,
-                                         const QmomMomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options,
-                                         std::size_t reconstruction_node_count, const QmomOptions& reconstruction_options,
-                                         std::optional<AbscissaBounds> reconstruction_bounds);
+[[nodiscard]] QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step,
+                                                                                    const QmomMomentSource& source,
+                                                                                    const QmomMomentBoundaryContribution& boundary,
+                                                                                    const MomentSourceUpdateOptions& options,
+                                                                                    const QmomReconstructionRequest& reconstruction_request);
 
 // This entry point is for validated CqmomState phase-space evolution only. The caller owns
 // the proof that the fixed source layout is immutable and valid; evolving

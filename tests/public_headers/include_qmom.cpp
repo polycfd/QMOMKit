@@ -6,14 +6,15 @@
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().maximum_node_count()), std::size_t>);
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().qmom_options()), const qmomkit::QmomOptions&>);
 
-// The quadrature family is an option of its own, with the classical family as
-// its default.
-static_assert(std::is_same_v<decltype(qmomkit::QmomOptions::family), qmomkit::QmomFamily>);
-static_assert(qmomkit::QmomOptions{}.family == qmomkit::QmomFamily::classical);
+// The quadrature family and the settings of the generalized family are members
+// of the case, which a state keeps.
+static_assert(std::is_same_v<decltype(qmomkit::QmomCase::family), qmomkit::QmomFamily>);
+static_assert(std::is_same_v<decltype(qmomkit::QmomCase::generalized_options), qmomkit::GeneralizedOptions>);
+static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().family()), qmomkit::QmomFamily>);
+static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomState&>().generalized_options()), const qmomkit::GeneralizedOptions&>);
 
 // The settings of the generalized family: N_G has no default, and the
 // continuation and nu default to normal and 1.
-static_assert(std::is_same_v<decltype(qmomkit::QmomOptions::generalized), qmomkit::GeneralizedOptions>);
 static_assert(std::is_same_v<decltype(qmomkit::GeneralizedOptions::node_count), std::size_t>);
 static_assert(qmomkit::GeneralizedOptions{}.node_count == 0);
 static_assert(qmomkit::GeneralizedOptions{}.continuation == qmomkit::GeneralizedContinuation::normal);

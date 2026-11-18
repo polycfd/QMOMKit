@@ -8,7 +8,7 @@ other pages of this guide assume the default, `classical` QMOM. A specific QMOM
 family can be selected on the case, for instance
 
 ```cpp
-qmom_case.qmom_options.family = qmomkit::QmomFamily::hyperbolic;
+qmom_case.family = qmomkit::QmomFamily::hyperbolic;
 ```
 
 or in a file with `[phase_space] qmom_family = hyperbolic`.
@@ -84,8 +84,8 @@ the moment method.
 $N_G$ has no default and must exceed $N$:
 
 ```cpp
-qmom_case.qmom_options.family = qmomkit::QmomFamily::generalized;
-qmom_case.qmom_options.generalized.node_count = 20;
+qmom_case.family = qmomkit::QmomFamily::generalized;
+qmom_case.generalized_options.node_count = 20;
 ```
 
 or in a file with `[phase_space] qmom_family = generalized` and
@@ -93,16 +93,16 @@ or in a file with `[phase_space] qmom_family = generalized` and
 
 The continuation decides which number density the $N_G$ nodes represent.
 `normal`, the default, is for a number density on the real line and takes no
-bounds. Its parameter $\nu$, `generalized.nu` or `generalized_nu`, 1 by default,
-controls the tails: $\nu = 1$ gives Gaussian tails, $\nu = 2$ exponential
-tails, $\nu = 0$ a number density on a bounded interval (Fox et al., 2023,
-Fig. 1), and a negative $\nu$ can give several modes. `gamma` and `lognormal`
-are for a number density on $[0, \infty)$, such as that of sizes or volumes,
-and `beta` for one on $[0, 1]$, such as that of fractions. None of them has a
-parameter:
+bounds. Its parameter $\nu$, `generalized_options.nu` or `generalized_nu`, 1
+by default, controls the tails: $\nu = 1$ gives Gaussian tails, $\nu = 2$
+exponential tails, $\nu = 0$ a number density on a bounded interval (Fox et
+al., 2023, Fig. 1), and a negative $\nu$ can give several modes. `gamma` and
+`lognormal` are for a number density on $[0, \infty)$, such as that of sizes
+or volumes, and `beta` for one on $[0, 1]$, such as that of fractions. None of
+them has a parameter:
 
 ```cpp
-qmom_case.qmom_options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
+qmom_case.generalized_options.continuation = qmomkit::GeneralizedContinuation::gamma;
 ```
 
 or `generalized_continuation = gamma` in a file, and `lognormal` and `beta`

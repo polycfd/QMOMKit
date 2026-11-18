@@ -258,14 +258,10 @@ void verify_moments(const GeneralizedReference& reference, const qmomkit::QmomRe
 
 void verify_reference(const GeneralizedReference& reference)
 {
-    qmomkit::QmomOptions adaptive;
-    adaptive.family = qmomkit::QmomFamily::generalized;
-    adaptive.rmin = reference.rmin;
-    adaptive.generalized.node_count = reference.continued_node_count;
-    adaptive.generalized.nu = reference.nu;
-    adaptive.generalized.continuation = reference.continuation;
-    const qmomkit::MomentSet moments(reference.moments);
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, reference.n, adaptive, reference.bounds);
+    qmomkit::QmomCase qmom_case{qmomkit::MomentSet(reference.moments), reference.n, {}, reference.bounds, qmomkit::QmomFamily::generalized};
+    qmom_case.qmom_options.rmin = reference.rmin;
+    qmom_case.generalized_options = {reference.continued_node_count, reference.continuation, reference.nu};
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(qmom_case);
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.base_node_count == reference.base_node_count);
     const std::size_t nodes = reference.weights.size();
@@ -287,9 +283,9 @@ void verify_reference(const GeneralizedReference& reference)
     {
         return;
     }
-    qmomkit::QmomOptions fixed = adaptive;
-    fixed.adaptive = false;
-    const qmomkit::QmomResult fixed_result = qmomkit::compute_qmom(moments, reference.n, fixed, reference.bounds);
+    qmomkit::QmomCase fixed_case = qmom_case;
+    fixed_case.qmom_options.adaptive = false;
+    const qmomkit::QmomResult fixed_result = qmomkit::compute_qmom(fixed_case);
     if (reference.fixed_refused)
     {
         QMOMKIT_VERIFY_CHECK(fixed_result.status == qmomkit::QmomStatus::not_realizable && fixed_result.base_node_count == 0);

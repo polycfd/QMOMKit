@@ -121,13 +121,6 @@ qmomkit::QmomMomentSource relaxation_towards(const std::vector<double>& equilibr
     };
 }
 
-qmomkit::QmomOptions hyperbolic_options()
-{
-    qmomkit::QmomOptions options;
-    options.family = qmomkit::QmomFamily::hyperbolic;
-    return options;
-}
-
 void verify_near(const double actual, const double expected, const double relative_tolerance = tolerance)
 {
     QMOMKIT_VERIFY_NEAR(actual, expected, relative_tolerance * std::max(std::abs(expected), 1.0));
@@ -178,7 +171,7 @@ void verify_interior_moments_keep_n_plus_one_nodes()
         const std::vector<double> equilibrium = normal_moments(1.0, 0.0, 1.0, count);
         const std::vector<double> initial = normal_moments(2.0, 0.75, 0.5, count);
         const qmomkit::QmomMomentSource source = relaxation_towards(equilibrium);
-        qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, hyperbolic_options()}.initial_state();
+        qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, {}, {}, qmomkit::QmomFamily::hyperbolic}.initial_state();
         QMOMKIT_VERIFY_CHECK(state.active_node_count() == n + 1);
         for (std::size_t step = 1; step <= steps; ++step)
         {
@@ -226,7 +219,7 @@ void verify_boundary_moments_grow_to_n_plus_one_nodes()
                 abscissas[point] = 0.5 + (0.75 * static_cast<double>(point));
             }
             const std::vector<double> initial = point_moments(abscissas, std::vector<double>(points, 2.0 / static_cast<double>(points)), count);
-            qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, hyperbolic_options()}.initial_state();
+            qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(initial), n, {}, {}, qmomkit::QmomFamily::hyperbolic}.initial_state();
             QMOMKIT_VERIFY_CHECK(state.active_node_count() == points);
             for (std::size_t step = 1; step <= n + 3 - points; ++step)
             {

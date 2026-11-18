@@ -654,9 +654,8 @@ void test_qmom_quadrature_output_follows_the_hyperbolic_maximum_node_count()
     // A hyperbolic state at n = 1 holds the two nodes of J_2, one more than n:
     // a writer for maximum_node_count() nodes writes both, one for n nodes
     // refuses them.
-    qmomkit::QmomOptions options;
-    options.family = qmomkit::QmomFamily::hyperbolic;
-    const qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet{5.0, 3.75, 4.0625}, 1, options}.initial_state();
+    const qmomkit::QmomState state =
+        qmomkit::QmomCase{qmomkit::MomentSet{5.0, 3.75, 4.0625}, 1, {}, {}, qmomkit::QmomFamily::hyperbolic}.initial_state();
     assert(state.maximum_node_count() == 2);
     assert(state.active_node_count() == 2);
 

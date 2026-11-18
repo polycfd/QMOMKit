@@ -1168,12 +1168,32 @@ void test_public_qmom_moment_source_stage_failures_roll_back()
     assert_qmom_quadrature_near(inversion_failure.state.quadrature(), state.quadrature(), 0.0);
 }
 
-qmomkit::QmomOptions hyperbolic_qmom_options(const bool adaptive)
+// The family, its settings and the options of a case, which QmomCase holds as
+// separate members.
+struct FamilySettings
 {
-    qmomkit::QmomOptions options;
-    options.adaptive = adaptive;
-    options.family = qmomkit::QmomFamily::hyperbolic;
-    return options;
+    qmomkit::QmomFamily family = qmomkit::QmomFamily::classical;
+    qmomkit::GeneralizedOptions generalized_options{};
+    qmomkit::QmomOptions qmom_options{};
+};
+
+qmomkit::QmomCase family_case(const qmomkit::MomentSet& moments, const std::size_t node_count, const FamilySettings& settings,
+                              std::optional<qmomkit::AbscissaBounds> abscissa_bounds = {})
+{
+    return qmomkit::QmomCase{moments, node_count, settings.qmom_options, std::move(abscissa_bounds), settings.family, settings.generalized_options};
+}
+
+qmomkit::QmomState family_state(const std::vector<double>& moments, const std::size_t node_count, const FamilySettings& settings,
+                                std::optional<qmomkit::AbscissaBounds> abscissa_bounds = {})
+{
+    return family_case(qmomkit::MomentSet(moments), node_count, settings, std::move(abscissa_bounds)).initial_state();
+}
+
+FamilySettings hyperbolic_qmom_options(const bool adaptive)
+{
+    FamilySettings settings{qmomkit::QmomFamily::hyperbolic};
+    settings.qmom_options.adaptive = adaptive;
+    return settings;
 }
 
 qmomkit::QmomMomentRate zero_qmom_rate(double, const qmomkit::QmomSourceContext& context)
@@ -1201,8 +1221,7 @@ void test_hyperbolic_qmom_state_keeps_n_plus_one_nodes_until_the_boundary()
     // the target exactly. Interior moments keep the three nodes of J_3, the
     // moments of two points take the classical two-node rule, and advection
     // keeps the count, n and the maximum.
-    const qmomkit::QmomState state =
-        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState state = family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
     assert_hyperbolic_counts(state, 3, 2);
 
     const std::vector<double> interior = raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5);
@@ -1210,8 +1229,8 @@ void test_hyperbolic_qmom_state_keeps_n_plus_one_nodes_until_the_boundary()
         qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, qmom_source_from_to(state.moment_values(), interior));
     assert(kept.ok());
     assert_hyperbolic_counts(kept.state, 3, 2);
-    assert_qmom_quadrature_near(kept.state.quadrature(), qmomkit::compute_qmom(qmomkit::MomentSet(interior), 2, hyperbolic_qmom_options(true)),
-                                1.0e-12);
+    assert_qmom_quadrature_near(kept.state.quadrature(),
+                                qmomkit::compute_qmom(family_case(qmomkit::MomentSet(interior), 2, hyperbolic_qmom_options(true))), 1.0e-12);
 
     const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(kept.state, 1.0, 0.5, zero_qmom_velocity());
     assert(advected.ok());
@@ -1235,7 +1254,7 @@ void test_hyperbolic_qmom_state_grows_through_the_classical_counts()
     // one node: the classical rules of two and three nodes, then the four
     // nodes of J_4, which the state keeps.
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
-    qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 7), 3, hyperbolic_qmom_options(true));
+    qmomkit::QmomState state = family_state(raw_moments_1d({0.5}, {1.0}, 7), 3, hyperbolic_qmom_options(true));
     assert_hyperbolic_counts(state, 1, 3);
     for (std::size_t step = 1; step <= 5; ++step)
     {
@@ -1244,8 +1263,9 @@ void test_hyperbolic_qmom_state_grows_through_the_classical_counts()
         assert(result.ok());
         const std::size_t count = std::min<std::size_t>(1 + step, 4);
         assert_hyperbolic_counts(result.state, count, 3);
-        const qmomkit::QmomResult expected = count == 4 ? qmomkit::compute_qmom(qmomkit::MomentSet(five_points), 3, hyperbolic_qmom_options(true))
-                                                        : qmomkit::compute_qmom(qmomkit::MomentSet(five_points), count);
+        const qmomkit::QmomResult expected =
+            count == 4 ? qmomkit::compute_qmom(family_case(qmomkit::MomentSet(five_points), 3, hyperbolic_qmom_options(true)))
+                       : qmomkit::compute_qmom(qmomkit::MomentSet(five_points), count);
         assert_qmom_quadrature_near(result.state.quadrature(), expected, 1.0e-10);
         state = result.state;
     }
@@ -1258,15 +1278,15 @@ void test_hyperbolic_qmom_state_below_its_maximum_keeps_a_classical_count_when_g
     // state keeps one node, the classical quadrature of its count. HyQMOM with
     // node count 1 would return two nodes of equal weight from the same
     // moments, since rmin does not apply to its extra node.
-    qmomkit::QmomOptions options = hyperbolic_qmom_options(true);
-    options.rmin = 0.99;
+    FamilySettings options = hyperbolic_qmom_options(true);
+    options.qmom_options.rmin = 0.99;
     const std::vector<double> five_points = raw_moments_1d({6.75, 8.5, 9.0, 10.75, 11.0}, {0.25, 0.375, 0.125, 0.25, 0.0625}, 7);
-    qmomkit::QmomOptions classical_options = options;
+    FamilySettings classical_options = options;
     classical_options.family = qmomkit::QmomFamily::classical;
-    assert(qmomkit::compute_qmom(qmomkit::MomentSet(five_points), 2, classical_options).weights.size() == 1);
-    assert(qmomkit::compute_qmom(qmomkit::MomentSet(five_points), 1, options).weights.size() == 2);
+    assert(qmomkit::compute_qmom(family_case(qmomkit::MomentSet(five_points), 2, classical_options)).weights.size() == 1);
+    assert(qmomkit::compute_qmom(family_case(qmomkit::MomentSet(five_points), 1, options)).weights.size() == 2);
 
-    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({8.5}, {1.0625}, 7), 3, options);
+    const qmomkit::QmomState state = family_state(raw_moments_1d({8.5}, {1.0625}, 7), 3, options);
     assert_hyperbolic_counts(state, 1, 3);
     const qmomkit::QmomPhaseSpaceEvolutionResult result =
         qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, qmom_source_from_to(state.moment_values(), five_points));
@@ -1280,8 +1300,7 @@ void test_fixed_hyperbolic_qmom_state_keeps_n_plus_one_nodes_and_fails_on_the_bo
     // A fixed state keeps the three nodes of J_3 while the moments stay
     // interior; the moments of two points fail the post-source inversion and
     // return the input state.
-    const qmomkit::QmomState state =
-        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(false));
+    const qmomkit::QmomState state = family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(false));
     assert_hyperbolic_counts(state, 3, 2);
 
     const std::vector<double> interior = raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5);
@@ -1315,26 +1334,25 @@ void test_qmom_state_base_node_count_after_a_source_step_is_that_of_the_post_sou
         qmomkit::QmomState state;
         std::vector<double> target;
         std::size_t node_count;
-        qmomkit::QmomOptions options;
+        FamilySettings options;
         std::optional<qmomkit::AbscissaBounds> bounds;
         std::size_t active;
         std::size_t base;
     };
     const auto five = [](const std::vector<double>& moments) { return std::vector<double>(moments.begin(), moments.begin() + 5); };
-    const std::vector<Case> cases{{qmom_state_from_moments(four_points, 3), two_points, 3, {}, std::nullopt, 2, 2},
-                                  {qmom_state_from_moments(five(two_points), 2, hyperbolic_qmom_options(true)), five(four_points), 2,
-                                   hyperbolic_qmom_options(true), std::nullopt, 3, 2},
-                                  {qmom_state_from_moments(five(four_points), 2, hyperbolic_qmom_options(false)), five(four_points), 2,
-                                   hyperbolic_qmom_options(false), std::nullopt, 3, 2},
-                                  {qmom_state_from_moments(five(four_points), 2, hyperbolic_qmom_options(true)), five(two_points), 2,
-                                   hyperbolic_qmom_options(true), std::nullopt, 2, 2},
-                                  {qmom_state_from_moments(raw_moments_1d({0.25, 0.75}, {0.5, 0.5}, 4), 2, {}, bounds),
-                                   raw_moments_1d({0.125, 0.5}, {0.25, 0.75}, 4),
-                                   2,
-                                   {},
-                                   bounds,
-                                   2,
-                                   2}};
+    const std::vector<Case> cases{
+        {qmom_state_from_moments(four_points, 3), two_points, 3, {}, std::nullopt, 2, 2},
+        {family_state(five(two_points), 2, hyperbolic_qmom_options(true)), five(four_points), 2, hyperbolic_qmom_options(true), std::nullopt, 3, 2},
+        {family_state(five(four_points), 2, hyperbolic_qmom_options(false)), five(four_points), 2, hyperbolic_qmom_options(false), std::nullopt, 3,
+         2},
+        {family_state(five(four_points), 2, hyperbolic_qmom_options(true)), five(two_points), 2, hyperbolic_qmom_options(true), std::nullopt, 2, 2},
+        {qmom_state_from_moments(raw_moments_1d({0.25, 0.75}, {0.5, 0.5}, 4), 2, {}, bounds),
+         raw_moments_1d({0.125, 0.5}, {0.25, 0.75}, 4),
+         2,
+         {},
+         bounds,
+         2,
+         2}};
     for (const Case& test : cases)
     {
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
@@ -1343,7 +1361,7 @@ void test_qmom_state_base_node_count_after_a_source_step_is_that_of_the_post_sou
         assert(result.state.active_node_count() == test.active);
         assert(result.state.base_node_count() == test.base);
         assert(result.state.base_node_count() ==
-               qmomkit::compute_qmom(qmomkit::MomentSet(test.target), test.node_count, test.options, test.bounds).base_node_count);
+               qmomkit::compute_qmom(family_case(qmomkit::MomentSet(test.target), test.node_count, test.options, test.bounds)).base_node_count);
     }
 }
 
@@ -1363,8 +1381,7 @@ void test_qmom_state_base_node_count_is_unchanged_by_node_advection()
     for (const qmomkit::QmomState& state :
          {qmom_state_from_moments(std::vector<double>(three_points.begin(), three_points.begin() + 4), 2),
           qmom_state_from_moments(std::vector<double>(three_points.begin(), three_points.begin() + 4), 2, relative_weight),
-          qmom_state_from_moments(three_points, 2, hyperbolic_qmom_options(true)),
-          qmom_state_from_moments(two_points, 2, hyperbolic_qmom_options(true))})
+          family_state(three_points, 2, hyperbolic_qmom_options(true)), family_state(two_points, 2, hyperbolic_qmom_options(true))})
     {
         const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(state, 0.0, 0.1, velocity);
         assert(advected.ok());
@@ -1381,12 +1398,12 @@ void test_qmom_state_base_node_count_follows_the_growth_of_the_node_count()
     // classical and min(node count, 3) for hyperbolic, whose state reaches the
     // four nodes of J_4.
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
-    for (const qmomkit::QmomOptions& options : {qmomkit::QmomOptions{}, hyperbolic_qmom_options(true)})
+    for (const FamilySettings& options : {FamilySettings{}, hyperbolic_qmom_options(true)})
     {
         const bool hyperbolic = options.family == qmomkit::QmomFamily::hyperbolic;
         const std::size_t moment_count = hyperbolic ? 7 : 6;
         const std::vector<double> target(five_points.begin(), five_points.begin() + static_cast<std::ptrdiff_t>(moment_count));
-        qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, moment_count), 3, options);
+        qmomkit::QmomState state = family_state(raw_moments_1d({0.5}, {1.0}, moment_count), 3, options);
         assert(state.active_node_count() == 1 && state.base_node_count() == 1);
         for (std::size_t step = 1; step <= 4; ++step)
         {
@@ -1447,7 +1464,7 @@ void test_adaptive_qmom_post_source_failure_is_the_result()
     // returns the input state without a growth trial.
     const std::vector<double> negative_mass = raw_moments_1d({0.5, 1.5}, {-0.5, -0.5}, 5);
     for (const qmomkit::QmomState& state : {qmom_state_from_moments(raw_moments_1d({-1.0, 0.5}, {0.5, 0.5}, 4), 2),
-                                            qmom_state_from_moments(raw_moments_1d({-1.0, 0.5}, {0.5, 0.5}, 5), 2, hyperbolic_qmom_options(true))})
+                                            family_state(raw_moments_1d({-1.0, 0.5}, {0.5, 0.5}, 5), 2, hyperbolic_qmom_options(true))})
     {
         const std::vector<double> target(negative_mass.begin(), negative_mass.begin() + static_cast<std::ptrdiff_t>(state.moment_values().size()));
         const CountedSourceStep step = counted_source_step(state, target);
@@ -1473,11 +1490,11 @@ void test_adaptive_qmom_post_source_reduction_is_the_result()
     assert(classical.active_node_count() == 3);
     assert_accepted_counts(counted_source_step(classical, first(two_points, 6)), 2, 2, 1);
 
-    const qmomkit::QmomState two_classical_nodes = qmom_state_from_moments(two_points, 3, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState two_classical_nodes = family_state(two_points, 3, hyperbolic_qmom_options(true));
     assert(two_classical_nodes.active_node_count() == 2 && two_classical_nodes.base_node_count() == 2);
     assert_accepted_counts(counted_source_step(two_classical_nodes, one_point), 1, 1, 1);
 
-    const qmomkit::QmomState full = qmom_state_from_moments(first(three_points, 5), 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState full = family_state(first(three_points, 5), 2, hyperbolic_qmom_options(true));
     assert(full.active_node_count() == 3 && full.base_node_count() == 2);
     assert_accepted_counts(counted_source_step(full, first(two_points, 5)), 2, 2, 1);
 }
@@ -1490,7 +1507,7 @@ void test_adaptive_qmom_post_source_keeps_the_full_quadrature()
     const std::vector<double> four_points = raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5);
     const qmomkit::QmomState classical = qmom_state_from_moments(std::vector<double>(three_points.begin(), three_points.begin() + 4), 2);
     assert_accepted_counts(counted_source_step(classical, std::vector<double>(four_points.begin(), four_points.begin() + 4)), 2, 2, 1);
-    const qmomkit::QmomState hyperbolic = qmom_state_from_moments(three_points, 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState hyperbolic = family_state(three_points, 2, hyperbolic_qmom_options(true));
     assert_accepted_counts(counted_source_step(hyperbolic, four_points), 3, 2, 1);
 }
 
@@ -1500,21 +1517,20 @@ void test_adaptive_qmom_post_source_grows_by_one_base_node_below_n()
     // rmin = 0.99, the two-node trial returns one node and is refused.
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
     const std::vector<double> clustered = raw_moments_1d({6.75, 8.5, 9.0, 10.75, 11.0}, {0.25, 0.375, 0.125, 0.25, 0.0625}, 7);
-    qmomkit::QmomOptions classical_strict;
-    classical_strict.rmin = 0.99;
-    qmomkit::QmomOptions hyperbolic_strict = hyperbolic_qmom_options(true);
-    hyperbolic_strict.rmin = 0.99;
-    for (const auto& [options, strict] :
-         {std::pair{qmomkit::QmomOptions{}, classical_strict}, std::pair{hyperbolic_qmom_options(true), hyperbolic_strict}})
+    FamilySettings classical_strict;
+    classical_strict.qmom_options.rmin = 0.99;
+    FamilySettings hyperbolic_strict = hyperbolic_qmom_options(true);
+    hyperbolic_strict.qmom_options.rmin = 0.99;
+    for (const auto& [options, strict] : {std::pair{FamilySettings{}, classical_strict}, std::pair{hyperbolic_qmom_options(true), hyperbolic_strict}})
     {
         const std::size_t moment_count = options.family == qmomkit::QmomFamily::hyperbolic ? 7 : 6;
         const auto first = [moment_count](const std::vector<double>& moments)
         { return std::vector<double>(moments.begin(), moments.begin() + static_cast<std::ptrdiff_t>(moment_count)); };
 
-        const qmomkit::QmomState one_node = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, moment_count), 3, options);
+        const qmomkit::QmomState one_node = family_state(raw_moments_1d({0.5}, {1.0}, moment_count), 3, options);
         assert_accepted_counts(counted_source_step(one_node, first(five_points)), 2, 2, 2);
 
-        const qmomkit::QmomState strict_one_node = qmom_state_from_moments(raw_moments_1d({8.5}, {1.0625}, moment_count), 3, strict);
+        const qmomkit::QmomState strict_one_node = family_state(raw_moments_1d({8.5}, {1.0625}, moment_count), 3, strict);
         assert(strict_one_node.active_node_count() == 1);
         assert_accepted_counts(counted_source_step(strict_one_node, first(clustered)), 1, 1, 2);
     }
@@ -1524,18 +1540,17 @@ void test_adaptive_qmom_post_source_grows_to_the_full_quadrature_at_n()
 {
     // A hyperbolic state holding the classical two-node rule at n = 2 grows to
     // J_3 on interior moments, and keeps two nodes on boundary moments.
-    const qmomkit::QmomState two_nodes = qmom_state_from_moments(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState two_nodes = family_state(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, hyperbolic_qmom_options(true));
     assert(two_nodes.active_node_count() == 2 && two_nodes.base_node_count() == 2);
     assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 3, 2, 2);
     assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 2);
 }
 
-qmomkit::QmomOptions generalized_qmom_options(const std::size_t continued_node_count)
+FamilySettings generalized_qmom_options(const std::size_t continued_node_count)
 {
-    qmomkit::QmomOptions options;
-    options.family = qmomkit::QmomFamily::generalized;
-    options.generalized.node_count = continued_node_count;
-    return options;
+    FamilySettings settings{qmomkit::QmomFamily::generalized};
+    settings.generalized_options.node_count = continued_node_count;
+    return settings;
 }
 
 void test_adaptive_generalized_post_source_reduction_is_the_result()
@@ -1544,13 +1559,12 @@ void test_adaptive_generalized_post_source_reduction_is_the_result()
     // nodes continued from two to the classical two-node rule of moments on the
     // boundary, and at N = 3, from nine nodes continued from three to the one
     // node of a single point.
-    const qmomkit::QmomState two =
-        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, generalized_qmom_options(6));
+    const qmomkit::QmomState two = family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, generalized_qmom_options(6));
     assert(two.active_node_count() == 6 && two.base_node_count() == 2);
     assert_accepted_counts(counted_source_step(two, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 1);
 
     const qmomkit::QmomState three =
-        qmom_state_from_moments(raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7), 3, generalized_qmom_options(9));
+        family_state(raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7), 3, generalized_qmom_options(9));
     assert(three.active_node_count() == 9 && three.base_node_count() == 3);
     assert_accepted_counts(counted_source_step(three, raw_moments_1d({0.75}, {1.0}, 7)), 1, 1, 1);
 }
@@ -1559,8 +1573,7 @@ void test_adaptive_generalized_post_source_keeps_the_full_quadrature()
 {
     // The six nodes continued from two at N = 2 are kept on interior moments
     // without a growth trial.
-    const qmomkit::QmomState full =
-        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, generalized_qmom_options(6));
+    const qmomkit::QmomState full = family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, generalized_qmom_options(6));
     assert_accepted_counts(counted_source_step(full, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 6, 2, 1);
 }
 
@@ -1570,13 +1583,13 @@ void test_adaptive_generalized_post_source_grows_by_one_base_node_below_n()
     // node count, and the trial for two base nodes is accepted. With
     // rmin = 0.99, the trial reduces to one node and is refused, and the state
     // keeps nine nodes on a base of one.
-    const qmomkit::QmomState one_node = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 7), 3, generalized_qmom_options(9));
+    const qmomkit::QmomState one_node = family_state(raw_moments_1d({0.5}, {1.0}, 7), 3, generalized_qmom_options(9));
     assert(one_node.active_node_count() == 1 && one_node.base_node_count() == 1);
     assert_accepted_counts(counted_source_step(one_node, raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7)), 9, 2, 2);
 
-    qmomkit::QmomOptions strict = generalized_qmom_options(9);
-    strict.rmin = 0.99;
-    const qmomkit::QmomState strict_one_node = qmom_state_from_moments(raw_moments_1d({8.5}, {1.0625}, 7), 3, strict);
+    FamilySettings strict = generalized_qmom_options(9);
+    strict.qmom_options.rmin = 0.99;
+    const qmomkit::QmomState strict_one_node = family_state(raw_moments_1d({8.5}, {1.0625}, 7), 3, strict);
     assert(strict_one_node.active_node_count() == 1);
     assert_accepted_counts(counted_source_step(strict_one_node, raw_moments_1d({6.75, 8.5, 9.0, 10.75, 11.0}, {0.25, 0.375, 0.125, 0.25, 0.0625}, 7)),
                            9, 1, 2);
@@ -1589,18 +1602,48 @@ void test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n()
     // on boundary moments. Its own reconstruction at base node count N is the
     // full quadrature request, so it is also the growth trial, and the step
     // makes a single reconstruction.
-    const qmomkit::QmomState two_nodes = qmom_state_from_moments(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, generalized_qmom_options(6));
+    const qmomkit::QmomState two_nodes = family_state(raw_moments_1d({-1.25, 2.75}, {0.25, 0.75}, 5), 2, generalized_qmom_options(6));
     assert(two_nodes.active_node_count() == 2 && two_nodes.base_node_count() == 2);
     assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5)), 6, 2, 1);
     assert_accepted_counts(counted_source_step(two_nodes, raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5)), 2, 2, 1);
 }
 
-qmomkit::QmomOptions gamma_qmom_options(const bool adaptive)
+FamilySettings gamma_qmom_options(const bool adaptive)
 {
-    qmomkit::QmomOptions options = generalized_qmom_options(6);
-    options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
-    options.adaptive = adaptive;
-    return options;
+    FamilySettings settings = generalized_qmom_options(6);
+    settings.generalized_options.continuation = qmomkit::GeneralizedContinuation::gamma;
+    settings.qmom_options.adaptive = adaptive;
+    return settings;
+}
+
+void test_qmom_state_keeps_the_family_and_generalized_options_of_its_case()
+{
+    // A state keeps the family and the settings of the generalized family of
+    // its case, from state_candidate(...) and initial_state(), through an
+    // advection step and a source step. nu is kept although the gamma
+    // continuation does not read it.
+    FamilySettings gamma = gamma_qmom_options(true);
+    gamma.generalized_options.nu = 0.25;
+    const std::vector<double> positive = raw_moments_1d({0.5, 1.5, 3.0}, {0.25, 0.375, 0.375}, 5);
+    const std::vector<double> real_line = raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5);
+    for (const auto& [settings, moments] : {std::pair{gamma, positive}, std::pair{hyperbolic_qmom_options(true), real_line}})
+    {
+        const qmomkit::QmomCase qmom_case = family_case(qmomkit::MomentSet(moments), 2, settings);
+        const qmomkit::QmomStateCandidate candidate = qmom_case.state_candidate(qmom_case.moments);
+        assert(candidate.ok());
+        const qmomkit::QmomState initial = qmom_case.initial_state();
+        const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(initial, 0.0, 0.5, zero_qmom_velocity());
+        assert(advected.ok());
+        const qmomkit::QmomPhaseSpaceEvolutionResult source_step = qmomkit::advance_qmom_moment_source(advected.state, 0.5, 0.5, zero_qmom_rate);
+        assert(source_step.ok());
+        for (const qmomkit::QmomState* state : {&*candidate.state, &initial, &advected.state, &source_step.state})
+        {
+            assert(state->family() == settings.family);
+            assert(state->generalized_options().node_count == settings.generalized_options.node_count);
+            assert(state->generalized_options().continuation == settings.generalized_options.continuation);
+            assert(state->generalized_options().nu == settings.generalized_options.nu);
+        }
+    }
 }
 
 void test_bounded_gamma_post_source_keeps_the_generalized_quadrature()
@@ -1610,13 +1653,13 @@ void test_bounded_gamma_post_source_keeps_the_generalized_quadrature()
     // from two, as compute_qmom(...) with the state's bounds returns them, and
     // not the bounded classical two-node rule.
     const qmomkit::AbscissaBounds bounds{0.0, 100.0};
-    const qmomkit::QmomOptions options = gamma_qmom_options(true);
-    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({0.5, 1.5, 3.0}, {0.25, 0.375, 0.375}, 5), 2, options, bounds);
+    const FamilySettings options = gamma_qmom_options(true);
+    const qmomkit::QmomState state = family_state(raw_moments_1d({0.5, 1.5, 3.0}, {0.25, 0.375, 0.375}, 5), 2, options, bounds);
     assert(state.active_node_count() == 6 && state.base_node_count() == 2);
     const std::vector<double> target = raw_moments_1d({0.25, 1.0, 2.0, 3.5}, {0.2, 0.3, 0.3, 0.2}, 5);
     const CountedSourceStep step = counted_source_step(state, target);
     assert_accepted_counts(step, 6, 2, 1);
-    const qmomkit::QmomResult expected = qmomkit::compute_qmom(qmomkit::MomentSet(target), 2, options, bounds);
+    const qmomkit::QmomResult expected = qmomkit::compute_qmom(family_case(qmomkit::MomentSet(target), 2, options, bounds));
     assert_vector_near(step.result.state.quadrature().abscissas, expected.abscissas, 1.0e-12);
     assert_vector_near(step.result.state.quadrature().weights, expected.weights, 1.0e-12);
 }
@@ -1631,10 +1674,10 @@ void test_bounded_gamma_post_source_reduces_within_the_state_bounds()
     const std::vector<double> target = raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.5, 0.25}, 5);
     const qmomkit::AbscissaBounds shifted{-2.0, 100.0};
     const qmomkit::AbscissaBounds positive{0.0, 100.0};
-    assert_accepted_counts(counted_source_step(qmom_state_from_moments(start, 2, gamma_qmom_options(true), shifted), target), 6, 2, 1);
-    assert_accepted_counts(counted_source_step(qmom_state_from_moments(start, 2, gamma_qmom_options(true), positive), target), 6, 1, 1);
+    assert_accepted_counts(counted_source_step(family_state(start, 2, gamma_qmom_options(true), shifted), target), 6, 2, 1);
+    assert_accepted_counts(counted_source_step(family_state(start, 2, gamma_qmom_options(true), positive), target), 6, 1, 1);
 
-    const qmomkit::QmomState fixed = qmom_state_from_moments(start, 2, gamma_qmom_options(false), positive);
+    const qmomkit::QmomState fixed = family_state(start, 2, gamma_qmom_options(false), positive);
     const CountedSourceStep step = counted_source_step(fixed, target);
     assert(step.result.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
     assert(step.result.diagnostics.post_source_qmom_status == qmomkit::QmomStatus::not_realizable);
@@ -1651,7 +1694,7 @@ void test_bounded_gamma_post_source_grows_within_the_state_bounds()
     // [-2, 100], whereas within the default bounds its continuation from two
     // nodes has negative nodes.
     const qmomkit::QmomState one_node =
-        qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 5), 2, gamma_qmom_options(true), qmomkit::AbscissaBounds{-2.0, 100.0});
+        family_state(raw_moments_1d({0.5}, {1.0}, 5), 2, gamma_qmom_options(true), qmomkit::AbscissaBounds{-2.0, 100.0});
     assert(one_node.active_node_count() == 1 && one_node.base_node_count() == 1);
     assert_accepted_counts(counted_source_step(one_node, raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.5, 0.25}, 5)), 6, 2, 2);
 }
@@ -1664,7 +1707,7 @@ void test_bounded_gamma_post_source_refuses_growth_in_a_single_attempt()
     // base node count, and the trial for two base nodes has negative nodes, so
     // it is refused without a second Wheeler inversion at one base node.
     const qmomkit::QmomState one_node =
-        qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 5), 2, gamma_qmom_options(true), qmomkit::AbscissaBounds{0.0, 100.0});
+        family_state(raw_moments_1d({0.5}, {1.0}, 5), 2, gamma_qmom_options(true), qmomkit::AbscissaBounds{0.0, 100.0});
     assert(one_node.active_node_count() == 1 && one_node.base_node_count() == 1);
     const CountedSourceStep step = counted_source_step(one_node, raw_moments_1d({-1.0, 1.0, 2.0}, {0.25, 0.5, 0.25}, 5));
     assert_accepted_counts(step, 6, 1, 2);
@@ -1679,8 +1722,8 @@ void test_hyperbolic_qmom_state_with_two_n_moments_is_refused()
 {
     // No public path makes this state, since a hyperbolic case needs 2n + 1
     // moments.
-    const qmomkit::QmomState state =
-        qmomkit::internal::QmomStateAccess::from_quadrature(qmomkit::QmomResult{{-0.5, 1.5}, {0.4, 0.6}}, 4, 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState state = qmomkit::internal::QmomStateAccess::from_quadrature(qmomkit::QmomResult{{-0.5, 1.5}, {0.4, 0.6}}, 4, 2, {}, {},
+                                                                                         qmomkit::QmomFamily::hyperbolic, {});
     const std::string message = "QMOM phase-space evolution state has too few moments for the configured maximum node count.";
     const qmomkit::QmomPhaseSpaceEvolutionResult source_step = qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, zero_qmom_rate);
     assert(source_step.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
@@ -1751,13 +1794,13 @@ void test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count()
     // where HyQMOM with node count c would return c + 1. Both overloads of
     // advance_qmom_moment_source build the stage context, the second with a
     // zero boundary contribution.
-    const qmomkit::QmomOptions options = hyperbolic_qmom_options(true);
+    const FamilySettings options = hyperbolic_qmom_options(true);
     const qmomkit::QmomMomentBoundaryContribution no_boundary = [](double, const qmomkit::QmomSourceContext& context)
     { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 5);
-    for (const qmomkit::QmomState& state : {qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, options),
-                                            qmom_state_from_moments(raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5), 2, options),
-                                            qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 5), 2, options)})
+    for (const qmomkit::QmomState& state :
+         {family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, options),
+          family_state(raw_moments_1d({-0.5, 1.5}, {0.4, 0.6}, 5), 2, options), family_state(raw_moments_1d({0.5}, {1.0}, 5), 2, options)})
     {
         for (const bool with_boundary : {false, true})
         {
@@ -1789,10 +1832,12 @@ void test_hyperbolic_qmom_source_context_visits_the_rule_of_the_active_count()
             for (std::size_t stage = 0; stage < visited.size(); ++stage)
             {
                 const qmomkit::MomentSet moments(stage_moments[stage]);
-                const qmomkit::QmomResult expected = at_maximum ? qmomkit::compute_qmom(moments, 2, options) : qmomkit::compute_qmom(moments, active);
+                const qmomkit::QmomResult expected =
+                    at_maximum ? qmomkit::compute_qmom(family_case(moments, 2, options)) : qmomkit::compute_qmom(moments, active);
                 assert(visited[stage].weights.size() <= active);
                 assert_qmom_quadrature_near(visited[stage], expected, 1.0e-12);
-                classical_distinguished = classical_distinguished || qmomkit::compute_qmom(moments, active, options).weights.size() == active + 1;
+                classical_distinguished =
+                    classical_distinguished || qmomkit::compute_qmom(family_case(moments, active, options)).weights.size() == active + 1;
             }
             assert(classical_distinguished);
         }
@@ -1810,7 +1855,8 @@ std::size_t assert_characteristic_speeds_follow_the_reconstruction(const qmomkit
     const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
     assert(result.ok());
     const qmomkit::MomentSet moments(state.moment_values());
-    const qmomkit::QmomResult reconstruction = qmomkit::compute_qmom(moments, node_count, state.qmom_options());
+    const qmomkit::QmomResult reconstruction =
+        qmomkit::compute_qmom(qmomkit::QmomCase{moments, node_count, state.qmom_options(), {}, state.family()});
     assert(reconstruction.ok());
     const std::vector<double>& abscissas = reconstruction.abscissas;
     if (abscissas.size() <= node_count)
@@ -1849,15 +1895,14 @@ void test_hyperbolic_qmom_characteristic_speeds_follow_the_reconstruction_throug
     // quadrature of their moments, then n = 3 growing from one point.
     const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>& coordinate) { return std::vector<double>{(0.1 * coordinate[0] * coordinate[0]) + 0.2}; });
-    const qmomkit::QmomState state =
-        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState state = family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
     assert(assert_characteristic_speeds_follow_the_reconstruction(state, 2) == 3);
 
     const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(state, 0.0, 0.5, velocity);
     assert(advected.ok());
     assert_hyperbolic_counts(advected.state, 3, 2);
     const qmomkit::QmomResult own_quadrature =
-        qmomkit::compute_qmom(qmomkit::MomentSet(advected.state.moment_values()), 2, hyperbolic_qmom_options(true));
+        qmomkit::compute_qmom(family_case(qmomkit::MomentSet(advected.state.moment_values()), 2, hyperbolic_qmom_options(true)));
     assert(std::abs(own_quadrature.abscissas[1] - advected.state.quadrature().abscissas[1]) > 1.0e-6);
     assert(assert_characteristic_speeds_follow_the_reconstruction(advected.state, 2) == 3);
 
@@ -1874,7 +1919,7 @@ void test_hyperbolic_qmom_characteristic_speeds_follow_the_reconstruction_throug
     assert(assert_characteristic_speeds_follow_the_reconstruction(advected_reduced.state, 2) == 2);
 
     const std::vector<double> five_points = raw_moments_1d({-1.0, -0.25, 0.5, 1.25, 2.0}, {0.1, 0.2, 0.3, 0.25, 0.15}, 7);
-    qmomkit::QmomState growing = qmom_state_from_moments(raw_moments_1d({0.5}, {1.0}, 7), 3, hyperbolic_qmom_options(true));
+    qmomkit::QmomState growing = family_state(raw_moments_1d({0.5}, {1.0}, 7), 3, hyperbolic_qmom_options(true));
     assert(assert_characteristic_speeds_follow_the_reconstruction(growing, 3) == 1);
     for (std::size_t step = 1; step <= 3; ++step)
     {
@@ -1896,8 +1941,7 @@ void test_hyperbolic_qmom_characteristic_speeds_count_only_the_nodes_that_the_mo
     // quadrature of two nodes of its moments.
     const qmomkit::PhaseSpaceVelocity drag = qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate)
                                                                                 { return std::vector<double>{-(coordinate[0] - 1.0) / 0.25}; });
-    const qmomkit::QmomState state =
-        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState state = family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
     assert(assert_characteristic_speeds_follow_the_reconstruction(state, 2) == 3);
     const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(state, 0.0, 2.0, drag);
     assert(advected.ok());
@@ -2405,8 +2449,7 @@ void test_hyperbolic_qmom_stage_composition_matches_strang_phase_space_evolution
     // is its half advection, source and half advection. The source contracts
     // the moments, m_k(t) = m_k(0) exp(-0.2 k t) at a constant velocity, so
     // they stay in the interior and every stage keeps the three nodes.
-    const qmomkit::QmomState state =
-        qmom_state_from_moments(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
+    const qmomkit::QmomState state = family_state(raw_moments_1d({-1.25, 0.5, 2.75}, {0.25, 0.375, 0.375}, 5), 2, hyperbolic_qmom_options(true));
     assert_hyperbolic_counts(state, 3, 2);
     const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
         [](const double time, const std::vector<double>& xi) { return std::vector<double>{0.35 + 0.1 * time - 0.05 * xi[0]}; });
@@ -5486,6 +5529,7 @@ int main(const int argc, char** argv)
             {"adaptive_generalized_post_source_grows_by_one_base_node_below_n", test_adaptive_generalized_post_source_grows_by_one_base_node_below_n},
             {"adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n",
              test_adaptive_generalized_post_source_grows_to_the_full_quadrature_at_n},
+            {"qmom_state_keeps_the_family_and_generalized_options_of_its_case", test_qmom_state_keeps_the_family_and_generalized_options_of_its_case},
             {"bounded_gamma_post_source_keeps_the_generalized_quadrature", test_bounded_gamma_post_source_keeps_the_generalized_quadrature},
             {"bounded_gamma_post_source_reduces_within_the_state_bounds", test_bounded_gamma_post_source_reduces_within_the_state_bounds},
             {"bounded_gamma_post_source_grows_within_the_state_bounds", test_bounded_gamma_post_source_grows_within_the_state_bounds},

@@ -194,14 +194,14 @@ inline void verify_distribution_properties(const QmomAnalyticalCase& test_case, 
 // hyperbolic family, or N_G for the generalized one.
 inline std::size_t maximum_node_count(const QmomCase& qmom_case)
 {
-    switch (qmom_case.qmom_options.family)
+    switch (qmom_case.family)
     {
     case QmomFamily::classical:
         return qmom_case.node_count;
     case QmomFamily::hyperbolic:
         return qmom_case.node_count + 1;
     case QmomFamily::generalized:
-        return qmom_case.qmom_options.generalized.node_count;
+        return qmom_case.generalized_options.node_count;
     }
     return qmom_case.node_count;
 }

@@ -126,7 +126,7 @@ void validate_qmom_state_for_phase_space_evolution(const QmomState& state)
         throw std::invalid_argument("QMOM phase-space evolution requires at least one configured node.");
     }
     const std::optional<std::size_t> required_moment_count =
-        internal::qmom_required_moment_count(internal::QmomStateAccess::node_count(state), state.qmom_options().family);
+        internal::qmom_required_moment_count(internal::QmomStateAccess::node_count(state), state.family());
     if (!required_moment_count.has_value())
     {
         throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
@@ -286,15 +286,7 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
     return QmomPhaseSpaceEvolutionResult{std::move(state), status, std::move(diagnostics), final_time, std::move(message)};
 }
 
-// The node count, options and abscissa bounds passed to compute_qmom, for
-// either the family's full quadrature or a reduced quadrature with a given base
-// node count.
-struct QmomReconstructionRequest
-{
-    std::size_t node_count = 0;
-    QmomOptions options;
-    std::optional<AbscissaBounds> abscissa_bounds;
-};
+using internal::QmomReconstructionRequest;
 
 [[nodiscard]] bool holds_full_quadrature(const QmomState& state)
 {
@@ -303,7 +295,7 @@ struct QmomReconstructionRequest
 
 [[nodiscard]] QmomReconstructionRequest full_quadrature_request(const QmomState& state)
 {
-    return {internal::QmomStateAccess::node_count(state), state.qmom_options(), state.abscissa_bounds()};
+    return {internal::QmomStateAccess::node_count(state), state.qmom_options(), state.abscissa_bounds(), state.family(), state.generalized_options()};
 }
 
 // A reduced quadrature is reconstructed classically for hyperbolic, whose own
@@ -312,17 +304,18 @@ struct QmomReconstructionRequest
 // the same N_G nodes as the full quadrature.
 [[nodiscard]] QmomReconstructionRequest reduced_quadrature_request(const QmomState& state, const std::size_t base_node_count)
 {
-    QmomOptions options = state.qmom_options();
-    switch (options.family)
+    QmomReconstructionRequest request = full_quadrature_request(state);
+    request.node_count = base_node_count;
+    switch (request.family)
     {
     case QmomFamily::classical:
     case QmomFamily::hyperbolic:
-        options.family = QmomFamily::classical;
+        request.family = QmomFamily::classical;
         break;
     case QmomFamily::generalized:
         break;
     }
-    return {base_node_count, options, state.abscissa_bounds()};
+    return request;
 }
 
 // The request for a reconstruction at the state's own count.
@@ -333,14 +326,14 @@ struct QmomReconstructionRequest
 
 [[nodiscard]] QmomResult reconstruct_qmom(const std::vector<double>& moments, const QmomReconstructionRequest& request)
 {
-    return compute_qmom(MomentSet(moments), request.node_count, request.options, request.abscissa_bounds);
+    return internal::compute_qmom(MomentSet(moments), request);
 }
 
 // A growth trial accepts only the base node count it asks for, so the
 // generalized family makes a single attempt at it.
 [[nodiscard]] QmomResult reconstruct_growth_trial(const std::vector<double>& moments, const QmomReconstructionRequest& request)
 {
-    return internal::compute_qmom_growth_trial(MomentSet(moments), request.node_count, request.options, request.abscissa_bounds);
+    return internal::compute_qmom_growth_trial(MomentSet(moments), request);
 }
 
 // The reconstruction of the moments after a source step of state. A classical
@@ -356,7 +349,7 @@ struct QmomReconstructionRequest
     const std::size_t active_node_count = state.active_node_count();
     const std::size_t maximum_node_count = state.maximum_node_count();
     const QmomOptions& options = state.qmom_options();
-    if (state.abscissa_bounds().has_value() && options.family == QmomFamily::classical)
+    if (state.abscissa_bounds().has_value() && state.family() == QmomFamily::classical)
     {
         const internal::BoundedQuadratureSelectionRequest request{options.adaptive ? active_node_count : maximum_node_count, maximum_node_count,
                                                                   options.adaptive ? std::optional<std::size_t>{active_node_count} : std::nullopt,
@@ -412,7 +405,7 @@ struct QmomReconstructionRequest
     }
     // At base node count n, the generalized family's own request is its full
     // quadrature request, so the current reconstruction is the growth trial.
-    if (options.family == QmomFamily::generalized)
+    if (state.family() == QmomFamily::generalized)
     {
         return current;
     }
@@ -471,9 +464,9 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     advected.base_node_count = state.base_node_count();
     try
     {
-        accepted_state =
-            internal::QmomStateAccess::from_quadrature(std::move(advected), state.moment_values().size(),
-                                                       internal::QmomStateAccess::node_count(state), state.qmom_options(), state.abscissa_bounds());
+        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(advected), state.moment_values().size(),
+                                                                    internal::QmomStateAccess::node_count(state), state.qmom_options(),
+                                                                    state.abscissa_bounds(), state.family(), state.generalized_options());
         if (final_advection)
         {
             diagnostics.final_reconstruction_diagnostics = successful_reconstruction(accepted_state.moment_values().size());
@@ -523,15 +516,15 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
         source_options.ssp_rk3_options.stage_accept = [caller_accept, policy_accept](const SspRk3Stage stage, const std::vector<double>& candidate)
         { return (!caller_accept || caller_accept(stage, candidate)) && policy_accept(stage, candidate); };
     }
-    // The source context reconstructs the stage moments at the state's own count
-    // and keeps a pointer to the options, which live until the update returns.
+    // The source context reconstructs the stage moments at the state's own
+    // count and keeps a pointer to this request, which lives until the update
+    // returns.
     const QmomReconstructionRequest stage_request = current_reconstruction_request(state);
     const QmomMomentSourceUpdateResult source_update =
         boundary == nullptr
-            ? internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, source_options,
-                                                                 stage_request.node_count, stage_request.options, stage_request.abscissa_bounds)
+            ? internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, source_options, stage_request)
             : internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, *boundary, source_options,
-                                                                 stage_request.node_count, stage_request.options, stage_request.abscissa_bounds);
+                                                                 stage_request);
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {
@@ -551,9 +544,9 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     }
     try
     {
-        accepted_state =
-            internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moment_values().size(),
-                                                       internal::QmomStateAccess::node_count(state), state.qmom_options(), state.abscissa_bounds());
+        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moment_values().size(),
+                                                                    internal::QmomStateAccess::node_count(state), state.qmom_options(),
+                                                                    state.abscissa_bounds(), state.family(), state.generalized_options());
     }
     catch (const std::exception& error)
     {

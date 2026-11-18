@@ -89,9 +89,7 @@ int main()
         // The case sets the family, node count and options of the states made
         // from it; state_candidate(...) does not use the moments of the case.
         moments.push_back(boundary_moment);
-        qmomkit::QmomOptions hyperbolic_options;
-        hyperbolic_options.family = qmomkit::QmomFamily::hyperbolic;
-        const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(moments), node_count, hyperbolic_options};
+        const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(moments), node_count, {}, {}, qmomkit::QmomFamily::hyperbolic};
 
         const std::filesystem::path file_path = output_directory / ("speeds_n" + std::to_string(node_count) + ".txt");
         std::ofstream file(file_path);

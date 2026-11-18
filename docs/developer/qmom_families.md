@@ -1,12 +1,12 @@
 # QMOM families
 
-A QMOM family, `QmomOptions::family`
+A QMOM family, `QmomCase::family`
 ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp)), decides how the
 moments of one coordinate become a quadrature. `classical`, the default, is
 QMOM with the Wheeler inversion of [QMOM](qmom.md): $m_0,\ldots,m_{2N-1}$ for
 up to $N$ nodes. `hyperbolic` is HyQMOM: $m_0,\ldots,m_{2N}$ for up to $N+1$
 nodes. `generalized` is GQMOM: $m_0,\ldots,m_{2N}$ for up to $N_G>N$ nodes,
-with $N_G$ set in `QmomOptions::generalized`. This page
+with $N_G$ set in `QmomCase::generalized_options`. This page
 describes where a family enters the code and the mathematics of each family
 other than `classical`.
 
@@ -16,10 +16,10 @@ other than `classical`.
 | --- | --- | --- |
 | Moments read | `internal::qmom_required_moment_count` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) | $2N$ for `classical` and $2N+1$ otherwise, for node count $N$, the one definition cases, state candidates, the evolution and the configuration use. |
 | Maximum node count | `QmomState::maximum_node_count()` ([`include/qmomkit/qmom.hpp`](../../include/qmomkit/qmom.hpp)) | $N$, $N+1$ or $N_G$ for the case's node count $N$. |
-| Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` and `generalized` calls `compute_generalized_quadrature` for the normal continuation and `compute_bounded_generalized_quadrature` for the gamma, lognormal and beta continuations, each with `node_count` as $N$. Abscissa bounds with `hyperbolic` or the normal continuation are `invalid_input` before any reconstruction. For `generalized`, `internal::takes_abscissa_bounds` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) decides which continuations take bounds, for the reconstruction and the configuration alike. |
+| Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `compute_qmom(const QmomCase&)` and state candidates pass the case's family and its settings, which a state keeps (`QmomState::family()`, `QmomState::generalized_options()`). The `compute_qmom` overloads that take options pass `classical`. `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` and `generalized` calls `compute_generalized_quadrature` for the normal continuation and `compute_bounded_generalized_quadrature` for the gamma, lognormal and beta continuations, each with `node_count` as $N$. Abscissa bounds with `hyperbolic` or the normal continuation are `invalid_input` before any reconstruction. For `generalized`, `internal::takes_abscissa_bounds` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) decides which continuations take bounds, for the reconstruction and the configuration alike. |
 | Evolution | `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts). The family's full quadrature is requested from the family. A reduced quadrature is requested from the classical family for `classical` and `hyperbolic`, and from the family itself for `generalized`. Every request carries the state's abscissa bounds. A growth trial of `generalized` is a single attempt at the base node count it asks for, through `internal::compute_qmom_growth_trial` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp), defined in [`src/public_api.cpp`](../../src/public_api.cpp)). |
-| Configuration | `parse_qmom_family`, `parse_generalized_options`, `infer_qmom_initial_maximum_order` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, the `generalized_node_counts`, `generalized_continuation` and `generalized_nu` of the generalized family, and the default `[initial] maximum_order` from the moments the family reads ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
-| CQMOM | `compute_cqmom(const CqmomCase&)`, `internal::compute_cqmom_internal` ([`src/public_api.cpp`](../../src/public_api.cpp)) | Every family other than `classical` is `invalid_input` ([CQMOM](cqmom.md)). |
+| Configuration | `parse_qmom_family`, `parse_generalized_options`, `infer_qmom_initial_maximum_order`, `create_family_qmom_case` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, the `generalized_node_counts`, `generalized_continuation` and `generalized_nu` of the generalized family, the default `[initial] maximum_order` from the moments the family reads, and the case with the family and its moments ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
+| CQMOM | `CqmomCase::qmom_options` ([`include/qmomkit/cqmom.hpp`](../../include/qmomkit/cqmom.hpp)) | Only `classical`: a CQMOM case holds `QmomOptions`, which carry no family ([CQMOM](cqmom.md)). |
 | Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the reconstruction of the stored moments. |
 
 Every `switch` over `QmomFamily` has a case per family and no `default`, so the
@@ -116,7 +116,7 @@ those of $Q_N$ (Fox & Laurent, 2022, Theorem 4.8), so the speeds are distinct.
 The public `compute_hyqmom_characteristic_speeds(state)`
 ([`src/public_api.cpp`](../../src/public_api.cpp)) returns the speeds of the
 quadrature that `compute_qmom(...)` reconstructs from the state's stored moments
-with its node count and options:
+with its node count, family and options:
 
 | Reconstruction of the stored moments | Speeds |
 | --- | --- |
@@ -171,8 +171,8 @@ with these moments, and its higher moments lie in the interior of moment space.
 The internal `compute_generalized_quadrature`
 ([`src/internal/generalized_quadrature.hpp`](../../src/internal/generalized_quadrature.hpp))
 returns the quadrature with its base node count and uses $s=0$, as
-`compute_quadrature(...)` does. `QmomOptions::generalized` holds $N_G$, which
-has no default, the continuation, and the parameter $\nu$ of the normal
+`compute_quadrature(...)` does. `QmomCase::generalized_options` holds $N_G$,
+which has no default, the continuation, and the parameter $\nu$ of the normal
 continuation. The `normal` continuation is for a number density on the real
 line, so abscissa bounds give the message
 `The normal continuation of the generalized QMOM family takes no abscissa bounds.`
@@ -232,8 +232,8 @@ carry the tails of the number density, whose weights can be far below `rmin`
 (Fox et al., 2023, Fig. 1), and the test on $b_k$ already excludes nodes made of
 rounding.
 
-$N_G$ is carried in the options, independently of $N$ and $k$, so a reduced
-quadrature is continued to the same $N_G$ nodes as the full one. A
+$N_G$ is carried in `generalized_options`, independently of $N$ and $k$, so a
+reduced quadrature is continued to the same $N_G$ nodes as the full one. A
 reconstruction with node count $k$ of the same moments that finds the same $k$
 nodes returns the identical result, which is what the evolution relies on
 ([Phase-space evolution](phase_space_evolution.md#node-counts)).
@@ -409,7 +409,8 @@ A family is a value of `QmomFamily` with:
    restores it;
 4. its `qmom_family` value and message in `parse_qmom_family`, the keys of its
    settings, and its default `[initial] maximum_order`;
-5. its support or refusal in CQMOM;
+5. its settings, if it has any, as members of `QmomCase`, `QmomState` and
+   `QmomReconstructionRequest`, as for `generalized`;
 6. unit tests of each of these, a verification case against an independent
    reference ([Testing](testing.md)), and public-header coverage;
 7. a section here, and its row and section in the user guide's

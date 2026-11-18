@@ -355,23 +355,23 @@ const std::string normal_initialization = "[initial]\ntype = distribution\nfamil
 
 void test_qmom_family_key_selects_the_quadrature_family()
 {
-    // [phase_space] qmom_family sets QmomOptions::family, with explicit
-    // moments and with [initial]; without the key the family is classical.
+    // [phase_space] qmom_family sets QmomCase::family, with explicit moments
+    // and with [initial]; without the key the family is classical.
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
     for (const std::string& rest : {five_moments, normal_initialization})
     {
         const auto hyperbolic = qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", rest));
         assert(hyperbolic.ok());
-        assert(hyperbolic.value().qmom_options.family == qmomkit::QmomFamily::hyperbolic);
+        assert(hyperbolic.value().family == qmomkit::QmomFamily::hyperbolic);
         assert(hyperbolic.value().node_count == 2);
 
         const auto classical = qmomkit::config::parse_qmom(qmom_file("qmom_family = classical\n", rest));
         assert(classical.ok());
-        assert(classical.value().qmom_options.family == qmomkit::QmomFamily::classical);
+        assert(classical.value().family == qmomkit::QmomFamily::classical);
     }
     const auto without_key = qmomkit::config::parse_qmom(qmom_text, "qmom-test");
     assert(without_key.ok());
-    assert(without_key.value().qmom_options.family == qmomkit::QmomFamily::classical);
+    assert(without_key.value().family == qmomkit::QmomFamily::classical);
 }
 
 void test_qmom_family_rejects_other_values()
@@ -419,9 +419,11 @@ void test_qmom_family_sets_the_inferred_maximum_order()
 void test_qmom_family_needs_two_n_plus_one_moments()
 {
     // Four moments, given or generated, are too few for the hyperbolic family
-    // with n = 2.
+    // with n = 2. Three, fewer than even the classical family reads, give the
+    // message of the hyperbolic family too.
     const std::string message = "f.qmom: QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.";
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", "[moments]\nvalues = 1, 0, 1, 0\n"), "f.qmom").error() == message);
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", "[moments]\nvalues = 1, 0, 1\n"), "f.qmom").error() == message);
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n", normal_initialization + "maximum_order = 3\n"), "f.qmom").error() ==
            message);
     assert(qmomkit::config::parse_qmom(qmom_file("", "[moments]\nvalues = 1, 0, 1, 0\n")).ok());
@@ -432,35 +434,21 @@ void test_qmom_family_needs_two_n_plus_one_moments()
 
 void test_qmom_family_takes_no_abscissa_bounds()
 {
-    // Bounds with the hyperbolic family are refused, from a file at the line
-    // of support_lower and from a C++ call of create_qmom_case, which refuses
-    // them before it counts the moments; the classical family keeps them.
-    // Supports of `none` are no bounds, so the hyperbolic family takes them.
+    // Bounds with the hyperbolic family are refused from a file at the line of
+    // support_lower, also before too few moments are reported. The classical
+    // family keeps them. Supports of `none` are no bounds, so the hyperbolic
+    // family takes them.
     const std::string message = "The hyperbolic QMOM family takes no abscissa bounds.";
     const std::string bounds = "support_lower = -5\nsupport_upper = 5\n";
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, five_moments), "f.qmom").error() == "f.qmom:4: " + message);
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, "[moments]\nvalues = 1, 0, 1, 0\n"), "f.qmom").error() ==
+           "f.qmom:4: " + message);
     assert(qmomkit::config::parse_qmom(qmom_file(bounds, five_moments)).ok());
     const auto unbounded =
         qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\nsupport_lower = none\nsupport_upper = none\n", five_moments));
     assert(unbounded.ok());
     assert(!unbounded.value().abscissa_bounds.has_value());
-
-    const qmomkit::config::InitialConditionSpecification initial_condition{
-        qmomkit::config::ExplicitMomentInitialization{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0, 3.0}}};
-    qmomkit::QmomOptions hyperbolic;
-    hyperbolic.family = qmomkit::QmomFamily::hyperbolic;
-    const auto refused = qmomkit::config::create_qmom_case(initial_condition, 2, hyperbolic, "c++", qmomkit::AbscissaBounds{-5.0, 5.0});
-    assert(refused.error() == "c++: " + message);
-    assert(qmomkit::config::create_qmom_case(initial_condition, 2, hyperbolic, "c++").ok());
-
-    // Four moments are too few for the hyperbolic family with node count two,
-    // but the bounds are refused first.
-    const qmomkit::config::InitialConditionSpecification four_moments{
-        qmomkit::config::ExplicitMomentInitialization{qmomkit::MomentSet{1.0, 0.0, 1.0, 0.0}}};
-    assert(qmomkit::config::create_qmom_case(four_moments, 2, hyperbolic, "c++", qmomkit::AbscissaBounds{-5.0, 5.0}).error() == "c++: " + message);
-    assert(qmomkit::config::create_qmom_case(four_moments, 2, hyperbolic, "c++").error() ==
-           "c++: QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.");
 }
 
 void test_qmom_generalized_keys_set_the_generalized_options()
@@ -472,32 +460,32 @@ void test_qmom_generalized_keys_set_the_generalized_options()
     const auto configured = qmomkit::config::parse_qmom(qmom_file(
         "qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = normal\ngeneralized_nu = -0.5\n", five_moments));
     assert(configured.ok());
-    const qmomkit::QmomOptions& options = configured.value().qmom_options;
-    assert(options.family == qmomkit::QmomFamily::generalized);
-    assert(options.generalized.node_count == 6);
-    assert(options.generalized.continuation == qmomkit::GeneralizedContinuation::normal);
-    assert(options.generalized.nu == -0.5);
+    const qmomkit::QmomCase& qmom_case = configured.value();
+    assert(qmom_case.family == qmomkit::QmomFamily::generalized);
+    assert(qmom_case.generalized_options.node_count == 6);
+    assert(qmom_case.generalized_options.continuation == qmomkit::GeneralizedContinuation::normal);
+    assert(qmom_case.generalized_options.nu == -0.5);
 
     const auto defaults = qmomkit::config::parse_qmom(qmom_file("qmom_family = generalized\ngeneralized_node_counts = 3\n", five_moments));
     assert(defaults.ok());
-    assert(defaults.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::normal);
-    assert(defaults.value().qmom_options.generalized.nu == 1.0);
+    assert(defaults.value().generalized_options.continuation == qmomkit::GeneralizedContinuation::normal);
+    assert(defaults.value().generalized_options.nu == 1.0);
     assert(qmomkit::compute_qmom(defaults.value()).weights.size() == 3);
 
     const auto gamma = qmomkit::config::parse_qmom(
         qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = gamma\n", five_moments));
     assert(gamma.ok());
-    assert(gamma.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::gamma);
+    assert(gamma.value().generalized_options.continuation == qmomkit::GeneralizedContinuation::gamma);
 
     const auto lognormal = qmomkit::config::parse_qmom(
         qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = lognormal\n", five_moments));
     assert(lognormal.ok());
-    assert(lognormal.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::lognormal);
+    assert(lognormal.value().generalized_options.continuation == qmomkit::GeneralizedContinuation::lognormal);
 
     const auto beta = qmomkit::config::parse_qmom(
         qmom_file("qmom_family = generalized\ngeneralized_node_counts = 6\ngeneralized_continuation = beta\n", five_moments));
     assert(beta.ok());
-    assert(beta.value().qmom_options.generalized.continuation == qmomkit::GeneralizedContinuation::beta);
+    assert(beta.value().generalized_options.continuation == qmomkit::GeneralizedContinuation::beta);
 }
 
 void test_qmom_generalized_node_counts_is_required_and_exceeds_node_counts()
@@ -567,13 +555,12 @@ void test_qmom_generalized_nu_has_no_effect_without_the_normal_continuation()
 
 void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_continuation()
 {
-    // Bounds with the normal continuation are refused, from a file at the line
-    // of support_lower and from a C++ call of create_qmom_case. The gamma,
-    // lognormal and beta continuations keep them: the moments of the
-    // exponential number density give the six gamma nodes within [0, 100],
-    // those of a lognormal number density with eta = 1.1 the six lognormal
-    // nodes, and those of the beta number density x^(-1/2) (1 - x)^(1/2)
-    // mapped to [0, 2] the six beta nodes within [0, 2].
+    // Bounds with the normal continuation are refused from a file at the line
+    // of support_lower. The gamma, lognormal and beta continuations keep them:
+    // the moments of the exponential number density give the six gamma nodes
+    // within [0, 100], those of a lognormal number density with eta = 1.1 the
+    // six lognormal nodes, and those of the beta number density
+    // x^(-1/2) (1 - x)^(1/2) mapped to [0, 2] the six beta nodes within [0, 2].
     const std::string message = "The normal continuation of the generalized QMOM family takes no abscissa bounds.";
     const std::string lines = "qmom_family = generalized\ngeneralized_node_counts = 6\n";
     const std::string bounds = "support_lower = 0\nsupport_upper = 100\n";
@@ -585,15 +572,6 @@ void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_cont
     const qmomkit::QmomResult result = qmomkit::compute_qmom(gamma.value());
     assert(result.ok() && result.weights.size() == 6);
 
-    const qmomkit::config::InitialConditionSpecification initial_condition{
-        qmomkit::config::ExplicitMomentInitialization{qmomkit::MomentSet{1.0, 1.0, 2.0, 6.0, 24.0}}};
-    qmomkit::QmomOptions options;
-    options.family = qmomkit::QmomFamily::generalized;
-    options.generalized.node_count = 6;
-    assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).error() == "c++: " + message);
-    options.generalized.continuation = qmomkit::GeneralizedContinuation::gamma;
-    assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).ok());
-
     const std::string lognormal_moments = "[moments]\nvalues = 1, 1.1, 1.4641, 2.357947691, 4.59497298635722\n";
     const auto lognormal = qmomkit::config::parse_qmom(qmom_file(lines + "generalized_continuation = lognormal\n" + bounds, lognormal_moments));
     assert(lognormal.ok());
@@ -601,8 +579,6 @@ void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_cont
            lognormal.value().abscissa_bounds->upper == 100.0);
     const qmomkit::QmomResult lognormal_result = qmomkit::compute_qmom(lognormal.value());
     assert(lognormal_result.ok() && lognormal_result.weights.size() == 6);
-    options.generalized.continuation = qmomkit::GeneralizedContinuation::lognormal;
-    assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).ok());
 
     const std::string beta_moments = "[moments]\nvalues = 1, 0.5, 0.5, 0.625, 0.875\n";
     const auto beta =
@@ -612,8 +588,6 @@ void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_cont
     const qmomkit::QmomResult beta_result = qmomkit::compute_qmom(beta.value());
     assert(beta_result.ok() && beta_result.weights.size() == 6);
     assert(beta_result.abscissas.front() > 0.0 && beta_result.abscissas.back() < 2.0);
-    options.generalized.continuation = qmomkit::GeneralizedContinuation::beta;
-    assert(qmomkit::config::create_qmom_case(initial_condition, 2, options, "c++", qmomkit::AbscissaBounds{0.0, 100.0}).ok());
 }
 
 void test_cqmom_rejects_the_qmom_family_key()
@@ -686,6 +660,7 @@ scale = 3.0
 
     const auto qmom_case_result = qmomkit::config::create_qmom_case(initial.value(), 2);
     assert(qmom_case_result.ok());
+    assert(qmom_case_result.value().family == qmomkit::QmomFamily::classical);
     assert(qmom_case_result.value().moments.size() == 4);
     assert_near(qmom_case_result.value().moments[0], 4.0);
 }

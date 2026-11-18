@@ -40,12 +40,29 @@ namespace qmomkit::internal
            continuation == GeneralizedContinuation::beta;
 }
 
-// compute_qmom(...) for a growth trial of the evolution, which accepts only
-// node_count as the base node count. The generalized family then neither
-// continues a smaller base node count nor retries below a rejected one, and
-// returns not_realizable instead. For the classical and hyperbolic families,
-// it is compute_qmom(...).
-[[nodiscard]] QmomResult compute_qmom_growth_trial(const MomentSet& moments, std::size_t node_count, const QmomOptions& options,
-                                                   std::optional<AbscissaBounds> abscissa_bounds);
+// The node count, options, abscissa bounds, family and settings of the
+// generalized family of one reconstruction of the evolution: the family's full
+// quadrature or a reduced quadrature with a given base node count.
+struct QmomReconstructionRequest
+{
+    std::size_t node_count = 0;
+    QmomOptions options;
+    std::optional<AbscissaBounds> abscissa_bounds;
+    QmomFamily family = QmomFamily::classical;
+    GeneralizedOptions generalized{};
+};
+
+// Reconstructs the quadrature of a request, as compute_qmom(...) does for a
+// case.
+[[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, const QmomReconstructionRequest& request);
+
+// Reconstructs the quadrature of a growth trial of the evolution, which
+// accepts only request.node_count as the base node count. The generalized
+// family then makes a single attempt at that count: where the moments give
+// fewer base nodes, or where the nodes at that count lie outside the abscissa
+// bounds, it returns not_realizable instead of continuing a smaller base node
+// count. The classical and hyperbolic families reconstruct as compute_qmom(...)
+// does.
+[[nodiscard]] QmomResult compute_qmom_growth_trial(const MomentSet& moments, const QmomReconstructionRequest& request);
 
 } // namespace qmomkit::internal

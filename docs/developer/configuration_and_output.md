@@ -120,21 +120,24 @@ other formulation.
 `parse_phase_space_evolution_scheme`, `parse_qmom_initial_condition` and
 `parse_cqmom_initial_condition` have no `load_*` counterpart.
 
-The case parsers go through the same steps a caller can take separately:
+The case parsers go through the steps a caller can take separately:
 `initialize_qmom_moments(...)` or `initialize_cqmom_moments(...)` turn an
 `InitialConditionSpecification` into moments, and `create_qmom_case(...)` or
-`create_cqmom_case(...)` build the case. A QMOM case with node count $N$ needs
-at this point the moments its family reads, $2N$ for `classical` or $2N + 1$
-for `hyperbolic` and `generalized`, the count
-`internal::qmom_required_moment_count` gives, and a family may refuse abscissa
-bounds ([QMOM families](qmom_families.md)). A CQMOM explicit tensor must be
-complete within its `extents`, and the case keeps only the moments its layout
-requires ([CQMOM](cqmom.md)). Options without a key, such as
+`create_cqmom_case(...)` build the case. The one difference is the family of a
+QMOM file: `create_qmom_case(...)` builds a classical case through
+`create_family_qmom_case`, with which the QMOM parser builds its case of the
+file's family. A QMOM case with node count $N$ needs at this point the moments
+its family reads, $2N$ for `classical` or $2N + 1$ for `hyperbolic` and
+`generalized`, the count `internal::qmom_required_moment_count` gives. Before
+that, the parser refuses abscissa bounds that the family does not take, at the
+line of `support_lower` ([QMOM families](qmom_families.md)). A CQMOM explicit
+tensor must be complete within its `extents`, and the case keeps only the
+moments its layout requires ([CQMOM](cqmom.md)). Options without a key, such as
 `QmomOptions::cutoff` or the source-step retries, keep their C++ defaults.
 
 The QMOM family, `[phase_space] qmom_family`, is read by one helper,
 `parse_qmom_family`, which gives `classical` when the key is absent:
-`parse_qmom` sets it in the options of the case, and
+`parse_qmom` sets it as the family of the case, and
 `parse_qmom_initial_condition` validates it whatever its path and infers the
 default `initial.maximum_order` from it, one less than the family's count. It is
 a `[phase_space]` key because it describes the coordinate, including how many

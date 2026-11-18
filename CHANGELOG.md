@@ -11,24 +11,27 @@ and this project adheres to
 
 ### Added
 
-- `compute_wheeler_recurrence`, which returns the Wheeler recurrence
-  coefficients, the diagonal of the Wheeler table and its rounding bounds as
-  every QMOM reconstruction computes them.
 - HyQMOM (Fox & Laurent, 2022) as the `hyperbolic` QMOM family, selected
-  with `QmomOptions::family` or `[phase_space] qmom_family`. With node count
+  with `QmomCase::family` or `[phase_space] qmom_family`. With node count
   N, it reconstructs up to N + 1 nodes from 2N + 1 moments.
   `compute_hyqmom_characteristic_speeds` returns the characteristic speeds of
   a HyQMOM state. Two new examples show both.
+- GQMOM (Fox, Laurent & Passalacqua, 2023) as the `generalized` QMOM family,
+  selected with `QmomCase::family` or `[phase_space] qmom_family`, with its
+  settings in `QmomCase::generalized_options` or the `generalized_*` keys.
+  With node count N, it reconstructs up to N_G > N nodes from 2N + 1
+  moments. Its `normal` continuation is for a number density on the real
+  line, its `gamma` and `lognormal` continuations for one on [0, inf), and
+  its `beta` continuation for one on [0, 1]. For these three, abscissa bounds
+  replace the interval. Three new examples show the family.
+- `QmomState::family()` and `QmomState::generalized_options()`, the family
+  and the settings of the generalized family of a state's case.
 - `QmomResult::base_node_count` and `QmomState::base_node_count()`, the
   number of nodes of the classical quadrature on which a QMOM quadrature
   rests. For the N + 1 nodes of `hyperbolic`, it is N.
-- GQMOM (Fox, Laurent & Passalacqua, 2023) as the `generalized` QMOM family,
-  selected with `QmomOptions::family` or `[phase_space] qmom_family`. With
-  node count N, it reconstructs up to N_G > N nodes from 2N + 1 moments. Its
-  `normal` continuation is for a number density on the real line, its
-  `gamma` and `lognormal` continuations for one on [0, inf), and its `beta`
-  continuation for one on [0, 1]. For these three, abscissa bounds replace
-  the interval. Three new examples show the family.
+- `compute_wheeler_recurrence`, which returns the Wheeler recurrence
+  coefficients, the diagonal of the Wheeler table and its rounding bounds as
+  every QMOM reconstruction computes them.
 
 ### Changed
 

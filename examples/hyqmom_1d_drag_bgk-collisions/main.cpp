@@ -29,7 +29,8 @@ bool print_state(const double time, const qmomkit::QmomState& state, const std::
     // the quadrature that HyQMOM reconstructs from those moments; m_{2n+1}, the
     // flux of m_2n, is that of the reconstruction, as are the speeds.
     const std::vector<double>& moments = state.moment_values();
-    const qmomkit::QmomResult reconstruction = qmomkit::compute_qmom(qmomkit::MomentSet(moments), node_count, state.qmom_options());
+    const qmomkit::QmomResult reconstruction =
+        qmomkit::compute_qmom(qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, state.qmom_options(), {}, state.family()});
     if (!reconstruction.ok())
     {
         std::cerr << "HyQMOM reconstruction failed: " << reconstruction.message << '\n';

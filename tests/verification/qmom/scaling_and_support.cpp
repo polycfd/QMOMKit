@@ -137,7 +137,8 @@ Rule draw_hyperbolic_boundary_rule(std::mt19937_64& generator)
 
 // Inverts the rule at every representable power-of-two scaling and requires
 // the result of base, scaled exactly; returns the number of scaled inversions.
-std::size_t verify_scaled_inversions(const Rule& rule, const qmomkit::QmomOptions& options, const qmomkit::QmomResult& base)
+std::size_t verify_scaled_inversions(const Rule& rule, const qmomkit::QmomOptions& options, const qmomkit::QmomFamily family,
+                                     const qmomkit::QmomResult& base)
 {
     std::size_t scaled_inversions = 0;
     for (const int coordinate_exponent : {-40, -7, 13, 60})
@@ -155,7 +156,8 @@ std::size_t verify_scaled_inversions(const Rule& rule, const qmomkit::QmomOption
             {
                 continue;
             }
-            const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet{scaled}, rule.requested_node_count, options);
+            const qmomkit::QmomResult result =
+                qmomkit::compute_qmom(qmomkit::QmomCase{qmomkit::MomentSet{scaled}, rule.requested_node_count, options, {}, family});
             ++scaled_inversions;
             QMOMKIT_VERIFY_CHECK(result.status == base.status);
             QMOMKIT_VERIFY_CHECK(result.weights.size() == base.weights.size());
@@ -185,7 +187,7 @@ void verify_power_of_two_scaling_is_exact()
             const qmomkit::QmomResult base = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, options);
             refusals += !adaptive && !base.ok();
             reductions += base.ok() && base.weights.size() < rule.requested_node_count;
-            scaled_inversions += verify_scaled_inversions(rule, options, base);
+            scaled_inversions += verify_scaled_inversions(rule, options, qmomkit::QmomFamily::classical, base);
         }
     }
     QMOMKIT_VERIFY_CHECK(scaled_inversions > 0);
@@ -206,11 +208,11 @@ void verify_hyperbolic_power_of_two_scaling_is_exact()
         {
             qmomkit::QmomOptions options;
             options.adaptive = adaptive;
-            options.family = qmomkit::QmomFamily::hyperbolic;
-            const qmomkit::QmomResult base = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, options);
+            const qmomkit::QmomResult base = qmomkit::compute_qmom(
+                qmomkit::QmomCase{qmomkit::MomentSet{rule.moments}, rule.requested_node_count, options, {}, qmomkit::QmomFamily::hyperbolic});
             hyperbolic_rules += base.ok() && base.weights.size() == rule.requested_node_count + 1;
             classical_fallbacks += base.ok() && base.weights.size() <= rule.requested_node_count;
-            scaled_inversions += verify_scaled_inversions(rule, options, base);
+            scaled_inversions += verify_scaled_inversions(rule, options, qmomkit::QmomFamily::hyperbolic, base);
         }
     }
     QMOMKIT_VERIFY_CHECK(scaled_inversions > 0);
@@ -253,18 +255,15 @@ void verify_hyperbolic_no_more_nodes_than_weighted_points()
         const bool beyond_points = rule.requested_node_count + 1 > rule.point_count;
         boundary_requests += beyond_points;
 
-        qmomkit::QmomOptions fixed_options;
-        fixed_options.adaptive = false;
-        fixed_options.family = qmomkit::QmomFamily::hyperbolic;
-        const qmomkit::QmomResult fixed = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, fixed_options);
+        const qmomkit::QmomResult fixed = qmomkit::compute_qmom(
+            qmomkit::QmomCase{qmomkit::MomentSet{rule.moments}, rule.requested_node_count, {false}, {}, qmomkit::QmomFamily::hyperbolic});
         if (beyond_points)
         {
             QMOMKIT_VERIFY_CHECK(fixed.status == qmomkit::QmomStatus::not_realizable);
         }
 
-        qmomkit::QmomOptions adaptive_options;
-        adaptive_options.family = qmomkit::QmomFamily::hyperbolic;
-        const qmomkit::QmomResult adaptive = qmomkit::compute_qmom(qmomkit::MomentSet{rule.moments}, rule.requested_node_count, adaptive_options);
+        const qmomkit::QmomResult adaptive = qmomkit::compute_qmom(
+            qmomkit::QmomCase{qmomkit::MomentSet{rule.moments}, rule.requested_node_count, {}, {}, qmomkit::QmomFamily::hyperbolic});
         QMOMKIT_VERIFY_CHECK(adaptive.ok());
         QMOMKIT_VERIFY_CHECK(adaptive.weights.size() <= rule.point_count);
     }

@@ -49,7 +49,7 @@ path.
 
 | File | Owns | Implements |
 | --- | --- | --- |
-| [`src/public_api.cpp`](../../src/public_api.cpp) | `compute_qmom`, `compute_cqmom`, cases, states, state candidates, HyQMOM characteristic speeds, `CqmomQuadrature`, conversion of internal recursive results into `CqmomResult` | `qmom.hpp`, `cqmom.hpp`, the non-inline part of `internal/cqmom_case.hpp` |
+| [`src/public_api.cpp`](../../src/public_api.cpp) | `compute_qmom`, `compute_cqmom`, cases, states, state candidates, HyQMOM characteristic speeds, `CqmomQuadrature`, conversion of internal recursive results into `CqmomResult` | `qmom.hpp`, `cqmom.hpp`, the non-inline parts of `internal/cqmom_case.hpp` and `internal/qmom_family.hpp` |
 | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Wheeler inversion, adaptive reduction, bounded-support selection, HyQMOM reconstruction and characteristic speeds, GQMOM reconstruction | `wheeler.hpp`, `internal/bounded_quadrature.hpp`, `internal/hyperbolic_quadrature.hpp`, `internal/generalized_quadrature.hpp` |
 | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Recursive CQMOM traversal, prepared branch structure, required-moment layout, `extract_cqmom_moments`, multi-index flattening, `PhaseSpaceHierarchy` | `internal/recursive_quadrature.hpp`, `multi_index.hpp`, `phase_space_hierarchy.hpp`, the layout functions of `cqmom.hpp` |
 | [`src/conditioning_path.cpp`](../../src/conditioning_path.cpp) | Conditioning paths, path tables, path-to-node-index conversion | `conditioning_path.hpp` |
@@ -72,8 +72,8 @@ path.
 Header-only internals: `DenseMatrix` in `linear_algebra.hpp`, the inline helpers
 of `cqmom_case.hpp` (case successors, marginal extraction),
 `cqmom_validation.hpp` (layout and storage checks),
-`qmom_state_access.hpp`, `qmom_family.hpp` (what each QMOM family reads, and
-the reconstruction request of the evolution),
+`qmom_state_access.hpp`, the inline helpers of `qmom_family.hpp` (what each
+QMOM family reads),
 `numeric_utils.hpp`, `checked_size.hpp`,
 `ode_rhs_validation.hpp`, `phase_space_velocity_validation.hpp`, and
 `performance.hpp`. The public `realizability_policy.hpp` is header-only.

@@ -120,12 +120,13 @@ other formulation.
 `parse_phase_space_evolution_scheme`, `parse_qmom_initial_condition` and
 `parse_cqmom_initial_condition` have no `load_*` counterpart.
 
-The case parsers go through the same steps a caller can take separately:
+The case parsers go through the steps a caller can take separately:
 `initialize_qmom_moments(...)` or `initialize_cqmom_moments(...)` turn an
 `InitialConditionSpecification` into moments, and `create_qmom_case(...)` or
-`create_cqmom_case(...)` build the case. `create_qmom_case(...)` builds a
-classical case through `create_family_qmom_case`, with which the QMOM parser
-builds its case of the file's family. A QMOM case with node count $N$ needs at
+`create_cqmom_case(...)` build the case. The one difference is the family of a
+QMOM file: `create_qmom_case(...)` builds a classical case through
+`create_family_qmom_case`, with which the QMOM parser builds its case of the
+file's family. A QMOM case with node count $N$ needs at
 this point the moments its family reads, $2N$ for `classical` or $2N + 1$ for
 `hyperbolic` and `generalized`, the count `internal::qmom_required_moment_count`
 gives. Before that, the parser refuses abscissa bounds that the family does not

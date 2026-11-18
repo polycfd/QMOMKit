@@ -435,12 +435,15 @@ void test_qmom_family_needs_two_n_plus_one_moments()
 void test_qmom_family_takes_no_abscissa_bounds()
 {
     // Bounds with the hyperbolic family are refused from a file at the line of
-    // support_lower; the classical family keeps them. Supports of `none` are
-    // no bounds, so the hyperbolic family takes them.
+    // support_lower, also before too few moments are reported. The classical
+    // family keeps them. Supports of `none` are no bounds, so the hyperbolic
+    // family takes them.
     const std::string message = "The hyperbolic QMOM family takes no abscissa bounds.";
     const std::string bounds = "support_lower = -5\nsupport_upper = 5\n";
     const std::string five_moments = "[moments]\nvalues = 1, 0, 1, 0, 3\n";
     assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, five_moments), "f.qmom").error() == "f.qmom:4: " + message);
+    assert(qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\n" + bounds, "[moments]\nvalues = 1, 0, 1, 0\n"), "f.qmom").error() ==
+           "f.qmom:4: " + message);
     assert(qmomkit::config::parse_qmom(qmom_file(bounds, five_moments)).ok());
     const auto unbounded =
         qmomkit::config::parse_qmom(qmom_file("qmom_family = hyperbolic\nsupport_lower = none\nsupport_upper = none\n", five_moments));
@@ -555,10 +558,9 @@ void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_cont
     // Bounds with the normal continuation are refused from a file at the line
     // of support_lower. The gamma, lognormal and beta continuations keep them:
     // the moments of the exponential number density give the six gamma nodes
-    // within [0, 100],
-    // those of a lognormal number density with eta = 1.1 the six lognormal
-    // nodes, and those of the beta number density x^(-1/2) (1 - x)^(1/2)
-    // mapped to [0, 2] the six beta nodes within [0, 2].
+    // within [0, 100], those of a lognormal number density with eta = 1.1 the
+    // six lognormal nodes, and those of the beta number density
+    // x^(-1/2) (1 - x)^(1/2) mapped to [0, 2] the six beta nodes within [0, 2].
     const std::string message = "The normal continuation of the generalized QMOM family takes no abscissa bounds.";
     const std::string lines = "qmom_family = generalized\ngeneralized_node_counts = 6\n";
     const std::string bounds = "support_lower = 0\nsupport_upper = 100\n";

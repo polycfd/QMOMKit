@@ -143,7 +143,9 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /**
  * Create a classical QMOM case from an already parsed initialization
  * specification, with at least 2n moments for node count n. For another
- * family, set `family` and `generalized_options` on the returned case.
+ * family, set `family` on the returned case, and for `generalized` also
+ * `generalized_options`. These families read 2n + 1 moments, which the
+ * reconstruction checks.
  */
 [[nodiscard]] ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, std::size_t node_count,
                                                              const QmomOptions& options = {}, std::string source_name = "<initialization>",

@@ -40,9 +40,9 @@ namespace qmomkit::internal
            continuation == GeneralizedContinuation::beta;
 }
 
-// The node count, options, abscissa bounds, family and GQMOM settings of one
-// reconstruction of the evolution: the family's full quadrature, a reduced
-// quadrature with a given base node count, or the source-stage quadrature.
+// The node count, options, abscissa bounds, family and settings of the
+// generalized family of one reconstruction of the evolution: the family's full
+// quadrature or a reduced quadrature with a given base node count.
 struct QmomReconstructionRequest
 {
     std::size_t node_count = 0;
@@ -52,15 +52,17 @@ struct QmomReconstructionRequest
     GeneralizedOptions generalized{};
 };
 
-// compute_qmom(...) for a request.
+// Reconstructs the quadrature of a request, as compute_qmom(...) does for a
+// case.
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, const QmomReconstructionRequest& request);
 
-// compute_qmom(...) for a growth trial of the evolution, which accepts only
-// request.node_count as the base node count. The generalized family then
-// makes a single attempt at that count: where the moments give fewer base
-// nodes, or where the nodes at that count lie outside the abscissa bounds, it
-// returns not_realizable instead of continuing a smaller base node count. For
-// the classical and hyperbolic families, it is compute_qmom(...).
+// Reconstructs the quadrature of a growth trial of the evolution, which
+// accepts only request.node_count as the base node count. The generalized
+// family then makes a single attempt at that count: where the moments give
+// fewer base nodes, or where the nodes at that count lie outside the abscissa
+// bounds, it returns not_realizable instead of continuing a smaller base node
+// count. The classical and hyperbolic families reconstruct as compute_qmom(...)
+// does.
 [[nodiscard]] QmomResult compute_qmom_growth_trial(const MomentSet& moments, const QmomReconstructionRequest& request);
 
 } // namespace qmomkit::internal

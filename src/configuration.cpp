@@ -2826,8 +2826,8 @@ namespace
 }
 
 // A QMOM case of the given family, whose moments must be at least as many as
-// that family reads. The .qmom loader refuses abscissa bounds that the family does
-// not take before it gets here, at the line of support_lower.
+// that family reads. The .qmom loader refuses abscissa bounds that the family
+// does not take, at the line of support_lower, before it calls this function.
 [[nodiscard]] ConfigurationResult<QmomCase> create_family_qmom_case(const InitialConditionSpecification& initial_condition,
                                                                     const std::size_t node_count, const QmomOptions& options, std::string source_name,
                                                                     std::optional<AbscissaBounds> abscissa_bounds, const QmomFamily family,

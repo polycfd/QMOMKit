@@ -410,10 +410,7 @@ A family is a value of `QmomFamily` with:
 4. its `qmom_family` value and message in `parse_qmom_family`, the keys of its
    settings, and its default `[initial] maximum_order`;
 5. its settings, if it has any, as members of `QmomCase`, `QmomState` and
-   `QmomReconstructionRequest`, as `generalized_options` and the request's
-   `generalized` hold those of `generalized`, passed on by
-   `compute_qmom_from_moments`, `QmomStateAccess::from_quadrature` and
-   `create_family_qmom_case`;
+   `QmomReconstructionRequest`, as for `generalized`;
 6. unit tests of each of these, a verification case against an independent
    reference ([Testing](testing.md)), and public-header coverage;
 7. a section here, and its row and section in the user guide's

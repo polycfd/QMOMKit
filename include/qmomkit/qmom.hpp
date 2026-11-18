@@ -67,12 +67,12 @@ struct GeneralizedOptions
 /**
  * Numerical controls for one-dimensional QMOM quadrature construction.
  *
- * Adaptive node reduction is on by default; set `adaptive = false` to require
- * the full quadrature of the family (`QmomCase::family`): N nodes for
- * `classical`, N + 1 for `hyperbolic`, and for `generalized` N_G nodes, or the
- * classical N nodes of moments on the boundary. `rmin` and `eabs` apply only
- * to classical quadratures, not to the N + 1 nodes of `hyperbolic` or the
- * continued nodes of `generalized`.
+ * Adaptive node reduction is on by default. Set `adaptive = false` to require
+ * the full quadrature of the family (`QmomCase::family`), N nodes for
+ * `classical`, N + 1 for `hyperbolic` and N_G for `generalized`, or, for
+ * `generalized` with moments on the boundary, the classical N nodes. `rmin`
+ * and `eabs` apply only to classical quadratures, not to the N + 1 nodes of
+ * `hyperbolic` or the continued nodes of `generalized`.
  */
 struct QmomOptions
 {

@@ -2047,10 +2047,13 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
         {
             const double penultimate_order = verification.runs[first_run_index + refinement_steps.size() - 2].observed_order;
             const double finest_order = verification.runs[first_run_index + refinement_steps.size() - 1].observed_order;
-            const double expected_order = scheme == qmomkit::PhaseSpaceEvolutionScheme::strang ? 2.0 : 1.0;
-            const double order_tolerance = scheme == qmomkit::PhaseSpaceEvolutionScheme::strang ? 0.2 : 0.2;
-            const bool above_first_order = scheme != qmomkit::PhaseSpaceEvolutionScheme::strang && (penultimate_order > 1.3 || finest_order > 1.3);
-            if (penultimate_order < expected_order - order_tolerance || finest_order < expected_order - order_tolerance || above_first_order)
+            // Strang must reach second order. A first-order splitting must stay
+            // near first order, which a scheme that ran Strang would exceed.
+            const bool strang = scheme == qmomkit::PhaseSpaceEvolutionScheme::strang;
+            const double lowest_order = strang ? 1.8 : 0.8;
+            const double highest_order = strang ? std::numeric_limits<double>::infinity() : 1.3;
+            const auto expected = [&](const double order) { return order >= lowest_order && order <= highest_order; };
+            if (!expected(penultimate_order) || !expected(finest_order))
             {
                 append_failure(verification, "noncommuting CQMOM " + std::string(phase_space_evolution_scheme_name(scheme)) +
                                                  " refinement did not show the expected splitting order.");

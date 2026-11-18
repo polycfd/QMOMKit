@@ -302,9 +302,10 @@ interval of the continuation. `compute_bounded_generalized_quadrature` selects
 as bounded classical QMOM does ([Abscissa bounds](qmom.md#abscissa-bounds)): a
 reconstruction is accepted when it succeeds and its nodes pass
 `abscissas_inside_bounds`, the check of bounded classical QMOM. Fixed mode
-tries node count $N$ only. Adaptive mode retries below the base node count of a
-rejected reconstruction, down to one node, so the continuation runs once per
-base node count. A growth trial of the evolution makes a single attempt
+tries node count $N$ only. When a reconstruction is rejected, adaptive mode
+tries again with one node fewer than the base node count of the rejected
+reconstruction, down to one node, so the continuation runs once per base node
+count. A growth trial of the evolution makes a single attempt
 instead ([Phase-space evolution](phase_space_evolution.md#node-counts)). Moments that are
 not those of a number density on $[\ell,\infty)$ give a negative or zero
 $\zeta$. The pivots of $J-\ell I$ are the odd $\zeta$, so a negative $\zeta$

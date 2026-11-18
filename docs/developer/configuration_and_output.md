@@ -68,6 +68,11 @@ An unknown key or section is an error, and so is a key the selected settings
 would not read:
 
 - a parameter of another distribution family (`reject_other_family_parameters`);
+- `generalized_node_counts`, `generalized_continuation` or `generalized_nu`
+  with a `qmom_family` other than `generalized`
+  (`reject_generalized_keys_with_other_family`);
+- `generalized_nu` with a `generalized_continuation` other than `normal`
+  (`parse_generalized_options`);
 - a distribution key or `number_density` at the level of a `type = mixture`,
   where each component sets its own (`parse_mixture`);
 - an indexed section or key that the selected initialization does not read,

@@ -909,8 +909,9 @@ GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& mo
     }
     // As for bounded classical QMOM, a reconstruction is accepted when it
     // succeeds with every node inside the bounds. Fixed mode tries node_count
-    // only. Adaptive mode retries below the base node count k of a rejected
-    // reconstruction, or below the node count tried if k was not found, down to
+    // only. When a reconstruction is rejected, adaptive mode tries again with
+    // one node fewer than the base node count k of the rejected
+    // reconstruction, or than the node count tried if k was not found, down to
     // one node. The continuation runs once per base node count. Invalid input
     // does not depend on the node count and is returned at once. With
     // exact_base_node_count, the base node count must be node_count, so there

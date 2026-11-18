@@ -45,11 +45,12 @@ struct GeneralizedQuadrature
  * gamma and lognormal continuations their lower bound and the beta continuation
  * its interval. As for bounded classical QMOM, a reconstruction is accepted
  * when it succeeds with every node inside the bounds. Fixed mode is
- * not_realizable otherwise. Adaptive mode retries below the base node count of
- * a rejected reconstruction, down to one node, and returns the first
- * reconstruction accepted or the last failure. With exact_base_node_count, the
- * base node count must be N: a smaller one is not continued, a rejected
- * reconstruction is not retried, and the result is not_realizable instead.
+ * not_realizable otherwise. When a reconstruction is rejected, adaptive mode
+ * tries again with one node fewer than the base node count of the rejected
+ * reconstruction, down to one node, and returns the first reconstruction
+ * accepted or the last failure. With exact_base_node_count, the base node count
+ * must be N: a smaller one is not continued, a rejected reconstruction is not
+ * retried, and the result is not_realizable instead.
  */
 [[nodiscard]] GeneralizedQuadrature compute_bounded_generalized_quadrature(const MomentSet& moments, std::size_t node_count,
                                                                            const WheelerOptions& options, const GeneralizedOptions& generalized,

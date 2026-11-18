@@ -47,7 +47,9 @@
 //   that far from the exact answer; the meaningful statement is the rate at
 //   which the gap closes. The observed order must reach 1.75 and 1.85 for
 //   Strang and 0.75 and 0.85 for the first-order orderings on the two finest
-//   pairs; the CQMOM case requires at least 1.8 and 0.8 on both.
+//   pairs; the CQMOM case requires at least 1.8 and 0.8 on both. The
+//   first-order orderings must also stay at or below 1.3, which a scheme that
+//   ran Strang instead would exceed.
 //
 //   Failure cases require a specific non-success status, failed stage and
 //   message, and no later stage reported as completed, since a partially
@@ -111,8 +113,9 @@ TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentDa
     const CqmomState state = cqmom_case.initial_state();
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
-    const CqmomState& result_state = result.ok() ? result.state : state;
-    return TestCqmomPhaseSpaceEvolutionResult{CqmomMomentData{layout, result_state.moment_values()},
+    // A failed step returns its input state, so the moments of result.state
+    // are reported whether or not the step succeeded.
+    return TestCqmomPhaseSpaceEvolutionResult{CqmomMomentData{layout, result.state.moment_values()},
                                               result.ok() ? std::optional<CqmomQuadrature>{result.state.quadrature()} : result.diagnostic_quadrature,
                                               result.status,
                                               result.diagnostics,
@@ -867,6 +870,10 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     boundary_summary.final_time = boundary_result.final_time;
     boundary_summary.retry_count = boundary_result.diagnostics.moment_source_retries;
     boundary_summary.success = boundary_result.ok() && diagnostics_are_successful(boundary_result.diagnostics);
+    if (boundary_result.ok() && !diagnostics_are_successful(boundary_result.diagnostics))
+    {
+        append_failure(verification, "QMOM boundary injection/removal diagnostics did not report successful completion of every substage.");
+    }
     std::vector<double> boundary_exact = initial;
     const std::vector<double> boundary_rate = qmom_boundary_rate_values(initial.size());
     for (std::size_t i = 0; i < boundary_exact.size(); ++i)
@@ -903,6 +910,11 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     combined_summary.final_time = combined_result.final_time;
     combined_summary.retry_count = combined_result.diagnostics.moment_source_retries;
     combined_summary.success = combined_result.ok() && diagnostics_are_successful(combined_result.diagnostics);
+    if (combined_result.ok() && !diagnostics_are_successful(combined_result.diagnostics))
+    {
+        append_failure(verification,
+                       "QMOM combined source plus boundary contribution diagnostics did not report successful completion of every substage.");
+    }
     std::vector<double> combined_exact = initial;
     const std::vector<double> source_rate = qmom_constant_source_values(initial.size());
     for (std::size_t i = 0; i < combined_exact.size(); ++i)
@@ -1058,7 +1070,7 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
                     append_failure(verification, "noncommuting Strang refinement did not show asymptotic second-order convergence.");
                 }
             }
-            else if (penultimate_order < 0.75 || finest_order < 0.85)
+            else if (penultimate_order < 0.75 || finest_order < 0.85 || penultimate_order > 1.3 || finest_order > 1.3)
             {
                 append_failure(verification, "noncommuting first-order refinement did not show asymptotic first-order convergence.");
             }
@@ -1975,6 +1987,11 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
                 state = result->state;
                 time = result->final_time;
             }
+            if (run_success && !diagnostics_successful)
+            {
+                append_failure(verification,
+                               "noncommuting CQMOM phase-space evolution diagnostics did not report successful completion of every substage.");
+            }
 
             RunSummary summary;
             summary.scheme = scheme;
@@ -2032,7 +2049,8 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
             const double finest_order = verification.runs[first_run_index + refinement_steps.size() - 1].observed_order;
             const double expected_order = scheme == qmomkit::PhaseSpaceEvolutionScheme::strang ? 2.0 : 1.0;
             const double order_tolerance = scheme == qmomkit::PhaseSpaceEvolutionScheme::strang ? 0.2 : 0.2;
-            if (penultimate_order < expected_order - order_tolerance || finest_order < expected_order - order_tolerance)
+            const bool above_first_order = scheme != qmomkit::PhaseSpaceEvolutionScheme::strang && (penultimate_order > 1.3 || finest_order > 1.3);
+            if (penultimate_order < expected_order - order_tolerance || finest_order < expected_order - order_tolerance || above_first_order)
             {
                 append_failure(verification, "noncommuting CQMOM " + std::string(phase_space_evolution_scheme_name(scheme)) +
                                                  " refinement did not show the expected splitting order.");

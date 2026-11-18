@@ -85,7 +85,9 @@ void test_rk23_exponential_decay()
     assert_near(result.final_time, 2.0, 1.0e-14);
     assert_near(result.state[0], std::exp(-2.0), 5.0e-7);
     QMOMKIT_VERIFY_CHECK(result.accepted_steps > 1);
-    QMOMKIT_VERIFY_CHECK(result.function_evaluations > result.accepted_steps);
+    // RK23 is first-same-as-last: one evaluation starts the integration, and
+    // every trial step, accepted or rejected, adds three.
+    QMOMKIT_VERIFY_CHECK(result.function_evaluations == 1 + 3 * (result.accepted_steps + result.rejected_steps));
 }
 
 void test_rk23_constant_rhs()

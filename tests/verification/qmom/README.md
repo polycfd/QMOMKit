@@ -33,8 +33,9 @@ moments below the table:
 | `gaussian_n2`, `gaussian_n3` | Gauss-Hermite for the weight $e^{-\xi^2/2}/\sqrt{2\pi}$ |
 | `hyperbolic_gaussian_n1`, `hyperbolic_gaussian_n2`, `hyperbolic_normal_distribution_n2` | the 2- and 3-point Gauss-Hermite rules, from `qmom_family = hyperbolic` with node count 1 and 2 |
 
-The sorted nodes and the weights must match the rule; the weights must be
-positive, sum to $m_0$ and rebuild every moment. Uniform nodes must lie in
+The result must have every node of the rule, since each fixture asks for a
+fixed node count. The sorted nodes and the weights must match the rule; the
+weights must be positive, sum to $m_0$ and rebuild every moment. Uniform nodes must lie in
 $[0, 1]$, exponential nodes must be positive, uniform and Gaussian rules must
 be symmetric, and Gaussian odd moments must vanish. The hyperbolic fixtures
 give the standard normal moments $m_0, \ldots, m_{2N}$, explicitly or, in

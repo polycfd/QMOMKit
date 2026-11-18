@@ -230,8 +230,17 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
     const QmomResult quadrature = compute_qmom(qmom_case);
     verification.status = quadrature.status;
     verification.message = quadrature.message;
-    if (!quadrature.ok() || quadrature.weights.size() != test_case.weights.size() || quadrature.abscissas.size() != test_case.abscissas.size())
+    if (!quadrature.ok())
     {
+        return verification;
+    }
+    // Every fixture asks for a fixed node count, so a successful result must
+    // have every node of the rule.
+    if (quadrature.weights.size() != test_case.weights.size() || quadrature.abscissas.size() != test_case.abscissas.size())
+    {
+        append_failure(verification, "compute_qmom returned " + std::to_string(quadrature.abscissas.size()) + " nodes and " +
+                                         std::to_string(quadrature.weights.size()) + " weights for a rule of " +
+                                         std::to_string(test_case.weights.size()) + " nodes.");
         return verification;
     }
 

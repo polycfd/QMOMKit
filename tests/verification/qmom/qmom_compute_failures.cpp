@@ -78,13 +78,9 @@ void verify_failure_case(const FailureCase& failure_case)
     {
         // Structurally invalid public requests should not expose fallback
         // quadrature data. Non-realizable moment sets may carry diagnostic
-        // fallback data, but they must still report non-success.
+        // fallback data, with the failure status checked above.
         QMOMKIT_VERIFY_CHECK(result.abscissas.empty());
         QMOMKIT_VERIFY_CHECK(result.weights.empty());
-    }
-    else
-    {
-        QMOMKIT_VERIFY_CHECK(result.status != qmomkit::QmomStatus::success);
     }
 }
 

@@ -219,6 +219,11 @@ void test_asymmetric_tensor_moment_layout()
     const double expected = number_density * 0.5 * (2.0 * 3.0 * 3.0 * 5.0 * 5.0 * 5.0 + 7.0 * 11.0 * 11.0 * 13.0 * 13.0 * 13.0);
     CHECK(std::abs(estimate.moments.values[flat] - expected) < 1.0e-10 * std::max(1.0, std::abs(expected)));
     CHECK(std::abs(estimate.moments.values.front() - number_density) < 1.0e-14);
+
+    // The first and the last entry sit at the same place in either storage
+    // order. In row-major order, entry 12 holds M[1,0,0] = 4 (2 + 7) / 2 = 18,
+    // whereas column-major order would put M[0,0,2] = 388 there.
+    CHECK_CLOSE(estimate.moments.values[12], 18.0, 1.0e-12);
 }
 
 void test_generalized_moment_output()

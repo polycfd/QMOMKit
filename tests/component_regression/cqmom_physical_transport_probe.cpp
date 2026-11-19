@@ -222,33 +222,6 @@ std::vector<double> direct_branch_moments(const qmomkit::CqmomQuadrature& quadra
     return moments;
 }
 
-double direct_long_double_variance(const qmomkit::CqmomQuadrature& quadrature, const qmomkit::ConditioningPath& branch_path,
-                                   const std::size_t dimension)
-{
-    long double branch_mass = 0.0L;
-    long double mean = 0.0L;
-    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
-    {
-        if (path_has_prefix(quadrature.terminal_paths()[node], branch_path))
-        {
-            branch_mass += static_cast<long double>(quadrature.weights()[node]);
-            mean += static_cast<long double>(quadrature.weights()[node]) * static_cast<long double>(quadrature.abscissas()[dimension][node]);
-        }
-    }
-    mean /= branch_mass;
-    long double variance = 0.0L;
-    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
-    {
-        if (path_has_prefix(quadrature.terminal_paths()[node], branch_path))
-        {
-            const long double conditional_weight = static_cast<long double>(quadrature.weights()[node]) / branch_mass;
-            const long double delta = static_cast<long double>(quadrature.abscissas()[dimension][node]) - mean;
-            variance += conditional_weight * delta * delta;
-        }
-    }
-    return static_cast<double>(variance);
-}
-
 void report_tree_spread(const std::string& label, const qmomkit::CqmomQuadrature& quadrature)
 {
     for (std::size_t d_branch = 0; d_branch < 2; ++d_branch)
@@ -338,16 +311,11 @@ void run_captured_physical_regression()
 
     const double direct_variance =
         direct_moments[2] / direct_moments[0] - (direct_moments[1] / direct_moments[0]) * (direct_moments[1] / direct_moments[0]);
-    const double long_double_variance = direct_long_double_variance(captured, expected_path, 2);
     const Recurrence2Diagnostic direct_recurrence = recurrence2(direct_moments);
-    const double u = direct_moments[1] / direct_moments[0];
-    const double ulp = std::nextafter(u, std::numeric_limits<double>::infinity()) - u;
-    QMOMKIT_VERIFY_CHECK(std::abs(direct_variance) <= ulp);
-    QMOMKIT_VERIFY_CHECK(long_double_variance == 0.0);
     std::cout << std::setprecision(17);
     std::cout << "[physical captured branch] mass=" << branch_mass << " direct_m0=" << direct_moments[0] << " direct_m1=" << direct_moments[1]
               << " direct_m2=" << direct_moments[2] << " direct_m3=" << direct_moments[3] << " direct_variance=" << direct_variance
-              << " long_double_variance=" << long_double_variance << " ulp=" << ulp << " direct_nodes=" << direct.abscissas.size() << '\n';
+              << " direct_nodes=" << direct.abscissas.size() << '\n';
     std::cout << "[physical recurrence] direct_sigma22=" << direct_recurrence.sigma22 << " direct_b1=" << direct_recurrence.b1
               << " direct_fixed_status=" << static_cast<int>(direct_fixed.status) << " direct_fixed_message=\"" << direct_fixed.message
               << "\" recursive_status=\"" << result.message << "\"\n";

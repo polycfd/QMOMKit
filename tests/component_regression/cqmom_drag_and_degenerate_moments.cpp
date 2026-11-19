@@ -32,10 +32,11 @@
  *   original pair is not required and any pair reproducing the moments is a
  *   correct answer. Reproducing the moments is the whole of the contract there.
  *
- *   One branch of the drag case is also inverted on its own with
- *   one-dimensional QMOM, which shows that the moment sequence handed to that
- *   branch is usable by itself, so a failure inside the recursive
- *   reconstruction could not be blamed on the branch data.
+ *   One branch of the drag case is also inverted on its own: its conditional
+ *   moments, formed from its two nodes, must give back those two velocities
+ *   and their conditional weights with one-dimensional QMOM, to 1e-13. This
+ *   shows that the branch data are resolvable by themselves, so a failure
+ *   inside the recursive reconstruction could not be blamed on them.
  *
  * WHEN IT IS TESTED
  *   Debug and Release. The checks are explicit and do not rely on assert().
@@ -256,9 +257,10 @@ void test_drag_transformed_moment_set_reconstructs()
     check_recovers_generating_nodes(nodes, result, 1.0e-10);
 }
 
-// The conditional moment sequence a branch hands to one-dimensional QMOM must
-// be realizable on its own, so a failure inside recursive reconstruction can be
-// attributed to the recursion rather than to the branch data.
+// The conditional moments of one branch, formed from its two nodes, must give
+// back those two velocities and their conditional weights with
+// one-dimensional QMOM. Drag has moved the velocities of the branch closer
+// together, so this shows that the branch data are resolvable by themselves.
 void test_drag_transformed_branch_sequence_inverts_directly()
 {
     const std::vector<TerminalNode> nodes = drag_transformed_nodes();
@@ -295,6 +297,15 @@ void test_drag_transformed_branch_sequence_inverts_directly()
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(qmomkit::MomentSet(conditional_moments), 2, wheeler_options);
     QMOMKIT_VERIFY_CHECK(quadrature.ok());
     QMOMKIT_VERIFY_CHECK(quadrature.weights.size() == 2);
+    QMOMKIT_VERIFY_CHECK(branch_nodes.size() == 2);
+    // The abscissas come in ascending order.
+    std::sort(branch_nodes.begin(), branch_nodes.end(),
+              [](const TerminalNode& left, const TerminalNode& right) { return left.coordinate[2] < right.coordinate[2]; });
+    for (std::size_t node = 0; node < branch_nodes.size(); ++node)
+    {
+        QMOMKIT_VERIFY_NEAR(quadrature.abscissas[node], branch_nodes[node].coordinate[2], 1.0e-13);
+        QMOMKIT_VERIFY_NEAR(quadrature.weights[node], branch_nodes[node].weight / branch_mass, 1.0e-13);
+    }
 }
 
 void test_near_degenerate_branch_moment_set_reconstructs()

@@ -23,8 +23,8 @@
 //
 // Error metric and pass criteria
 //   Maximum absolute deviation of the rebuilt moments from the prescribed ones.
-//   The one-dimensional case and the reduction from three nodes to two also
-//   compare positions and weights. Node counts and paths, where checked, must
+//   The one-dimensional case and the reduction from three nodes to two compare
+//   positions and weights instead. Node counts and paths, where checked, must
 //   match exactly. Tolerances are per case, from 1.0e-12 to 1.0e-8. They are
 //   safety bounds at least three orders of magnitude above the observed
 //   errors. The loosest belongs to the three-dimensional case, whose moments

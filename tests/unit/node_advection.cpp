@@ -777,13 +777,12 @@ void test_embedded_rk_advances_over_the_exact_step()
     {
         for (const double t : {1.0e3, 1.0e6})
         {
-            double earliest = std::numeric_limits<double>::infinity();
-            double latest = -std::numeric_limits<double>::infinity();
+            // A NaN compares false, so a NaN time counts as outside the step.
+            bool times_inside_step = true;
             const qmomkit::PhaseSpaceVelocity unit_velocity =
-                [&earliest, &latest](const double time, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+                [&times_inside_step, t](const double time, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
             {
-                earliest = std::min(earliest, time);
-                latest = std::max(latest, time);
+                times_inside_step = times_inside_step && time >= t && time <= t + dt;
                 std::fill(velocities.begin(), velocities.end(), 1.0);
             };
             qmomkit::NodeAdvectionOptions options;
@@ -793,8 +792,7 @@ void test_embedded_rk_advances_over_the_exact_step()
             assert(result.ok());
             assert_near(result.quadrature.abscissas[0], dt, 1.0e-15 * dt);
             assert(result.diagnostics.final_time == t + dt);
-            assert(earliest >= t);
-            assert(latest <= t + dt);
+            assert(times_inside_step);
         }
     }
 }

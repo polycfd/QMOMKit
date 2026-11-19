@@ -2811,9 +2811,9 @@ void assert_cqmom_case_initial_state_matches_prepared_case(const qmomkit::CqmomC
 
 void test_cqmom_case_initial_state_matches_prepared_case()
 {
-    // Every setting except the two adaptive flags is moved away from its
-    // default, so a setting the state failed to carry would show. The adaptive
-    // cases below set both flags.
+    // Every setting is moved away from its default, so a setting the state
+    // failed to carry would show. The fixed case turns adaptive reconstruction
+    // off, and the adaptive cases below keep it on.
     qmomkit::CqmomCase fixed_cqmom_case = qmomkit::internal::CqmomConstructionAccess::case_definition(fixed_cqmom_prepared_case());
     fixed_cqmom_case.conditional_options.singular_tolerance = 1.0e-13;
     fixed_cqmom_case.conditional_options.conditioning_warning_threshold = 1.0e11;

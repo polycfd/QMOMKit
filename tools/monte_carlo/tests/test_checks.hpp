@@ -38,7 +38,8 @@ inline void require_close(const double actual, const double expected, const doub
     const double relative_scale = std::max({1.0, std::abs(actual), std::abs(expected)});
     const double allowed_error = absolute_tolerance + relative_tolerance * relative_scale;
 
-    if (!std::isfinite(actual) || !std::isfinite(expected) || !std::isfinite(absolute_error) || absolute_error > allowed_error)
+    if (!std::isfinite(actual) || !std::isfinite(expected) || !std::isfinite(absolute_error) || !std::isfinite(allowed_error) ||
+        absolute_error > allowed_error)
     {
         std::ostringstream message;
         message << std::setprecision(17) << "close check failed: " << quantity << " actual=" << actual << " expected=" << expected

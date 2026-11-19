@@ -184,7 +184,8 @@ void test_statistical_sanity_improves_with_sample_count()
     // Each estimate must lie within five of its own standard errors of the
     // exact first moment. A correct sampler leaves it outside with probability
     // below 1e-6. The standard error of the large sample is a quarter of that of
-    // the small one, so a bias of 1.5 small-sample standard errors fails there.
+    // the small one, so a bias of two small-sample standard errors, eight
+    // large-sample ones, fails there in all but about one draw in a thousand.
     const double small_error = std::abs(small.moments.moments[1] - analytical.moments[1]);
     const double large_error = std::abs(large.moments.moments[1] - analytical.moments[1]);
     update_maximum_error(small_error);

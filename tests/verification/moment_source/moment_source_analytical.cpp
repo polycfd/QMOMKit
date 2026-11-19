@@ -326,7 +326,7 @@ void verify_source_diagnostics(const qmomkit::QmomMomentSourceUpdateResult& upda
     {
         append_failure(result, "Unexpected SSP-RK3 retry occurred in an analytical source verification case.");
     }
-    if (std::abs(update.diagnostics.time_step_used - expected_dt) > reconstruction_tolerance)
+    if (!(std::abs(update.diagnostics.time_step_used - expected_dt) <= reconstruction_tolerance))
     {
         append_failure(result, "SSP-RK3 diagnostics reported the wrong accepted timestep.");
     }

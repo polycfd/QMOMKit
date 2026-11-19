@@ -1083,16 +1083,16 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
             const double finest_order = verification.runs[first_run_index + 4].observed_order;
             if (scheme == qmomkit::PhaseSpaceEvolutionScheme::strang)
             {
-                if (penultimate_order < 1.75 || finest_order < 1.85)
+                if (!(penultimate_order >= 1.75 && finest_order >= 1.85))
                 {
                     append_failure(verification, "noncommuting Strang refinement did not show asymptotic second-order convergence.");
                 }
             }
-            else if (penultimate_order < 0.75 || finest_order < 0.85 || penultimate_order > 1.3 || finest_order > 1.3)
+            else if (!(penultimate_order >= 0.75 && finest_order >= 0.85 && penultimate_order <= 1.3 && finest_order <= 1.3))
             {
                 append_failure(verification, "noncommuting first-order refinement did not show asymptotic first-order convergence.");
             }
-            if (verification.runs[first_run_index + 4].errors.conservation > 1.0e-12)
+            if (!(verification.runs[first_run_index + 4].errors.conservation <= 1.0e-12))
             {
                 append_failure(verification, "noncommuting run did not conserve m0.");
             }
@@ -2035,8 +2035,12 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
                 const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result->state.quadrature(), extents);
                 update_errors(summary.errors, reconstructed.values, exact);
                 update_reconstruction_errors(summary.errors, reconstructed.values, exact);
-                summary.error_norm =
-                    std::max(scaled_infinity_error(state.moment_values(), exact_required.values), scaled_infinity_error(reconstructed.values, exact));
+                summary.error_norm = scaled_infinity_error(state.moment_values(), exact_required.values);
+                const double reconstruction_error = scaled_infinity_error(reconstructed.values, exact);
+                if (std::isnan(reconstruction_error) || reconstruction_error > summary.error_norm)
+                {
+                    summary.error_norm = reconstruction_error;
+                }
                 if (scheme == qmomkit::PhaseSpaceEvolutionScheme::advsrc && dt == refinement_steps.front())
                 {
                     cd_coarse = reconstructed.values;

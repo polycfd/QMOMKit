@@ -3,7 +3,8 @@
 // What is verified
 //   Fixed cases, from one to four dimensions with identity and non-identity
 //   conditioning orders and non-uniform node counts: the recursion recovers the
-//   prescribed weights and positions. Dimension sweeps D2 to D6: the recovered
+//   prescribed weights and positions and publishes one diagnostic record per
+//   branch, the root's first. Dimension sweeps D2 to D6: the recovered
 //   quadrature reproduces the moments it was given. One adaptive 4D case: the
 //   reconstruction returns the prescribed ragged structure, with the terminal
 //   paths that fix the node count on each branch, and the prescribed global
@@ -118,6 +119,20 @@ std::vector<double> raw_moments_from_terminal_quadrature(const std::vector<std::
     return moments;
 }
 
+// A fixed reconstruction inverts the root and one branch for every node of
+// every level but the last.
+std::size_t fixed_branch_count(const qmomkit::PhaseSpaceHierarchy& hierarchy)
+{
+    std::size_t branch_count = 0;
+    std::size_t branches_on_level = 1;
+    for (std::size_t level = 0; level < hierarchy.number_of_dimensions(); ++level)
+    {
+        branch_count += branches_on_level;
+        branches_on_level *= hierarchy.node_count(hierarchy.conditioning_order()[level]);
+    }
+    return branch_count;
+}
+
 ValidationMetrics validate_case(const std::string& name, const qmomkit::internal::RecursiveQuadrature& expected,
                                 const std::vector<std::size_t>& extents, const double moment_tolerance, const double node_tolerance)
 {
@@ -125,7 +140,13 @@ ValidationMetrics validate_case(const std::string& name, const qmomkit::internal
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
         moment_data_request(expected.hierarchy(), {extents, raw_moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
     QMOMKIT_VERIFY_CHECK(result.ok());
-    QMOMKIT_VERIFY_CHECK(!result.diagnostics.empty());
+    QMOMKIT_VERIFY_CHECK(result.quadrature.hierarchy().node_counts() == expected.hierarchy().node_counts());
+    QMOMKIT_VERIFY_CHECK(result.quadrature.hierarchy().conditioning_order() == expected.hierarchy().conditioning_order());
+    // The basic level publishes one record per branch, and the root's comes
+    // first.
+    QMOMKIT_VERIFY_CHECK(result.diagnostics.size() == fixed_branch_count(expected.hierarchy()));
+    QMOMKIT_VERIFY_CHECK(result.diagnostics.front().conditioning_level == 0);
+    QMOMKIT_VERIFY_CHECK(result.diagnostics.front().path.empty());
     for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic : result.diagnostics)
     {
         QMOMKIT_VERIFY_CHECK(diagnostic.conditioning_level < expected.number_of_dimensions());

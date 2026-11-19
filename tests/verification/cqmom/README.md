@@ -103,10 +103,10 @@ a mismatched hierarchy each throw.
 ### Recursive inversion
 
 `verification_recursive_quadrature_manufactured_*` (`recursive_quadrature.cpp`)
-covers one to three dimensions, both 2D orders, node counts 2 and 3, and
-adaptive branches with fewer points than requested, mostly through the rebuilt
-tensor. In one dimension, `recursive_1d_reduces_to_wheeler`, the result must
-equal the Wheeler result of `compute_quadrature`.
+covers adaptive branches with fewer points than requested, in two and three
+dimensions and both 2D orders, mostly through the rebuilt tensor. In one
+dimension, `recursive_1d_reduces_to_wheeler`, the result must equal the Wheeler
+result of `compute_quadrature`.
 `recursive_adaptive_reduction_to_an_intermediate_count` requests three nodes
 in each coordinate from five points, three of them at $\xi_0 = -1$ and two at
 $\xi_0 = 2$. The root and the branch at $\xi_0 = 2$ must each return two nodes
@@ -119,8 +119,9 @@ checks only its reduction to one node in either conditioning order.
 `verification_cqmom_recursive_*` (`recursive_cqmom.cpp`) compares positions and
 weights in six fixed cases, `1d` to `4d_adversarial_non_identity` (clustered
 positions, a weight of 0.09, a check of path-to-storage mapping), and in the
-eight-point ragged `4d_adversarial_adaptive_non_identity`. `dimension_sweep_D2`
-to `D6` compare moments only.
+eight-point ragged `4d_adversarial_adaptive_non_identity`. The fixed cases also
+require one diagnostic record per branch, the root's first.
+`dimension_sweep_D2` to `D6` compare moments only.
 
 ### Abscissa bounds
 

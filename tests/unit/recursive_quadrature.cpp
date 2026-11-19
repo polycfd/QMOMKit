@@ -351,20 +351,6 @@ template <typename Function> void assert_throws_out_of_range(Function function)
     assert(threw);
 }
 
-template <typename Function> void assert_throws_logic_error(Function function)
-{
-    bool threw = false;
-    try
-    {
-        function();
-    }
-    catch (const std::logic_error&)
-    {
-        threw = true;
-    }
-    assert(threw);
-}
-
 void assert_ragged_tree_consistent(const qmomkit::internal::RecursiveQuadrature& quadrature)
 {
     assert(quadrature.adaptive_branch_counts_enabled());
@@ -1295,16 +1281,18 @@ void test_conditioning_path_table_grows_iterates_and_compares()
     assert(table.levels() == 2);
 }
 
-// A view maps to phase-space order exactly as the owning path does; the owning
-// path delegates to it so the mapping exists once.
+// A view of a table row maps to phase-space order as the owning path does.
+// Level l of the path selects a node of dimension conditioning_order[l]: node
+// 3 of dimension 2, node 1 of dimension 0 and node 2 of dimension 1.
 void test_conditioning_path_view_maps_to_phase_space_node_index()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 4}, {2, 0, 1});
     const qmomkit::ConditioningPath path({3, 1, 2});
     const qmomkit::ConditioningPathTable table({path});
 
-    assert(table[0].phase_space_node_index(hierarchy) == path.phase_space_node_index(hierarchy));
-    assert(qmomkit::recursive_path_to_node_index(hierarchy, table[0]) == qmomkit::recursive_path_to_node_index(hierarchy, path));
+    assert_vector_equal(table[0].phase_space_node_index(hierarchy), {1, 2, 3});
+    assert_vector_equal(path.phase_space_node_index(hierarchy), {1, 2, 3});
+    assert_vector_equal(qmomkit::recursive_path_to_node_index(hierarchy, table[0]), {1, 2, 3});
 }
 
 void test_conditioning_path_maps_to_phase_space_node_index()

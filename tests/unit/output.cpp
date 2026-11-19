@@ -307,6 +307,11 @@ void test_requested_cqmom_moments_are_reconstructed_from_quadrature()
 
     const qmomkit::RawMomentRequest request{{{1, 0}, {0, 2}, {1, 1}}};
     const qmomkit::SelectedRawMomentResult reconstructed = qmomkit::reconstruct_raw_moments(result.quadrature, request);
+    // M[1,0], M[0,2] and M[1,1] of the four weighted points.
+    assert(reconstructed.values.size() == 3);
+    assert_near(reconstructed.values[0], 0.5, 1.0e-12);
+    assert_near(reconstructed.values[1], 1.65, 1.0e-12);
+    assert_near(reconstructed.values[2], 0.75, 1.0e-12);
     const std::filesystem::path path = temporary_output_path("qmomkit_requested_cqmom_moments");
     {
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, request);
@@ -332,6 +337,11 @@ void test_requested_cqmom_moments_preserve_duplicate_columns()
 
     const qmomkit::RawMomentRequest request{{{1, 0}, {1, 0}, {0, 0}}};
     const qmomkit::SelectedRawMomentResult reconstructed = qmomkit::reconstruct_raw_moments(result.quadrature, request);
+    // M[1,0], M[1,0] and M[0,0] of the four weighted points.
+    assert(reconstructed.values.size() == 3);
+    assert_near(reconstructed.values[0], 0.5, 1.0e-12);
+    assert_near(reconstructed.values[1], 0.5, 1.0e-12);
+    assert_near(reconstructed.values[2], 1.0, 1.0e-12);
     const std::filesystem::path path = temporary_output_path("qmomkit_requested_cqmom_duplicate_moments");
     {
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, request);

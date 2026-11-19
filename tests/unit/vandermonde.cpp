@@ -808,8 +808,6 @@ void test_solvers_do_not_depend_on_number_density_or_unit()
                  {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::pivoted_qr,
                   qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::moore_penrose})
             {
-                // Residual acceptance is enabled where a solver supports it, so
-                // the residual test is exercised under the same rescaling.
                 const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance};
                 const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
                     nodes, weights, make_rhs(nodes, weights, solution), options, singular_message);

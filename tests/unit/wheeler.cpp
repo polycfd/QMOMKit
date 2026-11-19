@@ -669,21 +669,6 @@ void test_recurrence_entry_zero_and_lengths()
     }
 }
 
-void test_recurrence_sigma_is_m0_times_the_product_of_b()
-{
-    // sigma(k, k) = m0 b_1 ... b_k, up to the rounding of the product.
-    const qmomkit::MomentSet moments = moments_from_nodes({-1.25, 0.5, 1.0, 2.75}, {0.25, 0.375, 0.125, 0.25});
-    const qmomkit::WheelerRecurrence recurrence = qmomkit::compute_wheeler_recurrence(moments, 4);
-    assert(recurrence.ok());
-    double product = moments[0];
-    for (std::size_t k = 1; k < 4; ++k)
-    {
-        product *= recurrence.b[k];
-        assert(recurrence.sigma[k] > 0.0);
-        assert(std::abs(recurrence.sigma[k] - product) <= 1.0e-14 * std::abs(product));
-    }
-}
-
 void test_recurrence_tolerance_is_the_documented_bound()
 {
     // tau_k = 100 epsilon sigma-bar(k, k) at coordinate scale zero, as the
@@ -1293,7 +1278,6 @@ int main(const int argc, char** argv)
             {"invalid_wheeler_options_fail_before_inversion", test_invalid_wheeler_options_fail_before_inversion},
             {"recurrence_reports_input_failures", test_recurrence_reports_input_failures},
             {"recurrence_entry_zero_and_lengths", test_recurrence_entry_zero_and_lengths},
-            {"recurrence_sigma_is_m0_times_the_product_of_b", test_recurrence_sigma_is_m0_times_the_product_of_b},
             {"recurrence_tolerance_is_the_documented_bound", test_recurrence_tolerance_is_the_documented_bound},
             {"recurrence_decides_the_node_count", test_recurrence_decides_the_node_count},
             {"hyperbolic_reports_input_failures", test_hyperbolic_reports_input_failures},

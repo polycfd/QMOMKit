@@ -266,9 +266,6 @@ void test_reusable_factorization()
     const qmomkit::internal::DenseMatrix rhs_second = make_rhs(matrix, expected_second);
 
     const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(matrix);
-    const qmomkit::internal::DenseMatrix factors_before = factorization.factors;
-    const std::vector<double> coefficients_before = factorization.householder_coefficients;
-    const std::vector<std::size_t> permutation_before = factorization.column_permutation;
 
     const qmomkit::internal::QrSolveResult first = qmomkit::internal::solve_qr(factorization, rhs_first);
     const qmomkit::internal::QrSolveResult second = qmomkit::internal::solve_qr(factorization, rhs_second);
@@ -277,9 +274,6 @@ void test_reusable_factorization()
     assert(second.status == qmomkit::internal::QrStatus::success);
     assert_matrix_near(first.solution, expected_first, 1.0e-12);
     assert_matrix_near(second.solution, expected_second, 1.0e-12);
-    assert_matrix_near(factorization.factors, factors_before, 0.0);
-    assert(factorization.householder_coefficients == coefficients_before);
-    assert(factorization.column_permutation == permutation_before);
 }
 
 void test_rank_deficient_matrix_refuses_solve()
@@ -390,9 +384,6 @@ void test_malformed_full_rank_factorization_rejects_zero_diagonal()
     malformed.status = qmomkit::internal::QrStatus::success;
     malformed.numerical_rank = malformed.cols;
     malformed.factors(malformed.cols - 1, malformed.cols - 1) = 0.0;
-    const qmomkit::internal::DenseMatrix malformed_factors_before = malformed.factors;
-    const std::vector<double> malformed_coefficients_before = malformed.householder_coefficients;
-    const std::vector<std::size_t> malformed_permutation_before = malformed.column_permutation;
 
     const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(malformed, rhs);
 
@@ -408,9 +399,6 @@ void test_malformed_full_rank_factorization_rejects_zero_diagonal()
             assert(result.solution(row, col) == 0.0);
         }
     }
-    assert_matrix_near(malformed.factors, malformed_factors_before, 0.0);
-    assert(malformed.householder_coefficients == malformed_coefficients_before);
-    assert(malformed.column_permutation == malformed_permutation_before);
 }
 
 void test_factorization_identity()

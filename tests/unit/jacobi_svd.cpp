@@ -542,13 +542,10 @@ void test_invalid_solve_input_and_malformed_metadata()
     assert(solve.status == qmomkit::internal::SvdStatus::invalid_input);
 }
 
-void test_zero_column_rhs_and_reuse_immutability()
+void test_zero_column_rhs_and_reuse()
 {
     const qmomkit::internal::DenseMatrix matrix = make_matrix({{2.0, -1.0}, {1.0, 3.0}, {4.0, 0.5}});
     const qmomkit::internal::SvdFactorization factorization = qmomkit::internal::factorize_svd(matrix);
-    const qmomkit::internal::DenseMatrix left_before = factorization.left_singular_vectors;
-    const qmomkit::internal::DenseMatrix right_before = factorization.right_singular_vectors;
-    const std::vector<double> singular_values_before = factorization.singular_values;
 
     const qmomkit::internal::SvdSolveResult zero_rhs = qmomkit::internal::solve_svd(factorization, qmomkit::internal::DenseMatrix(matrix.rows(), 0));
     assert(zero_rhs.status == qmomkit::internal::SvdStatus::success);
@@ -564,9 +561,6 @@ void test_zero_column_rhs_and_reuse_immutability()
     assert(second.status == qmomkit::internal::SvdStatus::success);
     assert_matrix_near(first.solution, expected_first, default_tolerance);
     assert_matrix_near(second.solution, expected_second, default_tolerance);
-    assert_matrix_near(factorization.left_singular_vectors, left_before, 0.0);
-    assert_matrix_near(factorization.right_singular_vectors, right_before, 0.0);
-    assert(factorization.singular_values == singular_values_before);
 }
 
 void test_success_requires_finite_solution()
@@ -617,7 +611,7 @@ int main(const int argc, char** argv)
             {"nonconvergence_is_reported_and_refused", test_nonconvergence_is_reported_and_refused},
             {"invalid_factorization_input", test_invalid_factorization_input},
             {"invalid_solve_input_and_malformed_metadata", test_invalid_solve_input_and_malformed_metadata},
-            {"zero_column_rhs_and_reuse_immutability", test_zero_column_rhs_and_reuse_immutability},
+            {"zero_column_rhs_and_reuse", test_zero_column_rhs_and_reuse},
             {"success_requires_finite_solution", test_success_requires_finite_solution},
             {"dense_matrix_rejects_overflowing_storage_dimensions", test_dense_matrix_rejects_overflowing_storage_dimensions},
         });

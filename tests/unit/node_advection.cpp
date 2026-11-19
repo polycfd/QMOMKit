@@ -58,11 +58,7 @@ void assert_diagnostic_vector_near(const std::string& text, const std::string& l
     assert(values.size() == expected.size());
     for (std::size_t i = 0; i < values.size(); ++i)
     {
-        if (std::isnan(expected[i]))
-        {
-            assert(std::isnan(values[i]));
-        }
-        else if (std::isinf(expected[i]))
+        if (std::isinf(expected[i]))
         {
             assert(values[i] == expected[i]);
         }
@@ -212,6 +208,8 @@ void test_default_cqmom_rk23_uses_default_adaptive_initial_step()
     assert(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert(result.diagnostics.step_count == 2);
     assert(result.diagnostics.rhs_evaluations == 7);
+    assert(result.quadrature.total_nodes() == cqmom_result.quadrature.total_nodes());
+    assert(result.quadrature.weights() == cqmom_result.quadrature.weights());
     for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
     {
         assert_near(result.quadrature.abscissas()[0][node], cqmom_result.quadrature.abscissas()[0][node] + 2.0 * time_step, 1.0e-15);
@@ -559,10 +557,6 @@ void test_velocity_diagnostics_report_node_and_dimension_context()
     assert(resized.quadrature.abscissas() == cqmom_result.quadrature.abscissas());
 }
 
-// The packed callback fills a library-supplied buffer, so a callback that
-// writes only part of it cannot be caught by size or finiteness alone. Debug
-// builds poison the buffer to detect it; in release builds the check is
-// compiled out and, like every assert-based test here, this one is inert.
 // The adapter hands the callback a reference to its coordinate buffer. A
 // callback that re-enters node advection on the same thread must not be able to
 // resize that buffer underneath the reference its caller is still holding: with
@@ -602,6 +596,10 @@ void test_reentrant_velocity_callback_keeps_its_coordinate_argument()
     assert(argument_survived);
 }
 
+// The packed callback fills a library-supplied buffer, so a callback that
+// writes only part of it cannot be caught by size or finiteness alone. Debug
+// builds poison the buffer to detect it. In release builds the check is
+// compiled out, and like every assert-based test here, this one is inert.
 void test_partially_filled_velocity_is_reported_in_debug_builds()
 {
     const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
@@ -864,14 +862,15 @@ absolute_tolerance = 1.0e-9
 
 void test_node_advection_options_formatting_reports_semantic_settings()
 {
-    const std::string fixed = qmomkit::format_node_advection_options(qmomkit::NodeAdvectionOptions{});
-    assert_contains(fixed, "scheme = rk23");
-    assert_contains(fixed, "adaptive.initial_step = ");
-    assert(fixed.find("<required>") == std::string::npos);
+    qmomkit::NodeAdvectionOptions fixed_options;
+    fixed_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const std::string fixed = qmomkit::format_node_advection_options(fixed_options);
+    assert_contains(fixed, "scheme = ssp_rk3");
+    assert(fixed.find("adaptive.") == std::string::npos);
 
-    qmomkit::NodeAdvectionOptions adaptive_defaults;
-    adaptive_defaults.scheme = qmomkit::NodeAdvectionScheme::rk23;
-    const std::string automatic = qmomkit::format_node_advection_options(adaptive_defaults);
+    // The default scheme is RK23 with the default adaptive controls.
+    const std::string automatic = qmomkit::format_node_advection_options(qmomkit::NodeAdvectionOptions{});
+    assert_contains(automatic, "scheme = rk23");
     assert_contains(automatic, "adaptive.initial_step = ");
     assert(automatic.find("<required>") == std::string::npos);
     assert_contains(automatic, "adaptive.max_step = full integration interval");

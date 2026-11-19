@@ -231,8 +231,14 @@ void test_ssp_rk3_accepts_realizable_candidate()
     policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
     policy.support = qmomkit::MomentSupport::nonnegative;
 
+    std::size_t conversions = 0;
     qmomkit::SspRk3Options options;
-    options.accept = qmomkit::make_realizability_acceptance_predicate(policy, identity_moments);
+    options.accept = qmomkit::make_realizability_acceptance_predicate(policy,
+                                                                      [&conversions](const std::vector<double>& state)
+                                                                      {
+                                                                          ++conversions;
+                                                                          return identity_moments(state);
+                                                                      });
 
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
     { std::fill(derivative.begin(), derivative.end(), 0.0); };
@@ -240,6 +246,8 @@ void test_ssp_rk3_accepts_realizable_candidate()
 
     assert(result.ok());
     assert(result.retries == 0);
+    // The final-only policy checks the one candidate step, which it accepts.
+    assert(conversions == 1);
 }
 
 void test_ssp_rk3_rejects_and_retries_with_realizability_predicate()

@@ -99,12 +99,20 @@ void append_failure(VerificationResult& result, const std::string& message)
 
 void update_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected));
+    const double error = std::abs(actual - expected);
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 void update_relative_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected) / std::max(1.0, std::abs(expected)));
+    const double error = std::abs(actual - expected) / std::max(1.0, std::abs(expected));
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 double integer_power(const double base, const std::size_t exponent)
@@ -372,8 +380,16 @@ void verify_linear_growth_convergence(const qmomkit::Quadrature1D& initial, Veri
     const std::vector<double> exact = exact_qmom_nodes("linear_growth", initial.abscissas, plan.dt);
     for (std::size_t node = 0; node < exact.size(); ++node)
     {
-        result.loose_error = std::max(result.loose_error, std::abs(loose_result.quadrature.abscissas[node] - exact[node]));
-        result.tight_error = std::max(result.tight_error, std::abs(tight_result.quadrature.abscissas[node] - exact[node]));
+        const double loose_node_error = std::abs(loose_result.quadrature.abscissas[node] - exact[node]);
+        if (std::isnan(loose_node_error) || loose_node_error > result.loose_error)
+        {
+            result.loose_error = loose_node_error;
+        }
+        const double tight_node_error = std::abs(tight_result.quadrature.abscissas[node] - exact[node]);
+        if (std::isnan(tight_node_error) || tight_node_error > result.tight_error)
+        {
+            result.tight_error = tight_node_error;
+        }
     }
     if (!(result.tight_error < result.loose_error))
     {

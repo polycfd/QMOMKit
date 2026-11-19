@@ -86,7 +86,11 @@ double eigen_residual(const DenseMatrix& matrix, const EigenDecomposition& decom
             {
                 product += matrix(row, k) * decomposition.eigenvectors(k, col);
             }
-            residual = std::max(residual, std::abs(product - decomposition.eigenvalues[col] * decomposition.eigenvectors(row, col)));
+            const double entry_residual = std::abs(product - decomposition.eigenvalues[col] * decomposition.eigenvectors(row, col));
+            if (std::isnan(entry_residual) || entry_residual > residual)
+            {
+                residual = entry_residual;
+            }
         }
     }
     return residual;
@@ -106,7 +110,11 @@ double orthogonality_error(const EigenDecomposition& decomposition)
             {
                 product += decomposition.eigenvectors(k, i) * decomposition.eigenvectors(k, j);
             }
-            error = std::max(error, std::abs(product - (i == j ? 1.0 : 0.0)));
+            const double entry_error = std::abs(product - (i == j ? 1.0 : 0.0));
+            if (std::isnan(entry_error) || entry_error > error)
+            {
+                error = entry_error;
+            }
         }
     }
     return error;

@@ -556,6 +556,66 @@ void test_cqmom_batch_aware_scalar_equivalence()
     }
 }
 
+// The moments M_0, ..., M_3 of weighted points as the one-dimensional CQMOM
+// moment data of node count 2.
+qmomkit::CqmomMomentData one_dimensional_cqmom_moments(const std::vector<double>& abscissas, const std::vector<double>& weights)
+{
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2}));
+    std::vector<double> values;
+    for (const qmomkit::MultiIndex& index : layout.required_indices.to_multi_indices())
+    {
+        double moment = 0.0;
+        for (std::size_t point = 0; point < abscissas.size(); ++point)
+        {
+            moment += weights[point] * std::pow(abscissas[point], static_cast<int>(index[0]));
+        }
+        values.push_back(moment);
+    }
+    return qmomkit::CqmomMomentData{layout, values};
+}
+
+// In one source step, the two points of the first adaptive state merge into
+// one and the point of the second state splits into two. Each batch result
+// must report the node-count transition of its own state, field by field, as
+// the call for that state alone does.
+void test_cqmom_batch_reports_the_node_count_transitions_of_each_state()
+{
+    const std::vector<qmomkit::CqmomMomentData> initial{one_dimensional_cqmom_moments({-1.0, 1.0}, {0.5, 0.5}),
+                                                        one_dimensional_cqmom_moments({0.5}, {1.0})};
+    const std::vector<qmomkit::CqmomMomentData> target{one_dimensional_cqmom_moments({0.25}, {1.0}),
+                                                       one_dimensional_cqmom_moments({-0.5, 1.5}, {0.5, 0.5})};
+    std::vector<qmomkit::CqmomState> states;
+    for (const qmomkit::CqmomMomentData& moments : initial)
+    {
+        states.push_back(qmomkit::CqmomPreparedCase{qmomkit::CqmomCase{moments}}.initial_state());
+    }
+    // A constant rate over a unit step, which SSP-RK3 integrates exactly.
+    const qmomkit::BatchCqmomMomentSource source = [&](const std::size_t batch_index, double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t entry = 0; entry < context.size(); ++entry)
+        {
+            rate[entry] = target[batch_index].values[entry] - initial[batch_index].values[entry];
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+    const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
+
+    const auto results = qmomkit::advance_cqmom_moment_source_batch_with_index(states, 0.0, 1.0, source, options);
+    assert(results.size() == states.size());
+    const std::vector<qmomkit::CqmomNodeCountTransitionKind> kinds{qmomkit::CqmomNodeCountTransitionKind::reduced,
+                                                                   qmomkit::CqmomNodeCountTransitionKind::grew};
+    for (std::size_t i = 0; i < states.size(); ++i)
+    {
+        const std::vector<qmomkit::CqmomNodeCountTransition>& transitions = results[i].diagnostics.cqmom_node_count_transitions;
+        assert(transitions.size() == 1);
+        assert(transitions.front().kind == kinds[i]);
+        const qmomkit::CqmomMomentSource state_source = [&source, i](const double time, const qmomkit::CqmomSourceContext& context)
+        { return source(i, time, context); };
+        assert_cqmom_result_equal(results[i], qmomkit::advance_cqmom_moment_source(states[i], 0.0, 1.0, state_source, options));
+    }
+}
+
 void test_empty_batch_skips_scalar_validation_and_callbacks()
 {
     const std::vector<qmomkit::QmomState> states = qmom_states();
@@ -660,11 +720,13 @@ void test_batch_index_remains_stable_for_repeated_callbacks()
 {
     const std::vector<qmomkit::QmomState> states = qmom_states();
     const qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options();
-    std::vector<std::vector<std::size_t>> observed(states.size());
+    // Each state holds one node at its own position, which the zero velocity
+    // keeps, so the coordinates of a callback show which state it was handed.
+    std::vector<std::vector<std::vector<double>>> observed(states.size());
     const qmomkit::BatchPhaseSpaceVelocity velocity =
         [&observed](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
-        observed[batch_index].push_back(batch_index);
+        observed[batch_index].push_back(coordinates);
         velocities.assign(coordinates.size(), 0.0);
     };
     const auto results = qmomkit::advance_qmom_advection_batch_with_index(states, 0.0, 0.2, velocity, options);
@@ -672,9 +734,9 @@ void test_batch_index_remains_stable_for_repeated_callbacks()
     for (std::size_t i = 0; i < observed.size(); ++i)
     {
         assert(observed[i].size() >= 3);
-        for (const std::size_t batch_index : observed[i])
+        for (const std::vector<double>& coordinates : observed[i])
         {
-            assert(batch_index == i);
+            assert_vector_near(coordinates, states[i].quadrature().abscissas);
         }
     }
 }
@@ -788,11 +850,13 @@ void test_cqmom_batch_index_remains_stable_for_repeated_callbacks()
 {
     const std::vector<qmomkit::CqmomState> states = cqmom_states();
     const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
-    std::vector<std::vector<std::size_t>> observed(states.size());
+    // Each state holds one node at its own position, which the zero velocity
+    // keeps, so the coordinates of a callback show which state it was handed.
+    std::vector<std::vector<std::vector<double>>> observed(states.size());
     const qmomkit::BatchPhaseSpaceVelocity velocity =
         [&observed](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
-        observed[batch_index].push_back(batch_index);
+        observed[batch_index].push_back(coordinates);
         velocities.assign(coordinates.size(), 0.0);
     };
 
@@ -800,10 +864,11 @@ void test_cqmom_batch_index_remains_stable_for_repeated_callbacks()
     assert(results.size() == states.size());
     for (std::size_t i = 0; i < observed.size(); ++i)
     {
+        const std::vector<double> position{states[i].quadrature().abscissas()[0][0], states[i].quadrature().abscissas()[1][0]};
         assert(observed[i].size() >= 3);
-        for (const std::size_t batch_index : observed[i])
+        for (const std::vector<double>& coordinates : observed[i])
         {
-            assert(batch_index == i);
+            assert_vector_near(coordinates, position);
         }
     }
 }
@@ -970,6 +1035,7 @@ int main(const int argc, char** argv)
             {"cqmom_ordinary_scalar_equivalence", test_cqmom_ordinary_scalar_equivalence},
             {"qmom_batch_aware_scalar_equivalence", test_qmom_batch_aware_scalar_equivalence},
             {"cqmom_batch_aware_scalar_equivalence", test_cqmom_batch_aware_scalar_equivalence},
+            {"cqmom_batch_reports_the_node_count_transitions_of_each_state", test_cqmom_batch_reports_the_node_count_transitions_of_each_state},
             {"empty_batch_skips_scalar_validation_and_callbacks", test_empty_batch_skips_scalar_validation_and_callbacks},
             {"cqmom_empty_batch_skips_scalar_validation_and_callbacks", test_cqmom_empty_batch_skips_scalar_validation_and_callbacks},
             {"normal_failures_are_independent_and_ordered", test_normal_failures_are_independent_and_ordered},

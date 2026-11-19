@@ -77,10 +77,22 @@ template <class T>
 void verify_failed_load(const qmomkit::config::ConfigurationResult<T>& result, const ExpectedFailure& expected, const std::filesystem::path& path)
 {
     // Public loaders must not hand a user a partially constructed case when
-    // configuration validation fails. The diagnostic string is the supported
-    // way for applications to explain the bad file to the user.
+    // configuration validation fails. The result reports the failure through
+    // ok() and operator bool, and value() throws std::bad_optional_access, as
+    // the user reference documents. The diagnostic string is the supported way
+    // for applications to explain the bad file to the user.
     QMOMKIT_VERIFY_CHECK(!result.ok());
     QMOMKIT_VERIFY_CHECK(!result);
+    bool value_refused = false;
+    try
+    {
+        static_cast<void>(result.value());
+    }
+    catch (const std::bad_optional_access&)
+    {
+        value_refused = true;
+    }
+    QMOMKIT_VERIFY_CHECK(value_refused);
     QMOMKIT_VERIFY_CHECK(!result.error().empty());
     if (!has_message_fragment(result, expected.message_fragment))
     {

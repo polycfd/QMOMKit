@@ -372,8 +372,8 @@ case reach the post-source reconstructions.
 | --- | --- | --- | --- |
 | `commuting_qmom` | `2e-6`, `8e-6` in the refinement; order $\ge 2.4$; component checks: weights `1e-13`, abscissas `1e-10`, source alone `2e-9` | `1e-9` to `1e-7`; order 3 | safety bounds; the order shows the third-order SSP-RK3 source step dominates |
 | `commuting_cqmom_2d`, adaptive | `3e-6` | `1e-11`, `1e-13` | safety bounds |
-| `noncommuting_convergence` | `8e-4` Strang, `3e-2` Lie; order $\ge 1.75, 1.85$ and $\ge 0.75, 0.85$ on the two finest pairs | `1e-4`, `2e-2` at $\Delta t = 0.3$; orders 1.97, 1.00 | the bounds hold the splitting error at the coarsest step; the order thresholds sit 7 to 25 percent below 2 and 1 |
-| `noncommuting_cqmom_convergence` | order $\ge 1.8$, $\ge 0.8$ on the two finest pairs | 2.00; 0.97 to 1.03 | only the order is checked |
+| `noncommuting_convergence` | `8e-4` Strang, `3e-2` Lie; order $\ge 1.75, 1.85$ and $\ge 0.75, 0.85$ on the two finest pairs, Lie at most $1.3$ | `1e-4`, `2e-2` at $\Delta t = 0.3$; orders 1.97, 1.00 | the bounds hold the splitting error at the coarsest step; the order thresholds sit 7 to 25 percent below 2 and 1, and the Lie upper bound rejects a scheme that runs Strang |
+| `noncommuting_cqmom_convergence` | order $\ge 1.8$, Lie in $[0.8, 1.3]$ on the two finest pairs | 2.00; 0.97 to 1.03 | only the order is checked; the Lie upper bound rejects a scheme that runs Strang |
 | `qmom_phase_space_source_evolution_matches_manufactured_solution` | order $> 1.7$; Lie in $(0.7, 1.3)$ on the last two pairs | 2.0, 1.0 | an order from two finite steps is approximate |
 | `time_dependent_splitting_schemes_match_their_exact_split_solutions` | order $\ge 2.8$ on the two finest pairs; deviation `1e-6` at 80 steps | 2.97 to 3.01; `1e-7` | the SSP-RK3 source error is third order; the bound leaves a factor of 10 |
 | `time_dependent_splitting_strang_is_second_order` | order $\ge 1.75, 1.85$ on the two finest pairs | 2.07, 2.03 | the thresholds of `noncommuting_convergence` |

@@ -69,7 +69,6 @@
 #include "qmomkit/wheeler.hpp"
 #include "test_case_dispatch.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -82,25 +81,13 @@
 namespace
 {
 
-double maximum_relative_error = 0.0;
-double maximum_absolute_error = 0.0;
-
 void assert_near_relative(const double actual, const double expected, const double tolerance)
 {
-    maximum_absolute_error = std::max(maximum_absolute_error, std::abs(actual - expected));
-    const double scale = std::max(1.0, std::abs(expected));
-    const double error = std::abs(actual - expected) / scale;
-    maximum_relative_error = std::max(maximum_relative_error, error);
     QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE(actual, expected, 0.0, tolerance);
 }
 
 void assert_near_absolute_relative(const double actual, const double expected, const double absolute_tolerance, const double relative_tolerance)
 {
-    const double absolute_error = std::abs(actual - expected);
-    maximum_absolute_error = std::max(maximum_absolute_error, absolute_error);
-    const double scale = std::max(1.0, std::abs(expected));
-    const double relative_error = absolute_error / scale;
-    maximum_relative_error = std::max(maximum_relative_error, relative_error);
     QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE(actual, expected, absolute_tolerance, relative_tolerance);
 }
 

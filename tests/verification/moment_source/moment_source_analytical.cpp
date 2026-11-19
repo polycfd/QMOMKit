@@ -100,12 +100,20 @@ void append_failure(VerificationResult& result, const std::string& message)
 
 void update_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected));
+    const double error = std::abs(actual - expected);
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 void update_relative_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected) / std::max(1.0, std::abs(expected)));
+    const double error = std::abs(actual - expected) / std::max(1.0, std::abs(expected));
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 double integer_power(const double base, const std::size_t exponent)
@@ -318,7 +326,7 @@ void verify_source_diagnostics(const qmomkit::QmomMomentSourceUpdateResult& upda
     {
         append_failure(result, "Unexpected SSP-RK3 retry occurred in an analytical source verification case.");
     }
-    if (std::abs(update.diagnostics.time_step_used - expected_dt) > reconstruction_tolerance)
+    if (!(std::abs(update.diagnostics.time_step_used - expected_dt) <= reconstruction_tolerance))
     {
         append_failure(result, "SSP-RK3 diagnostics reported the wrong accepted timestep.");
     }

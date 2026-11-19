@@ -5,7 +5,6 @@
 #include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -68,7 +67,6 @@ void test_single_sample_constant_velocity()
 
     CHECK(result.ok());
     CHECK(result.ensemble.size() == 1);
-    CHECK(ensemble[0][0] == 1.25);
     check_close(result.ensemble[0][0], 1.25 + velocity * (t1 - t0), 1.0e-12);
     check_close(result.final_time, t1, 0.0);
 }
@@ -129,21 +127,25 @@ void test_deterministic_ensemble_rk23_max_step_convergence()
         CHECK(result.ensemble.size() == initial.size());
         CHECK(result.total_accepted_steps == initial.size() * static_cast<std::size_t>(std::lround(1.0 / step_size)));
         CHECK(result.total_rejected_steps == 0);
+        // RK23 reuses the last stage of a step as the first of the next, so
+        // each sample takes one evaluation to start and three per step. RK45
+        // would take six per step.
+        CHECK(result.total_function_evaluations == initial.size() + 3 * (result.total_accepted_steps + result.total_rejected_steps));
         check_close(result.final_time, 1.0, 0.0);
 
         double maximum_error = 0.0;
         for (std::size_t sample = 0; sample < initial.size(); ++sample)
         {
             CHECK(result.ensemble[sample].size() == initial[sample].size());
-            maximum_error = std::max(maximum_error, std::abs(result.ensemble[sample][0] - initial[sample][0] * std::exp(1.0)));
+            const double sample_error = std::abs(result.ensemble[sample][0] - initial[sample][0] * std::exp(1.0));
+            if (std::isnan(sample_error) || sample_error > maximum_error)
+            {
+                maximum_error = sample_error;
+            }
         }
         errors.push_back(maximum_error);
     }
 
-    CHECK(initial.size() == 3);
-    CHECK(initial[0][0] == 0.5);
-    CHECK(initial[1][0] == 1.0);
-    CHECK(initial[2][0] == 2.0);
     CHECK(errors.front() > 0.0);
     for (std::size_t refinement = 1; refinement < errors.size(); ++refinement)
     {
@@ -197,11 +199,15 @@ void test_ensemble_evolution_and_moments()
     CHECK(result.maximum_rejected_steps <= result.total_rejected_steps);
     check_close(result.final_time, t1, 0.0);
 
-    for (const Sample& sample : result.ensemble)
+    // Each coordinate moves independently: x' = 0.1 (x + 2) and y' = -0.15 y,
+    // so over the elapsed time 0.3, x + 2 grows by exp(0.03) and y decays by
+    // exp(-0.045).
+    for (std::size_t sample = 0; sample < result.ensemble.size(); ++sample)
     {
-        CHECK(sample.size() == 2);
-        CHECK_FINITE(sample[0]);
-        CHECK_FINITE(sample[1]);
+        const Sample& initial = sampling.ensemble[sample];
+        CHECK(result.ensemble[sample].size() == 2);
+        check_close(result.ensemble[sample][0], (initial[0] + 2.0) * std::exp(0.1 * (t1 - t0)) - 2.0, 1.0e-9);
+        check_close(result.ensemble[sample][1], initial[1] * std::exp(-0.15 * (t1 - t0)), 1.0e-9);
     }
 
     const qmomkit::monte_carlo::TensorMomentEstimate moments =
@@ -218,7 +224,7 @@ void test_ensemble_evolution_and_moments()
     }
 }
 
-void test_failure_inputs_preserve_original()
+void test_invalid_inputs_are_refused()
 {
     const Ensemble original{{1.0}, {2.0}};
     const qmomkit::PhaseSpaceVelocity identity =
@@ -250,9 +256,6 @@ void test_failure_inputs_preserve_original()
         qmomkit::monte_carlo::evolve_ensemble(original, missing, 0.0, 1.0, options);
     CHECK(!missing_callback.ok());
     CHECK(missing_callback.status == EnsembleEvolutionStatus::invalid_input);
-
-    CHECK(original[0][0] == 1.0);
-    CHECK(original[1][0] == 2.0);
 }
 
 void test_failure_during_integration()
@@ -359,9 +362,6 @@ void test_failure_during_integration()
     CHECK(later_failure.ensemble.empty());
     CHECK(later_failure.total_accepted_steps > 0);
     CHECK(later_failure.total_function_evaluations > 0);
-
-    CHECK(original[0][0] == 1.0);
-    CHECK(original[1][0] == 2.0);
 }
 
 void test_reproducibility()
@@ -403,7 +403,7 @@ int main(const int argc, char** argv)
             {"deterministic_ensemble_rk23_max_step_convergence", test_deterministic_ensemble_rk23_max_step_convergence},
             {"single_sample_affine_evolution", test_single_sample_affine_evolution},
             {"ensemble_evolution_and_moments", test_ensemble_evolution_and_moments},
-            {"failure_inputs_preserve_original", test_failure_inputs_preserve_original},
+            {"invalid_inputs_are_refused", test_invalid_inputs_are_refused},
             {"failure_during_integration", test_failure_during_integration},
             {"reproducibility", test_reproducibility},
         });

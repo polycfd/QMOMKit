@@ -182,6 +182,7 @@ void test_selected_distribution_zero_total_weight()
     const qmomkit::SelectedRawMomentResult normal = qmomkit::compute_raw_moments(qmomkit::NormalDistribution{1.0e308, 1.0}, request, 0.0);
     assert(normal.ok());
     assert(normal.indices == request.indices);
+    assert(normal.values.size() == request.indices.size());
     for (double value : normal.values)
     {
         assert_near(value, 0.0, 0.0);
@@ -454,6 +455,7 @@ void test_overflowing_variance_fails_only_the_orders_that_use_it()
     // Zero total weight returns zeros without evaluating any moment.
     const qmomkit::RawMomentResult log_normal_zero_weight = qmomkit::compute_raw_moments(wide_log_normal, 3, 0.0);
     assert(log_normal_zero_weight.ok());
+    assert(log_normal_zero_weight.moments.size() == 4);
     for (const double moment : log_normal_zero_weight.moments.values())
     {
         assert(moment == 0.0);
@@ -492,6 +494,7 @@ void test_normal_moments_that_underflow_are_reported()
     // every moment is representable and exactly the power of the mean.
     const qmomkit::RawMomentResult offset_narrow = qmomkit::compute_raw_moments(qmomkit::NormalDistribution{1.0, 1.0e-200}, 4);
     assert(offset_narrow.ok());
+    assert(offset_narrow.moments.size() == 5);
     for (const double moment : offset_narrow.moments.values())
     {
         assert(moment == 1.0);
@@ -829,7 +832,7 @@ void test_independent_product_marginal_failure_reports_order()
     assert(result.failed_dimension == 1);
     assert(result.failed_order.size() == 2);
     assert(result.failed_order[0] == 0);
-    assert(result.failed_order[1] > 0);
+    assert(result.failed_order[1] == 3);
 }
 
 void test_independent_product_maximum_orders_zero()

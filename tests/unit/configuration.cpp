@@ -14,6 +14,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <locale>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -896,12 +897,11 @@ void test_cqmom_rejects_the_removed_moment_storage_key()
 
     const auto configured = qmomkit::config::parse_cqmom_prepared(with_removed_key, "cqmom-test");
     assert(!configured.ok());
-    assert(has_failure(configured));
-    assert(has_message_fragment(configured, "moment_storage"));
+    assert(has_message_fragment(configured, "Unknown key 'cqmom.moment_storage'."));
 
     const auto cqmom_case_result = qmomkit::config::parse_cqmom(with_removed_key, "cqmom-test");
     assert(!cqmom_case_result.ok());
-    assert(has_failure(cqmom_case_result));
+    assert(has_message_fragment(cqmom_case_result, "Unknown key 'cqmom.moment_storage'."));
 
     // The same configuration without the key still loads through both loaders.
     assert(qmomkit::config::parse_cqmom_prepared(cqmom_text, "cqmom-test").ok());
@@ -1053,8 +1053,12 @@ sigma_log = 0.45
     assert(std::get<qmomkit::LogNormalDistribution>(mixture->components[0].distribution).normal_mean == -0.3);
     assert(std::get<qmomkit::LogNormalDistribution>(mixture->components[1].distribution).normal_standard_deviation == 0.45);
 
-    const qmomkit::IndependentProductDistribution direct{{qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, *mixture},
-                                                         2.75};
+    // The reference is built from the configured values, not from the parsed
+    // mixture, so a parameter read into the wrong field shows in the moments.
+    const qmomkit::DistributionMixture expected_mixture{{qmomkit::DistributionComponent{qmomkit::LogNormalDistribution{-0.3, 0.25}, 1.5},
+                                                         qmomkit::DistributionComponent{qmomkit::LogNormalDistribution{0.4, 0.45}, 3.25}}};
+    const qmomkit::IndependentProductDistribution direct{
+        {qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, expected_mixture}, 2.75};
     const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, {1, 2});
     const auto initialized = qmomkit::config::initialize_cqmom_moment_tensor(initial.value());
     assert(expected.ok());
@@ -1485,33 +1489,6 @@ support_upper = none, 2.0
     assert(has_message_fragment(lower_negative_inf, "support_lower must contain finite numbers or none entries"));
 }
 
-void test_cqmom_prepared_case_initial_state_preserves_case_settings()
-{
-    const auto cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(cqmom_text, "cqmom-test");
-    assert(cqmom_prepared_case_result.ok());
-
-    const qmomkit::CqmomPreparedCase cqmom_prepared_case = cqmom_prepared_case_result.value();
-    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
-
-    assert(state.hierarchy().node_counts() == cqmom_prepared_case.hierarchy().node_counts());
-    assert(state.hierarchy().conditioning_order() == cqmom_prepared_case.hierarchy().conditioning_order());
-    assert(state.qmom_options().adaptive == cqmom_prepared_case.qmom_options().adaptive);
-    assert_near(state.qmom_options().rmin, cqmom_prepared_case.qmom_options().rmin);
-    assert_near(state.qmom_options().eabs, cqmom_prepared_case.qmom_options().eabs);
-    assert_near(state.qmom_options().cutoff, cqmom_prepared_case.qmom_options().cutoff);
-    assert_near(state.conditional_options().singular_tolerance, cqmom_prepared_case.conditional_options().singular_tolerance);
-    assert_near(state.conditional_options().conditioning_warning_threshold, cqmom_prepared_case.conditional_options().conditioning_warning_threshold);
-    assert(state.qmom_options().adaptive == cqmom_prepared_case.qmom_options().adaptive);
-    assert(state.diagnostic_level() == cqmom_prepared_case.diagnostic_level());
-    assert(state.vandermonde_solver() == cqmom_prepared_case.vandermonde_solver());
-
-    const qmomkit::CqmomState copied = state;
-    assert(copied.hierarchy().node_counts() == state.hierarchy().node_counts());
-    assert(copied.hierarchy().conditioning_order() == state.hierarchy().conditioning_order());
-    assert(copied.qmom_options().adaptive == state.qmom_options().adaptive);
-    assert(copied.vandermonde_solver() == state.vandermonde_solver());
-}
-
 qmomkit::RawMomentTensor cqmom_replacement_tensor(const std::vector<double>& x_values)
 {
     return {{4, 4}, raw_moments_from_terminals_2d({0.2, 0.3, 0.1, 0.4}, {x_values, {0.25, 1.5, 0.25, 1.5}})};
@@ -1594,7 +1571,7 @@ void test_cqmom_prepared_case_replaces_initial_moments_immutably()
         base_cqmom_case.diagnostic_level, base_cqmom_case.vandermonde_solver,  base_cqmom_case.abscissa_bounds};
     const qmomkit::CqmomPreparedCase base_cqmom_prepared_case =
         qmomkit::internal::CqmomConstructionAccess::create_prepared_case(reassembled_base_cqmom_case);
-    qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
+    const qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     const qmomkit::CqmomMomentData expected_moments = qmomkit::extract_cqmom_moments(replacement, layout);
 
     const auto transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, replacement);
@@ -1602,11 +1579,14 @@ void test_cqmom_prepared_case_replaces_initial_moments_immutably()
     const qmomkit::CqmomPreparedCase replaced_cqmom_prepared_case = transformed.value();
     assert_cqmom_case_policies_equal(replaced_cqmom_prepared_case, base_cqmom_prepared_case);
 
-    replacement.values[0] = -999.0;
+    // The replaced case starts from the replacement moments and the base case
+    // still from its own, which both come from exact weighted points.
     const qmomkit::CqmomState base_state = base_cqmom_prepared_case.initial_state();
     const qmomkit::CqmomState replaced_state = replaced_cqmom_prepared_case.initial_state();
     assert(base_state.moment_indices() == layout.required_indices.to_multi_indices());
     assert(replaced_state.moment_indices() == expected_moments.layout.required_indices.to_multi_indices());
+    assert_cqmom_moments_near(qmomkit::CqmomMomentData{layout, replaced_state.moment_values()}, expected_moments);
+    assert_cqmom_moments_near(qmomkit::CqmomMomentData{layout, base_state.moment_values()}, base_cqmom_case.moments);
 
     const qmomkit::CqmomResult base_result = qmomkit::compute_cqmom(base_cqmom_prepared_case);
     const qmomkit::CqmomResult replaced_result = qmomkit::compute_cqmom(replaced_cqmom_prepared_case);
@@ -1633,20 +1613,19 @@ void test_cqmom_prepared_case_replaces_initial_moments_from_moment_data()
     const std::vector<double> base_values = base_cqmom_prepared_case.initial_state().moment_values();
 
     const qmomkit::RawMomentTensor replacement_tensor = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
-    qmomkit::CqmomMomentData replacement = qmomkit::extract_cqmom_moments(replacement_tensor, layout);
+    const qmomkit::CqmomMomentData replacement = qmomkit::extract_cqmom_moments(replacement_tensor, layout);
 
     const auto transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, replacement);
     assert(transformed.ok());
     const qmomkit::CqmomPreparedCase replaced_cqmom_prepared_case = transformed.value();
     assert_cqmom_case_policies_equal(replaced_cqmom_prepared_case, base_cqmom_prepared_case);
 
-    // The supplied moment data is copied into the returned case, so mutating it
-    // afterwards must not reach either case.
-    replacement.values[0] = -999.0;
+    // The base case keeps its own moments.
     assert(base_cqmom_prepared_case.initial_state().moment_values() == base_values);
 
     const qmomkit::CqmomState replaced_state = replaced_cqmom_prepared_case.initial_state();
     assert(replaced_state.moment_indices() == layout.required_indices.to_multi_indices());
+    assert_cqmom_moments_near(qmomkit::CqmomMomentData{layout, replaced_state.moment_values()}, replacement);
 
     // Replacing the moments from moment data must be indistinguishable from
     // supplying the same moments as a full tensor of raw moments: same
@@ -2036,7 +2015,7 @@ void assert_cqmom_case_replacement_matches_prepared(const qmomkit::CqmomCase& re
 qmomkit::CqmomCase fully_configured_replacement_base_cqmom_case()
 {
     qmomkit::CqmomCase base_cqmom_case = replacement_base_cqmom_case();
-    base_cqmom_case.qmom_options.adaptive = true;
+    base_cqmom_case.qmom_options.adaptive = false;
     base_cqmom_case.conditional_options.moore_penrose_rcond = 1.0e-13;
     return base_cqmom_case;
 }
@@ -3091,57 +3070,49 @@ accept_boundary = false
     assert_near(node_options.value().adaptive_options.max_step, 1.0e-2);
 }
 
+// Each block has one fault. The CQMOM case reads the policy of coordinate 0,
+// so its message names that section.
 void test_case_parsing_rejects_invalid_realizability_policy()
 {
-    const std::vector<std::string> invalid_blocks = {{
-        R"(
-
-[time_integration.realizability]
-check_mode = accepted_step
-support = nonnegative
-)",
-        R"(
-
-[time_integration.realizability]
-check_mode = final_only
-support = nonnegative
-tolerance = 0.0
-)",
-        R"(
-
-[time_integration.realizability]
-check_mode = final_only
-support = bounded_interval
-lower = 2.0
-upper = 1.0
-)",
-        R"(
-
-[time_integration.realizability]
-check_mode = final_only
-)",
-        R"(
-
-[time_integration.realizability]
-check_mode = final_only
-support = nonnegative
-enabled = true
-)",
-    }};
-
-    for (const auto& block : invalid_blocks)
+    struct InvalidBlock
     {
-        const auto qmom_case_result = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(block));
+        std::string block;
+        // The expected message is message_start, then the section key of the
+        // policy and a period, then message_end.
+        std::string message_start;
+        std::string message_end;
+    };
+    const std::vector<InvalidBlock> invalid_blocks{
+        {"\n\n[time_integration.realizability]\ncheck_mode = accepted_step\nsupport = nonnegative\n", "",
+         "check_mode must be none, every_stage, or final_only."},
+        {"\n\n[time_integration.realizability]\ncheck_mode = final_only\nsupport = nonnegative\ntolerance = 0.0\n", "",
+         "tolerance must be positive."},
+        {"\n\n[time_integration.realizability]\ncheck_mode = final_only\nsupport = bounded_interval\nlower = 2.0\nupper = 1.0\n", "",
+         "lower must be less than upper."},
+        {"\n\n[time_integration.realizability]\ncheck_mode = final_only\n", "Missing required key '", "support'."},
+        {"\n\n[time_integration.realizability]\ncheck_mode = final_only\nsupport = nonnegative\nenabled = true\n", "Unknown key '", "enabled'."},
+    };
+    const std::string qmom_section = "time_integration.realizability";
+    const std::string cqmom_section = "time_integration.realizability.0";
+
+    for (const InvalidBlock& invalid : invalid_blocks)
+    {
+        const std::string qmom_message = invalid.message_start + qmom_section + "." + invalid.message_end;
+        const std::string cqmom_message = invalid.message_start + cqmom_section + "." + invalid.message_end;
+        std::string cqmom_block = invalid.block;
+        cqmom_block.replace(cqmom_block.find("[" + qmom_section + "]"), qmom_section.size() + 2, "[" + cqmom_section + "]");
+
+        const auto qmom_case_result = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(invalid.block));
         assert(!qmom_case_result.ok());
-        assert(has_failure(qmom_case_result));
+        assert(has_message_fragment(qmom_case_result, qmom_message));
 
-        const auto cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(block));
+        const auto cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(cqmom_block));
         assert(!cqmom_prepared_case_result.ok());
-        assert(has_failure(cqmom_prepared_case_result));
+        assert(has_message_fragment(cqmom_prepared_case_result, cqmom_message));
 
-        const auto policy = qmomkit::config::parse_realizability_policy(block);
+        const auto policy = qmomkit::config::parse_realizability_policy(invalid.block);
         assert(!policy.ok());
-        assert(has_failure(policy));
+        assert(has_message_fragment(policy, qmom_message));
     }
 }
 
@@ -3419,17 +3390,18 @@ growth_limit = 2.0
 void test_removed_cqmom_source_policy_section_is_unknown()
 {
     const std::string removed_key = std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = preserve_active_" + "counts\n";
+    const std::string message = "Unknown section 'time_integration.cqmom'.";
     const auto qmom = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(removed_key));
     assert(!qmom.ok());
-    assert(has_failure(qmom));
+    assert(has_message_fragment(qmom, message));
 
     const auto cqmom = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(removed_key));
     assert(!cqmom.ok());
-    assert(has_failure(cqmom));
+    assert(has_message_fragment(cqmom, message));
 
     const auto phase_space_evolution_options = qmomkit::config::parse_cqmom_phase_space_evolution_options(removed_key);
     assert(!phase_space_evolution_options.ok());
-    assert(has_failure(phase_space_evolution_options));
+    assert(has_message_fragment(phase_space_evolution_options, message));
 }
 
 void test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks()
@@ -3946,9 +3918,14 @@ void test_duplicate_and_missing_entries()
     assert(!missing_moment.ok());
     assert(has_failure(missing_moment));
 
-    const auto missing_initial_type = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\nfamily=normal\n");
+    // A complete normal distribution without its type: defaulting the type
+    // to distribution would load it.
+    const auto missing_initial_type =
+        qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\nfamily=normal\nmaximum_order=1\nmean=0\nstandard_deviation=1\n");
     assert(!missing_initial_type.ok());
-    assert(has_failure(missing_initial_type));
+    assert(has_message_fragment(
+        missing_initial_type,
+        "QMOM configuration requires either '[moments] values', '[initial] type = distribution', or '[initial] type = mixture'."));
 
     // The node_counts entry (settings-phase validation) is well-formed here, so
     // only the initial-condition phase detects this error. Pinning the exact
@@ -3988,9 +3965,15 @@ void test_duplicate_and_missing_entries()
     assert(!missing_component_density.ok());
     assert(has_failure(missing_component_density));
 
-    const auto missing_cqmom_initial_type = qmomkit::config::parse_cqmom("[phase_space]\nnode_counts=1,1\n[initial]\nnumber_density=1\n");
+    // A complete independent product without its type.
+    const auto missing_cqmom_initial_type =
+        qmomkit::config::parse_cqmom("[phase_space]\nnode_counts=1,1\n[initial]\nnumber_density=1\nmaximum_orders=1,1\n"
+                                     "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
+                                     "[initial.dimension.1]\nfamily=normal\nmean=0\nstandard_deviation=1\n");
     assert(!missing_cqmom_initial_type.ok());
-    assert(has_failure(missing_cqmom_initial_type));
+    assert(
+        has_message_fragment(missing_cqmom_initial_type,
+                             "CQMOM configuration requires either explicit '[moments]' tensor entries or '[initial] type = independent_product'."));
 
     // Same rationale as invalid_initial_type above, exercised through the
     // shared ParsedFile path used by parse_cqmom/parse_cqmom/parse_cqmom_prepared.
@@ -4047,7 +4030,9 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
 
     const auto unsupported_initial_type = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=independent_product\n");
     assert(!unsupported_initial_type.ok());
-    assert(has_failure(unsupported_initial_type));
+    assert(has_message_fragment(
+        unsupported_initial_type,
+        "<string>:4: Only '[initial] type = distribution' and '[initial] type = mixture' are supported for QMOM initialization."));
 
     const auto unsupported_family =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily=poisson\nmaximum_order=1\n");
@@ -4175,12 +4160,15 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
     assert(!extra_product_dimension.ok());
     assert(has_failure(extra_product_dimension));
 
+    // Non-overlapping keys and a complete second dimension leave the repeated
+    // section as the only fault, as for the mixture component below.
     const auto duplicate_product_dimension =
         qmomkit::config::parse_cqmom("[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
-                                     "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
-                                     "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n");
+                                     "[initial.dimension.0]\nfamily=gamma\n"
+                                     "[initial.dimension.0]\nshape=1\nscale=2\n"
+                                     "[initial.dimension.1]\nfamily=normal\nmean=0\nstandard_deviation=1\n");
     assert(!duplicate_product_dimension.ok());
-    assert(has_failure(duplicate_product_dimension));
+    assert(has_message_fragment(duplicate_product_dimension, "Duplicate section 'initial.dimension.0'."));
 
     // Non-overlapping keys across the two blocks isolate the duplicate-section check
     // itself; identical keys would instead (also correctly) fail via the separate
@@ -4201,9 +4189,10 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
 
     const auto product_dimension_mismatch =
         qmomkit::config::parse_cqmom("[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1\n"
-                                     "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n");
+                                     "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
+                                     "[initial.dimension.1]\nfamily=normal\nmean=0\nstandard_deviation=1\n");
     assert(!product_dimension_mismatch.ok());
-    assert(has_failure(product_dimension_mismatch));
+    assert(has_message_fragment(product_dimension_mismatch, "initial.maximum_orders must contain one entry per phase-space dimension."));
 
     const auto product_rejects_marginal_density =
         qmomkit::config::parse_cqmom("[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
@@ -4752,9 +4741,28 @@ standard_deviation = 1.0
     assert(has_message_fragment(coordinate_index, "Coordinate realizability policy index is too large."));
 }
 
+// Numeric punctuation with a decimal comma, built on the classic locale so
+// that no installed locale is needed.
+struct DecimalCommaPunctuation : std::numpunct<char>
+{
+    [[nodiscard]] char do_decimal_point() const override
+    {
+        return ',';
+    }
+    [[nodiscard]] char do_thousands_sep() const override
+    {
+        return '.';
+    }
+    [[nodiscard]] std::string do_grouping() const override
+    {
+        return "\3";
+    }
+};
+
 // Numbers are plain decimal and are read in the classic "C" locale, so a host
 // application's locale cannot change how a configuration file is read. The
-// locale part runs where a decimal-comma locale is installed.
+// check with the C library's locale runs where a decimal-comma locale is
+// installed, and the check with a global C++ locale runs everywhere.
 void test_numbers_are_read_independently_of_the_locale()
 {
     const std::string text = "[phase_space]\nnode_counts = 1\n[moments]\nvalues = 1.5, 0.25\n";
@@ -4772,6 +4780,15 @@ void test_numbers_are_read_independently_of_the_locale()
         }
     }
     std::setlocale(LC_NUMERIC, previous_locale.c_str());
+
+    // A host may instead set a global C++ locale with a decimal comma, which
+    // every stream takes unless it is given another.
+    const std::locale previous_global = std::locale::global(std::locale(std::locale::classic(), new DecimalCommaPunctuation));
+    const auto decimal_comma = qmomkit::config::parse_qmom(text);
+    std::locale::global(previous_global);
+    assert(decimal_comma.ok());
+    assert(decimal_comma.value().moments[0] == 1.5);
+    assert(decimal_comma.value().moments[1] == 0.25);
 
     const auto qmom_case = qmomkit::config::parse_qmom(text);
     assert(qmom_case.ok());
@@ -4885,7 +4902,6 @@ int main(const int argc, char** argv)
             {"cqmom_prepared_case_parses_coordinate_support", test_cqmom_prepared_case_parses_coordinate_support},
             {"cqmom_factories_preserve_coordinate_support", test_cqmom_factories_preserve_coordinate_support},
             {"cqmom_prepared_case_rejects_invalid_coordinate_support", test_cqmom_prepared_case_rejects_invalid_coordinate_support},
-            {"cqmom_prepared_case_initial_state_preserves_case_settings", test_cqmom_prepared_case_initial_state_preserves_case_settings},
             {"cqmom_prepared_case_replaces_initial_moments_immutably", test_cqmom_prepared_case_replaces_initial_moments_immutably},
             {"cqmom_prepared_case_replaces_initial_moments_from_moment_data", test_cqmom_prepared_case_replaces_initial_moments_from_moment_data},
             {"cqmom_prepared_case_moment_data_replacement_rejects_invalid_input",

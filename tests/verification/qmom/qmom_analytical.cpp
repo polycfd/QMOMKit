@@ -22,11 +22,12 @@
 //   (n + 1)-point Gauss-Hermite rule.
 //
 // Error metric and pass criteria
-//   Maximum absolute and relative deviation of positions, weights and rebuilt
-//   moments from the reference, at 1.0e-12. An n-point rule is exactly
-//   determined by its first 2n moments, and a hyperbolic rule of n + 1 nodes by
-//   m_0, ..., m_{2n} and its closure, so there is a single correct answer
-//   rather than a family of acceptable ones.
+//   Each fixture asks for a fixed node count, so the result must have every
+//   node of the reference rule. Maximum absolute and relative deviation of
+//   positions, weights and rebuilt moments from the reference, at 1.0e-12. An
+//   n-point rule is exactly determined by its first 2n moments, and a
+//   hyperbolic rule of n + 1 nodes by m_0, ..., m_{2n} and its closure, so
+//   there is a single correct answer rather than a family of acceptable ones.
 //
 // Reproduce
 //   ctest -R verification_qmom_analytical

@@ -19,8 +19,9 @@ compares the final state with the exact solution:
 - `ssp_rk3_constant_rhs`, `rk23_constant_rhs`: a constant right-hand side,
   integrated exactly by one SSP-RK3 step, whose error estimate must be zero,
   and by RK23;
-- `rk23_exponential_decay`: $y' = -y$ to $t = 2$, also checking the step and
-  evaluation counts;
+- `rk23_exponential_decay`: $y' = -y$ to $t = 2$, also checking that the
+  evaluation count is one plus three per trial step, accepted or rejected, as
+  for a first-same-as-last pair;
 - `rk23_vector_coupled_linear_system`, `rk45_vector_coupled_linear_system`:
   $y_0' = y_1$, $y_1' = -y_0$ to $t = 1$, against $(\cos t, -\sin t)$.
 

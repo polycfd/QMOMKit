@@ -226,14 +226,11 @@ void test_embedded_rk_workspace_reuse_is_transparent()
     }
 }
 
-void test_adaptive_initial_step_default_and_override()
+void test_adaptive_initial_step_default()
 {
-    qmomkit::AdaptiveRkOptions options;
+    const qmomkit::AdaptiveRkOptions options;
     assert(options.initial_step == qmomkit::default_adaptive_initial_step);
     assert(options.initial_step == 1.0e-6);
-
-    options.initial_step = 2.5e-5;
-    assert(options.initial_step == 2.5e-5);
 }
 
 void test_embedded_rk_default_initial_step_is_used_for_both_methods()
@@ -1202,7 +1199,7 @@ int main(const int argc, char** argv)
             {"embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs",
              test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs},
             {"embedded_rk_workspace_reuse_is_transparent", test_embedded_rk_workspace_reuse_is_transparent},
-            {"adaptive_initial_step_default_and_override", test_adaptive_initial_step_default_and_override},
+            {"adaptive_initial_step_default", test_adaptive_initial_step_default},
             {"embedded_rk_default_initial_step_is_used_for_both_methods", test_embedded_rk_default_initial_step_is_used_for_both_methods},
             {"embedded_rk_fsal_reuses_accepted_endpoint_derivative", test_embedded_rk_fsal_reuses_accepted_endpoint_derivative},
             {"embedded_rk_adaptive_controls_for_both_methods", test_embedded_rk_adaptive_controls_for_both_methods},

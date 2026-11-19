@@ -172,11 +172,19 @@ void check_result(const std::string& route, const qmomkit::CqmomResult& result, 
             std::cerr << route << " terminal path differs from the prescribed ragged rule.\n";
             passed = false;
         }
-        errors.weight = std::max(errors.weight, std::abs(recovered[terminal].weight - expected[terminal].weight));
+        const double weight_error = std::abs(recovered[terminal].weight - expected[terminal].weight);
+        if (std::isnan(weight_error) || weight_error > errors.weight)
+        {
+            errors.weight = weight_error;
+        }
         for (std::size_t dimension = 0; dimension < units.size(); ++dimension)
         {
-            errors.node = std::max(errors.node, relative_error(recovered[terminal].coordinates[dimension] / units[dimension],
-                                                               expected[terminal].coordinates[dimension] / units[dimension]));
+            const double node_error = relative_error(recovered[terminal].coordinates[dimension] / units[dimension],
+                                                     expected[terminal].coordinates[dimension] / units[dimension]);
+            if (std::isnan(node_error) || node_error > errors.node)
+            {
+                errors.node = node_error;
+            }
         }
     }
 
@@ -210,7 +218,11 @@ void check_result(const std::string& route, const qmomkit::CqmomResult& result, 
         {
             unit_factor *= std::pow(units[dimension], static_cast<int>(order[dimension]));
         }
-        errors.moment = std::max(errors.moment, relative_error(reconstructed.values[index] / unit_factor, configured.values[index] / unit_factor));
+        const double moment_error = relative_error(reconstructed.values[index] / unit_factor, configured.values[index] / unit_factor);
+        if (std::isnan(moment_error) || moment_error > errors.moment)
+        {
+            errors.moment = moment_error;
+        }
     }
 }
 
@@ -234,7 +246,7 @@ int run_disparate_units_case()
     Errors errors;
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     check_result("disparate-units", result, cqmom_case.moments, units, errors, passed, false);
-    if (errors.node > disparate_units_tolerance || errors.weight > disparate_units_tolerance || errors.moment > disparate_units_tolerance)
+    if (!(errors.node <= disparate_units_tolerance && errors.weight <= disparate_units_tolerance && errors.moment <= disparate_units_tolerance))
     {
         std::cerr << "CQMOM did not recover the independently prescribed physical rule.\n";
         passed = false;

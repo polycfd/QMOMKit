@@ -2509,16 +2509,6 @@ void test_hyqmom_characteristic_speeds_apply_the_options_of_the_state()
     assert(refused.speeds.empty());
 }
 
-void test_qmom_rejects_node_count_with_unrepresentable_moment_requirement()
-{
-    const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet{1.0, 0.0}, impossible_node_count);
-
-    assert(!result.ok());
-    assert(result.status == qmomkit::QmomStatus::invalid_input);
-    assert(result.message.find("too large") != std::string::npos);
-}
-
 void test_qmom_rejects_zero_node_count()
 {
     // A zero node count is invalid input for every combination of inversion
@@ -2943,27 +2933,33 @@ void test_cqmom_recovers_coordinates_of_disparate_magnitude()
 
     assert(result.ok());
     assert(reference.ok());
+    // Relative to the value itself: a floor of 1 would accept any y within 1e-11.
+    const auto assert_relative_to = [](const double actual, const double expected, const double tolerance)
+    { assert(std::abs(actual - expected) <= tolerance * std::abs(expected)); };
     for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
     {
         const std::size_t flat = hierarchy.flatten_node_index(node_index);
         assert_near(result.quadrature.weight(node_index), weights[flat], 1.0e-12);
-        assert_relative_near(result.quadrature.abscissa(0, node_index), abscissas[0][flat], 1.0e-11);
-        assert_relative_near(result.quadrature.abscissa(1, node_index), abscissas[1][flat], 1.0e-11);
+        assert_relative_to(result.quadrature.abscissa(0, node_index), abscissas[0][flat], 1.0e-11);
+        assert_relative_to(result.quadrature.abscissa(1, node_index), abscissas[1][flat], 1.0e-11);
         assert_near(result.quadrature.weight(node_index), reference.quadrature.weight(node_index), 1.0e-12);
         assert_relative_near(result.quadrature.abscissa(0, node_index) / 1.0e50, reference.quadrature.abscissa(0, node_index), 1.0e-11);
         assert_relative_near(result.quadrature.abscissa(1, node_index) / 1.0e-50, reference.quadrature.abscissa(1, node_index), 1.0e-11);
     }
     assert(!result.diagnostics.empty());
+    std::vector<bool> bounded_dimension_seen(2, false);
     for (const qmomkit::CqmomDiagnostics& diagnostics : result.diagnostics)
     {
         if (!diagnostics.bounded_support_interval_present)
         {
             continue;
         }
+        bounded_dimension_seen[diagnostics.phase_space_dimension] = true;
         const qmomkit::AbscissaBounds expected = cqmom_case.abscissa_bounds[diagnostics.phase_space_dimension].value();
-        assert_relative_near(diagnostics.bounded_support_interval.lower, expected.lower, 1.0e-12);
-        assert_relative_near(diagnostics.bounded_support_interval.upper, expected.upper, 1.0e-12);
+        assert_relative_to(diagnostics.bounded_support_interval.lower, expected.lower, 1.0e-12);
+        assert_relative_to(diagnostics.bounded_support_interval.upper, expected.upper, 1.0e-12);
     }
+    assert(bounded_dimension_seen[0] && bounded_dimension_seen[1]);
 }
 
 void test_cqmom_public_api_reports_conditional_moment_failure()
@@ -3068,7 +3064,9 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.5, 1.5}, {0.25, 2.0, 0.25, 2.0}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
 
-    auto default_cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, qmomkit::QmomOptions{false});
+    // Built without a diagnostic level, so the library default applies.
+    const qmomkit::CqmomCase default_cqmom_case{
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, qmomkit::QmomOptions{false}};
     assert(default_cqmom_case.diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
 
     qmomkit::internal::performance::CounterSession default_session;
@@ -3104,13 +3102,6 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
         assert(!diagnostics.conditional_moment_diagnostics.condition_estimate.has_value());
         assert(!diagnostics.conditional_moment_diagnostics.conditioning_warning);
     }
-
-    qmomkit::CqmomCase none_cqmom_case = default_cqmom_case;
-    none_cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
-    const qmomkit::CqmomResult none_result = qmomkit::compute_cqmom(none_cqmom_case);
-    assert(none_result.ok());
-    assert_same_quadrature(default_result.quadrature, none_result.quadrature, 1.0e-13);
-    assert(none_result.diagnostics.empty());
 }
 
 void test_cqmom_none_diagnostics_preserves_failure_context()
@@ -3261,7 +3252,6 @@ int main(const int argc, char** argv)
             {"hyqmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve",
              test_hyqmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve},
             {"hyqmom_characteristic_speeds_apply_the_options_of_the_state", test_hyqmom_characteristic_speeds_apply_the_options_of_the_state},
-            {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
             {"qmom_rejects_fewer_than_2n_moments_with_or_without_bounds", test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds},
             {"qmom_rejects_non_finite_moments_with_or_without_bounds", test_qmom_rejects_non_finite_moments_with_or_without_bounds},

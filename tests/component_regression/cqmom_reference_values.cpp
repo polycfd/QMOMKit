@@ -147,7 +147,10 @@ struct ReferenceQuadrature
 // from the recording toolchain by at most 27 representable values, which is
 // about 6e-15 relative for the magnitudes recorded here. A change of algorithm,
 // node ordering or branch selection moves results by many orders more than that,
-// so this budget separates the two.
+// so this budget separates the two. A change of Vandermonde solver does not:
+// the solvers agree here to about 1e-15 relative, so the solver cases cannot
+// tell which solver ran, and solver selection is verified in
+// tests/verification/vandermonde instead.
 constexpr double recorded_relative_tolerance = 1.0e-12;
 // Guards a future recording close to zero, where the relative term alone would
 // be unusable. Every value recorded today is far enough from zero that the

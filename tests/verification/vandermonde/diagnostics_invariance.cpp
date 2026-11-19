@@ -97,15 +97,6 @@ qmomkit::ConditionalMomentDiagnostics root_diagnostics(const double x_scale, con
     return root;
 }
 
-// The diagnostics in the original units, checked against the analytical value.
-double reference_condition()
-{
-    const qmomkit::ConditionalMomentDiagnostics reference = root_diagnostics(1.0, 1.0);
-    QMOMKIT_VERIFY_CHECK(reference.condition_estimate.has_value());
-    QMOMKIT_VERIFY_NEAR(*reference.condition_estimate, analytical_condition, 1.0e-13 * analytical_condition);
-    return *reference.condition_estimate;
-}
-
 void check_diagnostics(const qmomkit::ConditionalMomentDiagnostics& diagnostics, const double expected_condition, const double relative_tolerance)
 {
     QMOMKIT_VERIFY_CHECK(diagnostics.condition_estimate.has_value() && diagnostics.residual_norm.has_value());
@@ -114,10 +105,18 @@ void check_diagnostics(const qmomkit::ConditionalMomentDiagnostics& diagnostics,
     QMOMKIT_VERIFY_CHECK(!diagnostics.conditioning_warning);
 }
 
+// The diagnostics in the original units, checked against the analytical value.
+double reference_condition()
+{
+    const qmomkit::ConditionalMomentDiagnostics reference = root_diagnostics(1.0, 1.0);
+    check_diagnostics(reference, analytical_condition, 1.0e-13);
+    return *reference.condition_estimate;
+}
+
 void verify_number_density_does_not_change_diagnostics()
 {
     const double reference = reference_condition();
-    for (const double number_density : {1.0, std::ldexp(1.0, -60), std::ldexp(1.0, 60)})
+    for (const double number_density : {std::ldexp(1.0, -60), std::ldexp(1.0, 60)})
     {
         check_diagnostics(root_diagnostics(1.0, number_density), reference, 0.0);
     }

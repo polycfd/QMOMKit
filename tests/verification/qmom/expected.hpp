@@ -49,14 +49,30 @@ struct QmomVerificationResult
 
     [[nodiscard]] double maximum_absolute_error() const noexcept
     {
-        return std::max({weight_errors.maximum_absolute, abscissa_errors.maximum_absolute, moment_errors.maximum_absolute,
-                         mass_errors.maximum_absolute, family_errors.maximum_absolute});
+        double maximum = 0.0;
+        for (const double error : {weight_errors.maximum_absolute, abscissa_errors.maximum_absolute, moment_errors.maximum_absolute,
+                                   mass_errors.maximum_absolute, family_errors.maximum_absolute})
+        {
+            if (std::isnan(error) || error > maximum)
+            {
+                maximum = error;
+            }
+        }
+        return maximum;
     }
 
     [[nodiscard]] double maximum_relative_error() const noexcept
     {
-        return std::max({weight_errors.maximum_relative, abscissa_errors.maximum_relative, moment_errors.maximum_relative,
-                         mass_errors.maximum_relative, family_errors.maximum_relative});
+        double maximum = 0.0;
+        for (const double error : {weight_errors.maximum_relative, abscissa_errors.maximum_relative, moment_errors.maximum_relative,
+                                   mass_errors.maximum_relative, family_errors.maximum_relative})
+        {
+            if (std::isnan(error) || error > maximum)
+            {
+                maximum = error;
+            }
+        }
+        return maximum;
     }
 
     [[nodiscard]] bool passed() const noexcept
@@ -116,8 +132,14 @@ inline void update_errors(ErrorMetrics& errors, const double actual, const doubl
 {
     const double absolute = std::abs(actual - expected);
     const double relative = absolute / std::max(std::abs(expected), 1.0);
-    errors.maximum_absolute = std::max(errors.maximum_absolute, absolute);
-    errors.maximum_relative = std::max(errors.maximum_relative, relative);
+    if (std::isnan(absolute) || absolute > errors.maximum_absolute)
+    {
+        errors.maximum_absolute = absolute;
+    }
+    if (std::isnan(relative) || relative > errors.maximum_relative)
+    {
+        errors.maximum_relative = relative;
+    }
 }
 
 inline void append_failure(QmomVerificationResult& verification, const std::string& message)
@@ -230,8 +252,17 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
     const QmomResult quadrature = compute_qmom(qmom_case);
     verification.status = quadrature.status;
     verification.message = quadrature.message;
-    if (!quadrature.ok() || quadrature.weights.size() != test_case.weights.size() || quadrature.abscissas.size() != test_case.abscissas.size())
+    if (!quadrature.ok())
     {
+        return verification;
+    }
+    // Every fixture asks for a fixed node count, so a successful result must
+    // have every node of the rule.
+    if (quadrature.weights.size() != test_case.weights.size() || quadrature.abscissas.size() != test_case.abscissas.size())
+    {
+        append_failure(verification, "compute_qmom returned " + std::to_string(quadrature.abscissas.size()) + " nodes and " +
+                                         std::to_string(quadrature.weights.size()) + " weights for a rule of " +
+                                         std::to_string(test_case.weights.size()) + " nodes.");
         return verification;
     }
 

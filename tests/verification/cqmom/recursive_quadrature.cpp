@@ -1,34 +1,34 @@
 // The recursive CQMOM inversion, against quadratures written down in advance.
 //
 // What is verified
-//   That the recursion recovers the quadrature the moments came from, for one
-//   to three dimensions, for identity and non-identity conditioning orders, for
-//   non-uniform node counts per axis, and for adaptive cases where individual
-//   branches must return fewer nodes than requested, including a reduction
-//   from three nodes to two at the root and in a branch. Also that the one
-//   dimensional case reduces to plain Wheeler, and that a branch which collapses
-//   does so for either conditioning order.
+//   That the adaptive recursion recovers the quadrature the moments came from
+//   in two and three dimensions, for identity and non-identity conditioning
+//   orders, where individual branches must return fewer nodes than requested,
+//   including a reduction from three nodes to two at the root and in a branch.
+//   Also that the one-dimensional case reduces to plain Wheeler, and that a
+//   branch which collapses does so for either conditioning order. The fixed
+//   cases are verified in recursive_cqmom.cpp.
 //
 // How the reference is constructed
-//   Chosen, not computed. Each case builds the answer first - positions and
-//   weights placed directly into a RecursiveQuadrature - and then evaluates its
-//   raw moments with a local helper that sums weight times position to the
-//   required power. That helper is written in this file and does not call the
-//   library's reconstruction, so the reference does not depend on the code path
-//   under test. Feeding those moments back in must return the quadrature the
-//   case started from. Two cases differ: the one-dimensional case compares
-//   with Wheeler on the same moments, and the collapse case uses the
-//   non-realizable sequence {1, 0, -1, 0} for its second coordinate and checks
-//   only the node counts and paths.
+//   Chosen, not computed. Each case writes down the points first and then
+//   evaluates their raw moments with a local helper that sums weight times
+//   position to the required power. That helper is written in this file and
+//   does not call the library's reconstruction, so the reference does not
+//   depend on the code path under test. Feeding those moments back in must
+//   reproduce them, and must return the points themselves where a case
+//   compares positions and weights. Two cases differ: the one-dimensional
+//   case compares with Wheeler on the same moments, and the collapse case
+//   uses the non-realizable sequence {1, 0, -1, 0} for its second coordinate
+//   and checks only the node counts and paths.
 //
 // Error metric and pass criteria
 //   Maximum absolute deviation of the rebuilt moments from the prescribed ones.
-//   The one- and three-dimensional cases and the reduction from three nodes to
-//   two also compare positions and weights. Node counts, where checked, must
-//   match exactly. Tolerances are per case, from 1.0e-12 to 1.0e-7. They are
+//   The one-dimensional case and the reduction from three nodes to two compare
+//   positions and weights instead. Node counts and paths, where checked, must
+//   match exactly. Tolerances are per case, from 1.0e-12 to 1.0e-8. They are
 //   safety bounds at least three orders of magnitude above the observed
-//   errors; the loosest belong to the three-dimensional case, whose larger
-//   moments carry absolute errors of order 1.0e-11.
+//   errors. The loosest belongs to the three-dimensional case, whose moments
+//   carry absolute errors up to 6e-14.
 //
 // Reproduce
 //   ctest -R verification_recursive_quadrature
@@ -87,28 +87,6 @@ void assert_near(const double actual, const double expected, const double tolera
     QMOMKIT_VERIFY_NEAR(actual, expected, tolerance);
 }
 
-std::vector<double> raw_moments_from_quadrature(const qmomkit::internal::RecursiveQuadrature& quadrature, const std::vector<std::size_t>& extents)
-{
-    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
-    const qmomkit::PhaseSpaceHierarchy& hierarchy = quadrature.hierarchy();
-    for (std::size_t flat_moment = 0; flat_moment < moments.size(); ++flat_moment)
-    {
-        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_moment, extents);
-        double value = 0.0;
-        for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
-        {
-            double contribution = quadrature.weight(node_index);
-            for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
-            {
-                contribution *= std::pow(quadrature.abscissa(dimension, node_index), static_cast<int>(moment_index[dimension]));
-            }
-            value += contribution;
-        }
-        moments[flat_moment] = value;
-    }
-    return moments;
-}
-
 std::vector<double> raw_moments_from_terminal_quadrature(const std::vector<std::vector<double>>& abscissas, const std::vector<double>& weights,
                                                          const std::vector<std::size_t>& extents)
 {
@@ -143,18 +121,6 @@ std::vector<double> product_moments_from_1d_sequences(const std::vector<double>&
     return moments;
 }
 
-void assert_raw_moments_reconstructed(const qmomkit::internal::RecursiveQuadratureResult& result, const std::vector<double>& expected_moments,
-                                      const std::vector<std::size_t>& extents, const double tolerance)
-{
-    QMOMKIT_VERIFY_CHECK(result.ok());
-    const std::vector<double> reconstructed = raw_moments_from_quadrature(result.quadrature, extents);
-    QMOMKIT_VERIFY_CHECK(reconstructed.size() == expected_moments.size());
-    for (std::size_t i = 0; i < expected_moments.size(); ++i)
-    {
-        assert_near(reconstructed[i], expected_moments[i], tolerance);
-    }
-}
-
 void assert_terminal_moments_reconstructed(const qmomkit::internal::RecursiveQuadratureResult& result, const std::vector<double>& expected_moments,
                                            const std::vector<std::size_t>& extents, const double tolerance)
 {
@@ -166,49 +132,6 @@ void assert_terminal_moments_reconstructed(const qmomkit::internal::RecursiveQua
     {
         assert_near(reconstructed[i], expected_moments[i], tolerance);
     }
-}
-
-void assert_quadrature_matches(const qmomkit::internal::RecursiveQuadrature& actual, const qmomkit::internal::RecursiveQuadrature& expected,
-                               const double tolerance)
-{
-    QMOMKIT_VERIFY_CHECK(actual.hierarchy().node_counts() == expected.hierarchy().node_counts());
-    QMOMKIT_VERIFY_CHECK(actual.hierarchy().conditioning_order() == expected.hierarchy().conditioning_order());
-    for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(expected.hierarchy()))
-    {
-        assert_near(actual.weight(node_index), expected.weight(node_index), tolerance);
-        for (std::size_t dimension = 0; dimension < expected.number_of_dimensions(); ++dimension)
-        {
-            assert_near(actual.abscissa(dimension, node_index), expected.abscissa(dimension, node_index), tolerance);
-        }
-    }
-}
-
-template <typename Function> void assert_throws_invalid_argument(Function function)
-{
-    bool threw = false;
-    try
-    {
-        function();
-    }
-    catch (const std::invalid_argument&)
-    {
-        threw = true;
-    }
-    QMOMKIT_VERIFY_CHECK(threw);
-}
-
-template <typename Function> void assert_throws_out_of_range(Function function)
-{
-    bool threw = false;
-    try
-    {
-        function();
-    }
-    catch (const std::out_of_range&)
-    {
-        threw = true;
-    }
-    QMOMKIT_VERIFY_CHECK(threw);
 }
 
 template <typename Function> void assert_throws_logic_error(Function function)
@@ -301,130 +224,6 @@ void test_recursive_1d_reduces_to_wheeler()
         assert_near(result.quadrature.weight({node}), wheeler.weights[node], 1.0e-12);
         assert_near(result.quadrature.abscissa(0, {node}), wheeler.abscissas[node], 1.0e-12);
     }
-}
-
-void test_recursive_2d_identity_conditioning_order()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    qmomkit::internal::RecursiveQuadrature expected(hierarchy);
-
-    const std::vector<double> x{-1.0, 2.0};
-    const std::vector<double> wx{0.25, 0.75};
-    const std::vector<std::vector<double>> y{{-3.0, 1.0}, {-2.0, 4.0}};
-    const std::vector<std::vector<double>> wy{{0.2, 0.8}, {0.6, 0.4}};
-    for (std::size_t i = 0; i < 2; ++i)
-    {
-        for (std::size_t j = 0; j < 2; ++j)
-        {
-            expected.set_weight({i, j}, wx[i] * wy[i][j]);
-            expected.set_abscissa(0, {i, j}, x[i]);
-            expected.set_abscissa(1, {i, j}, y[i][j]);
-        }
-    }
-
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
-
-    assert_raw_moments_reconstructed(result, moments, extents, 1.0e-10);
-    QMOMKIT_VERIFY_CHECK(result.diagnostics.size() == 3);
-    QMOMKIT_VERIFY_CHECK(result.quadrature.number_of_dimensions() == 2);
-}
-
-void test_recursive_2d_reversed_conditioning_order()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
-    qmomkit::internal::RecursiveQuadrature expected(hierarchy);
-
-    const std::vector<double> y{-0.5, 1.25};
-    const std::vector<double> wy{0.2, 0.8};
-    const std::vector<std::vector<double>> x{{-4.0, -1.0}, {0.25, 2.0}};
-    const std::vector<std::vector<double>> wx{{0.35, 0.65}, {0.7, 0.3}};
-    for (std::size_t y_node = 0; y_node < 2; ++y_node)
-    {
-        for (std::size_t x_node = 0; x_node < 2; ++x_node)
-        {
-            const qmomkit::MultiIndex node_index{x_node, y_node};
-            expected.set_weight(node_index, wy[y_node] * wx[y_node][x_node]);
-            expected.set_abscissa(0, node_index, x[y_node][x_node]);
-            expected.set_abscissa(1, node_index, y[y_node]);
-        }
-    }
-
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
-
-    assert_raw_moments_reconstructed(result, moments, extents, 1.0e-10);
-    QMOMKIT_VERIFY_CHECK(result.diagnostics[0].phase_space_dimension == 1);
-    QMOMKIT_VERIFY_CHECK(result.diagnostics[1].phase_space_dimension == 0);
-}
-
-void test_recursive_3d_non_identity_conditioning_order()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 2}, {2, 0, 1});
-    qmomkit::internal::RecursiveQuadrature expected(hierarchy);
-
-    const std::vector<double> z{-1.5, 0.75};
-    const std::vector<double> wz{0.45, 0.55};
-    const std::vector<std::vector<double>> x{{-3.0, 0.5}, {-2.0, 4.0}};
-    const std::vector<std::vector<double>> wx{{0.25, 0.75}, {0.4, 0.6}};
-    for (std::size_t z_node = 0; z_node < 2; ++z_node)
-    {
-        for (std::size_t x_node = 0; x_node < 2; ++x_node)
-        {
-            const std::vector<double> y{-2.0 + static_cast<double>(z_node), 0.25 + 0.5 * static_cast<double>(x_node),
-                                        2.5 + static_cast<double>(z_node) + static_cast<double>(x_node)};
-            const std::vector<double> wy{0.2 + 0.05 * static_cast<double>(x_node), 0.3, 0.5 - 0.05 * static_cast<double>(x_node)};
-            for (std::size_t y_node = 0; y_node < 3; ++y_node)
-            {
-                const qmomkit::MultiIndex node_index{x_node, y_node, z_node};
-                expected.set_weight(node_index, wz[z_node] * wx[z_node][x_node] * wy[y_node]);
-                expected.set_abscissa(0, node_index, x[z_node][x_node]);
-                expected.set_abscissa(1, node_index, y[y_node]);
-                expected.set_abscissa(2, node_index, z[z_node]);
-            }
-        }
-    }
-
-    const std::vector<std::size_t> extents{4, 6, 4};
-    const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
-
-    assert_quadrature_matches(result.quadrature, expected, 1.0e-8);
-    assert_raw_moments_reconstructed(result, moments, extents, 1.0e-7);
-    QMOMKIT_VERIFY_CHECK(result.diagnostics.front().phase_space_dimension == 2);
-}
-
-void test_recursive_non_uniform_fixed_node_counts()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3});
-    qmomkit::internal::RecursiveQuadrature expected(hierarchy);
-
-    const std::vector<double> x{-2.0, 0.5};
-    const std::vector<double> wx{0.3, 0.7};
-    const std::vector<std::vector<double>> y{{-2.0, 0.0, 3.0}, {-1.0, 1.0, 4.0}};
-    const std::vector<std::vector<double>> wy{{0.2, 0.5, 0.3}, {0.25, 0.25, 0.5}};
-    for (std::size_t i = 0; i < 2; ++i)
-    {
-        for (std::size_t j = 0; j < 3; ++j)
-        {
-            expected.set_weight({i, j}, wx[i] * wy[i][j]);
-            expected.set_abscissa(0, {i, j}, x[i]);
-            expected.set_abscissa(1, {i, j}, y[i][j]);
-        }
-    }
-
-    const std::vector<std::size_t> extents{4, 6};
-    const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
-
-    assert_raw_moments_reconstructed(result, moments, extents, 1.0e-8);
-    QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == 6);
 }
 
 void test_recursive_adaptive_2d_branch_specific_reduction()
@@ -634,10 +433,6 @@ int main(const int argc, char** argv)
         argc, argv,
         {
             {"recursive_1d_reduces_to_wheeler", test_recursive_1d_reduces_to_wheeler},
-            {"recursive_2d_identity_conditioning_order", test_recursive_2d_identity_conditioning_order},
-            {"recursive_2d_reversed_conditioning_order", test_recursive_2d_reversed_conditioning_order},
-            {"recursive_3d_non_identity_conditioning_order", test_recursive_3d_non_identity_conditioning_order},
-            {"recursive_non_uniform_fixed_node_counts", test_recursive_non_uniform_fixed_node_counts},
             {"recursive_adaptive_2d_branch_specific_reduction", test_recursive_adaptive_2d_branch_specific_reduction},
             {"recursive_adaptive_3d_branch_specific_reduction", test_recursive_adaptive_3d_branch_specific_reduction},
             {"recursive_adaptive_reduction_to_an_intermediate_count", test_recursive_adaptive_reduction_to_an_intermediate_count},

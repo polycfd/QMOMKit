@@ -108,15 +108,18 @@ qmomkit::monte_carlo::Ensemble two_sample_ensemble()
 
 void test_one_dimensional_history_writer_round_trips_values()
 {
+    // Each moment and the second time need all 17 significant digits to be
+    // read back exactly, so a writer with less precision fails.
     const std::filesystem::path path = scratch_path("history_1d");
-    const qmomkit::MomentSet moments({2.0, 5.0, 17.0});
+    const qmomkit::MomentSet moments({1.0 / 7.0, 3.0 / 7.0, 0.1 + 0.2});
+    const double second_time = 1.0 / 7.0 + 0.25;
     const qmomkit::monte_carlo::Ensemble ensemble = two_sample_ensemble();
     const qmomkit::OutputOptions output_options;
 
     {
         qmomkit::MomentWriter writer = qmomkit::monte_carlo::make_moment_history_writer(path, moments.size(), output_options);
         qmomkit::monte_carlo::write_moment_history_row(writer, 0.25, moments, ensemble, 2.0, output_options);
-        qmomkit::monte_carlo::write_moment_history_row(writer, 0.50, moments, ensemble, 2.0, output_options);
+        qmomkit::monte_carlo::write_moment_history_row(writer, second_time, moments, ensemble, 2.0, output_options);
     }
 
     const std::vector<std::string> lines = read_lines(path);
@@ -134,7 +137,7 @@ void test_one_dimensional_history_writer_round_trips_values()
 
     // 17-digit precision is documented so a written value round-trips exactly.
     const std::vector<std::string> second = split(lines[header + 2]);
-    CHECK(std::stod(second[0]) == 0.50);
+    CHECK(std::stod(second[0]) == second_time);
     for (std::size_t order = 0; order < moments.size(); ++order)
     {
         CHECK(std::stod(row[row.size() - moments.size() + order]) == moments[order]);

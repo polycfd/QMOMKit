@@ -254,15 +254,19 @@ void test_ssp_rk3_predicate_can_be_explicitly_wrapped()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
     { std::fill(derivative.begin(), derivative.end(), 0.0); };
+    std::size_t calls = 0;
     qmomkit::SspRk3Options options;
-    options.accept = [](const std::vector<double>& state)
+    options.accept = [&calls](const std::vector<double>& state)
     {
+        ++calls;
         const auto result = qmomkit::check_realizability(MomentSet(state), MomentSupport::nonnegative);
         return result.status == RealizabilityStatus::strictly_realizable || result.status == RealizabilityStatus::boundary;
     };
 
     const auto result = qmomkit::ssp_rk3_step(std::vector<double>{1.0, 1.0, 2.0}, 0.0, 0.1, rhs, options);
     assert(result.status == qmomkit::SspRk3Status::success);
+    // The predicate tests the one candidate step, which it accepts.
+    assert(calls == 1);
 }
 
 } // namespace

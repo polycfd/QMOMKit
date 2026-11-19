@@ -2020,42 +2020,6 @@ qmomkit::CqmomCase fully_configured_replacement_base_cqmom_case()
     return base_cqmom_case;
 }
 
-// Every setting of the case differs from its default, so an initial state that
-// fell back to a default would show.
-void test_cqmom_prepared_case_initial_state_preserves_case_settings()
-{
-    const qmomkit::CqmomCase cqmom_case = fully_configured_replacement_base_cqmom_case();
-    const qmomkit::CqmomState state = qmomkit::CqmomPreparedCase{cqmom_case}.initial_state();
-
-    assert(state.hierarchy().node_counts() == cqmom_case.moments.layout.hierarchy.node_counts());
-    assert(state.hierarchy().conditioning_order() == cqmom_case.moments.layout.hierarchy.conditioning_order());
-    assert(state.qmom_options().adaptive == cqmom_case.qmom_options.adaptive);
-    assert(state.qmom_options().rmin == cqmom_case.qmom_options.rmin);
-    assert(state.qmom_options().eabs == cqmom_case.qmom_options.eabs);
-    assert(state.qmom_options().cutoff == cqmom_case.qmom_options.cutoff);
-    assert(state.conditional_options().singular_tolerance == cqmom_case.conditional_options.singular_tolerance);
-    assert(state.conditional_options().conditioning_warning_threshold == cqmom_case.conditional_options.conditioning_warning_threshold);
-    assert(state.conditional_options().moore_penrose_rcond == cqmom_case.conditional_options.moore_penrose_rcond);
-    assert(state.diagnostic_level() == cqmom_case.diagnostic_level);
-    assert(state.vandermonde_solver() == cqmom_case.vandermonde_solver);
-    assert(state.abscissa_bounds().size() == cqmom_case.abscissa_bounds.size());
-    for (std::size_t dimension = 0; dimension < state.abscissa_bounds().size(); ++dimension)
-    {
-        assert(state.abscissa_bounds()[dimension].has_value() == cqmom_case.abscissa_bounds[dimension].has_value());
-        if (state.abscissa_bounds()[dimension].has_value())
-        {
-            assert(state.abscissa_bounds()[dimension]->lower == cqmom_case.abscissa_bounds[dimension]->lower);
-            assert(state.abscissa_bounds()[dimension]->upper == cqmom_case.abscissa_bounds[dimension]->upper);
-        }
-    }
-
-    const qmomkit::CqmomState copied = state;
-    assert(copied.hierarchy().node_counts() == state.hierarchy().node_counts());
-    assert(copied.hierarchy().conditioning_order() == state.hierarchy().conditioning_order());
-    assert(copied.qmom_options().adaptive == state.qmom_options().adaptive);
-    assert(copied.vandermonde_solver() == state.vandermonde_solver());
-}
-
 // An open case's moments can be changed after it is built. Replacement reads
 // only the new moments, so it must not depend on the old ones being valid.
 qmomkit::CqmomCase with_broken_moments(qmomkit::CqmomCase cqmom_case)
@@ -3114,7 +3078,7 @@ void test_case_parsing_rejects_invalid_realizability_policy()
     {
         std::string block;
         // The expected message is message_start, then the section key of the
-        // policy, then message_end.
+        // policy and a period, then message_end.
         std::string message_start;
         std::string message_end;
     };
@@ -4777,9 +4741,6 @@ standard_deviation = 1.0
     assert(has_message_fragment(coordinate_index, "Coordinate realizability policy index is too large."));
 }
 
-// Numbers are plain decimal and are read in the classic "C" locale, so a host
-// application's locale cannot change how a configuration file is read. The
-// locale part runs where a decimal-comma locale is installed.
 // Numeric punctuation with a decimal comma, built on the classic locale so
 // that no installed locale is needed.
 struct DecimalCommaPunctuation : std::numpunct<char>
@@ -4798,6 +4759,10 @@ struct DecimalCommaPunctuation : std::numpunct<char>
     }
 };
 
+// Numbers are plain decimal and are read in the classic "C" locale, so a host
+// application's locale cannot change how a configuration file is read. The
+// check with the C library's locale runs where a decimal-comma locale is
+// installed, and the check with a global C++ locale runs everywhere.
 void test_numbers_are_read_independently_of_the_locale()
 {
     const std::string text = "[phase_space]\nnode_counts = 1\n[moments]\nvalues = 1.5, 0.25\n";
@@ -4937,7 +4902,6 @@ int main(const int argc, char** argv)
             {"cqmom_prepared_case_parses_coordinate_support", test_cqmom_prepared_case_parses_coordinate_support},
             {"cqmom_factories_preserve_coordinate_support", test_cqmom_factories_preserve_coordinate_support},
             {"cqmom_prepared_case_rejects_invalid_coordinate_support", test_cqmom_prepared_case_rejects_invalid_coordinate_support},
-            {"cqmom_prepared_case_initial_state_preserves_case_settings", test_cqmom_prepared_case_initial_state_preserves_case_settings},
             {"cqmom_prepared_case_replaces_initial_moments_immutably", test_cqmom_prepared_case_replaces_initial_moments_immutably},
             {"cqmom_prepared_case_replaces_initial_moments_from_moment_data", test_cqmom_prepared_case_replaces_initial_moments_from_moment_data},
             {"cqmom_prepared_case_moment_data_replacement_rejects_invalid_input",

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <qmomkit/realizability_policy.hpp>
 #include <stdexcept>
 #include <vector>

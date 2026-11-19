@@ -2762,8 +2762,8 @@ void assert_cqmom_states_equal(const qmomkit::CqmomState& actual, const qmomkit:
     assert_cqmom_quadrature_near(actual.quadrature(), expected.quadrature(), 0.0);
 }
 
-// A state created from the open case must carry every setting of that case,
-// because the case is the only place the caller set them.
+// A state created from a case must carry every setting of that case, because
+// the case is the only place the caller set them.
 void assert_cqmom_state_carries_case_settings(const qmomkit::CqmomState& state, const qmomkit::CqmomCase& cqmom_case)
 {
     assert(state.qmom_options().adaptive == cqmom_case.qmom_options.adaptive);
@@ -2773,7 +2773,6 @@ void assert_cqmom_state_carries_case_settings(const qmomkit::CqmomState& state, 
     assert(state.conditional_options().singular_tolerance == cqmom_case.conditional_options.singular_tolerance);
     assert(state.conditional_options().conditioning_warning_threshold == cqmom_case.conditional_options.conditioning_warning_threshold);
     assert(state.conditional_options().moore_penrose_rcond == cqmom_case.conditional_options.moore_penrose_rcond);
-    assert(state.qmom_options().adaptive == cqmom_case.qmom_options.adaptive);
     assert(state.diagnostic_level() == cqmom_case.diagnostic_level);
     assert(state.vandermonde_solver() == cqmom_case.vandermonde_solver);
     assert(state.abscissa_bounds().size() == cqmom_case.abscissa_bounds.size());
@@ -2796,8 +2795,10 @@ void assert_cqmom_state_carries_case_settings(const qmomkit::CqmomState& state, 
 void assert_cqmom_case_initial_state_matches_prepared_case(const qmomkit::CqmomCase& cqmom_case)
 {
     const qmomkit::CqmomState state = cqmom_case.initial_state();
+    const qmomkit::CqmomState prepared_state = qmomkit::CqmomPreparedCase(cqmom_case).initial_state();
     assert_cqmom_state_carries_case_settings(state, cqmom_case);
-    assert_cqmom_states_equal(state, qmomkit::CqmomPreparedCase(cqmom_case).initial_state());
+    assert_cqmom_state_carries_case_settings(prepared_state, cqmom_case);
+    assert_cqmom_states_equal(state, prepared_state);
 }
 
 void test_cqmom_case_initial_state_matches_prepared_case()
@@ -4629,9 +4630,11 @@ void test_cqmom_phase_space_evolution_vandermonde_policy_independent_of_diagnost
 {
     // Pivoted QR is configured because its results here differ in the last
     // digits from those of the automatic choice, which the dense solver's do
-    // not. Every level runs the same arithmetic, so the levels are compared
-    // bit for bit, and a level that fell back to the automatic choice would
-    // show even where no solver diagnostics are reported.
+    // not, as measured with Apple clang on arm64. Every level runs the same
+    // arithmetic, so the levels are compared bit for bit, and a level that
+    // fell back to the automatic choice would show even where no solver
+    // diagnostics are reported. On a toolchain where the two solvers agree
+    // here, such a fallback would not show.
     constexpr qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::pivoted_qr;
     const qmomkit::RawMomentTensor moments = phase_space_evolution_vandermonde_policy_moments();
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});

@@ -33,7 +33,8 @@ All names start with `component_regression_`.
   three-dimensional nodes, after drag or with two velocity nodes
   $1.5 \times 10^{-6}$ apart, reconstruct and reproduce every required moment,
   and the drag case also recovers its nodes; the conditional moments of one
-  branch of the drag case also give back its two velocities with 1D QMOM.
+  branch of the drag case also give back its two velocities and their
+  conditional weights with 1D QMOM.
 - `cqmom_physical_transport`: a fixture of unknown provenance, so it pins
   behavior, not correctness. Adaptive reconstruction collapses each terminal
   branch to one node, and zero-rate evolution keeps those counts.

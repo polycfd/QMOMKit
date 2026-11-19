@@ -34,9 +34,11 @@
  *
  *   One branch of the drag case is also inverted on its own: its conditional
  *   moments, formed from its two nodes, must give back those two velocities
- *   and their conditional weights with one-dimensional QMOM, to 1e-13. This
- *   shows that the branch data are resolvable by themselves, so a failure
- *   inside the recursive reconstruction could not be blamed on them.
+ *   and their conditional weights with one-dimensional QMOM, to 1e-13. The
+ *   largest error measured is 3.3e-15, for velocities and weights between 0.4
+ *   and 0.9, so the tolerance covers rounding only. This shows that the branch
+ *   data are resolvable by themselves, so a failure inside the recursive
+ *   reconstruction could not be blamed on them.
  *
  * WHEN IT IS TESTED
  *   Debug and Release. The checks are explicit and do not rely on assert().

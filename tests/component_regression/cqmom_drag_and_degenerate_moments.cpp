@@ -231,7 +231,12 @@ void check_recovers_generating_nodes(const std::vector<TerminalNode>& nodes, con
             double distance = 0.0;
             for (std::size_t dimension = 0; dimension < coordinate_count; ++dimension)
             {
-                distance = std::max(distance, std::abs(result.quadrature.abscissas()[dimension][terminal] - nodes[candidate].coordinate[dimension]));
+                const double coordinate_distance =
+                    std::abs(result.quadrature.abscissas()[dimension][terminal] - nodes[candidate].coordinate[dimension]);
+                if (std::isnan(coordinate_distance) || coordinate_distance > distance)
+                {
+                    distance = coordinate_distance;
+                }
             }
             if (distance < closest_distance)
             {

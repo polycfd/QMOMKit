@@ -133,13 +133,21 @@ void append_failure(VerificationResult& result, const std::string& message)
 
 void update_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected));
+    const double error = std::abs(actual - expected);
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 void update_relative_error(double& maximum, const double actual, const double expected)
 {
     const double absolute = std::abs(actual - expected);
-    maximum = std::max(maximum, absolute / std::max(std::abs(expected), 1.0));
+    const double error = absolute / std::max(std::abs(expected), 1.0);
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 std::vector<std::pair<double, double>> sort_rule(std::vector<std::pair<double, double>> rule)

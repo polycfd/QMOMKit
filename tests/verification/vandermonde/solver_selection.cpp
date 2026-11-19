@@ -92,7 +92,11 @@ void append_failure(VerificationResult& result, const std::string& message)
 
 void update_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected));
+    const double error = std::abs(actual - expected);
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 const char* solver_name(const qmomkit::VandermondeSolver solver)

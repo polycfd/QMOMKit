@@ -145,7 +145,11 @@ qmomkit::RawMomentTensor moments_from_terminal_rule(const std::vector<TerminalNo
 
 void update_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected));
+    const double error = std::abs(actual - expected);
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 void require(const bool condition, const std::string& message)

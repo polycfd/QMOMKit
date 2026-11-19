@@ -5,7 +5,6 @@
 #include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -138,7 +137,11 @@ void test_deterministic_ensemble_rk23_max_step_convergence()
         for (std::size_t sample = 0; sample < initial.size(); ++sample)
         {
             CHECK(result.ensemble[sample].size() == initial[sample].size());
-            maximum_error = std::max(maximum_error, std::abs(result.ensemble[sample][0] - initial[sample][0] * std::exp(1.0)));
+            const double sample_error = std::abs(result.ensemble[sample][0] - initial[sample][0] * std::exp(1.0));
+            if (std::isnan(sample_error) || sample_error > maximum_error)
+            {
+                maximum_error = sample_error;
+            }
         }
         errors.push_back(maximum_error);
     }

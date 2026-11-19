@@ -2688,10 +2688,18 @@ double cqmom_quadrature_difference(const qmomkit::CqmomQuadrature& first, const 
     double difference = 0.0;
     for (std::size_t node = 0; node < first.total_nodes(); ++node)
     {
-        difference = std::max(difference, std::abs(first.weights()[node] - second.weights()[node]));
+        const double weight_difference = std::abs(first.weights()[node] - second.weights()[node]);
+        if (std::isnan(weight_difference) || weight_difference > difference)
+        {
+            difference = weight_difference;
+        }
         for (std::size_t dimension = 0; dimension < first.number_of_dimensions(); ++dimension)
         {
-            difference = std::max(difference, std::abs(first.abscissas()[dimension][node] - second.abscissas()[dimension][node]));
+            const double abscissa_difference = std::abs(first.abscissas()[dimension][node] - second.abscissas()[dimension][node]);
+            if (std::isnan(abscissa_difference) || abscissa_difference > difference)
+            {
+                difference = abscissa_difference;
+            }
         }
     }
     return difference;
@@ -3114,8 +3122,11 @@ void test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction()
     double largest_source_candidate_residual = 0.0;
     for (std::size_t i = 0; i < source_candidate_required.values.size(); ++i)
     {
-        largest_source_candidate_residual =
-            std::max(largest_source_candidate_residual, std::abs(source_candidate_required.values[i] - canonical_required.values[i]));
+        const double candidate_residual = std::abs(source_candidate_required.values[i] - canonical_required.values[i]);
+        if (std::isnan(candidate_residual) || candidate_residual > largest_source_candidate_residual)
+        {
+            largest_source_candidate_residual = candidate_residual;
+        }
     }
     assert(largest_source_candidate_residual > 0.49);
 }

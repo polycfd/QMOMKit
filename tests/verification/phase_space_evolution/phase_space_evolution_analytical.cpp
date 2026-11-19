@@ -300,8 +300,15 @@ void update_errors(ErrorMetrics& errors, const std::vector<double>& computed, co
     for (std::size_t i = 0; i < computed.size(); ++i)
     {
         const double absolute = std::abs(computed[i] - exact[i]);
-        errors.moment_absolute = std::max(errors.moment_absolute, absolute);
-        errors.moment_scaled = std::max(errors.moment_scaled, absolute / std::max(1.0, std::abs(exact[i])));
+        if (std::isnan(absolute) || absolute > errors.moment_absolute)
+        {
+            errors.moment_absolute = absolute;
+        }
+        const double scaled = absolute / std::max(1.0, std::abs(exact[i]));
+        if (std::isnan(scaled) || scaled > errors.moment_scaled)
+        {
+            errors.moment_scaled = scaled;
+        }
     }
     if (!computed.empty() && !exact.empty())
     {
@@ -314,8 +321,15 @@ void update_reconstruction_errors(ErrorMetrics& errors, const std::vector<double
     for (std::size_t i = 0; i < reconstructed.size(); ++i)
     {
         const double absolute = std::abs(reconstructed[i] - exact[i]);
-        errors.reconstruction_absolute = std::max(errors.reconstruction_absolute, absolute);
-        errors.reconstruction_scaled = std::max(errors.reconstruction_scaled, absolute / std::max(1.0, std::abs(exact[i])));
+        if (std::isnan(absolute) || absolute > errors.reconstruction_absolute)
+        {
+            errors.reconstruction_absolute = absolute;
+        }
+        const double scaled = absolute / std::max(1.0, std::abs(exact[i]));
+        if (std::isnan(scaled) || scaled > errors.reconstruction_scaled)
+        {
+            errors.reconstruction_scaled = scaled;
+        }
     }
 }
 
@@ -324,7 +338,11 @@ double scaled_infinity_error(const std::vector<double>& computed, const std::vec
     double error = 0.0;
     for (std::size_t i = 0; i < computed.size(); ++i)
     {
-        error = std::max(error, std::abs(computed[i] - exact[i]) / std::max(1.0, std::abs(exact[i])));
+        const double entry_error = std::abs(computed[i] - exact[i]) / std::max(1.0, std::abs(exact[i]));
+        if (std::isnan(entry_error) || entry_error > error)
+        {
+            error = entry_error;
+        }
     }
     return error;
 }
@@ -734,12 +752,12 @@ RunSummary validate_qmom_run(VerificationResult& verification, const std::vector
                                                  qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(final_quadrature, exact.size());
     update_reconstruction_errors(summary.errors, reconstructed, exact);
-    if (summary.errors.moment_scaled > moment_tolerance)
+    if (!(summary.errors.moment_scaled <= moment_tolerance))
     {
         summary.success = false;
         append_failure(verification, "final QMOM moments exceed the analytical tolerance.");
     }
-    if (summary.errors.reconstruction_scaled > reconstruction_tolerance)
+    if (!(summary.errors.reconstruction_scaled <= reconstruction_tolerance))
     {
         summary.success = false;
         append_failure(verification, "final QMOM quadrature reconstruction exceeds the analytical tolerance.");
@@ -789,7 +807,7 @@ void validate_commuting_component_checks(VerificationResult& verification, const
         return;
     }
     const std::vector<double> exact = commuting_source_exact(qmom_case.moments.values(), source_probe_step);
-    if (scaled_infinity_error(sourced.moments, exact) > 2.0e-9)
+    if (!(scaled_infinity_error(sourced.moments, exact) <= 2.0e-9))
     {
         append_failure(verification, "moment-source operator diagonal-law check exceeds tolerance.");
     }
@@ -892,7 +910,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         update_reconstruction_errors(boundary_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, boundary_exact.size()),
                                      boundary_exact);
         boundary_summary.error_norm = scaled_infinity_error(boundary_result.state.moment_values(), boundary_exact);
-        if (boundary_summary.errors.moment_scaled > 5.0e-11 || boundary_summary.errors.reconstruction_scaled > 5.0e-11)
+        if (!(boundary_summary.errors.moment_scaled <= 5.0e-11 && boundary_summary.errors.reconstruction_scaled <= 5.0e-11))
         {
             boundary_summary.success = false;
             append_failure(verification, "QMOM boundary injection/removal moments exceeded the analytical tolerance.");
@@ -933,7 +951,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         update_reconstruction_errors(combined_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, combined_exact.size()),
                                      combined_exact);
         combined_summary.error_norm = scaled_infinity_error(combined_result.state.moment_values(), combined_exact);
-        if (combined_summary.errors.moment_scaled > 5.0e-11 || combined_summary.errors.reconstruction_scaled > 5.0e-11)
+        if (!(combined_summary.errors.moment_scaled <= 5.0e-11 && combined_summary.errors.reconstruction_scaled <= 5.0e-11))
         {
             combined_summary.success = false;
             append_failure(verification, "QMOM combined source plus boundary contribution exceeded the analytical tolerance.");
@@ -1090,7 +1108,7 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
                                                  static_cast<std::size_t>(std::lround(final_time / refinement_steps.front())), noncommuting_velocity,
                                                  noncommuting_source, qmom_case.qmom_options, srcadv_options);
     if (cd_coarse.result.ok() && dc_coarse.result.ok() &&
-        scaled_infinity_error(cd_coarse.result.state.moment_values(), dc_coarse.result.state.moment_values()) < 1.0e-4)
+        !(scaled_infinity_error(cd_coarse.result.state.moment_values(), dc_coarse.result.state.moment_values()) >= 1.0e-4))
     {
         append_failure(verification, "noncommuting advsrc and srcadv schemes did not differ at finite timestep.");
     }
@@ -1196,7 +1214,7 @@ void verify_qmom_rk23_minimum_step_acceptance_result(const qmomkit::QmomPhaseSpa
                                                  qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(final_quadrature, exact.size());
     if (result.state.moment_values().size() == exact.size() &&
-        (scaled_infinity_error(result.state.moment_values(), exact) > 2.0e-6 || scaled_infinity_error(reconstructed, exact) > 2.0e-6))
+        !(scaled_infinity_error(result.state.moment_values(), exact) <= 2.0e-6 && scaled_infinity_error(reconstructed, exact) <= 2.0e-6))
     {
         append_failure(verification, "QMOM RK23 minimum-step case final state exceeded the analytical advection-reference tolerance.");
     }
@@ -1919,7 +1937,7 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
         summary.success = false;
         append_failure(verification, "CQMOM final time does not match the requested final time.");
     }
-    if (summary.errors.moment_scaled > 3.0e-6 || summary.errors.reconstruction_scaled > 3.0e-6)
+    if (!(summary.errors.moment_scaled <= 3.0e-6 && summary.errors.reconstruction_scaled <= 3.0e-6))
     {
         summary.success = false;
         append_failure(verification, "CQMOM commuting phase-space evolution exceeded the analytical tolerance.");
@@ -2061,7 +2079,7 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
         }
     }
 
-    if (!cd_coarse.has_value() || !dc_coarse.has_value() || scaled_infinity_error(*cd_coarse, *dc_coarse) < 1.0e-5)
+    if (!cd_coarse.has_value() || !dc_coarse.has_value() || !(scaled_infinity_error(*cd_coarse, *dc_coarse) >= 1.0e-5))
     {
         append_failure(verification, "noncommuting CQMOM advsrc and srcadv schemes did not differ at finite timestep.");
     }
@@ -2159,7 +2177,7 @@ VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& 
         summary.success = false;
         append_failure(verification, "CQMOM boundary contribution final time does not match the requested final time.");
     }
-    if (summary.errors.moment_scaled > 5.0e-9 || summary.errors.reconstruction_scaled > 5.0e-9)
+    if (!(summary.errors.moment_scaled <= 5.0e-9 && summary.errors.reconstruction_scaled <= 5.0e-9))
     {
         summary.success = false;
         append_failure(verification, "CQMOM boundary contribution moments exceeded the analytical tolerance.");
@@ -2271,7 +2289,7 @@ VerificationResult run_cqmom_combined_native_source(const std::filesystem::path&
         summary.success = false;
         append_failure(verification, "combined CQMOM final time does not match the requested final time.");
     }
-    if (summary.errors.moment_scaled > 5.0e-9 || summary.errors.reconstruction_scaled > 5.0e-9)
+    if (!(summary.errors.moment_scaled <= 5.0e-9 && summary.errors.reconstruction_scaled <= 5.0e-9))
     {
         summary.success = false;
         append_failure(verification, "combined CQMOM moments exceeded the analytical split-reference tolerance.");
@@ -2373,7 +2391,7 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
         summary.success = false;
         append_failure(verification, "CQMOM-native source final time does not match the requested final time.");
     }
-    if (summary.errors.moment_scaled > 5.0e-10 || summary.errors.reconstruction_scaled > 5.0e-10)
+    if (!(summary.errors.moment_scaled <= 5.0e-10 && summary.errors.reconstruction_scaled <= 5.0e-10))
     {
         summary.success = false;
         append_failure(verification, "CQMOM-native source moments exceeded the analytical SSP-RK3 tolerance.");
@@ -2473,7 +2491,7 @@ void verify_cqmom_rk23_minimum_step_acceptance_result(const qmomkit::CqmomPhaseS
         append_failure(verification, "CQMOM RK23 minimum-step case returned an unexpected stored moment count.");
     }
     if (result.state.moment_values().size() == exact_required.values.size() &&
-        scaled_infinity_error(result.state.moment_values(), exact_required.values) > 3.0e-6)
+        !(scaled_infinity_error(result.state.moment_values(), exact_required.values) <= 3.0e-6))
     {
         append_failure(verification, "CQMOM RK23 minimum-step case final stored moments exceeded the analytical advection-reference tolerance.");
     }
@@ -2496,7 +2514,7 @@ void verify_cqmom_rk23_minimum_step_acceptance_result(const qmomkit::CqmomPhaseS
             append_failure(verification, "CQMOM RK23 minimum-step case returned inconsistent final quadrature topology.");
         }
         const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.state.quadrature(), exact.extents);
-        if (scaled_infinity_error(reconstructed.values, exact.values) > 3.0e-6)
+        if (!(scaled_infinity_error(reconstructed.values, exact.values) <= 3.0e-6))
         {
             append_failure(verification, "CQMOM RK23 minimum-step case final quadrature exceeded the analytical advection-reference tolerance.");
         }
@@ -3283,7 +3301,7 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
         summary.success = false;
         append_failure(verification, "adaptive CQMOM state final time does not match the requested final time.");
     }
-    if (summary.errors.moment_scaled > 3.0e-6 || summary.errors.reconstruction_scaled > 3.0e-6)
+    if (!(summary.errors.moment_scaled <= 3.0e-6 && summary.errors.reconstruction_scaled <= 3.0e-6))
     {
         summary.success = false;
         append_failure(verification, "adaptive CQMOM state commuting phase-space evolution exceeded the analytical tolerance.");
@@ -3441,7 +3459,7 @@ VerificationResult run_unit_invariance_cqmom_state_adaptive_2d(const std::filesy
     }
     update_reconstruction_errors(summary.errors, reconstructed_canonical, analytical);
     summary.error_norm = scaled_infinity_error(reconstructed_canonical, analytical);
-    if (summary.errors.moment_scaled > 2.0e-9 || summary.errors.reconstruction_scaled > 2.0e-9)
+    if (!(summary.errors.moment_scaled <= 2.0e-9 && summary.errors.reconstruction_scaled <= 2.0e-9))
     {
         append_failure(verification, "unit-invariance CQMOM evolution exceeded the manufactured physical tolerance.");
         summary.success = false;

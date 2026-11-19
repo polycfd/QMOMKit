@@ -29,7 +29,6 @@
 
 #include "qmomkit/qmomkit.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <exception>
@@ -84,7 +83,11 @@ double integer_power(const double base, const std::size_t exponent)
 
 void update_error(VerificationResult& result, const double actual, const double expected)
 {
-    result.maximum_error = std::max(result.maximum_error, std::abs(actual - expected));
+    const double error = std::abs(actual - expected);
+    if (std::isnan(error) || error > result.maximum_error)
+    {
+        result.maximum_error = error;
+    }
 }
 
 std::vector<TerminalNode> independent_product_reference()
@@ -328,7 +331,7 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    if (verification.maximum_error > tolerance)
+    if (!(verification.maximum_error <= tolerance))
     {
         append_failure(verification, "raw moment reconstruction exceeded the analytical tolerance.");
     }

@@ -97,7 +97,11 @@ double relative_error(const std::vector<double>& moments, const std::vector<doub
     double error = 0.0;
     for (std::size_t entry = 0; entry < reference.size(); ++entry)
     {
-        error = std::max(error, std::abs(moments[entry] - reference[entry]) / std::max(1.0, std::abs(reference[entry])));
+        const double entry_error = std::abs(moments[entry] - reference[entry]) / std::max(1.0, std::abs(reference[entry]));
+        if (std::isnan(entry_error) || entry_error > error)
+        {
+            error = entry_error;
+        }
     }
     return error;
 }

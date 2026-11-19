@@ -131,12 +131,20 @@ void append_failure(VerificationResult& result, const std::string& message)
 
 void update_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected));
+    const double error = std::abs(actual - expected);
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 void update_relative_error(double& maximum, const double actual, const double expected)
 {
-    maximum = std::max(maximum, std::abs(actual - expected) / std::max(1.0, std::abs(expected)));
+    const double error = std::abs(actual - expected) / std::max(1.0, std::abs(expected));
+    if (std::isnan(error) || error > maximum)
+    {
+        maximum = error;
+    }
 }
 
 double integer_power(const double base, const std::size_t exponent)
@@ -550,8 +558,12 @@ void verify_terminals(const ExpectedCase& expected, std::vector<RecoveredTermina
                 double candidate_error = 0.0;
                 for (std::size_t dimension = 0; dimension < analytical[terminal].coordinates.size(); ++dimension)
                 {
-                    candidate_error = std::max(candidate_error,
-                                               std::abs(recovered[candidate].coordinates[dimension] - analytical[terminal].coordinates[dimension]));
+                    const double coordinate_error =
+                        std::abs(recovered[candidate].coordinates[dimension] - analytical[terminal].coordinates[dimension]);
+                    if (std::isnan(coordinate_error) || coordinate_error > candidate_error)
+                    {
+                        candidate_error = coordinate_error;
+                    }
                 }
                 if (candidate_error < best_error)
                 {

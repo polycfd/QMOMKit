@@ -131,7 +131,11 @@ double error(const std::vector<double>& actual, const std::vector<double>& expec
     double result = 0.0;
     for (std::size_t i = 0; i < actual.size(); ++i)
     {
-        result = std::max(result, std::abs(actual[i] - expected[i]) / std::max(1.0, std::abs(expected[i])));
+        const double entry_error = std::abs(actual[i] - expected[i]) / std::max(1.0, std::abs(expected[i]));
+        if (std::isnan(entry_error) || entry_error > result)
+        {
+            result = entry_error;
+        }
     }
     return result;
 }

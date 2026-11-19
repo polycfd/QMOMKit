@@ -163,17 +163,31 @@ ValidationMetrics validate_case(const std::string& name, const qmomkit::internal
     {
         const double abs_error = std::abs(reconstructed[i] - raw_moments[i]);
         const double scale = std::max(1.0, std::abs(raw_moments[i]));
-        metrics.max_abs_moment_error = std::max(metrics.max_abs_moment_error, abs_error);
-        metrics.max_rel_moment_error = std::max(metrics.max_rel_moment_error, abs_error / scale);
+        if (std::isnan(abs_error) || abs_error > metrics.max_abs_moment_error)
+        {
+            metrics.max_abs_moment_error = abs_error;
+        }
+        const double rel_error = abs_error / scale;
+        if (std::isnan(rel_error) || rel_error > metrics.max_rel_moment_error)
+        {
+            metrics.max_rel_moment_error = rel_error;
+        }
     }
 
     for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(expected.hierarchy()))
     {
-        metrics.max_weight_error = std::max(metrics.max_weight_error, std::abs(result.quadrature.weight(node_index) - expected.weight(node_index)));
+        const double weight_error = std::abs(result.quadrature.weight(node_index) - expected.weight(node_index));
+        if (std::isnan(weight_error) || weight_error > metrics.max_weight_error)
+        {
+            metrics.max_weight_error = weight_error;
+        }
         for (std::size_t dimension = 0; dimension < expected.number_of_dimensions(); ++dimension)
         {
-            metrics.max_abscissa_error = std::max(
-                metrics.max_abscissa_error, std::abs(result.quadrature.abscissa(dimension, node_index) - expected.abscissa(dimension, node_index)));
+            const double abscissa_error = std::abs(result.quadrature.abscissa(dimension, node_index) - expected.abscissa(dimension, node_index));
+            if (std::isnan(abscissa_error) || abscissa_error > metrics.max_abscissa_error)
+            {
+                metrics.max_abscissa_error = abscissa_error;
+            }
         }
     }
 
@@ -263,16 +277,30 @@ ValidationMetrics validate_adaptive_case(const std::string& name, const RaggedAd
     {
         const double abs_error = std::abs(reconstructed[i] - raw_moments[i]);
         const double scale = std::max(1.0, std::abs(raw_moments[i]));
-        metrics.max_abs_moment_error = std::max(metrics.max_abs_moment_error, abs_error);
-        metrics.max_rel_moment_error = std::max(metrics.max_rel_moment_error, abs_error / scale);
+        if (std::isnan(abs_error) || abs_error > metrics.max_abs_moment_error)
+        {
+            metrics.max_abs_moment_error = abs_error;
+        }
+        const double rel_error = abs_error / scale;
+        if (std::isnan(rel_error) || rel_error > metrics.max_rel_moment_error)
+        {
+            metrics.max_rel_moment_error = rel_error;
+        }
     }
     for (std::size_t terminal = 0; terminal < result.quadrature.total_nodes(); ++terminal)
     {
-        metrics.max_weight_error = std::max(metrics.max_weight_error, std::abs(result.quadrature.weights()[terminal] - expected.weights[terminal]));
+        const double weight_error = std::abs(result.quadrature.weights()[terminal] - expected.weights[terminal]);
+        if (std::isnan(weight_error) || weight_error > metrics.max_weight_error)
+        {
+            metrics.max_weight_error = weight_error;
+        }
         for (std::size_t dimension = 0; dimension < expected.hierarchy.number_of_dimensions(); ++dimension)
         {
-            metrics.max_abscissa_error = std::max(
-                metrics.max_abscissa_error, std::abs(result.quadrature.abscissas()[dimension][terminal] - expected.abscissas[dimension][terminal]));
+            const double abscissa_error = std::abs(result.quadrature.abscissas()[dimension][terminal] - expected.abscissas[dimension][terminal]);
+            if (std::isnan(abscissa_error) || abscissa_error > metrics.max_abscissa_error)
+            {
+                metrics.max_abscissa_error = abscissa_error;
+            }
         }
     }
 
@@ -315,8 +343,15 @@ ValidationMetrics validate_moment_closure_case(const std::string& name, const qm
     {
         const double abs_error = std::abs(reconstructed[i] - raw_moments[i]);
         const double scale = std::max(1.0, std::abs(raw_moments[i]));
-        metrics.max_abs_moment_error = std::max(metrics.max_abs_moment_error, abs_error);
-        metrics.max_rel_moment_error = std::max(metrics.max_rel_moment_error, abs_error / scale);
+        if (std::isnan(abs_error) || abs_error > metrics.max_abs_moment_error)
+        {
+            metrics.max_abs_moment_error = abs_error;
+        }
+        const double rel_error = abs_error / scale;
+        if (std::isnan(rel_error) || rel_error > metrics.max_rel_moment_error)
+        {
+            metrics.max_rel_moment_error = rel_error;
+        }
     }
 
     const bool within_tolerances = metrics.max_abs_moment_error <= moment_tolerance && metrics.max_rel_moment_error <= moment_tolerance;

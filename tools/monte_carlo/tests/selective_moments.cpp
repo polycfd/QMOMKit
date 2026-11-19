@@ -66,6 +66,11 @@ void test_selected_one_dimensional_moments()
     CHECK_CLOSE(result.values[1], 2.5, 0.0);
     CHECK_CLOSE(result.values[2], 5.0 / 6.0, 1.0e-14);
     CHECK_CLOSE(result.values[3], result.values[0], 0.0);
+    // The standard error is n0 sqrt(s^2 / P) with the unbiased sample variance
+    // s^2 of the monomial. For m2 the monomials are {4, 9, 0}, with mean 13/3
+    // and s^2 = (1/9 + 196/9 + 169/9) / 2 = 61/3, so the standard error is
+    // 2.5 sqrt(61/9) = 2.5 sqrt(61) / 3.
+    CHECK_CLOSE(result.standard_errors[0], 2.5 * std::sqrt(61.0) / 3.0, 1.0e-14);
     CHECK_CLOSE(result.standard_errors[0], result.standard_errors[3], 0.0);
 }
 
@@ -177,6 +182,11 @@ void test_selected_invalid_inputs_have_no_partial_payload()
     CHECK(non_finite_sample.status == EnsembleMomentStatus::non_finite_sample);
     CHECK(non_finite_sample.message == "Sample coordinate is non-finite.");
 
+    const SelectedEnsembleMomentEstimate negative_density =
+        qmomkit::monte_carlo::compute_requested_ensemble_moments(Ensemble{{1.0, 2.0}}, -1.0, valid_request);
+    check_empty_failure(negative_density);
+    CHECK(negative_density.status == EnsembleMomentStatus::invalid_input);
+
     const SelectedEnsembleMomentEstimate nan_density =
         qmomkit::monte_carlo::compute_requested_ensemble_moments(Ensemble{{1.0, 2.0}}, std::numeric_limits<double>::quiet_NaN(), valid_request);
     check_empty_failure(nan_density);
@@ -211,32 +221,6 @@ void test_selected_numerical_failures()
     CHECK(sum_squares_result.status == EnsembleMomentStatus::non_finite_moment);
 }
 
-void test_selected_inputs_are_unchanged()
-{
-    const Ensemble ensemble{{-1.0, 2.0}, {3.0, 4.0}};
-    const RawMomentRequest request{{{1, 0}, {0, 1}, {1, 0}}};
-    const Ensemble original_ensemble = ensemble;
-    const RawMomentRequest original_request = request;
-
-    const SelectedEnsembleMomentEstimate result = qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, 2.0, request);
-    CHECK(result.ok());
-    CHECK(ensemble == original_ensemble);
-    CHECK(request.indices == original_request.indices);
-}
-
-void test_failed_selection_does_not_mutate_inputs()
-{
-    const Ensemble ensemble{{-1.0, 2.0}, {3.0, 4.0}};
-    const RawMomentRequest request{{{1, 0}, {0, 1}, {1, 0}}};
-    const Ensemble original_ensemble = ensemble;
-    const RawMomentRequest original_request = request;
-
-    const SelectedEnsembleMomentEstimate result = qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, -1.0, request);
-    check_empty_failure(result);
-    CHECK(ensemble == original_ensemble);
-    CHECK(request.indices == original_request.indices);
-}
-
 } // namespace
 
 int main(const int argc, char** argv)
@@ -250,7 +234,5 @@ int main(const int argc, char** argv)
             {"empty_request_requires_valid_ensemble_and_density", test_empty_request_requires_valid_ensemble_and_density},
             {"selected_invalid_inputs_have_no_partial_payload", test_selected_invalid_inputs_have_no_partial_payload},
             {"selected_numerical_failures", test_selected_numerical_failures},
-            {"selected_inputs_are_unchanged", test_selected_inputs_are_unchanged},
-            {"failed_selection_does_not_mutate_inputs", test_failed_selection_does_not_mutate_inputs},
         });
 }

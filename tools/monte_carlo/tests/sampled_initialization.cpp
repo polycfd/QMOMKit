@@ -29,6 +29,12 @@ void check_close(const double actual, const double expected, const double tolera
     CHECK_CLOSE(actual, expected, tolerance);
 }
 
+void check_close_relative(const double actual, const double expected, const double relative_tolerance, const std::string& context)
+{
+    update_maximum_error(std::abs(actual - expected));
+    CHECK_CLOSE_CONTEXT(actual, expected, 0.0, relative_tolerance, context);
+}
+
 void test_one_dimensional_distribution_density()
 {
     const double number_density = 2.75;
@@ -67,16 +73,25 @@ void test_multidimensional_tensor_layout()
     CHECK(initialization.moments.moments.values.size() == 24);
     check_close(initialization.moments.moments.values.front(), product.number_density, 1.0e-14);
 
-    const qmomkit::MultiIndex order{1, 2, 3};
-    const std::size_t flat = qmomkit::flatten_multi_index(order, initialization.moments.moments.extents);
-    CHECK(flat == 23);
-    CHECK(qmomkit::unflatten_multi_index(flat, initialization.moments.moments.extents) == order);
-}
-
-void check_close_relative(const double actual, const double expected, const double relative_tolerance, const std::string& context)
-{
-    update_maximum_error(std::abs(actual - expected));
-    CHECK_CLOSE_CONTEXT(actual, expected, 0.0, relative_tolerance, context);
+    // Every entry must hold the moment of its row-major multi-index, averaged
+    // here over the drawn samples, so a permuted storage order fails.
+    const qmomkit::monte_carlo::Ensemble& ensemble = initialization.sampling.ensemble;
+    for (std::size_t flat = 0; flat < initialization.moments.moments.values.size(); ++flat)
+    {
+        const qmomkit::MultiIndex order = qmomkit::unflatten_multi_index(flat, initialization.moments.moments.extents);
+        double sum = 0.0;
+        for (const qmomkit::monte_carlo::Sample& sample : ensemble)
+        {
+            double monomial = 1.0;
+            for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
+            {
+                monomial *= std::pow(sample[dimension], static_cast<double>(order[dimension]));
+            }
+            sum += monomial;
+        }
+        const double expected = product.number_density * sum / static_cast<double>(ensemble.size());
+        check_close_relative(initialization.moments.moments.values[flat], expected, 1.0e-12, "entry " + std::to_string(flat));
+    }
 }
 
 void test_selected_initialization_matches_moment_tensor()
@@ -166,11 +181,16 @@ void test_statistical_sanity_improves_with_sample_count()
     CHECK(small.ok());
     CHECK(large.ok());
 
+    // Each estimate must lie within five of its own standard errors of the
+    // exact first moment. A correct sampler leaves it outside with probability
+    // below 1e-6. The standard error of the large sample is a quarter of that of
+    // the small one, so a bias of 1.5 small-sample standard errors fails there.
     const double small_error = std::abs(small.moments.moments[1] - analytical.moments[1]);
     const double large_error = std::abs(large.moments.moments[1] - analytical.moments[1]);
     update_maximum_error(small_error);
     update_maximum_error(large_error);
-    CHECK(large_error < small_error);
+    CHECK_CLOSE(small.moments.moments[1], analytical.moments[1], 5.0 * small.moments.standard_errors[1]);
+    CHECK_CLOSE(large.moments.moments[1], analytical.moments[1], 5.0 * large.moments.standard_errors[1]);
 
     const double standard_error_ratio = large.moments.standard_errors[1] / small.moments.standard_errors[1];
     const double expected_ratio =

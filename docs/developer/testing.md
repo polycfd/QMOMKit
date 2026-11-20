@@ -72,6 +72,9 @@ The selector is `<case>`. So:
   [`tests/unit/CMakeLists.txt`](../../tests/unit/CMakeLists.txt), and a scanned
   component-regression source in `component_case_sources` in
   [`tests/component_regression/CMakeLists.txt`](../../tests/component_regression/CMakeLists.txt).
+- A distinct behavior gets its own registered case. Extend an existing case
+  only with checks of the behavior its name already describes, such as one more
+  input failure in a case that checks input failures.
 
 Every registered test carries the label of its directory and a timeout of
 `QMOMKIT_TEST_TIMEOUT_SECONDS` (300 s), so a case that fails by not terminating
@@ -224,9 +227,15 @@ the evidence a numerical change needs. The references used here:
 - Monte Carlo references, below: finite-sample solutions of the same
   mathematical problem, not physical data.
 
-An expected value never comes from the call under test with the same input. A
-case that compares the code with itself under an invariance, or with another
-public API, names that comparison in its README. A relative error against a
+An expected value never comes from the call under test with the same input.
+References computed offline, such as exact or high-precision values, come from
+a Python script beside the test and named after it, `<test>.py`, never from
+code in a C++ comment. The header of the test names the script and what it
+asserts, its Reproduce section gives the command, and the README of the
+directory lists the script. Run the script with `python3 -B`, so that no
+`__pycache__` lands in the repository. A case that compares the code with
+itself under an invariance, or with another public API, names that comparison
+in its README. A relative error against a
 reference at or near zero, such as an odd moment of a symmetric distribution,
 needs an absolute floor, as `QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE` provides.
 Evidence that the suite enforces lives in `tests/verification/`.

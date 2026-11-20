@@ -3,9 +3,10 @@
 ## Project and Priorities
 
 QMOMKit is an application-agnostic C++ library for quadrature-based moment
-methods, including one-dimensional QMOM, multidimensional CQMOM,
-raw-moment initialization, realizability diagnostics, quadrature
-reconstruction, and phase-space evolution utilities.
+methods, including one-dimensional QMOM with its classical, hyperbolic (HyQMOM)
+and generalized (GQMOM) families, multidimensional CQMOM, raw-moment
+initialization, realizability diagnostics, quadrature reconstruction, and
+phase-space evolution utilities.
 
 QMOMKit converts raw moments of a number density function into quadrature
 representations that can be embedded in larger simulation, validation, or
@@ -103,6 +104,24 @@ architecture, and extension behavior, user documentation for public API,
 configuration, assumptions, units, and usage, and example README files for
 physical examples. Do not broadly rewrite unrelated documentation.
 
+## Writing
+
+These rules apply to documentation, code comments, and proposed commit and pull
+request messages.
+
+- Write full, fluent sentences. Do not chain terse fragments with semicolons or
+  colons.
+- Repeat the noun instead of a pronoun, such as "it", "they" or "this", whose
+  referent is not the subject of the same or the preceding clause.
+- Say what is computed from what. Write "the quadrature reconstructed from the
+  stored moments", not "a reconstruction of the stored moments", which can be
+  read as the moments being reconstructed.
+- Use plain terms, such as "weighted points" rather than "atoms", and describe a
+  mechanism step by step in everyday words rather than in compressed phrases.
+- Commit and pull request messages report what was done, not what it is for or
+  what comes next. Avoid foreshadowing such as "pre-release" or "in preparation
+  for".
+
 ## Tests and Examples
 
 Tests and examples are strictly separate and must never be conflated.
@@ -113,6 +132,9 @@ Tests and examples are strictly separate and must never be conflated.
   demonstrating how to use QMOMKit.
 - Examples must follow the native-QMOMKit-first rule below, remain small and
   explicit, and must not become local frameworks.
+- Examples contain no transport in physical space, with no cells, fluxes or
+  upwinding. That is host machinery. An example shows QMOMKit's side of the
+  coupling.
 - An example must never be registered with CTest or treated as an automated
   test, including as a smoke test.
 - Example CMake projects must not call `enable_testing()` or `add_test()`.
@@ -177,7 +199,8 @@ an explicit design decision.
 
 QMOMKit configuration files use the `.qmom` extension. They describe numerical
 configuration such as phase-space structure, moment initialization, node
-counts, conditioning order, reconstruction options, and integration options.
+counts, the QMOM family, conditioning order, reconstruction options, and
+integration options.
 
 Configuration files must not define application physics, own simulation loops,
 or expose implementation-only storage and solver machinery.
@@ -188,6 +211,11 @@ Use the formulation appropriate to the phase-space problem:
 one phase-space dimension       -> QMOM
 multiple phase-space dimensions -> CQMOM
 ```
+
+For QMOM, `QmomCase::family` or `[phase_space] qmom_family` selects how the
+moments become quadrature nodes: `classical`, the default, `hyperbolic`
+(HyQMOM), or `generalized` (GQMOM). CQMOM uses the classical family. See
+`docs/developer/qmom_families.md`.
 
 The normal configured workflows are:
 

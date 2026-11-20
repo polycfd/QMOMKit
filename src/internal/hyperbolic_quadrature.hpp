@@ -53,7 +53,9 @@ struct HyperbolicCharacteristicSpeeds
  * from J_k has (k + 1) / (2k + 1) of its weight, the copy from K_{k+1} has
  * k / (2k + 1), and the mean has weight zero. The copy from K_{k+1} comes
  * first for an abscissa below the mean and second otherwise, as the weights
- * of k + 1 nodes do near the boundary.
+ * of k + 1 nodes do near the boundary for an abscissa that differs from the
+ * mean. At an abscissa equal to the mean, as for one node, the weights of
+ * k + 1 nodes share the three equal speeds differently, with the same sum.
  *
  * Where the reconstruction fails, its status and message are returned with no
  * speeds and weights and a zero closure moment. The status is also

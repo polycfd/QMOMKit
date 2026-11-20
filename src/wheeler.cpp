@@ -1011,7 +1011,10 @@ HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const Mo
         // that tends to an abscissa below the mean approaches it from below,
         // and one that tends to an abscissa above the mean from above (Fox &
         // Laurent 2022, Theorem 4.8), so the copy from K_{k+1} comes first
-        // below the mean.
+        // below the mean. At an abscissa equal to the mean, always the case
+        // for one node, two eigenvalues of K_{k+1} approach it from both
+        // sides and share its weight, so only the sum of the weights at the
+        // three equal speeds is continuous there.
         const std::vector<double>& abscissas = quadrature.abscissas;
         const auto k = static_cast<double>(abscissas.size());
         const double mean = std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / k;

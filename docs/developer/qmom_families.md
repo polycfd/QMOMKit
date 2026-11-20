@@ -205,8 +205,12 @@ the mean has weight zero. Since the roots of $R_{k+1}$ separate those of $Q_k$
 (Fox & Laurent, 2022, Theorem 4.8), the eigenvalue of $K_{k+1}$ that tends to
 an abscissa below the mean $a_k$ approaches it from below, and one that tends
 to an abscissa above the mean from above. So the copy from $K_{k+1}$ comes
-first below the mean and second otherwise, and for $k=N$ each weight is
-continuous as the moments reach the boundary. The speeds have all moments of
+first below the mean and second otherwise, and for $k=N$ the weights of an
+abscissa that differs from the mean are continuous as the moments reach the
+boundary. At an abscissa equal to the mean, which is always the case for one
+node, two eigenvalues of $K_{k+1}$ approach it from both sides and share the
+weight of the copy from $K_{k+1}$. The weights at the three equal speeds then
+jump at the boundary, but their sum does not. The speeds have all moments of
 the classical quadrature, so a kinetic flux over the speeds is the flux of its
 nodes.
 

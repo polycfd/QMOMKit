@@ -1,13 +1,18 @@
 #!/bin/sh
 ## -----------------------------------------------------------------------------
 ##
-## SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
+## SPDX-License-Identifier: LGPL-2.1-or-later
 ## Copyright (C) 2014 - 2018 by the deal.II authors
 ##
 ## This file was adapted for QMOMKit from Lethe:
 ##   https://github.com/chaos-polymtl/lethe/blob/master/contrib/utilities/check_indentation.sh
 ## which in turn adapted it from the deal.II library:
 ##   https://github.com/dealii/dealii/blob/master/contrib/utilities/check_indentation.sh
+##
+## The Lethe version carries the copyright notice above under the GNU Lesser
+## General Public License, version 2.1 or later. The deal.II version is now
+## licensed under Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later,
+## Copyright (C) 2014 - 2022 by the deal.II authors.
 ##
 ## Changes with respect to the Lethe version:
 ##   - The indent script is invoked from QMOMKit's tools/ directory instead

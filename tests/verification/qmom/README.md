@@ -5,11 +5,13 @@
 These cases verify the inversion of raw moments into a one-dimensional
 quadrature: through `load_qmom` and `compute_qmom`, through the low-level
 Wheeler inversion `compute_quadrature` and the recurrence that
-`compute_wheeler_recurrence` reports, and through the internal HyQMOM
-reconstruction `compute_hyperbolic_quadrature`. They also verify the HyQMOM
-characteristic speeds. A rule
-of $n$ weighted points is determined by its first $2n$ moments, and a HyQMOM
+`compute_wheeler_recurrence` reports, through the internal HyQMOM
+reconstruction `compute_hyperbolic_quadrature`, and through `compute_qmom` for
+GQMOM with its normal, gamma, lognormal and beta continuations. They also
+verify the HyQMOM characteristic speeds. A rule
+of $n$ weighted points is determined by its first $2n$ moments, a HyQMOM
 rule of $n + 1$ nodes and its speeds by $m_0, \ldots, m_{2n}$ and its closure,
+and a GQMOM rule of $N_G$ nodes by $m_0, \ldots, m_{2n}$ and its continuation,
 so each reference has one correct answer.
 They also check the contracts of [QMOM](../../../docs/developer/qmom.md): $m_0$
 is the number density and is not normalized, a fixed node count is delivered or

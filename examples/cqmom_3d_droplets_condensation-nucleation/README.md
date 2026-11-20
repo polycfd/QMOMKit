@@ -82,7 +82,7 @@ The remaining quantities are correlations, implemented in
 - drag coefficient $C_d=C_{d,0}F_{\mathrm{def}}$, with the sphere drag
   $C_{d,0}$ of [Clift & Gauvin (1971)](https://www.doi.org/10.1002/cjce.5450490403)
   and the deformation factor $F_{\mathrm{def}}$ of
-  [Lie et al. (1993)](https://saemobilus.sae.org/papers/modeling-effects-drop-drag-breakup-fuel-sprays-930072)
+  [Liu, Mather & Reitz (1993)](https://saemobilus.sae.org/papers/modeling-effects-drop-drag-breakup-fuel-sprays-930072)
   and [Hsiang & Faeth (1992)](https://www.doi.org/10.1016/0301-9322(92)90036-G),
   a function of the Weber number
   $\mathrm{We}=2r\rho_a w_{\mathrm{rel}}^2/\sigma$;

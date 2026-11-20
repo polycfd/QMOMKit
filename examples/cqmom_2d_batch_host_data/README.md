@@ -103,8 +103,10 @@ behavior of its own location:
   The computed and exact mean velocities differ by at most about
   $1.1\times10^{-4}$ with the time step of $0.01$. Halving the step in
   `main.cpp` reduces the difference to $2.8\times10^{-5}$, and halving it
-  again to $6.9\times10^{-6}$, the second-order convergence of the Strang
-  splitting.
+  again to $6.9\times10^{-6}$. This second-order convergence comes from the
+  linear extrapolation of the carrier flow in time, not from the splitting:
+  breakage leaves the mean velocity unchanged, so splitting adds no error to
+  it.
 - **Opposite locations.** Locations half a wavelength apart see opposite
   flows at all times, so locations $i$ and $i+4$ end with opposite mean
   velocities.

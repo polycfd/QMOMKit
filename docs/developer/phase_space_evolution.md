@@ -204,7 +204,9 @@ with a fresh retry budget, until the interval is covered. An accepted substep
 that does not shorten the remaining interval in floating point fails the update
 as `source_failed`, so the loop always ends. A failed substep returns the input
 moments, also after accepted substeps, and `diagnostics.retries` sums the
-retries of all substeps.
+retries of all substeps. An exception, for example from a callback, also
+returns the input moments, as `source_failed` with diagnostics that hold only
+the message.
 
 `advance_qmom_moments_with_source` and `advance_cqmom_moments_with_source`
 ([`include/qmomkit/moment_source.hpp`](../../include/qmomkit/moment_source.hpp))

@@ -1224,6 +1224,8 @@ void test_hyperbolic_speeds_report_the_failures_of_the_reconstruction()
         assert(result.status == quadrature.status);
         assert(result.message == quadrature.message);
         assert(result.speeds.empty());
+        assert(result.weights.empty());
+        assert(result.closure_moment == 0.0);
     }
 
     const qmomkit::MomentSet huge_variance{1.0, 0.0, 1.0e308};
@@ -1233,6 +1235,8 @@ void test_hyperbolic_speeds_report_the_failures_of_the_reconstruction()
     assert(overflow.status == qmomkit::QuadratureStatus::not_realizable);
     assert(overflow.message == "Characteristic speeds exceed the range of a double.");
     assert(overflow.speeds.empty());
+    assert(overflow.weights.empty());
+    assert(overflow.closure_moment == 0.0);
 }
 
 } // namespace

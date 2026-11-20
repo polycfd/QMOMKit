@@ -15,7 +15,9 @@ and this project adheres to
   with `QmomCase::family` or `[phase_space] qmom_family`. With node count
   N, it reconstructs up to N + 1 nodes from 2N + 1 moments.
   `compute_hyqmom_characteristic_speeds` returns the characteristic speeds of
-  a HyQMOM state. Two new examples show both.
+  a HyQMOM state, the weight of each speed for kinetic fluxes, and the
+  moment of order 2N + 1 that closes the transport equations. Two new
+  examples show the family and its speeds.
 - GQMOM (Fox, Laurent & Passalacqua, 2023) as the `generalized` QMOM family,
   selected with `QmomCase::family` or `[phase_space] qmom_family`, with its
   settings in `QmomCase::generalized_options` or the `generalized_*` keys.

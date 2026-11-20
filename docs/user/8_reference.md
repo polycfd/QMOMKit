@@ -155,7 +155,7 @@ function.
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
 | Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `maximum_node_count()`, `active_node_count()`, `base_node_count()`, `family()`, `generalized_options()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
-| HyQMOM characteristic speeds | `compute_hyqmom_characteristic_speeds` | `qmom.hpp` |
+| HyQMOM characteristic speeds, their weights and the closure moment | `compute_hyqmom_characteristic_speeds` | `qmom.hpp` |
 | Advance a state | `advance_{qmom,cqmom}_phase_space`, `_advection`, `_moment_source`, and their `_batch` and `_batch_with_index` forms | `phase_space_evolution.hpp` |
 | Check realizability | `check_realizability` | `realizability.hpp` |
 | Inspect the Wheeler recurrence | `compute_wheeler_recurrence` | `wheeler.hpp` |

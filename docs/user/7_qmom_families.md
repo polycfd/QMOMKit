@@ -48,8 +48,9 @@ a fixed reconstruction fails.
 ### Characteristic speeds
 
 Your code needs the characteristic speeds to transport the moments, for example
-for the fluxes and the time step of a finite-volume scheme, as in Section 6 of
-Fox & Laurent (2022). A state of the hyperbolic family gives these speeds:
+for the fluxes and the time step of a finite-volume scheme. A state of the
+hyperbolic family gives the speeds, a weight for each speed, and the moment
+$m_{2N+1}$ that closes the flux of $m_{2N}$:
 
 ```cpp
 const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
@@ -57,21 +58,44 @@ if (result.ok())
 {
     // The speeds are in ascending order: front(), the first element, is the
     // most negative speed, and back(), the last element, the most positive.
+    // weights[i] is the weight of speeds[i].
     const double leftmost = result.speeds.front();
     const double rightmost = result.speeds.back();
+    const double closure = result.closure_moment;
 }
 ```
 
-The speeds are those of the quadrature reconstructed from the state's moments:
-$2N + 1$ speeds for $N + 1$ nodes, and $2k + 1$ for a classical quadrature of
-$k \le N$ nodes. For moments your code changed, create a new state with
-`state_candidate(...)`
+The speeds, their weights and `closure_moment` are those of the quadrature
+reconstructed from the state's moments: $2N + 1$ speeds for $N + 1$ nodes, and
+$2k + 1$ for a classical quadrature of $k \le N$ nodes. With their weights, the
+speeds have the moments $m_0, \ldots, m_{2N}$ of that quadrature and, as
+$m_{2N+1}$, `closure_moment`. For moments your code changed, create a new state
+with `state_candidate(...)`
 ([Coupling QMOMKit](6_coupling_qmomkit.md#moments-changed-by-your-code)). The
 Reference lists the [statuses](8_reference.md#statuses) and
 [messages](8_reference.md#troubleshooting).
 
+The HLL scheme of Fox & Laurent (2022, Section 6) takes the leftmost and
+rightmost speeds and, in the flux $(m_1, \ldots, m_{2N+1})$ of each cell,
+`closure_moment` as $m_{2N+1}$. A kinetic flux
+[[Patel, Desjardins & Fox, 2019](https://doi.org/10.1016/j.jcpx.2019.100006),
+eqs. 13 and 14] splits the flux of $m_k$ over all speeds $\lambda_i$ with their
+weights $w_i$, in place of the nodes that
+[Coupling QMOMKit](6_coupling_qmomkit.md#fluxes-for-transport) uses:
+
+```math
+F^{+}_{k} = \sum_{i} w_i \max(\lambda_i, 0)^{k+1},
+\qquad
+F^{-}_{k} = \sum_{i} w_i \min(\lambda_i, 0)^{k+1}.
+```
+
+Inside the realizable set, the weights are positive. For a classical
+quadrature, the two copies of each abscissa share its weight and the mean has
+weight zero, so the flux is that of the nodes.
+
 The [`hyqmom_characteristic_speeds`](../../examples/hyqmom_characteristic_speeds/README.md)
-example computes the speeds of Fig. 1 of Fox & Laurent (2022), and
+example computes the speeds of Fig. 1 of Fox & Laurent (2022) and their
+weights, and
 [`hyqmom_1d_drag_bgk-collisions`](../../examples/hyqmom_1d_drag_bgk-collisions/README.md)
 evolves a velocity distribution with the hyperbolic family.
 

@@ -249,7 +249,7 @@ HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState&
     {
     case QmomFamily::classical:
     case QmomFamily::generalized:
-        return HyqmomCharacteristicSpeeds{{}, QmomStatus::invalid_input, "Characteristic speeds require the hyperbolic QMOM family."};
+        return HyqmomCharacteristicSpeeds{{}, {}, 0.0, QmomStatus::invalid_input, "Characteristic speeds require the hyperbolic QMOM family."};
     case QmomFamily::hyperbolic:
     {
         // The speeds of the hyperbolic reconstruction of the stored moments
@@ -257,10 +257,11 @@ HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState&
         // moments resolve, also after advection has moved the nodes.
         internal::HyperbolicCharacteristicSpeeds result = internal::compute_hyperbolic_characteristic_speeds(
             MomentSet(state.moment_values()), internal::QmomStateAccess::node_count(state), to_wheeler_options(state.qmom_options()));
-        return HyqmomCharacteristicSpeeds{std::move(result.speeds), to_qmom_status(result.status), std::move(result.message)};
+        return HyqmomCharacteristicSpeeds{std::move(result.speeds), std::move(result.weights), result.closure_moment, to_qmom_status(result.status),
+                                          std::move(result.message)};
     }
     }
-    return HyqmomCharacteristicSpeeds{{}, QmomStatus::invalid_input, "Unsupported QMOM family."};
+    return HyqmomCharacteristicSpeeds{{}, {}, 0.0, QmomStatus::invalid_input, "Unsupported QMOM family."};
 }
 
 namespace

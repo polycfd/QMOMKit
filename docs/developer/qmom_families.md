@@ -20,7 +20,7 @@ other than `classical`.
 | Evolution | `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts). The family's full quadrature is requested from the family. A reduced quadrature is requested from the classical family for `classical` and `hyperbolic`, and from the family itself for `generalized`. Every request carries the state's abscissa bounds. A growth trial of `generalized` is a single attempt at the base node count it asks for, through `internal::compute_qmom_growth_trial` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp), defined in [`src/public_api.cpp`](../../src/public_api.cpp)). |
 | Configuration | `parse_qmom_family`, `parse_generalized_options`, `infer_qmom_initial_maximum_order`, `create_family_qmom_case` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, the `generalized_node_counts`, `generalized_continuation` and `generalized_nu` of the generalized family, the default `[initial] maximum_order` from the moments the family reads, and the case with the family and its moments ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
 | CQMOM | `CqmomCase::qmom_options` ([`include/qmomkit/cqmom.hpp`](../../include/qmomkit/cqmom.hpp)) | Only `classical`: a CQMOM case holds `QmomOptions`, which carry no family ([CQMOM](cqmom.md)). |
-| Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the quadrature reconstructed from the stored moments. |
+| Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the quadrature reconstructed from the stored moments, with their [weights and the closure moment](#weights-and-closure-moment). |
 
 Every `switch` over `QmomFamily` has a case per family and no `default`, so the
 compiler's `-Wswitch` names each place a new family must handle.
@@ -164,13 +164,61 @@ eigensolve that does not converge or a speed beyond the range of a double is
 `not_realizable`. Each call records one `wheeler_calls`
 ([Performance counters](performance_counters.md)).
 
+### Weights and closure moment
+
+The speeds carry weights for a kinetic flux that splits the flux of $m_k$ over
+the speeds instead of the nodes, as
+[Patel, Desjardins & Fox (2019)](https://doi.org/10.1016/j.jcpx.2019.100006),
+eqs. 13 and 14, do for the closure of Fox, Laurent & Vié (2018). For $N+1$
+nodes, the $2N+1$ speeds are distinct, so exactly one weight per speed gives
+them the moments $m_0,\ldots,m_{2N}$. With $\mu^J$ the Gauss weights of $J_N$
+and $\mu^K$ those of $K_{N+1}$, $m_0$ times the squared first components of
+their eigenvectors, these weights are
+
+```math
+w=\frac{N+1}{2N+1}\,\mu^J\ \text{at the eigenvalues of}\ J_N,\qquad
+w=\frac{N}{2N+1}\,\mu^K\ \text{at the eigenvalues of}\ K_{N+1}.
+```
+
+The Gauss quadrature of $J_N$ has the moments $m_0,\ldots,m_{2N-1}$ and
+$m_{2N}-h_N$, with $h_N=m_0b_1\cdots b_N$. That of $K_{N+1}$ shares
+$a_0,\ldots,a_{N-1}$ and $b_1,\ldots,b_{N-1}$, so it has $m_0,\ldots,m_{2N-1}$
+and $m_{2N}-h_N+\beta_Nh_{N-1}$. The two factors sum to one, and
+$N\beta_N/(2N+1)=b_N$, so the weights give the speeds the moment $m_{2N}$. The
+moment $m_{2N+1}$ of the quadrature of $J_{N+1}$ exceeds that of $J_N$ by
+$h_N(2S+a_N)$, with $S=a_0+\cdots+a_{N-1}$, and the moment $m_{2N+1}$ of the
+quadrature of $K_{N+1}$ exceeds that of $J_N$ by $\beta_Nh_{N-1}(2S+a_N)$. So
+the weights also give the speeds $m_{2N+1}$ of the quadrature of $J_{N+1}$, the
+closure. The same follows from
+$\langle P_{2N+1}\rangle=0$ (Fox & Laurent, 2022, Corollary 3.3): any weights
+that give the roots of $P_{2N+1}$ the moments $m_0,\ldots,m_{2N}$ give them the
+closure as $m_{2N+1}$. For $\beta_N>0$ the Gauss weights are positive, and so
+are the weights. The weights need no further eigensolve, since the speeds
+already compute the eigenvectors of $J_N$ and $K_{N+1}$.
+
+For a classical quadrature of $k$ nodes, the weights are the limit of those of
+the $k$-node system as $\beta_k\to0$. $K_{k+1}$ then splits into $J_k$ and the
+entry $a_k$, whose Gauss weight vanishes. The copy of each abscissa from $J_k$
+has $(k+1)/(2k+1)$ of its weight, the copy from $K_{k+1}$ has $k/(2k+1)$, and
+the mean has weight zero. A stable sort keeps the copy from $J_k$ first. The
+speeds then have all moments of the classical quadrature, so a kinetic flux
+over the speeds is the flux of its nodes.
+
+`closure_moment` is $m_{2N+1}$ of the reconstructed quadrature. For $N+1$ nodes,
+`hyperbolic_closure_moment` computes it as $m_0$ times entry $(0,0)$ of
+$J_{N+1}^{2N+1}$. A diagonal scaling that leaves $e_1$ unchanged takes $J_{N+1}$
+to the tridiagonal matrix with the same diagonal, $b_1,\ldots,b_N$ above it and
+ones below it, so the powers act on $e_1$ through that matrix, without square
+roots. For a classical quadrature, it is $\sum_i w_i\xi_i^{2N+1}$ of its nodes.
+
 ### Where the code lives
 
 | Function | File | Role |
 | --- | --- | --- |
 | `compute_hyperbolic_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal HyQMOM reconstruction, $s=0$. |
-| `compute_hyqmom_characteristic_speeds` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public HyQMOM characteristic speeds of a state: family dispatch, then the internal speeds of the stored moments with the state's node count and options. |
-| `compute_hyperbolic_characteristic_speeds` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal speeds of $m_0,\ldots,m_{2N}$, those of the quadrature `hyperbolic_recurrence` decides. |
+| `compute_hyqmom_characteristic_speeds` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public HyQMOM characteristic speeds, their weights and the closure moment of a state: family dispatch, then the internal speeds of the stored moments with the state's node count and options. |
+| `compute_hyperbolic_characteristic_speeds` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal speeds, weights and closure moment of $m_0,\ldots,m_{2N}$, those of the quadrature `hyperbolic_recurrence` decides. |
+| `hyperbolic_closure_moment` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | $m_{2N+1}$ of the quadrature of $J_{N+1}$, from the recurrence. |
 | `hyperbolic_recurrence`, `hyperbolic_closure` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | The input checks, the recurrence with the closure and the decision that the reconstruction and the speeds share; the closure $a_N$. |
 
 ## Generalized

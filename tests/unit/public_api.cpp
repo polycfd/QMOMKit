@@ -2339,6 +2339,8 @@ void test_hyqmom_characteristic_speeds_refuse_the_other_families()
         assert(result.status == qmomkit::QmomStatus::invalid_input);
         assert(result.message == "Characteristic speeds require the hyperbolic QMOM family.");
         assert(result.speeds.empty());
+        assert(result.weights.empty());
+        assert(result.closure_moment == 0.0);
     }
 }
 
@@ -2368,6 +2370,8 @@ void test_hyqmom_characteristic_speeds_are_those_of_the_stored_moments()
         assert(result.status == qmom_status_of(expected.status));
         assert(result.message == expected.message);
         assert(result.speeds == expected.speeds);
+        assert(result.weights == expected.weights);
+        assert(result.closure_moment == expected.closure_moment);
     }
 }
 
@@ -2507,6 +2511,46 @@ void test_hyqmom_characteristic_speeds_apply_the_options_of_the_state()
     assert(refused.status == qmomkit::QmomStatus::not_realizable);
     assert(refused.message.rfind("Moment sequence supports at most 2 nodes", 0) == 0);
     assert(refused.speeds.empty());
+    assert(refused.weights.empty());
+    assert(refused.closure_moment == 0.0);
+}
+
+void test_hyqmom_speed_weights_and_closure_moment_are_those_of_the_reconstructed_quadrature()
+{
+    // Three nodes at n = 2 that are not the HyQMOM quadrature of their own
+    // moments, as after advection. The speeds with their weights have the
+    // stored moments m_0, ..., m_4 and, as m_5, the closure moment. The closure
+    // moment is m_5 of the quadrature reconstructed from the stored moments,
+    // 36.897, not m_5 of the nodes of the state, 36.460.
+    const qmomkit::QmomResult nodes{{-1.0, 0.75, 2.5}, {0.25, 0.375, 0.375}};
+    const qmomkit::QmomState state = state_from_quadrature(nodes, 5, 2, hyperbolic_options(true));
+    const qmomkit::HyqmomCharacteristicSpeeds result = qmomkit::compute_hyqmom_characteristic_speeds(state);
+    assert(result.ok());
+    assert(result.speeds.size() == 5);
+    assert(result.weights.size() == result.speeds.size());
+    std::vector<double> moments(6, 0.0);
+    for (std::size_t i = 0; i < result.speeds.size(); ++i)
+    {
+        assert(result.weights[i] > 0.0);
+        for (std::size_t k = 0; k < moments.size(); ++k)
+        {
+            moments[k] += result.weights[i] * std::pow(result.speeds[i], static_cast<double>(k));
+        }
+    }
+    const std::vector<double>& stored = state.moment_values();
+    for (std::size_t k = 0; k < stored.size(); ++k)
+    {
+        assert_near(moments[k], stored[k], 1.0e-13 * std::abs(stored[k]));
+    }
+
+    const qmomkit::QmomResult reconstruction =
+        qmomkit::compute_qmom(qmomkit::QmomCase{qmomkit::MomentSet(stored), 2, state.qmom_options(), {}, state.family()});
+    assert(reconstruction.ok());
+    const double closure = qmomkit::evaluate_generalized_moment(reconstruction, 5.0);
+    assert_near(result.closure_moment, closure, 1.0e-13 * closure);
+    assert_near(moments[5], result.closure_moment, 1.0e-13 * closure);
+    assert_near(result.closure_moment, 36.897, 1.0e-3);
+    assert_near(qmomkit::evaluate_generalized_moment(nodes, 5.0), 36.460, 1.0e-3);
 }
 
 void test_qmom_rejects_zero_node_count()
@@ -3252,6 +3296,8 @@ int main(const int argc, char** argv)
             {"hyqmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve",
              test_hyqmom_characteristic_speeds_count_only_the_nodes_that_the_moments_resolve},
             {"hyqmom_characteristic_speeds_apply_the_options_of_the_state", test_hyqmom_characteristic_speeds_apply_the_options_of_the_state},
+            {"hyqmom_speed_weights_and_closure_moment_are_those_of_the_reconstructed_quadrature",
+             test_hyqmom_speed_weights_and_closure_moment_are_those_of_the_reconstructed_quadrature},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
             {"qmom_rejects_fewer_than_2n_moments_with_or_without_bounds", test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds},
             {"qmom_rejects_non_finite_moments_with_or_without_bounds", test_qmom_rejects_non_finite_moments_with_or_without_bounds},

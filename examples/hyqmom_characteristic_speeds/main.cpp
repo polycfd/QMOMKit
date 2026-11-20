@@ -23,13 +23,19 @@ struct FigureMomentSet
     double largest_hankel_determinant;
 };
 
-void print_speeds(const std::size_t node_count, const double hankel_determinant, const std::size_t active_node_count,
-                  const std::vector<double>& speeds)
+void print_speeds_and_weights(const std::size_t node_count, const double hankel_determinant, const std::size_t active_node_count,
+                              const qmomkit::HyqmomCharacteristicSpeeds& result)
 {
-    std::cout << "  H_" << 2 * node_count << " = " << hankel_determinant << ", " << active_node_count << " nodes:";
-    for (const double speed : speeds)
+    std::cout << "  H_" << 2 * node_count << " = " << hankel_determinant << ", " << active_node_count << " nodes\n";
+    std::cout << "    speeds: ";
+    for (const double speed : result.speeds)
     {
         std::cout << ' ' << speed;
+    }
+    std::cout << "\n    weights:";
+    for (const double weight : result.weights)
+    {
+        std::cout << ' ' << weight;
     }
     std::cout << '\n';
 }
@@ -132,7 +138,7 @@ int main()
             file << '\n';
             if (point == 0 || point == point_count - 1)
             {
-                print_speeds(node_count, hankel_determinant, candidate.state->active_node_count(), result.speeds);
+                print_speeds_and_weights(node_count, hankel_determinant, candidate.state->active_node_count(), result);
             }
         }
     }

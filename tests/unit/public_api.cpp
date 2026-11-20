@@ -2348,8 +2348,8 @@ void test_hyqmom_characteristic_speeds_are_those_of_the_stored_moments()
 {
     // The speeds of a state are the internal speeds of its stored moments
     // with its node count and options, bit for bit: n + 1 nodes, adaptive and
-    // fixed; a classical quadrature; n + 1 nodes that are not the
-    // reconstruction of their moments, as after advection; and an rmin that
+    // fixed; a classical quadrature; n + 1 nodes that are not the quadrature
+    // reconstructed from their moments, as after advection; and an rmin that
     // reduces a classical quadrature.
     const qmomkit::MomentSet moments(raw_moments_1d({-1.0, 0.25, 1.5, 2.0}, {0.2, 0.3, 0.3, 0.2}, 5));
     FamilySettings large_rmin = hyperbolic_options(true);

@@ -1004,20 +1004,37 @@ HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const Mo
         // (Fox & Laurent 2022, Remark 4.9, for k = n): the roots of Q_k, its k
         // abscissas, each twice, and the closure a_k, the trace of J_k over k
         // and so the arithmetic mean of the abscissas. The weights are the
-        // limit of those of the k-point system as beta_k tends to zero: the
+        // limit of those of the k-point system as beta_k tends to zero. The
         // copy of an abscissa from J_k has (k + 1) / (2k + 1) of its weight,
         // the copy from K_{k+1} has k / (2k + 1), and the mean, which
-        // decouples from K_{k+1}, has weight zero.
+        // decouples from K_{k+1}, has weight zero. The eigenvalue of K_{k+1}
+        // that tends to an abscissa below the mean approaches it from below,
+        // and one that tends to an abscissa above the mean from above (Fox &
+        // Laurent 2022, Theorem 4.8), so the copy from K_{k+1} comes first
+        // below the mean.
         const std::vector<double>& abscissas = quadrature.abscissas;
         const auto k = static_cast<double>(abscissas.size());
+        const double mean = std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / k;
+        const double j_copy_fraction = (k + 1.0) / ((2.0 * k) + 1.0);
+        const double k_copy_fraction = k / ((2.0 * k) + 1.0);
         weighted_speeds.reserve((2 * abscissas.size()) + 1);
         for (std::size_t i = 0; i < abscissas.size(); ++i)
         {
-            weighted_speeds.emplace_back(abscissas[i], (k + 1.0) / ((2.0 * k) + 1.0) * quadrature.weights[i]);
-            weighted_speeds.emplace_back(abscissas[i], k / ((2.0 * k) + 1.0) * quadrature.weights[i]);
+            const double j_copy_weight = j_copy_fraction * quadrature.weights[i];
+            const double k_copy_weight = k_copy_fraction * quadrature.weights[i];
+            if (abscissas[i] < mean)
+            {
+                weighted_speeds.emplace_back(abscissas[i], k_copy_weight);
+                weighted_speeds.emplace_back(abscissas[i], j_copy_weight);
+            }
+            else
+            {
+                weighted_speeds.emplace_back(abscissas[i], j_copy_weight);
+                weighted_speeds.emplace_back(abscissas[i], k_copy_weight);
+            }
             closure_moment += quadrature.weights[i] * std::pow(abscissas[i], static_cast<double>((2 * node_count) + 1));
         }
-        weighted_speeds.emplace_back(std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / k, 0.0);
+        weighted_speeds.emplace_back(mean, 0.0);
     }
     else
     {
@@ -1068,6 +1085,10 @@ HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const Mo
     if (!all_finite(speeds))
     {
         return failure(QuadratureStatus::not_realizable, "Characteristic speeds exceed the range of a double.");
+    }
+    if (!std::isfinite(closure_moment))
+    {
+        return failure(QuadratureStatus::not_realizable, "Closure moment exceeds the range of a double.");
     }
     return HyperbolicCharacteristicSpeeds{std::move(speeds), std::move(weights), closure_moment, QuadratureStatus::success, ""};
 }

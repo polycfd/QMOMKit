@@ -49,14 +49,17 @@ struct HyperbolicCharacteristicSpeeds
  * quadrature. The speeds with their weights have the moments m_0, ...,
  * m_{2n+1} of the quadrature. For n + 1 nodes, the weights are (n + 1) /
  * (2n + 1) times the Gauss weights of J_n and n / (2n + 1) times those of
- * K_{n+1}. For a classical quadrature of k nodes, the first copy of each
- * abscissa has (k + 1) / (2k + 1) of its weight, the second copy k / (2k + 1),
- * and the mean has weight zero.
+ * K_{n+1}. For a classical quadrature of k nodes, the copy of each abscissa
+ * from J_k has (k + 1) / (2k + 1) of its weight, the copy from K_{k+1} has
+ * k / (2k + 1), and the mean has weight zero. The copy from K_{k+1} comes
+ * first for an abscissa below the mean and second otherwise, as the weights
+ * of k + 1 nodes do near the boundary.
  *
  * Where the reconstruction fails, its status and message are returned with no
  * speeds and weights and a zero closure moment. The status is also
  * not_realizable, with the same empty result, when an eigenvalue computation
- * does not converge or a speed is too large for a double.
+ * does not converge or a speed or the closure moment is too large for a
+ * double.
  */
 [[nodiscard]] HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const MomentSet& moments, std::size_t node_count,
                                                                                       const WheelerOptions& options);

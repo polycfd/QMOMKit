@@ -156,12 +156,12 @@ example shows the outcomes.
 
 ## Fluxes for transport
 
-The flux of the moment $M_{\mathbf{k}}$ through a face is the moment with $k_d$
-raised by one, where $\xi_d$ is the velocity component along the face normal.
-A kinetic scheme
-[[Desjardins, Fox & Villedieu, 2008](https://doi.org/10.1016/j.jcp.2007.10.026)]
-splits this flux into the contributions of the nodes moving forward and
-backward:
+The flux of the moment $M_{\mathbf{k}}$ through a face whose normal points in
+the direction of the velocity component $\xi_d$ is the moment with $k_d$ raised
+by one. A kinetic scheme
+[[Desjardins, Fox & Villedieu, 2008](https://doi.org/10.1016/j.jcp.2007.10.026),
+eqs. 33 to 36] splits this flux into the contributions of the nodes moving
+forward and backward:
 
 ```math
 F^{+}_{\mathbf{k}} = \sum_{j} w_j \max(\xi_{d,j}, 0) \prod_{i} \xi_{i,j}^{k_i},
@@ -169,12 +169,15 @@ F^{+}_{\mathbf{k}} = \sum_{j} w_j \max(\xi_{d,j}, 0) \prod_{i} \xi_{i,j}^{k_i},
 F^{-}_{\mathbf{k}} = \sum_{j} w_j \min(\xi_{d,j}, 0) \prod_{i} \xi_{i,j}^{k_i}.
 ```
 
-First-order upwinding takes $F^{+}$ from the cell behind the face and $F^{-}$
-from the cell in front of the face. Take the nodes from a state created from
-the moments being transported, as below, not from an advanced state. Node
-advection moves the nodes of a state without reconstructing them, so the
-moments one order higher, which the fluxes need, would come from the moved
-nodes instead of from the quadrature reconstructed from the moments.
+First-order upwinding takes $F^{+}$ from the cell that the face normal points
+out of and $F^{-}$ from the cell that the normal points into. On a face with any
+other normal $\mathbf{n}$, the normal velocity of node $j$,
+$\boldsymbol{\xi}_j \cdot \mathbf{n}$, replaces $\xi_{d,j}$ (Desjardins, Fox &
+Villedieu, 2008, eq. 43). Take the nodes from a state created from the moments
+being transported, as below, not from an advanced state. Node advection moves
+the nodes of a state without reconstructing them, so the moments one order
+higher, which the fluxes need, would come from the moved nodes instead of from
+the quadrature reconstructed from the moments.
 
 ```cpp
 moment_data.values = moments; // the moments of the cell before transport
@@ -205,7 +208,8 @@ if (candidate.ok())
 `velocity_dimension` is the position of $\xi_d$ in phase-space order, and
 `forward[m]` and `backward[m]` are $F^{+}$ and $F^{-}$ of the moment
 `indices[m]`, in the order of the moments your code stores. An `empty` cell has
-no nodes and sends no flux. For QMOM, $\xi$ is the velocity, $\mathbf{k}$ is
+no nodes and sends no flux, and for a rejected candidate your code decides, as
+in the loops above. For QMOM, $\xi$ is the velocity, $\mathbf{k}$ is
 the order $k$, and `candidate.state->quadrature()` holds the vectors `weights`
 and `abscissas`. The quasi-second-order scheme of
 [Vikas et al. (2011)](https://doi.org/10.1016/j.jcp.2011.03.038) uses the same

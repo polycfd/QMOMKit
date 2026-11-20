@@ -256,7 +256,8 @@ struct HyqmomCharacteristicSpeeds
  * family other than `hyperbolic`; otherwise the status and message of a
  * failed reconstruction, such as `not_realizable` in fixed mode when the
  * moments no longer support n + 1 nodes, and `not_realizable` when an
- * eigensolve does not converge or a speed is too large for a double.
+ * eigensolve does not converge or a speed or the closure moment is too large
+ * for a double.
  */
 [[nodiscard]] HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState& state);
 

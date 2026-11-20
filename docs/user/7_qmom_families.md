@@ -37,8 +37,9 @@ distinct inside the realizable set. For the same node count, HyQMOM uses one
 moment and one node more than classical QMOM. For $N = 2$, HyQMOM closes the
 transport equations differently from the earlier HyQMOM
 [[Fox, Laurent & Vié, 2018](https://doi.org/10.1016/j.jcp.2018.03.025)], which
-places the middle node at the mean, and has different characteristic speeds
-inside the realizable set (Fox & Laurent, 2022, Section 1).
+places the middle node at the mean. The two closures give different
+characteristic speeds inside the realizable set (Fox & Laurent, 2022,
+Section 1).
 
 Inside the realizable set, HyQMOM returns $N + 1$ nodes with base node count
 $N$. On the boundary of the realizable set or outside it, an adaptive
@@ -68,9 +69,8 @@ if (result.ok())
 The speeds, their weights and `closure_moment` are those of the quadrature
 reconstructed from the state's moments: $2N + 1$ speeds for $N + 1$ nodes, and
 $2k + 1$ for a classical quadrature of $k \le N$ nodes. With their weights, the
-speeds have the moments $m_0, \ldots, m_{2N}$ of that quadrature and, as
-$m_{2N+1}$, `closure_moment`. For moments your code changed, create a new state
-with `state_candidate(...)`
+speeds have the moments $m_0, \ldots, m_{2N+1}$ of that quadrature. For moments
+your code changed, create a new state with `state_candidate(...)`
 ([Coupling QMOMKit](6_coupling_qmomkit.md#moments-changed-by-your-code)). The
 Reference lists the [statuses](8_reference.md#statuses) and
 [messages](8_reference.md#troubleshooting).

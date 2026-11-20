@@ -1201,7 +1201,8 @@ void test_hyperbolic_speeds_report_the_failures_of_the_reconstruction()
     // invalid option, node count zero, too few or non-finite moments, m0 below
     // the cutoff, and in fixed mode two points, which support fewer than
     // n + 1 nodes. A reconstruction that succeeds can still give no speeds:
-    // for a variance of 1e308 at n = 1, beta_1 = 3 b_1 overflows.
+    // for a variance of 1e308 at n = 1, beta_1 = 3 b_1 overflows, and for a
+    // mean of 1e150, the closure moment overflows.
     const qmomkit::MomentSet interior = moments_of({-1.25, 0.5, 1.0, 2.75}, {0.25, 0.375, 0.125, 0.25}, 5);
     qmomkit::WheelerOptions negative_rmin;
     negative_rmin.rmin = -1.0;
@@ -1237,6 +1238,44 @@ void test_hyperbolic_speeds_report_the_failures_of_the_reconstruction()
     assert(overflow.speeds.empty());
     assert(overflow.weights.empty());
     assert(overflow.closure_moment == 0.0);
+
+    // With mean 1e150 and variance 1e300 at n = 1, the speeds are finite, but
+    // the closure m_3 is about 1e450 and overflows.
+    const qmomkit::MomentSet huge_mean{1.0, 1.0e150, 2.0e300};
+    assert(qmomkit::internal::compute_hyperbolic_quadrature(huge_mean, 1, {}).ok());
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds closure_overflow =
+        qmomkit::internal::compute_hyperbolic_characteristic_speeds(huge_mean, 1, {});
+    assert(closure_overflow.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(closure_overflow.message == "Closure moment exceeds the range of a double.");
+    assert(closure_overflow.speeds.empty());
+    assert(closure_overflow.weights.empty());
+    assert(closure_overflow.closure_moment == 0.0);
+}
+
+void test_hyperbolic_speed_weights_are_continuous_at_the_boundary()
+{
+    // m_0, ..., m_4 = 1, 0, 1, -1, 2 lie on the boundary at n = 2: two points
+    // with their mean, -0.5, between them, so the speeds are the points, each
+    // twice, and the mean. Raising m_4 by 1e-9 moves the moments inside,
+    // where the speeds are those of J_2 and K_3. Every speed and every weight
+    // stays within 1e-6 of its value on the boundary, also for the two copies
+    // of the point below the mean, whose eigenvalue of K_3 approaches it from
+    // below.
+    const qmomkit::MomentSet boundary{1.0, 0.0, 1.0, -1.0, 2.0};
+    const qmomkit::MomentSet inside{1.0, 0.0, 1.0, -1.0, 2.0 + 1.0e-9};
+    assert(qmomkit::internal::compute_hyperbolic_quadrature(boundary, 2, {}).weights.size() == 2);
+    assert(qmomkit::internal::compute_hyperbolic_quadrature(inside, 2, {}).weights.size() == 3);
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds on = qmomkit::internal::compute_hyperbolic_characteristic_speeds(boundary, 2, {});
+    const qmomkit::internal::HyperbolicCharacteristicSpeeds in = qmomkit::internal::compute_hyperbolic_characteristic_speeds(inside, 2, {});
+    assert(on.status == qmomkit::QuadratureStatus::success);
+    assert(in.status == qmomkit::QuadratureStatus::success);
+    assert(on.speeds.size() == 5);
+    assert(in.speeds.size() == 5);
+    for (std::size_t i = 0; i < 5; ++i)
+    {
+        assert_near(in.speeds[i], on.speeds[i], 1.0e-6);
+        assert_near(in.weights[i], on.weights[i], 1.0e-6);
+    }
 }
 
 } // namespace
@@ -1298,5 +1337,6 @@ int main(const int argc, char** argv)
             {"hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature",
              test_hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature},
             {"hyperbolic_speeds_report_the_failures_of_the_reconstruction", test_hyperbolic_speeds_report_the_failures_of_the_reconstruction},
+            {"hyperbolic_speed_weights_are_continuous_at_the_boundary", test_hyperbolic_speed_weights_are_continuous_at_the_boundary},
         });
 }

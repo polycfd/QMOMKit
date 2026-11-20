@@ -157,10 +157,11 @@ The internal `compute_hyperbolic_characteristic_speeds(moments, N, options)` and
 the recurrence of $m_0,\ldots,m_{2N}$ with the closure, and the decision of
 [Reconstruction](#reconstruction). The speeds therefore cannot decide
 differently from the reconstruction. A failed reconstruction is returned with
-its status and message and no speeds, so fixed mode is `not_realizable` when the
-moments no longer support $N+1$ nodes. For $N+1$ nodes, the speeds take $J_N$
-and $K_{N+1}$ from the recurrence in place of the eigensolve of $J_{N+1}$; an
-eigensolve that does not converge or a speed beyond the range of a double is
+its status and message, no speeds or weights and a zero closure moment, so
+fixed mode is `not_realizable` when the moments no longer support $N+1$ nodes.
+For $N+1$ nodes, the speeds take $J_N$ and $K_{N+1}$ from the recurrence in
+place of the eigensolve of $J_{N+1}$. An eigensolve that does not converge, or
+a speed or the closure moment beyond the range of a double, is
 `not_realizable`. Each call records one `wheeler_calls`
 ([Performance counters](performance_counters.md)).
 
@@ -170,10 +171,10 @@ The speeds carry weights for a kinetic flux that splits the flux of $m_k$ over
 the speeds instead of the nodes, as
 [Patel, Desjardins & Fox (2019)](https://doi.org/10.1016/j.jcpx.2019.100006),
 eqs. 13 and 14, do for the closure of Fox, Laurent & Vié (2018). For $N+1$
-nodes, the $2N+1$ speeds are distinct, so exactly one weight per speed gives
-them the moments $m_0,\ldots,m_{2N}$. With $\mu^J$ the Gauss weights of $J_N$
-and $\mu^K$ those of $K_{N+1}$, $m_0$ times the squared first components of
-their eigenvectors, these weights are
+nodes, the $2N+1$ speeds are distinct, so exactly one set of weights, one per
+speed, gives them the moments $m_0,\ldots,m_{2N}$. With $\mu^J$ the Gauss
+weights of $J_N$ and $\mu^K$ those of $K_{N+1}$, $m_0$ times the squared first
+components of their eigenvectors, these weights are
 
 ```math
 w=\frac{N+1}{2N+1}\,\mu^J\ \text{at the eigenvalues of}\ J_N,\qquad
@@ -200,9 +201,14 @@ For a classical quadrature of $k$ nodes, the weights are the limit of those of
 the $k$-node system as $\beta_k\to0$. $K_{k+1}$ then splits into $J_k$ and the
 entry $a_k$, whose Gauss weight vanishes. The copy of each abscissa from $J_k$
 has $(k+1)/(2k+1)$ of its weight, the copy from $K_{k+1}$ has $k/(2k+1)$, and
-the mean has weight zero. A stable sort keeps the copy from $J_k$ first. The
-speeds then have all moments of the classical quadrature, so a kinetic flux
-over the speeds is the flux of its nodes.
+the mean has weight zero. Since the roots of $R_{k+1}$ separate those of $Q_k$
+(Fox & Laurent, 2022, Theorem 4.8), the eigenvalue of $K_{k+1}$ that tends to
+an abscissa below the mean $a_k$ approaches it from below, and one that tends
+to an abscissa above the mean from above. So the copy from $K_{k+1}$ comes
+first below the mean and second otherwise, and for $k=N$ each weight is
+continuous as the moments reach the boundary. The speeds have all moments of
+the classical quadrature, so a kinetic flux over the speeds is the flux of its
+nodes.
 
 `closure_moment` is $m_{2N+1}$ of the reconstructed quadrature. For $N+1$ nodes,
 `hyperbolic_closure_moment` computes it as $m_0$ times entry $(0,0)$ of

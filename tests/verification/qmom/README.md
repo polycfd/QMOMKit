@@ -9,8 +9,7 @@ Wheeler inversion `compute_quadrature` and the recurrence that
 reconstruction `compute_hyperbolic_quadrature`, and through `compute_qmom` for
 GQMOM with its normal, gamma, lognormal and beta continuations. They also
 verify the HyQMOM characteristic speeds, their weights and the closure moment.
-A rule
-of $n$ weighted points is determined by its first $2n$ moments, a HyQMOM
+A rule of $n$ weighted points is determined by its first $2n$ moments, a HyQMOM
 rule of $n + 1$ nodes and its speeds by $m_0, \ldots, m_{2n}$ and its closure,
 and a GQMOM rule of $N_G$ nodes by $m_0, \ldots, m_{2n}$ and its continuation,
 so each reference has one correct answer.
@@ -119,7 +118,9 @@ For `normal`, `skewed` and `bimodal`, the script solves the Vandermonde system
 of the speeds for $m_0, \ldots, m_{2N}$ at 60 digits and asserts that these
 weights are positive, give the speeds the closure as $m_{2N+1}$ and equal the
 scaled Gauss weights of $J_N$ and $K_{N+1}$. For `boundary`, the weights follow
-from the points in exact arithmetic. The closure moment is the exact closure,
+in exact arithmetic from the points and the sharing of each point's weight
+between its two copies, a convention of QMOMKit rather than an independent
+reference. The closure moment is the exact closure for `skewed` and `bimodal`,
 the normal $m_{2N+1}$ for `normal`, and $m_{2N+1}$ of the points for
 `boundary`.
 

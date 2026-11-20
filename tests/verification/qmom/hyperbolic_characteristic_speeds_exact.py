@@ -173,11 +173,14 @@ def main():
     for n, x, w in [(2, [F(-5, 4), F(11, 4)], [F(1, 4), F(3, 4)]), (3, [F(-3, 2), F(1, 4), F(11, 4)], [F(1, 4), F(1, 2), F(1, 4)]),
                     (3, [F(-5, 4), F(11, 4)], [F(1, 4), F(3, 4)]), (3, [F(1, 2)], [F(2)])]:
         m = exact([sum(wi * xi**k for xi, wi in zip(x, w)) for k in range(2 * n + 1)])
-        # Each point twice, its weight shared in the ratio k + 1 to k, and the
-        # mean with weight zero, sorted stably by speed.
+        # Each point twice, its weight shared in the ratio k + 1 to k, the
+        # share k first for a point below the mean, and the mean with weight
+        # zero, sorted stably by speed.
         k = len(x)
-        pairs = [p for xi, wi in zip(x, w) for p in [(xi, F(k + 1, 2 * k + 1) * wi), (xi, F(k, 2 * k + 1) * wi)]]
-        pairs = sorted(pairs + [(sum(x) / k, F(0))], key=lambda p: p[0])
+        mean = sum(x) / k
+        shares = lambda xi: [F(k, 2 * k + 1), F(k + 1, 2 * k + 1)] if xi < mean else [F(k + 1, 2 * k + 1), F(k, 2 * k + 1)]
+        pairs = [(xi, share * wi) for xi, wi in zip(x, w) for share in shares(xi)]
+        pairs = sorted(pairs + [(mean, F(0))], key=lambda p: p[0])
         m_next = sum(wi * xi**(2 * n + 1) for xi, wi in zip(x, w))
         print(f"    {{{n}, {{{fmt(m)}}}, {{{fmt(p[0] for p in pairs)}}}, {{{fmt(p[1] for p in pairs)}}}, {float(m_next)!r}}},")
     print("};")

@@ -79,9 +79,10 @@ cd build
 At $t = 0$ and $t = 2\,\mathrm{s}$, the example prints the node count, the
 number density $m_0$, the mean and standard deviation of the velocity, $m_5$ of
 the quadrature that HyQMOM reconstructs from the state's moments, and the five
-characteristic speeds. It writes the moments and the quadrature every $0.05\,\mathrm{s}$ to
-`build/output/moments.txt` and `build/output/quadrature.txt`, as set in the
-`[output]` section of `configuration.qmom`.
+characteristic speeds. It writes the moments and the quadrature every
+$0.05\,\mathrm{s}$ to `build/output/moments.txt` and
+`build/output/quadrature.txt`, as set in the `[output]` section of
+`configuration.qmom`.
 
 ## What to expect
 

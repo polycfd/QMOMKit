@@ -252,9 +252,10 @@ HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState&
         return HyqmomCharacteristicSpeeds{{}, {}, 0.0, QmomStatus::invalid_input, "Characteristic speeds require the hyperbolic QMOM family."};
     case QmomFamily::hyperbolic:
     {
-        // The speeds of the hyperbolic reconstruction of the stored moments
-        // with the state's options, so that they count only the nodes the
-        // moments resolve, also after advection has moved the nodes.
+        // The speeds of the quadrature that the hyperbolic family reconstructs
+        // from the stored moments with the state's options, so that they count
+        // only the nodes the moments resolve, also after advection has moved
+        // the nodes.
         internal::HyperbolicCharacteristicSpeeds result = internal::compute_hyperbolic_characteristic_speeds(
             MomentSet(state.moment_values()), internal::QmomStateAccess::node_count(state), to_wheeler_options(state.qmom_options()));
         return HyqmomCharacteristicSpeeds{std::move(result.speeds), std::move(result.weights), result.closure_moment, to_qmom_status(result.status),

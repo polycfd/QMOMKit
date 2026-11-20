@@ -18,8 +18,9 @@
 //   nodes, the weights are the unique weights with which the 2n + 1 speeds
 //   have the moments m_0, ..., m_{2n}, and the closure moment is the HyQMOM
 //   closure. For a classical quadrature of k nodes, the two copies of each
-//   abscissa share its weight in the ratio k + 1 to k, the mean has weight
-//   zero, and the closure moment is m_{2n+1} of the quadrature. The moments:
+//   abscissa share its weight in the ratio k + 1 to k, with the share k first
+//   below the mean, the mean has weight zero, and the closure moment is
+//   m_{2n+1} of the quadrature. The moments:
 //   - normal: normal moments at node counts n = 1 to 3, whose speeds are
 //     mu + sigma s for the roots s of He_n and of R_{n+1} of the standard
 //     normal distribution: 0 and -+sqrt(3) for n = 1; -+1 and 0,
@@ -58,8 +59,9 @@
 //   them have the closure as m_{2n+1} to 1e-30 of the sum of w |speed|^{2n+1},
 //   and that they are (n + 1) / (2n + 1) times the Gauss weights of J_n and
 //   n / (2n + 1) times those of K_{n+1} to 1e-30 of m_0. For the boundary
-//   cases, the weights follow from the points and their weights in exact
-//   arithmetic. Closure moment: for the skewed and bimodal cases, the exact
+//   cases, the weights follow in exact arithmetic from the points, their
+//   weights and the sharing above, a convention of QMOMKit rather than an
+//   independent reference. Closure moment: for the skewed and bimodal cases, the exact
 //   closure above. For the normal cases, the normal m_{2n+1}, which the script
 //   asserts to equal the exact closure, since the moments are symmetric about
 //   their mean. For the boundary cases, m_{2n+1} of the points.
@@ -78,8 +80,8 @@
 //   tolerances of the speeds. The largest errors observed in the same builds
 //   are 2.6e-13 up to n = 7, 1.0e-12 for n = 8 and 2.8e-11 for n = 9 and 10.
 //   Closure moment relative to the sum of w |speed|^{2n+1} of the reference,
-//   with 1e-13 for every case, since its errors do not grow with n: the
-//   largest observed is 1.1e-15.
+//   with 1e-13 for every case, since its errors did not grow with n in these
+//   builds: the largest observed is 1.1e-15.
 //
 // Reproduce
 //   ctest -R verification_hyperbolic_characteristic_speeds_exact
@@ -345,16 +347,16 @@ const std::vector<NormalReference> normal_references{
      -17.829132080078125},
 };
 const std::vector<BoundaryReference> boundary_references{
-    {2, {1.0, 1.75, 6.0625, 15.109375, 43.50390625}, {-1.25, -1.25, 0.75, 2.75, 2.75}, {0.15, 0.1, 0.0, 0.45, 0.3}, 117.1943359375},
+    {2, {1.0, 1.75, 6.0625, 15.109375, 43.50390625}, {-1.25, -1.25, 0.75, 2.75, 2.75}, {0.1, 0.15, 0.0, 0.45, 0.3}, 117.1943359375},
     {3,
      {1.0, 0.4375, 2.484375, 4.36328125, 15.5654296875, 37.421142578125, 110.97528076171875},
      {-1.5, -1.5, 0.25, 0.25, 0.5, 2.75, 2.75},
-     {0.14285714285714285, 0.10714285714285714, 0.2857142857142857, 0.21428571428571427, 0.0, 0.14285714285714285, 0.10714285714285714},
+     {0.10714285714285714, 0.14285714285714285, 0.21428571428571427, 0.2857142857142857, 0.0, 0.14285714285714285, 0.10714285714285714},
      293.0791778564453},
     {3,
      {1.0, 1.75, 6.0625, 15.109375, 43.50390625, 117.1943359375, 325.336181640625},
      {-1.25, -1.25, 0.75, 2.75, 2.75},
-     {0.15, 0.1, 0.0, 0.45, 0.3},
+     {0.1, 0.15, 0.0, 0.45, 0.3},
      890.8598022460938},
     {3, {2.0, 1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125}, {0.5, 0.5, 0.5}, {1.3333333333333333, 0.6666666666666666, 0.0}, 0.015625},
 };
@@ -401,7 +403,8 @@ void verify_strictly_ascending(const std::vector<double>& speeds)
     }
 }
 
-// The node count of the hyperbolic reconstruction of the moments.
+// The node count of the quadrature that the hyperbolic family reconstructs
+// from the moments.
 std::size_t node_count_of(const std::vector<double>& moments, const std::size_t n)
 {
     return qmomkit::internal::compute_hyperbolic_quadrature(qmomkit::MomentSet(moments), n, {}).weights.size();
@@ -444,18 +447,25 @@ void verify_closure_moment(const double actual, const double expected, const std
     QMOMKIT_VERIFY_NEAR(actual, expected, tolerance * absolute);
 }
 
+// The reference speeds of a normal case: those of the standard normal
+// distribution, shifted by the mean and scaled by the deviation.
+std::vector<double> normal_speeds(const NormalReference& reference)
+{
+    std::vector<double> speeds = standard_normal_speeds(reference.n);
+    for (double& speed : speeds)
+    {
+        speed = reference.mean + (reference.deviation * speed);
+    }
+    return speeds;
+}
+
 void test_normal()
 {
     for (const NormalReference& reference : normal_references)
     {
         QMOMKIT_VERIFY_CHECK(node_count_of(reference.moments, reference.n) == reference.n + 1);
         const std::vector<double> speeds = speeds_of(reference.moments, reference.n);
-        std::vector<double> expected = standard_normal_speeds(reference.n);
-        for (double& speed : expected)
-        {
-            speed = reference.mean + (reference.deviation * speed);
-        }
-        verify_speeds(speeds, expected, 1.0e-12);
+        verify_speeds(speeds, normal_speeds(reference), 1.0e-12);
         verify_strictly_ascending(speeds);
     }
 }
@@ -512,12 +522,12 @@ void test_weights()
 void test_closure_moment()
 {
     // Unlike the errors of the speeds and the weights, those of the closure
-    // moment do not grow with n in the observed builds (see above).
+    // moment did not grow with n in the observed builds (see above).
     const double closure_tolerance = 1.0e-13;
     for (const NormalReference& reference : normal_references)
     {
-        verify_closure_moment(result_of(reference.moments, reference.n).closure_moment, reference.closure_moment,
-                              speeds_of(reference.moments, reference.n), reference.weights, reference.n, closure_tolerance);
+        verify_closure_moment(result_of(reference.moments, reference.n).closure_moment, reference.closure_moment, normal_speeds(reference),
+                              reference.weights, reference.n, closure_tolerance);
     }
     for (const BoundaryReference& reference : boundary_references)
     {

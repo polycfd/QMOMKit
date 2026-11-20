@@ -20,7 +20,7 @@ other than `classical`.
 | Evolution | `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts). The family's full quadrature is requested from the family. A reduced quadrature is requested from the classical family for `classical` and `hyperbolic`, and from the family itself for `generalized`. Every request carries the state's abscissa bounds. A growth trial of `generalized` is a single attempt at the base node count it asks for, through `internal::compute_qmom_growth_trial` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp), defined in [`src/public_api.cpp`](../../src/public_api.cpp)). |
 | Configuration | `parse_qmom_family`, `parse_generalized_options`, `infer_qmom_initial_maximum_order`, `create_family_qmom_case` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, the `generalized_node_counts`, `generalized_continuation` and `generalized_nu` of the generalized family, the default `[initial] maximum_order` from the moments the family reads, and the case with the family and its moments ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
 | CQMOM | `CqmomCase::qmom_options` ([`include/qmomkit/cqmom.hpp`](../../include/qmomkit/cqmom.hpp)) | Only `classical`: a CQMOM case holds `QmomOptions`, which carry no family ([CQMOM](cqmom.md)). |
-| Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the reconstruction of the stored moments. |
+| Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the quadrature reconstructed from the stored moments. |
 
 Every `switch` over `QmomFamily` has a case per family and no `default`, so the
 compiler's `-Wswitch` names each place a new family must handle.
@@ -49,6 +49,12 @@ Laurent, 2022, eq. 4.16, or eq. 4.13 in standardized moments) sets it:
 ```math
 a_N=\frac{1}{N}\sum_{k=0}^{N-1}a_k .
 ```
+
+For $N=2$, this closure differs from that of the earlier HyQMOM
+[[Fox, Laurent & Vié, 2018](https://doi.org/10.1016/j.jcp.2018.03.025)], which
+sets $a_2=0$ in standardized moments and so places the middle node at the mean.
+The two closures give different characteristic speeds inside the realizable set
+(Fox & Laurent, 2022, Sections 1 and 7).
 
 The quadrature is the Gauss quadrature of $J_{N+1}$, with diagonal
 $a_0,\ldots,a_N$ and off-diagonal $\sqrt{b_1},\ldots,\sqrt{b_N}$, the matrix
@@ -118,7 +124,7 @@ The public `compute_hyqmom_characteristic_speeds(state)`
 quadrature that `compute_qmom(...)` reconstructs from the state's stored moments
 with its node count, family and options:
 
-| Reconstruction of the stored moments | Speeds |
+| Quadrature reconstructed from the stored moments | Speeds |
 | --- | --- |
 | $N+1$ nodes | The eigenvalues of $J_N$ and $K_{N+1}$: $2N+1$ values |
 | A classical quadrature of $k\le N$ nodes | Its $k$ abscissas, the roots of $Q_k$, each twice, and its closure $a_k$, the mean of $a_0,\ldots,a_{k-1}$, which is the trace of $J_k$ over $k$ and so the mean of the abscissas: $2k+1$ values |
@@ -134,10 +140,17 @@ The speeds count only the nodes that the stored moments resolve.
 [Node advection](phase_space_evolution.md#node-advection) moves the nodes
 without reconstructing them, so a state can hold more nodes than its moments
 resolve, for example after drag has brought its nodes together; its speeds are
-then those of the fewer nodes a reconstruction would give. For a state that
-holds a classical quadrature, the speeds reproduce its abscissas only to
-rounding, since they come from a reconstruction of its stored moments, not from
-its nodes.
+then those of the fewer nodes of the quadrature reconstructed from its stored
+moments. For a state that holds a classical quadrature, the speeds reproduce its
+abscissas only to rounding, since they come from the quadrature reconstructed
+from its stored moments, not from its nodes. Even when the moments resolve all
+$N+1$ moved nodes, these nodes need not be the HyQMOM quadrature of the stored
+moments, because $N+1$ nodes have one parameter more than $m_0,\ldots,m_{2N}$
+fix. Their $m_{2N+1}$ is then not the closure. For this reason, the speeds and
+the nodes for a host's fluxes
+([Coupling QMOMKit](../user/6_coupling_qmomkit.md#fluxes-for-transport)) come
+from the quadrature reconstructed from the stored moments, not from the moved
+nodes.
 
 The internal `compute_hyperbolic_characteristic_speeds(moments, N, options)` and
 `compute_hyperbolic_quadrature` share `hyperbolic_recurrence`: the input checks,

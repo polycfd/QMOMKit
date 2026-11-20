@@ -154,6 +154,63 @@ it.
 The [`qmom_state_candidate`](../../examples/qmom_state_candidate/README.md)
 example shows the outcomes.
 
+## Fluxes for transport
+
+The flux of the moment $M_{\mathbf{k}}$ through a face is the moment with $k_d$
+raised by one, where $\xi_d$ is the velocity component along the face normal.
+A kinetic scheme
+[[Desjardins, Fox & Villedieu, 2008](https://doi.org/10.1016/j.jcp.2007.10.026)]
+splits this flux into the contributions of the nodes moving forward and
+backward:
+
+```math
+F^{+}_{\mathbf{k}} = \sum_{j} w_j \max(\xi_{d,j}, 0) \prod_{i} \xi_{i,j}^{k_i},
+\qquad
+F^{-}_{\mathbf{k}} = \sum_{j} w_j \min(\xi_{d,j}, 0) \prod_{i} \xi_{i,j}^{k_i}.
+```
+
+First-order upwinding takes $F^{+}$ from the cell behind the face and $F^{-}$
+from the cell in front of the face. Take the nodes from a state created from
+the moments being transported, as below, not from an advanced state. Node
+advection moves the nodes of a state without reconstructing them, so the
+moments one order higher, which the fluxes need, would come from the moved
+nodes instead of from the quadrature reconstructed from the moments.
+
+```cpp
+moment_data.values = moments; // the moments of the cell before transport
+const qmomkit::CqmomStateCandidate candidate = prepared_case.state_candidate(moment_data);
+if (candidate.ok())
+{
+    const qmomkit::CqmomQuadrature& quadrature = candidate.state->quadrature();
+    const std::vector<qmomkit::MultiIndex> indices = candidate.state->moment_indices();
+    std::vector<double> forward(indices.size(), 0.0);
+    std::vector<double> backward(indices.size(), 0.0);
+    for (std::size_t j = 0; j < quadrature.total_nodes(); ++j)
+    {
+        const double speed = quadrature.abscissas()[velocity_dimension][j];
+        std::vector<double>& flux = speed > 0.0 ? forward : backward;
+        for (std::size_t m = 0; m < indices.size(); ++m)
+        {
+            double term = quadrature.weights()[j] * speed;
+            for (std::size_t i = 0; i < indices[m].size(); ++i)
+            {
+                term *= std::pow(quadrature.abscissas()[i][j], indices[m][i]);
+            }
+            flux[m] += term;
+        }
+    }
+}
+```
+
+`velocity_dimension` is the position of $\xi_d$ in phase-space order, and
+`forward[m]` and `backward[m]` are $F^{+}$ and $F^{-}$ of the moment
+`indices[m]`, in the order of the moments your code stores. An `empty` cell has
+no nodes and sends no flux. For QMOM, $\xi$ is the velocity, $\mathbf{k}$ is
+the order $k$, and `candidate.state->quadrature()` holds the vectors `weights`
+and `abscissas`. The quasi-second-order scheme of
+[Vikas et al. (2011)](https://doi.org/10.1016/j.jcp.2011.03.038) uses the same
+nodes and reconstructs the weights linearly between cells.
+
 ## Many states at once
 
 The batch functions advance a vector of states with one time, time step, and set

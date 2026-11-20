@@ -34,7 +34,11 @@ which changes in the moments travel, coincide in pairs (Fox & Laurent, 2022,
 Theorem 4.3). HyQMOM chooses the moment that closes the transport equations so
 that the equations are hyperbolic, with real characteristic speeds that are
 distinct inside the realizable set. For the same node count, HyQMOM uses one
-moment and one node more than classical QMOM.
+moment and one node more than classical QMOM. For $N = 2$, HyQMOM closes the
+transport equations differently from the earlier HyQMOM
+[[Fox, Laurent & Vié, 2018](https://doi.org/10.1016/j.jcp.2018.03.025)], which
+places the middle node at the mean, and has different characteristic speeds
+inside the realizable set (Fox & Laurent, 2022, Section 1).
 
 Inside the realizable set, HyQMOM returns $N + 1$ nodes with base node count
 $N$. On the boundary of the realizable set or outside it, an adaptive

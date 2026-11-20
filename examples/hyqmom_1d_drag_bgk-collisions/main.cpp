@@ -15,27 +15,20 @@ namespace
 {
 
 // The number density, the mean and standard deviation of the velocity, and
-// m_{2n+1} and the characteristic speeds of the HyQMOM reconstruction of the
-// state's moments, with node count n.
+// m_{2n+1} and the characteristic speeds of the quadrature that HyQMOM
+// reconstructs from the state's moments, with node count n.
 bool print_state(const double time, const qmomkit::QmomState& state, const std::size_t node_count)
 {
+    // The state holds m0..m2n. Its nodes are moved by the drag and need not be
+    // the quadrature that HyQMOM reconstructs from those moments. The speeds
+    // and m_{2n+1}, the flux of m_2n, are those of the reconstructed quadrature.
     const qmomkit::HyqmomCharacteristicSpeeds characteristic = qmomkit::compute_hyqmom_characteristic_speeds(state);
     if (!characteristic.ok())
     {
         std::cerr << "Characteristic speeds failed: " << characteristic.message << '\n';
         return false;
     }
-    // The state holds m0..m2n. Its nodes are moved by the drag and need not be
-    // the quadrature that HyQMOM reconstructs from those moments; m_{2n+1}, the
-    // flux of m_2n, is that of the reconstruction, as are the speeds.
     const std::vector<double>& moments = state.moment_values();
-    const qmomkit::QmomResult reconstruction =
-        qmomkit::compute_qmom(qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, state.qmom_options(), {}, state.family()});
-    if (!reconstruction.ok())
-    {
-        std::cerr << "HyQMOM reconstruction failed: " << reconstruction.message << '\n';
-        return false;
-    }
     const double mean = moments[1] / moments[0];
     const double standard_deviation = std::sqrt(moments[2] / moments[0] - mean * mean);
     const std::size_t next_order = 2 * node_count + 1;
@@ -44,8 +37,8 @@ bool print_state(const double time, const qmomkit::QmomState& state, const std::
     std::cout << "  number density m0 (1/m^3):     " << moments[0] << '\n';
     std::cout << "  mean velocity (m/s):           " << mean << '\n';
     std::cout << "  standard deviation (m/s):      " << standard_deviation << '\n';
-    std::cout << "  moment m" << next_order << " (m^" << next_order - 3 << "/s^" << next_order
-              << "):           " << qmomkit::evaluate_generalized_moment(reconstruction, static_cast<double>(next_order)) << '\n';
+    std::cout << "  moment m" << next_order << " (m^" << next_order - 3 << "/s^" << next_order << "):           " << characteristic.closure_moment
+              << '\n';
     std::cout << "  characteristic speeds (m/s):  ";
     for (const double speed : characteristic.speeds)
     {

@@ -583,6 +583,36 @@ struct Recurrence
     return std::accumulate(a.begin(), a.begin() + end, 0.0) / static_cast<double>(n);
 }
 
+// m_{2n+1} of the HyQMOM quadrature, the Gauss quadrature of J_{n+1}, which
+// the closure determines (Fox & Laurent 2022, Section 7): m_0 times entry
+// (0, 0) of J_{n+1}^{2n+1}. A diagonal scaling that leaves e_1 unchanged takes
+// J_{n+1} to the tridiagonal matrix with the same diagonal, b_1, ..., b_n
+// above it and ones below it, so the powers act on e_1 through that matrix,
+// without square roots.
+[[nodiscard]] double hyperbolic_closure_moment(const double zeroth_moment, const Recurrence& recurrence, const std::size_t n)
+{
+    std::vector<double> power(n + 1, 0.0);
+    power[0] = 1.0;
+    std::vector<double> next(n + 1, 0.0);
+    for (std::size_t order = 1; order <= (2 * n) + 1; ++order)
+    {
+        for (std::size_t i = 0; i <= n; ++i)
+        {
+            next[i] = recurrence.a[i] * power[i];
+            if (i > 0)
+            {
+                next[i] += power[i - 1];
+            }
+            if (i < n)
+            {
+                next[i] += recurrence.b[i + 1] * power[i + 1];
+            }
+        }
+        power.swap(next);
+    }
+    return zeroth_moment * power[0];
+}
+
 // The hyperbolic reconstruction of m_0, ..., m_{2n}, n = node_count, up to its
 // last step. For moments that give the n + 1 nodes of J_{n+1}, outcome is
 // empty and recurrence holds a_0, ..., a_n, the last the closure, and b_1,
@@ -952,12 +982,15 @@ HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const Mo
     // compute_hyperbolic_quadrature.
     performance::record_wheeler_call();
     const auto failure = [](const QuadratureStatus status, std::string message)
-    { return HyperbolicCharacteristicSpeeds{{}, status, std::move(message)}; };
+    { return HyperbolicCharacteristicSpeeds{{}, {}, 0.0, status, std::move(message)}; };
 
     // The speeds are those of the quadrature that compute_hyperbolic_quadrature
-    // reconstructs from the same moments, decided on the same recurrence.
+    // reconstructs from the same moments, decided on the same recurrence. Each
+    // speed is paired with its weight, so that sorting the speeds keeps the
+    // pairs together.
     HyperbolicRecurrence reconstruction = hyperbolic_recurrence(moments, node_count, options);
-    std::vector<double> speeds;
+    std::vector<std::pair<double, double>> weighted_speeds;
+    double closure_moment = 0.0;
     if (reconstruction.outcome.has_value())
     {
         const Quadrature1D& quadrature = *reconstruction.outcome;
@@ -970,23 +1003,50 @@ HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const Mo
         // system on its boundary, beta_k = 0, where R_{k+1} = (x - a_k) Q_k
         // (Fox & Laurent 2022, Remark 4.9, for k = n): the roots of Q_k, its k
         // abscissas, each twice, and the closure a_k, the trace of J_k over k
-        // and so the arithmetic mean of the abscissas.
+        // and so the arithmetic mean of the abscissas. The weights are the
+        // limit of those of the k-point system as beta_k tends to zero. The
+        // copy of an abscissa from J_k has (k + 1) / (2k + 1) of its weight,
+        // the copy from K_{k+1} has k / (2k + 1), and the mean, which
+        // decouples from K_{k+1}, has weight zero. The eigenvalue of K_{k+1}
+        // that tends to an abscissa below the mean approaches it from below,
+        // and one that tends to an abscissa above the mean from above (Fox &
+        // Laurent 2022, Theorem 4.8), so the copy from K_{k+1} comes first
+        // below the mean. At an abscissa equal to the mean, always the case
+        // for one node, two eigenvalues of K_{k+1} approach it from both
+        // sides and share its weight, so only the sum of the weights at the
+        // three equal speeds is continuous there.
         const std::vector<double>& abscissas = quadrature.abscissas;
-        speeds.reserve((2 * abscissas.size()) + 1);
-        for (const double abscissa : abscissas)
+        const auto k = static_cast<double>(abscissas.size());
+        const double mean = std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / k;
+        const double j_copy_fraction = (k + 1.0) / ((2.0 * k) + 1.0);
+        const double k_copy_fraction = k / ((2.0 * k) + 1.0);
+        weighted_speeds.reserve((2 * abscissas.size()) + 1);
+        for (std::size_t i = 0; i < abscissas.size(); ++i)
         {
-            speeds.push_back(abscissa);
-            speeds.push_back(abscissa);
+            const double j_copy_weight = j_copy_fraction * quadrature.weights[i];
+            const double k_copy_weight = k_copy_fraction * quadrature.weights[i];
+            if (abscissas[i] < mean)
+            {
+                weighted_speeds.emplace_back(abscissas[i], k_copy_weight);
+                weighted_speeds.emplace_back(abscissas[i], j_copy_weight);
+            }
+            else
+            {
+                weighted_speeds.emplace_back(abscissas[i], j_copy_weight);
+                weighted_speeds.emplace_back(abscissas[i], k_copy_weight);
+            }
+            closure_moment += quadrature.weights[i] * std::pow(abscissas[i], static_cast<double>((2 * node_count) + 1));
         }
-        speeds.push_back(std::accumulate(abscissas.begin(), abscissas.end(), 0.0) / static_cast<double>(abscissas.size()));
-        std::sort(speeds.begin(), speeds.end());
+        weighted_speeds.emplace_back(mean, 0.0);
     }
     else
     {
         // n + 1 nodes: J_n uses a_0, ..., a_{n-1} and b_1, ..., b_{n-1}.
         // K_{n+1} adds the closure a_n and b_n, replaced by beta_n =
         // (2n + 1) b_n / n (Fox & Laurent 2022, eqs. 4.13, 4.16 and 4.18).
+        // The closure moment needs b_n itself, so it comes first.
         Recurrence& recurrence = reconstruction.recurrence;
+        closure_moment = hyperbolic_closure_moment(moments[0], recurrence, node_count);
         const EigenDecomposition j_eigen = symmetric_jacobi_eigen(make_jacobi_matrix(recurrence.a, recurrence.b, node_count), {});
         recurrence.b[node_count] = static_cast<double>((2 * node_count) + 1) * recurrence.b[node_count] / static_cast<double>(node_count);
         const EigenDecomposition k_eigen = symmetric_jacobi_eigen(make_jacobi_matrix(recurrence.a, recurrence.b, node_count + 1), {});
@@ -995,15 +1055,45 @@ HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const Mo
             return failure(QuadratureStatus::not_realizable, "Jacobi matrix eigen solve did not converge.");
         }
 
-        // Both eigenvalue sequences are ascending.
-        speeds.resize((2 * node_count) + 1);
-        std::merge(j_eigen.eigenvalues.begin(), j_eigen.eigenvalues.end(), k_eigen.eigenvalues.begin(), k_eigen.eigenvalues.end(), speeds.begin());
+        // The speeds with these weights have the moments m_0, ..., m_{2n+1} of
+        // the quadrature of J_{n+1}: the Gauss quadratures of J_n and K_{n+1}
+        // share the moments up to m_{2n-1}, and the factors (n + 1) / (2n + 1)
+        // and n / (2n + 1) sum to one and match m_{2n} and m_{2n+1}, because
+        // beta_n = (2n + 1) b_n / n (docs/developer/qmom_families.md).
+        const auto n = static_cast<double>(node_count);
+        const std::vector<double> j_weights = compute_weights(moments[0], j_eigen.eigenvectors);
+        const std::vector<double> k_weights = compute_weights(moments[0], k_eigen.eigenvectors);
+        weighted_speeds.reserve((2 * node_count) + 1);
+        for (std::size_t i = 0; i < node_count; ++i)
+        {
+            weighted_speeds.emplace_back(j_eigen.eigenvalues[i], (n + 1.0) / ((2.0 * n) + 1.0) * j_weights[i]);
+        }
+        for (std::size_t i = 0; i <= node_count; ++i)
+        {
+            weighted_speeds.emplace_back(k_eigen.eigenvalues[i], n / ((2.0 * n) + 1.0) * k_weights[i]);
+        }
+    }
+
+    // A stable sort keeps equal speeds in the order in which they were added.
+    std::stable_sort(weighted_speeds.begin(), weighted_speeds.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+    std::vector<double> speeds;
+    std::vector<double> weights;
+    speeds.reserve(weighted_speeds.size());
+    weights.reserve(weighted_speeds.size());
+    for (const auto& [speed, weight] : weighted_speeds)
+    {
+        speeds.push_back(speed);
+        weights.push_back(weight);
     }
     if (!all_finite(speeds))
     {
         return failure(QuadratureStatus::not_realizable, "Characteristic speeds exceed the range of a double.");
     }
-    return HyperbolicCharacteristicSpeeds{std::move(speeds), QuadratureStatus::success, ""};
+    if (!std::isfinite(closure_moment))
+    {
+        return failure(QuadratureStatus::not_realizable, "Closure moment exceeds the range of a double.");
+    }
+    return HyperbolicCharacteristicSpeeds{std::move(speeds), std::move(weights), closure_moment, QuadratureStatus::success, ""};
 }
 
 BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& moment_sequence, const BoundedQuadratureSelectionRequest& request,

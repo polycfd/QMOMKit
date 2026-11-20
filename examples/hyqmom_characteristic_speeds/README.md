@@ -8,8 +8,10 @@ transported in physical space, with $\xi$ the velocity, the characteristic
 speeds are the speeds at which changes in the moments travel. A code that
 transports the moments needs the leftmost and the rightmost speeds, the most
 negative and the most positive, for example for the fluxes and the time step of
-a finite-volume scheme, as in Section 6 of the paper. That transport belongs to
-the host code, so it is not part of this example.
+a finite-volume scheme, as in Section 6 of the paper. The function also returns
+a weight for each speed, for fluxes built from all speeds, as [QMOM
+families](../../docs/user/7_qmom_families.md#characteristic-speeds) describes.
+That transport belongs to the host code, so it is not part of this example.
 Everything is set in [main.cpp](./main.cpp).
 
 ## Moments
@@ -59,7 +61,7 @@ cd build
 ## Output
 
 For each $n$, the example prints $m_{2n}$ on the boundary, $H_{2n-2}$, and the
-node count and speeds of the states at $H_{2n} = 0$ and at the largest
+node count, speeds and weights of the states at $H_{2n} = 0$ and at the largest
 $H_{2n}$. It writes `build/output/speeds_n2.txt` to `speeds_n5.txt`,
 whitespace-delimited tables with a commented header line: $H_{2n}$, the node
 count of the state, and its $2n + 1$ speeds in ascending order. Fig. 1 of the
@@ -93,7 +95,7 @@ speeds lie between and beyond them (Theorem 4.8 of the paper):
 
 As $H_{2n}$ grows, the other speeds spread out; as it falls to 0, they join the
 abscissas. On the boundary, the speeds are these abscissas, each twice, and
-their mean (Remark 4.9 of the paper). There, $m_{2n}$ is rounded, so the state
-holds either the classical quadrature of $n$ nodes, as in this run, or the
-HyQMOM quadrature of $n + 1$ nodes, one of them with almost no weight; the
-speeds are the same either way, to rounding.
+their mean (Remark 4.9 of the paper), which has weight zero. There, $m_{2n}$ is
+rounded, so the state holds either the classical quadrature of $n$ nodes, as in
+this run, or the HyQMOM quadrature of $n + 1$ nodes, one of them with almost no
+weight; the speeds and weights are the same either way, to rounding.

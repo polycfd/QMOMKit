@@ -8,8 +8,8 @@ Wheeler inversion `compute_quadrature` and the recurrence that
 `compute_wheeler_recurrence` reports, through the internal HyQMOM
 reconstruction `compute_hyperbolic_quadrature`, and through `compute_qmom` for
 GQMOM with its normal, gamma, lognormal and beta continuations. They also
-verify the HyQMOM characteristic speeds. A rule
-of $n$ weighted points is determined by its first $2n$ moments, a HyQMOM
+verify the HyQMOM characteristic speeds, their weights and the closure moment.
+A rule of $n$ weighted points is determined by its first $2n$ moments, a HyQMOM
 rule of $n + 1$ nodes and its speeds by $m_0, \ldots, m_{2n}$ and its closure,
 and a GQMOM rule of $N_G$ nodes by $m_0, \ldots, m_{2n}$ and its continuation,
 so each reference has one correct answer.
@@ -111,6 +111,18 @@ Three references:
   the roots of the characteristic polynomial with mpmath at 60 digits. It
   asserts that they agree with the eigenvalues of $J_N$ and $K_{N+1}$ and
   interlace; the test asserts that the speeds strictly increase.
+
+The cases `weights` and `closure_moment` check, for all three references, the
+[weights of the speeds and the closure moment](../../../docs/developer/qmom_families.md#weights-and-closure-moment).
+For `normal`, `skewed` and `bimodal`, the script solves the Vandermonde system
+of the speeds for $m_0, \ldots, m_{2N}$ at 60 digits and asserts that these
+weights are positive, give the speeds the closure as $m_{2N+1}$ and equal the
+scaled Gauss weights of $J_N$ and $K_{N+1}$. For `boundary`, the weights follow
+in exact arithmetic from the points and the sharing of each point's weight
+between its two copies, a convention of QMOMKit rather than an independent
+reference. The closure moment is the exact closure for `skewed` and `bimodal`,
+the normal $m_{2N+1}$ for `normal`, and $m_{2N+1}$ of the points for
+`boundary`.
 
 ### GQMOM
 
@@ -324,6 +336,8 @@ one node.
 | Wheeler recurrence | $10^{-13}$ | $b_k$ and $\sigma_{k,k}$ relative to the reference; $a_k$ relative to the largest $\lvert\xi\rvert$, since $a_k$ lies between the smallest and largest node and vanishes for the symmetric rule | observed at most 13 $\varepsilon$ ($2.9 \times 10^{-15}$, five points); the rules with exact coefficients are reproduced exactly |
 | HyQMOM | $10^{-12}$ up to $N = 7$, $10^{-11}$ for $N = 8$, $5 \times 10^{-10}$ for $N = 9$ and 10 | relative to the largest $\lvert\xi\rvert$ and the total weight | conditioning worsens with $N$; observed at most $1.8 \times 10^{-13}$ up to $N = 7$, $8.4 \times 10^{-13}$ for $N = 8$ and $4.5 \times 10^{-11}$ for $N = 9$ and 10 in the Debug, Release, GCC 12 and GCC 16 builds |
 | HyQMOM characteristic speeds | as for HyQMOM; $10^{-12}$ for `normal` and `boundary` | relative to the largest $\lvert\text{speed}\rvert$ of the reference | conditioning worsens with $N$; observed at most $2.5 \times 10^{-13}$ up to $N = 7$, $1.1 \times 10^{-12}$ for $N = 8$ and $6.7 \times 10^{-11}$ for $N = 9$ and 10 in the same builds; a safety bound for `normal` and `boundary`, observed $2.0 \times 10^{-16}$ |
+| Weights of the speeds | as for the speeds | relative to $m_0$ | conditioning worsens with $N$; observed at most $2.6 \times 10^{-13}$ up to $N = 7$, $1.0 \times 10^{-12}$ for $N = 8$ and $2.8 \times 10^{-11}$ for $N = 9$ and 10 in the same builds |
+| Closure moment | $10^{-13}$ | relative to the reference sum of $w \lvert\text{speed}\rvert^{2N+1}$ | the errors do not grow with $N$; observed at most $1.1 \times 10^{-15}$ in the same builds |
 | GQMOM | $10^{-12}$; $10^{-11}$ for `reduction`, the gamma mixture at $N = 4$ and the lognormal mixture; $10^{-10}$ for the gamma mixture at $N = 5$; $10^{-8}$ and $10^{-4}$ for the trimodal case at $N = 6$ and 9 | positions relative to the largest $\lvert\xi\rvert$, weights relative to $m_0$ | this test's rule: the smallest power of ten at least 30 times the largest error observed in the Debug, Release, GCC 12 and GCC 16 builds: at most $1.8 \times 10^{-14}$, except $3.0 \times 10^{-14}$ for the trimodal case at $N = 3$, $2.7 \times 10^{-13}$ for `reduction`, $9.4 \times 10^{-14}$ for the lognormal mixture, $2.2 \times 10^{-13}$ and $2.4 \times 10^{-12}$ for the gamma mixture at $N = 4$ and 5, and $6.1 \times 10^{-11}$ and $3.9 \times 10^{-7}$ for the trimodal case at $N = 6$ and 9 |
 | Boundary, adaptive and bounds | $10^{-12}$ | absolute; the boundary sweeps relative to $\lvert m_k\rvert$ where it exceeds one | a safety bound over observed errors of $10^{-15}$ or zero |
 | Scaling and support | none | exact equality of status, node count, abscissas and weights | power-of-two scalings are exact; scalings that would leave the normal double range are skipped |

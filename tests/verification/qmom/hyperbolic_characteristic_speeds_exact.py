@@ -5,9 +5,12 @@ imports from beside this file, n = 1 to 10, the moments m_0, ..., m_{2n}
 rounded to double and the characteristic speeds of the moment equations closed
 by HyQMOM: the roots of the characteristic polynomial of their Jacobian, from
 the closure in exact rational arithmetic and its exact derivatives, with mpmath
-at 60 digits. Also the moments of the normal cases, whose speeds the test
-evaluates from closed-form roots, and the moments and speeds of the boundary
-cases. Prints the C++ arrays stored in the test. Requires mpmath.
+at 60 digits. Also the weights of the speeds, the unique weights with which
+the speeds have the moments m_0, ..., m_{2n}, from the Vandermonde system at 60
+digits, and the closure m_{2n+1}. For the normal cases, the moments, the
+weights and the closure, while the test evaluates the speeds from closed-form
+roots. For the boundary cases, the moments, the speeds, their weights and the
+closure. Prints the C++ arrays stored in the test. Requires mpmath.
 
     python3 hyperbolic_characteristic_speeds_exact.py
 """
@@ -82,6 +85,13 @@ def eigenvalues(a, off, size):
     return sorted(E[i] for i in range(size)), E, Q
 
 
+def gauss(m0, a, off, size, factor):
+    # The Gauss quadrature of the Jacobi matrix, its weights times factor, as
+    # (node, weight) pairs.
+    _, E, Q = eigenvalues(a, off, size)
+    return [(E[i], factor * q(m0) * Q[0, i]**2) for i in range(size)]
+
+
 def speeds(m, n):
     # The eigenvalues of the Jacobian of the closed system, rows e_{k+1} for
     # k < 2n and the gradient of m_{2n+1}: the roots of
@@ -105,8 +115,24 @@ def speeds(m, n):
     _, E, Q = eigenvalues(a, b, n + 1)
     quadrature_moment = sum(q(m[0]) * Q[0, i]**2 * E[i]**(2 * n + 1) for i in range(n + 1))
     assert abs(quadrature_moment - q(m_next.v)) < mp.mpf(10)**-40 * max(1, abs(quadrature_moment))
+    # The weights of the speeds: the unique weights with which the 2n + 1
+    # distinct speeds have the moments m_0, ..., m_{2n}. They are positive,
+    # give the speeds the closure as m_{2n+1}, and are (n + 1) / (2n + 1)
+    # times the Gauss weights of J_n and n / (2n + 1) times those of K_{n+1}.
+    size = 2 * n + 1
+    V = mp.matrix(size, size)
+    for j in range(size):
+        for i in range(size):
+            V[j, i] = roots[i]**j
+    w = mp.lu_solve(V, mp.matrix([q(v) for v in m]))
+    w = [w[i] for i in range(size)]
+    assert all(wi > 0 for wi in w)
+    absolute = sum(wi * abs(x)**size for x, wi in zip(roots, w))
+    assert abs(sum(wi * x**size for x, wi in zip(roots, w)) - q(m_next.v)) < mp.mpf(10)**-30 * absolute
+    formula = sorted(gauss(m[0], a, b, n, mp.mpf(n + 1) / size) + gauss(m[0], a, beta, n + 1, mp.mpf(n) / size))
+    assert max(abs(x - y[1]) for x, y in zip(w, formula)) < mp.mpf(10)**-30 * q(m[0])
     gap = min(y - x for x, y in zip(roots, roots[1:])) / scale
-    return roots, gap
+    return roots, w, q(m_next.v), gap
 
 
 def exact(values):
@@ -128,21 +154,35 @@ def main():
         for n in range(1, 11):
             x, w = shapes(n)[name]
             m = [F(float(sum(wi * xi**k for xi, wi in zip(x, w)))) for k in range(2 * n + 1)]
-            roots, gap = speeds(m, n)
-            print(f"    {{{n}, {{{fmt(m)}}}, {{{fmt(roots)}}}}},  // gap {mp.nstr(gap, 3)}")
+            roots, w, m_next, gap = speeds(m, n)
+            print(f"    {{{n}, {{{fmt(m)}}}, {{{fmt(roots)}}}, {{{fmt(w)}}}, {float(m_next)!r}}},  // gap {mp.nstr(gap, 3)}")
         print("};")
 
     print("const std::vector<NormalReference> normal_references{")
     for m0, mu, sigma in [(F(2), F(3, 4), F(3, 2)), (F(1, 2), F(-5, 4), F(1, 2))]:
         for n in range(1, 4):
-            print(f"    {{{n}, {float(mu)!r}, {float(sigma)!r}, {{{fmt(normal_moments(m0, mu, sigma, n))}}}}},")
+            m = normal_moments(m0, mu, sigma, n)
+            _, w, m_next, _ = speeds(m, n)
+            # The normal moments are symmetric about the mean, so the closure is
+            # their own m_{2n+1}.
+            assert m_next == normal_moments(m0, mu, sigma, n + 1)[2 * n + 1]
+            print(f"    {{{n}, {float(mu)!r}, {float(sigma)!r}, {{{fmt(m)}}}, {{{fmt(w)}}}, {float(m_next)!r}}},")
     print("};")
 
     print("const std::vector<BoundaryReference> boundary_references{")
     for n, x, w in [(2, [F(-5, 4), F(11, 4)], [F(1, 4), F(3, 4)]), (3, [F(-3, 2), F(1, 4), F(11, 4)], [F(1, 4), F(1, 2), F(1, 4)]),
                     (3, [F(-5, 4), F(11, 4)], [F(1, 4), F(3, 4)]), (3, [F(1, 2)], [F(2)])]:
         m = exact([sum(wi * xi**k for xi, wi in zip(x, w)) for k in range(2 * n + 1)])
-        print(f"    {{{n}, {{{fmt(m)}}}, {{{fmt(sorted(x + x + [sum(x) / len(x)]))}}}}},")
+        # Each point twice, its weight shared in the ratio k + 1 to k, the
+        # share k first for a point below the mean, and the mean with weight
+        # zero, sorted stably by speed.
+        k = len(x)
+        mean = sum(x) / k
+        shares = lambda xi: [F(k, 2 * k + 1), F(k + 1, 2 * k + 1)] if xi < mean else [F(k + 1, 2 * k + 1), F(k, 2 * k + 1)]
+        pairs = [(xi, share * wi) for xi, wi in zip(x, w) for share in shares(xi)]
+        pairs = sorted(pairs + [(mean, F(0))], key=lambda p: p[0])
+        m_next = sum(wi * xi**(2 * n + 1) for xi, wi in zip(x, w))
+        print(f"    {{{n}, {{{fmt(m)}}}, {{{fmt(p[0] for p in pairs)}}}, {{{fmt(p[1] for p in pairs)}}}, {float(m_next)!r}}},")
     print("};")
 
 

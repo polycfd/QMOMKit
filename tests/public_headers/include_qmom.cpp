@@ -24,9 +24,12 @@ static_assert(qmomkit::GeneralizedOptions{}.nu == 1.0);
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::QmomStateCandidate&>().ok()), bool>);
 static_assert(std::is_same_v<decltype(qmomkit::QmomStateCandidate::status), qmomkit::StateCandidateStatus>);
 
-// The characteristic speeds carry a QMOM status.
+// The characteristic speeds carry their weights, the closure moment and a QMOM
+// status.
 static_assert(std::is_same_v<decltype(std::declval<const qmomkit::HyqmomCharacteristicSpeeds&>().ok()), bool>);
 static_assert(std::is_same_v<decltype(qmomkit::HyqmomCharacteristicSpeeds::speeds), std::vector<double>>);
+static_assert(std::is_same_v<decltype(qmomkit::HyqmomCharacteristicSpeeds::weights), std::vector<double>>);
+static_assert(std::is_same_v<decltype(qmomkit::HyqmomCharacteristicSpeeds::closure_moment), double>);
 static_assert(std::is_same_v<decltype(qmomkit::HyqmomCharacteristicSpeeds::status), qmomkit::QmomStatus>);
 
 namespace public_header_pins

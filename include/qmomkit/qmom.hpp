@@ -220,11 +220,15 @@ private:
  * Characteristic speeds of the moment system of free transport closed by
  * HyQMOM (Fox & Laurent 2022), for a hyperbolic state with node count n:
  * ascending, 2n + 1 values when its moments give n + 1 nodes, 2k + 1 when they
- * give a classical quadrature of k <= n nodes, none on failure.
+ * give a classical quadrature of k <= n nodes, none on failure. `weights[i]` is
+ * the weight of `speeds[i]`, and `closure_moment` is m_{2n+1}, the flux of
+ * m_{2n}. On failure, `weights` is empty and `closure_moment` is zero.
  */
 struct HyqmomCharacteristicSpeeds
 {
     std::vector<double> speeds;
+    std::vector<double> weights;
+    double closure_moment = 0.0;
     QmomStatus status = QmomStatus::success;
     std::string message;
 
@@ -243,11 +247,17 @@ struct HyqmomCharacteristicSpeeds
  * sample moments up to n = 10); for a classical quadrature of k <= n nodes,
  * its k abscissas, each twice, and their mean. The speeds thus count only the
  * nodes that the moments resolve, which after advection can be fewer than the
- * state holds. `invalid_input` for a family other than `hyperbolic`; otherwise
- * the status and message of a failed reconstruction, such as `not_realizable`
- * in fixed mode when the moments no longer support n + 1 nodes, and
- * `not_realizable` when an eigensolve does not converge or a speed is too
- * large for a double.
+ * state holds. The speeds with their weights have the moments m_0, ...,
+ * m_{2n+1} of the reconstructed quadrature, and `closure_moment` is its
+ * m_{2n+1}. For n + 1 nodes, the weights are (n + 1) / (2n + 1) times the
+ * Gauss weights of J_n and n / (2n + 1) times those of K_{n+1}. For a
+ * classical quadrature, the two copies of each abscissa share its weight in
+ * the ratio k + 1 to k, and the mean has weight zero. `invalid_input` for a
+ * family other than `hyperbolic`; otherwise the status and message of a
+ * failed reconstruction, such as `not_realizable` in fixed mode when the
+ * moments no longer support n + 1 nodes, and `not_realizable` when an
+ * eigensolve does not converge or a speed or the closure moment is too large
+ * for a double.
  */
 [[nodiscard]] HyqmomCharacteristicSpeeds compute_hyqmom_characteristic_speeds(const QmomState& state);
 

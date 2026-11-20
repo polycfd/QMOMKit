@@ -28,11 +28,18 @@ int main()
     constexpr unsigned long long breakup_seed = 123;
 
     // The hierarchy decides which moments the sample estimates and the history
-    // records.
+    // records, and the node-advection options set the accuracy of the particle
+    // trajectories.
     auto configured_case = qmomkit::config::load_cqmom_prepared(configuration_file);
     if (!configured_case)
     {
         std::cerr << configured_case.error() << '\n';
+        return 1;
+    }
+    auto configured_options = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+    if (!configured_options)
+    {
+        std::cerr << configured_options.error() << '\n';
         return 1;
     }
     auto configured_output = qmomkit::config::load_output_options(configuration_file);
@@ -41,6 +48,7 @@ int main()
         std::cerr << configured_output.error() << '\n';
         return 1;
     }
+    const qmomkit::AdaptiveRkOptions advection_options = configured_options.value().node_options.adaptive_options;
     const qmomkit::OutputOptions output = std::move(configured_output).value();
 
     // The same sample the QMOMKit run starts from, here kept as particles of
@@ -59,7 +67,6 @@ int main()
     std::mt19937_64 generator(breakup_seed);
 
     const qmomkit::PhaseSpaceVelocity velocity = cqmom_4d_particles_breakage_recoil::particle_velocity();
-    const qmomkit::AdaptiveRkOptions advection_options;
     const qmomkit::RawMomentRequest printed_moments = cqmom_4d_particles_breakage_recoil::printed_moments();
     const auto estimate_printed_moments = [&]()
     {

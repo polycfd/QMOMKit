@@ -273,14 +273,16 @@ struct MomentSourceUpdateOptions
 // the rest of the interval in further calls of `ssp_rk3_step` from the
 // accepted state. `rejected` and `retries` cover the whole update, while
 // `ssp_rk3_status`, `accepted`, `time_step_used` and `error_estimate` describe
-// the last call only.
+// the last call only. An update that refuses its input, or that fails because
+// an exception was thrown, for example by a callback, sets only `message`, and
+// the other fields keep their default values.
 struct MomentSourceUpdateDiagnostics
 {
     // The status of the last call.
     SspRk3Status ssp_rk3_status = SspRk3Status::success;
     // Whether the last call accepted its step.
     bool accepted = false;
-    // Whether any step of the update was rejected, or the update failed.
+    // Whether any step of the update was rejected, or the last call failed.
     bool rejected = false;
     // How often a step was halved, summed over all calls.
     std::size_t retries = 0;

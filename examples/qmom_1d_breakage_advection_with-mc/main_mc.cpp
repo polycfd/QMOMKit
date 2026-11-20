@@ -51,13 +51,13 @@ int main()
 
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection_with_mc::advection_velocity();
     const qmomkit::AdaptiveRkOptions advection_options;
-    const std::vector<double> initial_moments =
-        qmom_1d_breakage_advection_with_mc::compute_particle_moments(particles, particle_weight, maximum_order);
 
     try
     {
-        // The writers throw when a file cannot be written. The particle history is
-        // kept with the moment history and written at the end.
+        // The moment estimates and the writers throw when they fail. The particle
+        // history is kept with the moment history and written at the end.
+        const std::vector<double> initial_moments =
+            qmom_1d_breakage_advection_with_mc::compute_particle_moments(particles, particle_weight, maximum_order);
         std::optional<qmomkit::MomentWriter> moment_writer;
         std::vector<std::tuple<double, std::size_t, double>> particle_history;
         if (output.write_moments)

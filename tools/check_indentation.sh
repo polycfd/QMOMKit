@@ -11,7 +11,9 @@
 ##
 ## Changes with respect to the Lethe version:
 ##   - The indent script is invoked from QMOMKit's tools/ directory instead
-##     of contrib/utilities/.
+##     of contrib/utilities/, and its failure fails the check.
+##   - The description names the indent-all script and the required
+##     clang-format version.
 ##
 ## Detailed license information governing the original source code can be
 ## found in LICENSE.md and CONTRIBUTING.md at the top level directory of

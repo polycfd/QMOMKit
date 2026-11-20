@@ -1,8 +1,10 @@
 #include "particles_mc.hpp"
 
+#include "monte_carlo/moments.hpp"
 #include "physics.hpp"
 
 #include <cmath>
+#include <stdexcept>
 
 namespace qmom_1d_breakage_advection_with_mc
 {
@@ -59,17 +61,14 @@ void apply_binary_breakage(std::vector<Particle>& particles, const double step_s
 
 std::vector<double> compute_particle_moments(const std::vector<Particle>& particles, const double particle_weight, const std::size_t maximum_order)
 {
-    std::vector<double> moments(maximum_order + 1, 0.0);
-    for (const Particle& particle : particles)
+    const double number_density = particle_weight * static_cast<double>(particles.size());
+    const qmomkit::monte_carlo::OneDimensionalMomentEstimate estimate =
+        qmomkit::monte_carlo::compute_ensemble_moments(to_ensemble(particles), number_density, maximum_order);
+    if (!estimate.ok())
     {
-        double power = 1.0;
-        for (std::size_t order = 0; order < moments.size(); ++order)
-        {
-            moments[order] += particle_weight * power;
-            power *= particle.volume;
-        }
+        throw std::runtime_error(estimate.message);
     }
-    return moments;
+    return estimate.moments.values();
 }
 
 } // namespace qmom_1d_breakage_advection_with_mc

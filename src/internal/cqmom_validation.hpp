@@ -63,12 +63,25 @@ struct CqmomMomentRateValidationMessages
     std::string finite_values;
 };
 
-// Two hierarchies are the same when their node counts and their conditioning
-// orders are equal. Every check that compares hierarchies goes through this
-// function.
+// Two hierarchies are the same when their node counts, their conditioning
+// orders and the families of their coordinates are equal. Every check that
+// compares hierarchies goes through this function.
 [[nodiscard]] inline bool same_hierarchy(const PhaseSpaceHierarchy& lhs, const PhaseSpaceHierarchy& rhs)
 {
-    return lhs.node_counts() == rhs.node_counts() && lhs.conditioning_order() == rhs.conditioning_order();
+    if (lhs.node_counts() != rhs.node_counts() || lhs.conditioning_order() != rhs.conditioning_order())
+    {
+        return false;
+    }
+    const std::vector<CoordinateFamily>& lhs_families = lhs.families().coordinates;
+    const std::vector<CoordinateFamily>& rhs_families = rhs.families().coordinates;
+    for (std::size_t dimension = 0; dimension < lhs_families.size(); ++dimension)
+    {
+        if (lhs_families[dimension].family != rhs_families[dimension].family)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 [[nodiscard]] inline bool same_cqmom_layout(const CqmomMomentLayout& lhs, const CqmomMomentLayout& rhs)

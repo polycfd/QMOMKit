@@ -4,6 +4,7 @@ set(component_case_sources
     phase_space_evolution.cpp
     cqmom_prepared_case_moment_replacement.cpp
     cqmom_drag_and_degenerate_moments.cpp
+    cqmom_hyperbolic_coordinates.cpp
 )
 
 foreach(source_file IN LISTS component_case_sources)

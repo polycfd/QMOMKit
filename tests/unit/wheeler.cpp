@@ -1278,6 +1278,24 @@ void test_hyperbolic_speed_weights_are_continuous_at_the_boundary()
     }
 }
 
+void test_coordinate_scale_moves_the_hyperbolic_boundary_decision()
+{
+    // The moments have m_0 = 1, mean 0 and variance b_1 = 1e-20. As data, b_1
+    // lies far above the rounding bound of these moments, so HyQMOM with node
+    // count 1 returns two nodes at -1e-10 and 1e-10. As conditional moments of
+    // a coordinate of scale 1, the rounding bound grows to 100 eps m_0 s^2,
+    // which lies above b_1, so the moments are on the boundary and adaptive
+    // mode returns one node.
+    const qmomkit::MomentSet moments({1.0, 0.0, 1.0e-20});
+    const qmomkit::Quadrature1D data = qmomkit::internal::compute_hyperbolic_quadrature(moments, 1, {});
+    assert(data.ok() && data.weights.size() == 2);
+    assert(std::abs(data.abscissas[1] - 1.0e-10) <= 1.0e-24);
+
+    const qmomkit::Quadrature1D conditional = qmomkit::internal::compute_hyperbolic_conditional_quadrature(moments, 1, {}, 1.0);
+    assert(conditional.ok() && conditional.weights.size() == 1);
+    assert(conditional.weights[0] == 1.0 && conditional.abscissas[0] == 0.0);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -1338,5 +1356,6 @@ int main(const int argc, char** argv)
              test_hyperbolic_speeds_on_the_boundary_are_those_of_the_classical_quadrature},
             {"hyperbolic_speeds_report_the_failures_of_the_reconstruction", test_hyperbolic_speeds_report_the_failures_of_the_reconstruction},
             {"hyperbolic_speed_weights_are_continuous_at_the_boundary", test_hyperbolic_speed_weights_are_continuous_at_the_boundary},
+            {"coordinate_scale_moves_the_hyperbolic_boundary_decision", test_coordinate_scale_moves_the_hyperbolic_boundary_decision},
         });
 }

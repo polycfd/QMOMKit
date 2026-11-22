@@ -17,7 +17,9 @@ set of points itself. The exceptions are named below:
 `recursive_1d_reduces_to_wheeler`, compared with `compute_quadrature`; the
 velocity-collapse case, which starts from non-realizable moments; the
 power-of-two case, which compares the reconstruction with itself under exact
-scaling; and `failure_paths`, which expects exceptions.
+scaling; `failure_paths`, which expects exceptions; and the cases of
+`hyperbolic_coordinates.cpp`, whose HyQMOM rules are not the points and are
+computed by the script `hyperbolic_coordinates.py` beside the test.
 `recursive_quadrature.cpp` and `recursive_cqmom.cpp` call the internal
 recursion and inspect its traversal tree; all other cases use the public API.
 Failures of `compute_cqmom(...)` are covered in
@@ -123,6 +125,45 @@ eight-point ragged `4d_adversarial_adaptive_non_identity`. The fixed cases also
 require one diagnostic record per branch, the root's first.
 `dimension_sweep_D2` to `D6` compare moments only.
 
+### Hyperbolic coordinates
+
+`verification_cqmom_hyperbolic_coordinates_*` (`hyperbolic_coordinates.cpp`):
+hierarchies in two dimensions with `hyperbolic` coordinates
+([QMOM families](../../../docs/developer/qmom_families.md)). The script
+`hyperbolic_coordinates.py` builds points whose raw moments are exactly
+doubles and computes each HyQMOM rule from the recurrence and closure in exact
+rational arithmetic and the eigenvalues of $J_{n+1}$ with mpmath at 60 digits.
+
+- `hyperbolic_parent_with_a_polynomial_conditional_mean`: a hyperbolic parent
+  with $n = 2$ and a one-node child equal to a quadratic $f$ of the parent at
+  each of five points. The terminal nodes must be $(x_a, f(x_a))$ with the
+  HyQMOM nodes $x_a$ and weights of the parent marginal.
+- `hyperbolic_parent_with_polynomial_conditional_moments`: a hyperbolic parent
+  with $n = 3$ and a two-node child at $f(x) \pm 1/2$ with $f$ linear. The
+  terminal nodes must be $(x_a, f(x_a) \pm 1/2)$ with half the parent weights.
+- `hyperbolic_last_coordinate`: a classical parent at exactly two points and a
+  hyperbolic child with $n = 2$. Each branch must return the HyQMOM rule of its
+  conditional moments.
+- `joint_moments_are_reproduced`: two hyperbolic coordinates with $n = 2$ and
+  conditioning order {1, 0}. The terminal quadrature must reproduce every
+  required moment of twelve correlated points.
+- `boundary_branch_adaptive_returns_the_classical_rule` and
+  `boundary_branch_fixed_fails`: as `hyperbolic_last_coordinate`, with two
+  points in the second branch. Adaptive mode must return those two points, and
+  fixed mode must fail as `qmom_failed` in the child coordinate.
+- `hyperbolic_parent_on_the_boundary_conditions_on_its_classical_nodes`: a
+  hyperbolic parent with $n = 2$ at exactly two points and a classical child
+  with two points at each. Adaptive mode must return the two parent points as
+  the classical rule of two nodes, and the children, conditioned on those
+  nodes, must return their points.
+
+For the two cases whose conditional moments are polynomials of the hyperbolic
+parent coordinate, the script also checks at 60 digits that the conditional
+moments solved at the HyQMOM nodes are the polynomials the points were built
+from, so the reference does not rely on QMOMKit's solve. Every case
+with nodes runs in fixed and in adaptive mode, except the cases on the
+boundary.
+
 ### Abscissa bounds
 
 `verification_cqmom_quadrature_bounds_*` (`quadrature_bounds.cpp`): a rule
@@ -149,6 +190,7 @@ Errors are absolute unless relative, $|a - e| / \max(|e|, 1)$.
 | Coordinate units | $2 \times 10^{-10}$; `disparate_units` $10^{-10}$ | relative positions divided by $s$; weights; relative moments divided by $\prod_d s_d^{k_d}$ | safety bounds, observed below $10^{-15}$ |
 | Power-of-two scaling | none | exact equality of status, node count, positions and weights | power-of-two scalings are exact in floating point |
 | Workflows, reconstruction, bounds | $10^{-12}$ | positions, weights, moments | observed $10^{-15}$; moments below $10^2$ |
+| Hyperbolic coordinates | $10^{-12}$ | positions relative to the largest position of their coordinate, weights relative to the total weight, relative moments | as for two dimensions; observed $3 \times 10^{-15}$ |
 | Recursive inversion | $10^{-12}$ to $10^{-7}$ per case | positions, weights, moments | safety bounds; the loosest cover 3D moments with errors of $10^{-11}$ |
 | Branch growth | $5 \times 10^{-11}$ | positions, weights, moments | safety bound: SSP-RK3 integrates a constant rate exactly; observed $10^{-16}$ |
 | `failure_paths` | none | the expected exception | |

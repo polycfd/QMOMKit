@@ -21,6 +21,17 @@ namespace qmomkit::internal
  */
 [[nodiscard]] Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, std::size_t node_count, const WheelerOptions& options);
 
+/**
+ * HyQMOM reconstruction of conditional moments, which a solve produced from
+ * other moments, as `compute_hyperbolic_quadrature(...)` does for moments
+ * that are data. The rounding test of the recurrence allows for
+ * `coordinate_scale`, the scale of their coordinate, as
+ * `compute_conditional_quadrature(...)` does. A zero scale gives
+ * `compute_hyperbolic_quadrature(...)`.
+ */
+[[nodiscard]] Quadrature1D compute_hyperbolic_conditional_quadrature(const MomentSet& moments, std::size_t node_count, const WheelerOptions& options,
+                                                                     double coordinate_scale);
+
 struct HyperbolicCharacteristicSpeeds
 {
     std::vector<double> speeds;

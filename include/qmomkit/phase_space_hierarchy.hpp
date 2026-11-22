@@ -12,8 +12,8 @@ namespace qmomkit
 /**
  * The QMOM family of one coordinate of a CQMOM hierarchy, and the settings of
  * the generalized family, as `QmomCase` holds them for QMOM. The settings of
- * the generalized family are ignored for any other family. CQMOM currently
- * accepts only `classical` coordinates.
+ * the generalized family are ignored for any other family. CQMOM accepts
+ * `classical` and `hyperbolic` coordinates.
  */
 struct CoordinateFamily
 {
@@ -42,7 +42,8 @@ struct HierarchyFamilies
  * largest number of nodes the coordinate's quadrature holds, which fixes the
  * node structure: `total_nodes()`, the flat node indices and
  * `enumerate_quadrature_node_multi_indices`. For a `classical` coordinate, the
- * two counts are equal. Flat node-index conversion uses phase-space dimension
+ * two counts are equal. A `hyperbolic` coordinate with node count n holds up
+ * to n + 1 nodes. Flat node-index conversion uses phase-space dimension
  * order. The conditioning order is a separate permutation of phase-space
  * dimension indices and controls deterministic recursive traversal order.
  */
@@ -56,7 +57,7 @@ public:
      * A hierarchy whose coordinates have the given families. Throws
      * `std::invalid_argument` when `families.coordinates` is neither empty nor
      * of one entry per phase-space dimension, and when a coordinate's family
-     * is not `classical`.
+     * is `generalized`.
      */
     PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, std::vector<std::size_t> conditioning_order, HierarchyFamilies families);
 
@@ -93,11 +94,10 @@ public:
     [[nodiscard]] const HierarchyFamilies& families() const noexcept;
 
     /**
-     * Extents for the raw moment tensor needed by recursive CQMOM.
-     *
-     * Recursive CQMOM passes 1D slices of length 2*n to Wheeler in each
-     * dimension, so the required tensor convention is 2 * node_count per
-     * phase-space dimension.
+     * Extents for the raw moment tensor needed by recursive CQMOM: per
+     * phase-space dimension, the number of moments the family of the
+     * coordinate reads, 2 * node_count for `classical` and
+     * 2 * node_count + 1 for `hyperbolic`.
      */
     [[nodiscard]] std::vector<std::size_t> moment_extents() const;
 

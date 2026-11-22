@@ -4,9 +4,11 @@
 #include "internal/checked_size.hpp"
 #include "internal/coordinate_scales.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/hyperbolic_quadrature.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
+#include "internal/qmom_family.hpp"
 #include "internal/vandermonde.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_set.hpp"
@@ -41,9 +43,12 @@ namespace
     ordered_extents.reserve(hierarchy.number_of_dimensions());
     std::vector<MultiIndex> ordered_indices;
     ordered_indices.reserve(layout.required_indices.size());
+    std::vector<std::size_t> ordered_maximum_node_counts;
+    ordered_maximum_node_counts.reserve(hierarchy.number_of_dimensions());
     for (const std::size_t dimension : hierarchy.conditioning_order())
     {
         ordered_extents.push_back(moment_extents[dimension]);
+        ordered_maximum_node_counts.push_back(hierarchy.maximum_node_counts()[dimension]);
     }
 
     // Branch-local layouts are ordered by conditioning level. Raw/global
@@ -57,7 +62,7 @@ namespace
         }
         ordered_indices.push_back(std::move(ordered_index));
     }
-    return create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices), adaptive_branch_counts);
+    return create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices), adaptive_branch_counts, ordered_maximum_node_counts);
 }
 
 // Mixed-radix code of a multi-index over `bounds`, or nullopt when the index
@@ -157,7 +162,8 @@ void append_unique_index(std::vector<MultiIndex>& indices, std::vector<std::size
 }
 
 [[nodiscard]] BranchMomentChildLayout create_child_layout_case(const BranchMomentLayout& layout, const std::size_t parent_node_count,
-                                                               const bool adaptive_parent_node_counts)
+                                                               const bool adaptive_parent_node_counts,
+                                                               const std::vector<std::size_t>& child_maximum_node_counts)
 {
     BranchMomentChildLayout child_case;
     child_case.parent_node_count = parent_node_count;
@@ -198,14 +204,16 @@ void append_unique_index(std::vector<MultiIndex>& indices, std::vector<std::size
     }
 
     const std::vector<std::size_t> child_extents(layout.extents.begin() + 1, layout.extents.end());
-    child_case.child_layout = create_branch_moment_layout(child_extents, std::move(child_indices), adaptive_parent_node_counts);
+    child_case.child_layout =
+        create_branch_moment_layout(child_extents, std::move(child_indices), adaptive_parent_node_counts, child_maximum_node_counts);
     return child_case;
 }
 
 } // namespace
 
 std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vector<std::size_t> extents, std::vector<MultiIndex> indices,
-                                                                      const bool adaptive_parent_node_counts)
+                                                                      const bool adaptive_parent_node_counts,
+                                                                      const std::vector<std::size_t>& maximum_node_counts)
 {
     internal::performance::record_moment_layout_build();
     if (extents.empty())
@@ -248,20 +256,23 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
         return layout;
     }
 
-    const std::size_t max_parent_node_count = layout->extents.front() / 2;
+    // The children are conditioned on at most the maximum node count of the
+    // leading coordinate.
+    const std::size_t max_parent_node_count = maximum_node_counts.front();
+    const std::vector<std::size_t> child_maximum_node_counts(maximum_node_counts.begin() + 1, maximum_node_counts.end());
     layout->child_layouts_by_parent_node_count.resize(max_parent_node_count + 1);
     if (adaptive_parent_node_counts)
     {
         for (std::size_t parent_node_count = 1; parent_node_count <= max_parent_node_count; ++parent_node_count)
         {
             layout->child_layouts_by_parent_node_count[parent_node_count] =
-                create_child_layout_case(*layout, parent_node_count, adaptive_parent_node_counts);
+                create_child_layout_case(*layout, parent_node_count, adaptive_parent_node_counts, child_maximum_node_counts);
         }
     }
     else
     {
         layout->child_layouts_by_parent_node_count[max_parent_node_count] =
-            create_child_layout_case(*layout, max_parent_node_count, adaptive_parent_node_counts);
+            create_child_layout_case(*layout, max_parent_node_count, adaptive_parent_node_counts, child_maximum_node_counts);
     }
 
     return layout;
@@ -422,6 +433,16 @@ void validate_conditioning_order(const std::vector<std::size_t>& order, const st
     }
 }
 
+// The number of parent orders in the mixed moments that the children of a
+// coordinate need. It is one per node of the coordinate's largest quadrature,
+// so that the conditional system at those nodes is square. That is the node
+// count n of a classical coordinate, and n + 1 for a hyperbolic one, whose
+// children need the parent order n as well.
+[[nodiscard]] std::size_t mixed_parent_order_count(const PhaseSpaceHierarchy& hierarchy, const std::size_t dimension)
+{
+    return hierarchy.maximum_node_counts()[dimension];
+}
+
 // Returns the families with one entry per dimension. Empty families make every
 // coordinate classical. The settings of the generalized family are kept as
 // given and ignored for a classical coordinate.
@@ -438,9 +459,9 @@ void validate_conditioning_order(const std::vector<std::size_t>& order, const st
     }
     for (const CoordinateFamily& coordinate : families.coordinates)
     {
-        if (coordinate.family != QmomFamily::classical)
+        if (coordinate.family == QmomFamily::generalized)
         {
-            throw std::invalid_argument("CQMOM supports only classical coordinates.");
+            throw std::invalid_argument("CQMOM supports only classical and hyperbolic coordinates.");
         }
     }
     return families;
@@ -736,12 +757,12 @@ void validate_active_branch_counts(const PhaseSpaceHierarchy& hierarchy, const s
         {
             throw std::invalid_argument("CQMOM active branch count metadata phase-space dimension does not match the conditioning order.");
         }
-        const std::size_t configured_count = hierarchy.maximum_node_counts()[expected_dimension];
-        if (count.configured_node_count != configured_count)
+        const std::size_t maximum_node_count = hierarchy.maximum_node_counts()[expected_dimension];
+        if (count.configured_node_count != maximum_node_count)
         {
             throw std::invalid_argument("CQMOM active branch count metadata does not match the configured hierarchy node count.");
         }
-        if (count.active_node_count == 0 || count.active_node_count > configured_count)
+        if (count.active_node_count == 0 || count.active_node_count > maximum_node_count)
         {
             throw std::invalid_argument("CQMOM active branch count metadata is outside the configured node-count capacity.");
         }
@@ -797,12 +818,12 @@ void validate_active_branch_counts(const PhaseSpaceHierarchy& hierarchy, const s
 // sorted by parent path. A parent path names one branch, since its length is
 // the conditioning level.
 [[nodiscard]] BranchNodeCountLimit recursive_branch_node_count_limit(const std::vector<CqmomActiveBranchCount>* const active_counts,
-                                                                     const ConditioningPath& parent_path, const std::size_t configured_node_count,
+                                                                     const ConditioningPath& parent_path, const std::size_t maximum_node_count,
                                                                      const std::vector<ConditioningPath>& invalidated_prefixes)
 {
     if (active_counts == nullptr || branch_limit_invalidated(parent_path, invalidated_prefixes))
     {
-        return {configured_node_count, std::nullopt};
+        return {maximum_node_count, std::nullopt};
     }
     const auto active = std::lower_bound(active_counts->begin(), active_counts->end(), parent_path,
                                          [](const CqmomActiveBranchCount& count, const ConditioningPath& path) { return count.parent_path < path; });
@@ -813,12 +834,23 @@ void validate_active_branch_counts(const PhaseSpaceHierarchy& hierarchy, const s
     return {active->active_node_count, active->active_node_count};
 }
 
-[[nodiscard]] Quadrature1D compute_branch_quadrature(std::vector<double> moments, const std::size_t node_count, const WheelerOptions& wheeler_options,
+// The quadrature of a branch with at most node_ceiling nodes, for a coordinate
+// of the given family and node count. A hyperbolic coordinate reconstructs its
+// full n + 1 nodes with HyQMOM of node count n, and fewer nodes classically,
+// since HyQMOM of node count k returns up to k + 1 nodes, as for a QMOM state.
+[[nodiscard]] Quadrature1D compute_branch_quadrature(std::vector<double> moments, const std::size_t node_ceiling, const QmomFamily family,
+                                                     const std::size_t node_count, const WheelerOptions& wheeler_options,
                                                      const double coordinate_scale)
 {
-    return internal::compute_conditional_quadrature(MomentSet(std::move(moments)), node_count, wheeler_options, coordinate_scale);
+    if (family == QmomFamily::hyperbolic && node_ceiling == node_count + 1)
+    {
+        return internal::compute_hyperbolic_conditional_quadrature(MomentSet(std::move(moments)), node_count, wheeler_options, coordinate_scale);
+    }
+    return internal::compute_conditional_quadrature(MomentSet(std::move(moments)), node_ceiling, wheeler_options, coordinate_scale);
 }
 
+// Checks the abscissa bounds of the coordinates. A hyperbolic coordinate takes
+// no abscissa bounds, as for QMOM.
 [[nodiscard]] bool validate_coordinate_support(const PhaseSpaceHierarchy& hierarchy, const CqmomAbscissaBounds& support, std::string& message)
 {
     if (support.empty())
@@ -835,6 +867,11 @@ void validate_active_branch_counts(const PhaseSpaceHierarchy& hierarchy, const s
         if (!support[dimension].has_value())
         {
             continue;
+        }
+        if (hierarchy.families().coordinates[dimension].family == QmomFamily::hyperbolic)
+        {
+            message = "The hyperbolic QMOM family takes no abscissa bounds.";
+            return false;
         }
         const AbscissaBounds interval = *support[dimension];
         if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
@@ -875,14 +912,13 @@ void record_bounded_candidate_diagnostics(internal::RecursiveQuadratureBranchDia
 }
 
 [[nodiscard]] bool branch_growth_trial_allowed(bool allow_active_branch_count_growth, const WheelerOptions& wheeler_options,
-                                               const BranchNodeCountLimit& limit, std::size_t configured_node_count, const Quadrature1D& current);
+                                               const BranchNodeCountLimit& limit, std::size_t maximum_node_count, const Quadrature1D& current);
 
 [[nodiscard]] bool branch_growth_trial_allowed(const bool allow_active_branch_count_growth, const WheelerOptions& wheeler_options,
-                                               const BranchNodeCountLimit& limit, const std::size_t configured_node_count,
-                                               const Quadrature1D& current)
+                                               const BranchNodeCountLimit& limit, const std::size_t maximum_node_count, const Quadrature1D& current)
 {
     return allow_active_branch_count_growth && wheeler_options.adaptive && limit.active_node_count.has_value() && current.ok() &&
-           current.weights.size() == *limit.active_node_count && *limit.active_node_count < configured_node_count;
+           current.weights.size() == *limit.active_node_count && *limit.active_node_count < maximum_node_count;
 }
 
 } // namespace
@@ -1097,13 +1133,22 @@ PhaseSpaceHierarchy::PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, s
     validate_conditioning_order(conditioning_order_, node_counts_.size());
 }
 
-// Every coordinate is classical, so the maximum node counts set by the
-// delegated constructor are the node counts.
+// The delegated constructor sets the maximum node counts of classical
+// coordinates. A hyperbolic coordinate with node count n holds up to n + 1
+// nodes, and the total follows the maximum node counts.
 PhaseSpaceHierarchy::PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, std::vector<std::size_t> conditioning_order,
                                          HierarchyFamilies families)
     : PhaseSpaceHierarchy(std::move(node_counts), std::move(conditioning_order))
 {
     families_ = validated_families(std::move(families), number_of_dimensions());
+    for (std::size_t dimension = 0; dimension < number_of_dimensions(); ++dimension)
+    {
+        if (families_.coordinates[dimension].family == QmomFamily::hyperbolic)
+        {
+            maximum_node_counts_[dimension] = node_counts_[dimension] + 1;
+        }
+    }
+    total_nodes_ = product_extents(maximum_node_counts_);
 }
 
 const HierarchyFamilies& PhaseSpaceHierarchy::families() const noexcept
@@ -1122,11 +1167,18 @@ std::size_t PhaseSpaceHierarchy::node_count(const std::size_t dimension) const
 
 std::vector<std::size_t> PhaseSpaceHierarchy::moment_extents() const
 {
+    // The number of moments the family of each coordinate reads.
     std::vector<std::size_t> extents;
     extents.reserve(node_counts_.size());
-    for (const std::size_t node_count : node_counts_)
+    for (std::size_t dimension = 0; dimension < node_counts_.size(); ++dimension)
     {
-        extents.push_back(checked_multiply(2, node_count));
+        const std::optional<std::size_t> extent =
+            internal::qmom_required_moment_count(node_counts_[dimension], families_.coordinates[dimension].family);
+        if (!extent.has_value())
+        {
+            throw std::invalid_argument("Index extents overflow size_t.");
+        }
+        extents.push_back(*extent);
     }
     return extents;
 }
@@ -1161,16 +1213,16 @@ CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarch
     for (std::size_t level = 0; level < dimensions; ++level)
     {
         // Required moments are enumerated in conditioning order for one
-        // recursive level at a time: previous axes span their node counts,
-        // the active axis spans the 2*N Wheeler moments, and later axes stay at
-        // order zero until they become active.
+        // recursive level at a time: previous axes span the parent orders of
+        // their coordinate, the active axis spans the moments its family reads,
+        // and later axes stay at order zero until they become active.
         std::vector<std::size_t> ordered_ranges(dimensions, 1);
         for (std::size_t axis = 0; axis < dimensions; ++axis)
         {
             const std::size_t phase_space_dimension = order[axis];
             if (axis < level)
             {
-                ordered_ranges[axis] = hierarchy.node_count(phase_space_dimension);
+                ordered_ranges[axis] = mixed_parent_order_count(hierarchy, phase_space_dimension);
             }
             else if (axis == level)
             {
@@ -1550,9 +1602,9 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     try
     {
         // Given metadata is used, and must have been prepared for the same
-        // adaptivity: an adaptive tree covers every parent node count Wheeler can
-        // return, a fixed one only the configured count. Without metadata the
-        // branch layouts are built for this reconstruction.
+        // adaptivity: an adaptive tree covers every parent node count a branch
+        // can return, a fixed one only the maximum node count. Without metadata
+        // the branch layouts are built for this reconstruction.
         if (request.prepared_metadata != nullptr)
         {
             const PreparedCqmomMetadata& metadata = *request.prepared_metadata;
@@ -1603,6 +1655,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     {
         const std::size_t phase_space_dimension = request.hierarchy.conditioning_order()[level];
         const std::size_t maximum_node_count = request.hierarchy.maximum_node_counts()[phase_space_dimension];
+        const QmomFamily family = request.hierarchy.families().coordinates[phase_space_dimension].family;
+        const std::size_t node_count = request.hierarchy.node_counts()[phase_space_dimension];
         const double coordinate_scale = level == 0 ? 0.0 : coordinate_scales[phase_space_dimension];
         std::vector<BranchState> next_branches;
         if (level + 1 < dimensions)
@@ -1676,14 +1730,16 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                 const bool branch_growth_possible = request.allow_active_branch_count_growth && wheeler_options.adaptive &&
                                                     node_count_limit.active_node_count.has_value() &&
                                                     *node_count_limit.active_node_count < maximum_node_count;
-                quadrature = branch_growth_possible
-                                 ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, wheeler_options, coordinate_scale)
-                                 : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, wheeler_options, coordinate_scale);
+                quadrature = branch_growth_possible ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, family, node_count,
+                                                                                wheeler_options, coordinate_scale)
+                                                    : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, family,
+                                                                                node_count, wheeler_options, coordinate_scale);
                 if (branch_growth_trial_allowed(request.allow_active_branch_count_growth, wheeler_options, node_count_limit, maximum_node_count,
                                                 quadrature))
                 {
                     const std::size_t growth_ceiling = *node_count_limit.active_node_count + 1;
-                    Quadrature1D growth = compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, wheeler_options, coordinate_scale);
+                    Quadrature1D growth =
+                        compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, family, node_count, wheeler_options, coordinate_scale);
                     if (growth.ok() && growth.weights.size() == growth_ceiling)
                     {
                         quadrature = std::move(growth);

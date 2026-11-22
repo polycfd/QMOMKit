@@ -209,7 +209,9 @@ struct CqmomMomentData
  * `qmom_options.adaptive` decides whether the reconstruction is adaptive: every
  * marginal and conditional inversion and every branch node count adapt
  * together, and the quadrature uses ragged storage. With it false, every
- * branch keeps its configured node count and the storage is rectangular.
+ * branch keeps the maximum node count of its coordinate,
+ * `PhaseSpaceHierarchy::maximum_node_counts()`, and the storage is
+ * rectangular.
  */
 struct CqmomCase
 {

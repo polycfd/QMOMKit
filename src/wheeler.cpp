@@ -618,14 +618,17 @@ struct Recurrence
 // empty and recurrence holds a_0, ..., a_n, the last the closure, and b_1,
 // ..., b_n. Otherwise outcome is the result of the reconstruction: a failure,
 // or in adaptive mode the classical quadrature of moments on or below the
-// boundary.
+// boundary. The coordinate scale enters the rounding test of the recurrence,
+// as in compute_quadrature_at_scale: zero for moments that are data, the scale
+// of the coordinate for conditional moments.
 struct HyperbolicRecurrence
 {
     std::optional<Quadrature1D> outcome;
     Recurrence recurrence;
 };
 
-[[nodiscard]] HyperbolicRecurrence hyperbolic_recurrence(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options)
+[[nodiscard]] HyperbolicRecurrence hyperbolic_recurrence(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
+                                                         const double coordinate_scale)
 {
     const auto finished = [](Quadrature1D quadrature) { return HyperbolicRecurrence{std::move(quadrature), {}}; };
     if (const std::optional<Quadrature1D> failure = input_failure_through_m2n(moments, node_count, options))
@@ -634,9 +637,9 @@ struct HyperbolicRecurrence
     }
     const std::size_t moment_count = (2 * node_count) + 1;
 
-    // The recurrence of m_0, ..., m_{2n} at coordinate scale zero, with the
+    // The recurrence of m_0, ..., m_{2n} at the coordinate scale, with the
     // closure for a_n. Its n + 1 entries give the Jacobi matrix J_{n+1}.
-    Recurrence recurrence = compute_recurrence(moments, moment_count, 0.0);
+    Recurrence recurrence = compute_recurrence(moments, moment_count, coordinate_scale);
     recurrence.a[node_count] = hyperbolic_closure(recurrence.a, node_count);
 
     // In adaptive mode, moments on or below the boundary take the classical
@@ -904,8 +907,14 @@ Quadrature1D compute_conditional_quadrature(const MomentSet& moments, const std:
 
 Quadrature1D compute_hyperbolic_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options)
 {
+    return compute_hyperbolic_conditional_quadrature(moments, node_count, options, 0.0);
+}
+
+Quadrature1D compute_hyperbolic_conditional_quadrature(const MomentSet& moments, const std::size_t node_count, const WheelerOptions& options,
+                                                       const double coordinate_scale)
+{
     performance::record_wheeler_call();
-    HyperbolicRecurrence reconstruction = hyperbolic_recurrence(moments, node_count, options);
+    HyperbolicRecurrence reconstruction = hyperbolic_recurrence(moments, node_count, options, coordinate_scale);
     if (reconstruction.outcome.has_value())
     {
         return std::move(*reconstruction.outcome);
@@ -988,7 +997,7 @@ HyperbolicCharacteristicSpeeds compute_hyperbolic_characteristic_speeds(const Mo
     // reconstructs from the same moments, decided on the same recurrence. Each
     // speed is paired with its weight, so that sorting the speeds keeps the
     // pairs together.
-    HyperbolicRecurrence reconstruction = hyperbolic_recurrence(moments, node_count, options);
+    HyperbolicRecurrence reconstruction = hyperbolic_recurrence(moments, node_count, options, 0.0);
     std::vector<std::pair<double, double>> weighted_speeds;
     double closure_moment = 0.0;
     if (reconstruction.outcome.has_value())

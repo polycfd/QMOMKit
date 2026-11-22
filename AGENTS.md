@@ -214,7 +214,8 @@ multiple phase-space dimensions -> CQMOM
 
 For QMOM, `QmomCase::family` or `[phase_space] qmom_family` selects how the
 moments become quadrature nodes: `classical`, the default, `hyperbolic`
-(HyQMOM), or `generalized` (GQMOM). CQMOM uses the classical family. See
+(HyQMOM), or `generalized` (GQMOM). For CQMOM, the family of each coordinate,
+`classical` or `hyperbolic`, is part of its `PhaseSpaceHierarchy`. See
 `docs/developer/qmom_families.md`.
 
 The normal configured workflows are:

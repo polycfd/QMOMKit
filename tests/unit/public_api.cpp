@@ -629,6 +629,75 @@ void test_cqmom_state_candidate_reports_failures_without_throwing()
     assert(threw);
 }
 
+// A hierarchy whose first coordinate is classical and whose second coordinate
+// is hyperbolic, both with node count 2, and the moments of six weighted
+// points, three at each of two values of the first coordinate.
+qmomkit::PhaseSpaceHierarchy classical_then_hyperbolic_hierarchy()
+{
+    qmomkit::HierarchyFamilies families;
+    families.coordinates = {{qmomkit::QmomFamily::classical}, {qmomkit::QmomFamily::hyperbolic}};
+    return qmomkit::PhaseSpaceHierarchy({2, 2}, {0, 1}, families);
+}
+
+qmomkit::RawMomentTensor six_point_moments(const qmomkit::PhaseSpaceHierarchy& hierarchy)
+{
+    const std::vector<std::size_t> extents = hierarchy.moment_extents();
+    return {extents, raw_moments_from_terminals(extents, {0.125, 0.25, 0.125, 0.25, 0.125, 0.125},
+                                                {{-1.0, -1.0, -1.0, 1.5, 1.5, 1.5}, {-0.5, 0.25, 1.0, -1.0, 0.0, 2.0}})};
+}
+
+void test_cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds()
+{
+    // As for QMOM, bounds on a hyperbolic coordinate are invalid input before
+    // any reconstruction, while bounds on a classical coordinate of the same
+    // hierarchy are accepted.
+    const std::string message = "The hyperbolic QMOM family takes no abscissa bounds.";
+    const qmomkit::PhaseSpaceHierarchy hierarchy = classical_then_hyperbolic_hierarchy();
+    const qmomkit::RawMomentTensor moments = six_point_moments(hierarchy);
+    const auto bounded_case = [&](qmomkit::CqmomAbscissaBounds bounds)
+    {
+        return cqmom_case_from_tensor(hierarchy, moments, {}, qmomkit::QmomOptions{false}, qmomkit::CqmomDiagnosticLevel::none,
+                                      qmomkit::VandermondeSolver::automatic, std::move(bounds));
+    };
+    assert(qmomkit::compute_cqmom(bounded_case({qmomkit::AbscissaBounds{-2.0, 2.0}, std::nullopt})).ok());
+
+    const qmomkit::CqmomCase bounded_hyperbolic_case = bounded_case({std::nullopt, qmomkit::AbscissaBounds{-2.0, 3.0}});
+    const qmomkit::CqmomPreparedCase prepared_case{bounded_hyperbolic_case};
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(prepared_case);
+    assert(result.status == qmomkit::CqmomStatus::invalid_input);
+    assert(result.message == message);
+
+    const qmomkit::CqmomStateCandidate candidate = prepared_case.state_candidate(bounded_hyperbolic_case.moments);
+    assert(candidate.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(candidate.reconstruction_status == qmomkit::CqmomStatus::invalid_input);
+    assert(candidate.message == message);
+}
+
+void test_cqmom_candidate_layouts_must_match_the_coordinate_families()
+{
+    // Moment data whose hierarchy differs from the base hierarchy only in the
+    // family of one coordinate does not fit the case, although its required
+    // indices are those of the base layout.
+    const qmomkit::PhaseSpaceHierarchy hierarchy = classical_then_hyperbolic_hierarchy();
+    const qmomkit::CqmomCase cqmom_case = cqmom_case_from_tensor(hierarchy, six_point_moments(hierarchy));
+    const qmomkit::CqmomPreparedCase prepared_case{cqmom_case};
+    const qmomkit::CqmomMomentData& moments = cqmom_case.moments;
+    assert(prepared_case.state_candidate(moments).ok());
+    assert(qmomkit::config::with_initial_moments(prepared_case, moments).ok());
+
+    qmomkit::CqmomMomentData relabeled = moments;
+    relabeled.layout.hierarchy = qmomkit::PhaseSpaceHierarchy({2, 2});
+    const std::string message = "CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.";
+    const qmomkit::CqmomStateCandidate candidate = prepared_case.state_candidate(relabeled);
+    assert(candidate.status == qmomkit::StateCandidateStatus::invalid_input);
+    assert(!candidate.reconstruction_status.has_value());
+    assert(candidate.message == message);
+
+    const auto replaced = qmomkit::config::with_initial_moments(prepared_case, relabeled);
+    assert(!replaced.ok());
+    assert(replaced.error() == "Unable to replace CQMOM initial moments: " + message);
+}
+
 void test_cqmom_moment_layout_two_dimensional_reduced_set()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -3225,6 +3294,8 @@ int main(const int argc, char** argv)
             {"cqmom_state_candidate_matches_initial_state", test_cqmom_state_candidate_matches_initial_state},
             {"cqmom_state_candidate_applies_coordinate_policies", test_cqmom_state_candidate_applies_coordinate_policies},
             {"cqmom_state_candidate_reports_failures_without_throwing", test_cqmom_state_candidate_reports_failures_without_throwing},
+            {"cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds", test_cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds},
+            {"cqmom_candidate_layouts_must_match_the_coordinate_families", test_cqmom_candidate_layouts_must_match_the_coordinate_families},
             {"cqmom_case_public_api_rejects_missing_values", test_cqmom_case_public_api_rejects_missing_values},
             {"cqmom_case_public_api_rejects_non_finite_values", test_cqmom_case_public_api_rejects_non_finite_values},
             {"cqmom_case_public_api_rejects_invalid_options", test_cqmom_case_public_api_rejects_invalid_options},

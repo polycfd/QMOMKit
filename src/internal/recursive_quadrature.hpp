@@ -67,8 +67,8 @@ struct PreparedCqmomMetadata
     const CqmomMomentLayout moment_layout;
     const std::shared_ptr<const BranchMomentLayout> root_branch_layout;
     // The branch-layout tree differs between fixed and adaptive reconstruction:
-    // an adaptive tree carries a child case for every parent node count Wheeler
-    // could realize, a fixed one only the single configured count. Metadata is
+    // an adaptive tree carries a child case for every parent node count a
+    // branch can return, a fixed one only the maximum node count. Metadata is
     // therefore usable only by a request whose flag matches the one it was
     // built with.
     const bool adaptive_branch_counts = false;
@@ -88,8 +88,14 @@ struct BranchMomentSlice
     std::vector<double> values;
 };
 
+// `maximum_node_counts` holds the maximum node count of the coordinate of each
+// level, one per extent, in conditioning order. The count of a level bounds
+// the parent node counts of its child cases. The extents do not determine it,
+// since a hyperbolic coordinate with node count n has the extent 2n + 1 and
+// holds up to n + 1 nodes.
 [[nodiscard]] std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vector<std::size_t> extents, std::vector<MultiIndex> indices,
-                                                                                    bool adaptive_parent_node_counts = true);
+                                                                                    bool adaptive_parent_node_counts,
+                                                                                    const std::vector<std::size_t>& maximum_node_counts);
 [[nodiscard]] std::shared_ptr<const PreparedCqmomMetadata> create_prepared_cqmom_metadata(CqmomMomentLayout moment_layout,
                                                                                           bool adaptive_branch_counts);
 [[nodiscard]] bool prepared_cqmom_metadata_is_compatible(const PreparedCqmomMetadata& metadata, const PhaseSpaceHierarchy& hierarchy,

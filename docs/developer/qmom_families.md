@@ -19,7 +19,7 @@ other than `classical`.
 | Reconstruction | `compute_qmom_from_moments` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `compute_qmom(const QmomCase&)` and state candidates pass the case's family and its settings, which a state keeps (`QmomState::family()`, `QmomState::generalized_options()`). The `compute_qmom` overloads that take options pass `classical`. `classical` takes the paths of [QMOM](qmom.md), `hyperbolic` calls `compute_hyperbolic_quadrature` and `generalized` calls `compute_generalized_quadrature` for the normal continuation and `compute_bounded_generalized_quadrature` for the gamma, lognormal and beta continuations, each with `node_count` as $N$. Abscissa bounds with `hyperbolic` or the normal continuation are `invalid_input` before any reconstruction. For `generalized`, `internal::takes_abscissa_bounds` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp)) decides which continuations take bounds, for the reconstruction and the configuration alike. |
 | Evolution | `holds_full_quadrature`, `full_quadrature_request`, `reduced_quadrature_request`, `current_reconstruction_request` ([`src/phase_space_evolution.cpp`](../../src/phase_space_evolution.cpp)) | The count rule of [Phase-space evolution](phase_space_evolution.md#node-counts). The family's full quadrature is requested from the family. A reduced quadrature is requested from the classical family for `classical` and `hyperbolic`, and from the family itself for `generalized`. Every request carries the state's abscissa bounds. A growth trial of `generalized` is a single attempt at the base node count it asks for, through `internal::compute_qmom_growth_trial` ([`src/internal/qmom_family.hpp`](../../src/internal/qmom_family.hpp), defined in [`src/public_api.cpp`](../../src/public_api.cpp)). |
 | Configuration | `parse_qmom_family`, `parse_generalized_options`, `infer_qmom_initial_maximum_order`, `create_family_qmom_case` ([`src/configuration.cpp`](../../src/configuration.cpp)) | `[phase_space] qmom_family`, the `generalized_node_counts`, `generalized_continuation` and `generalized_nu` of the generalized family, the default `[initial] maximum_order` from the moments the family reads, and the case with the family and its moments ([Configuration and output](configuration_and_output.md#mapping-to-objects)). |
-| CQMOM | `CqmomCase::qmom_options` ([`include/qmomkit/cqmom.hpp`](../../include/qmomkit/cqmom.hpp)) | Only `classical`: a CQMOM case holds `QmomOptions`, which carry no family ([CQMOM](cqmom.md)). |
+| CQMOM | `PhaseSpaceHierarchy::families()` ([`include/qmomkit/phase_space_hierarchy.hpp`](../../include/qmomkit/phase_space_hierarchy.hpp)) | The hierarchy holds the family of each coordinate, `classical` or `hyperbolic`, and refuses `generalized` ([Hyperbolic coordinates in CQMOM](#hyperbolic-coordinates-in-cqmom)). |
 | Characteristic speeds | `compute_hyqmom_characteristic_speeds` ([`src/public_api.cpp`](../../src/public_api.cpp)) | `invalid_input` for every family other than `hyperbolic`, for which they are the [speeds](#characteristic-speeds) of the quadrature reconstructed from the stored moments, with their [weights and the closure moment](#weights-and-closure-moment). |
 
 Every `switch` over `QmomFamily` has a case per family and no `default`, so the
@@ -34,8 +34,10 @@ of free transport is globally hyperbolic, as shown for $N\le9$ (Fox & Laurent,
 ([`src/internal/hyperbolic_quadrature.hpp`](../../src/internal/hyperbolic_quadrature.hpp))
 returns the $(N+1)$-node quadrature of that closure, which reproduces
 $m_0,\ldots,m_{2N}$ and the closed $m_{2N+1}$. It uses $s=0$, as
-`compute_quadrature(...)` does. HyQMOM is defined on the real line, so abscissa
-bounds give the message `The hyperbolic QMOM family takes no abscissa bounds.`
+`compute_quadrature(...)` does, and `compute_hyperbolic_conditional_quadrature`
+takes the coordinate scale $s$ of conditional moments. HyQMOM is defined on the
+real line, so abscissa bounds give the message
+`The hyperbolic QMOM family takes no abscissa bounds.`
 
 ### Reconstruction
 
@@ -221,11 +223,56 @@ to the tridiagonal matrix with the same diagonal, $b_1,\ldots,b_N$ above it and
 ones below it, so the powers act on $e_1$ through that matrix, without square
 roots. For a classical quadrature, it is $\sum_i w_i\xi_i^{2N+1}$ of its nodes.
 
+### Hyperbolic coordinates in CQMOM
+
+A coordinate of a CQMOM hierarchy is `hyperbolic` when its entry in
+`HierarchyFamilies` says so
+([CQMOM](cqmom.md#counts-of-a-coordinate)). With node count $N$, the
+coordinate reads $m_0,\ldots,m_{2N}$ in every branch, and its quadrature holds
+up to $N+1$ nodes. Each branch is reconstructed as a QMOM state of the
+`hyperbolic` family is, by the count rule of
+[Phase-space evolution](phase_space_evolution.md#node-counts). A branch whose
+ceiling is $N+1$ is reconstructed by HyQMOM with node count $N$, as described
+in [Reconstruction](#reconstruction). A branch whose ceiling is $c\le N$ is
+reconstructed by the classical inversion with at most $c$ nodes. A branch that
+grows therefore passes through the classical quadratures of $1,\ldots,N$ nodes
+before it reaches the $N+1$ nodes of HyQMOM, and never grows from $N-1$ nodes
+to $N+1$. In fixed mode, every branch must return $N+1$ nodes, so a branch
+whose moments lie on the boundary fails as `qmom_failed`.
+
+Conditional moments carry the rounding of the solve that produced them
+([CQMOM](cqmom.md#the-recursion)). In adaptive mode, a branch below the root
+therefore calls `compute_hyperbolic_conditional_quadrature` with the scale $s$
+of its coordinate ([QMOM](qmom.md#coordinate-scales)), which adds the floor
+$m_0 s^{2k}$ to the rounding bound $\tau_k$ of the recurrence, as
+`compute_conditional_quadrature` does for the classical inversion. The root
+reconstructs data and keeps $s=0$, and fixed mode passes $s=0$ at every level,
+as for a classical coordinate. With $s=0$, the conditional function returns the
+quadrature of `compute_hyperbolic_quadrature` bit for bit.
+
+The children of a `hyperbolic` coordinate are conditioned on its $N+1$ nodes
+$\xi_\alpha$ with weights $w_\alpha$. Their mixed moments $M_{p,q}$ have the
+parent orders $p=0,\ldots,N$, one more than the children of a `classical`
+coordinate with the same node count, so the conditional Vandermonde system is
+square, of size $N+1$, and has one solution. Because the HyQMOM quadrature
+reproduces $m_0,\ldots,m_{2N}$, this solution is exact for polynomial
+conditional moments: if a conditional moment of the children is a polynomial
+$P$ of degree at most $N$ in the parent coordinate, then
+$\sum_\alpha w_\alpha \xi_\alpha^p P(\xi_\alpha) = M_{p,q}$ for every
+$p\le N$, and the children receive $P(\xi_\alpha)$. The verification cases of
+[`hyperbolic_coordinates.cpp`](../../tests/verification/cqmom/hyperbolic_coordinates.cpp)
+check this exactness for a conditional mean of degree 2 with $N=2$, and for
+conditional moments of degree up to 3 with $N=3$. A branch that holds a
+classical quadrature of $k\le N$ nodes conditions its children on those nodes
+with the parent orders $0,\ldots,k-1$, as a reduced classical branch does,
+which a verification case checks for a hyperbolic parent on the boundary.
+
 ### Where the code lives
 
 | Function | File | Role |
 | --- | --- | --- |
 | `compute_hyperbolic_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal HyQMOM reconstruction, $s=0$. |
+| `compute_hyperbolic_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal HyQMOM reconstruction of conditional moments at the coordinate scale $s$, for the branches of a `hyperbolic` CQMOM coordinate. |
 | `compute_hyqmom_characteristic_speeds` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public HyQMOM characteristic speeds, their weights and the closure moment of a state: family dispatch, then the internal speeds of the stored moments with the state's node count and options. |
 | `compute_hyperbolic_characteristic_speeds` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Internal speeds, weights and closure moment of $m_0,\ldots,m_{2N}$, those of the quadrature `hyperbolic_recurrence` decides. |
 | `hyperbolic_closure_moment` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | $m_{2N+1}$ of the quadrature of $J_{N+1}$, from the recurrence. |
@@ -483,7 +530,13 @@ A family is a value of `QmomFamily` with:
    settings, and its default `[initial] maximum_order`;
 5. its settings, if it has any, as members of `QmomCase`, `QmomState` and
    `QmomReconstructionRequest`, as for `generalized`;
-6. unit tests of each of these, a verification case against an independent
+6. if CQMOM accepts it, as for `hyperbolic`, in
+   [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp): its
+   acceptance in `validated_families`, its maximum node count in the
+   `PhaseSpaceHierarchy` constructor, the parent orders of its children in
+   `mixed_parent_order_count`, and the reconstruction of its branches in
+   `compute_branch_quadrature`;
+7. unit tests of each of these, a verification case against an independent
    reference ([Testing](testing.md)), and public-header coverage;
-7. a section here, and its row and section in the user guide's
+8. a section here, and its row and section in the user guide's
    [QMOM families](../user/7_qmom_families.md).

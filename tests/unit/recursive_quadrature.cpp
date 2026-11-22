@@ -126,10 +126,13 @@ BranchMomentSliceFixture make_branch_slice_from_tensor(const qmomkit::PhaseSpace
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<std::size_t> moment_extents = hierarchy.moment_extents();
     std::vector<std::size_t> ordered_extents;
+    std::vector<std::size_t> ordered_maximum_node_counts;
     ordered_extents.reserve(hierarchy.number_of_dimensions());
+    ordered_maximum_node_counts.reserve(hierarchy.number_of_dimensions());
     for (const std::size_t dimension : hierarchy.conditioning_order())
     {
         ordered_extents.push_back(moment_extents[dimension]);
+        ordered_maximum_node_counts.push_back(hierarchy.maximum_node_counts()[dimension]);
     }
 
     std::vector<qmomkit::MultiIndex> ordered_indices;
@@ -148,7 +151,7 @@ BranchMomentSliceFixture make_branch_slice_from_tensor(const qmomkit::PhaseSpace
     }
 
     std::shared_ptr<const qmomkit::internal::BranchMomentLayout> branch_layout =
-        qmomkit::internal::create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices));
+        qmomkit::internal::create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices), true, ordered_maximum_node_counts);
     return {branch_layout, {branch_layout.get(), std::move(values)}};
 }
 
@@ -1399,21 +1402,154 @@ void test_hierarchy_families_of_the_wrong_length_are_rejected()
         [] { (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1}, qmomkit::HierarchyFamilies{std::vector<qmomkit::CoordinateFamily>(3)}); }, message);
 }
 
-void test_hierarchy_rejects_non_classical_families()
+void test_hierarchy_rejects_generalized_families()
 {
-    const std::string message = "CQMOM supports only classical coordinates.";
-    for (const qmomkit::QmomFamily family : {qmomkit::QmomFamily::hyperbolic, qmomkit::QmomFamily::generalized})
+    assert_throws_invalid_argument_with_message(
+        []
+        {
+            qmomkit::HierarchyFamilies families{std::vector<qmomkit::CoordinateFamily>(2)};
+            families.coordinates[1].family = qmomkit::QmomFamily::generalized;
+            families.coordinates[1].generalized_options.node_count = 9;
+            (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1}, families);
+        },
+        "CQMOM supports only classical and hyperbolic coordinates.");
+}
+
+qmomkit::HierarchyFamilies families_of(const std::vector<qmomkit::QmomFamily>& families)
+{
+    qmomkit::HierarchyFamilies result{std::vector<qmomkit::CoordinateFamily>(families.size())};
+    for (std::size_t dimension = 0; dimension < families.size(); ++dimension)
     {
-        assert_throws_invalid_argument_with_message(
-            [family]
-            {
-                qmomkit::HierarchyFamilies families{std::vector<qmomkit::CoordinateFamily>(2)};
-                families.coordinates[1].family = family;
-                families.coordinates[1].generalized_options.node_count = 9;
-                (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1}, families);
-            },
-            message);
+        result.coordinates[dimension].family = families[dimension];
     }
+    return result;
+}
+
+void test_hyperbolic_coordinates_hold_one_node_more()
+{
+    // A hyperbolic coordinate with node count n holds up to n + 1 nodes and
+    // reads 2n + 1 moments. The node count keeps its value.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3}, {1, 0}, families_of({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic}));
+
+    assert_vector_equal(hierarchy.node_counts(), {2, 3});
+    assert_vector_equal(hierarchy.maximum_node_counts(), {2, 4});
+    assert_vector_equal(hierarchy.moment_extents(), {4, 7});
+    assert(hierarchy.total_nodes() == 8);
+    for (std::size_t flat_index = 0; flat_index < hierarchy.total_nodes(); ++flat_index)
+    {
+        const qmomkit::MultiIndex node_index = qmomkit::unflatten_multi_index(flat_index, {2, 4});
+        assert(hierarchy.flatten_node_index(node_index) == flat_index);
+        assert_vector_equal(hierarchy.unflatten_node_index(flat_index), node_index);
+    }
+    assert(qmomkit::enumerate_quadrature_node_multi_indices(hierarchy).size() == 8);
+}
+
+void test_same_hierarchy_compares_families()
+{
+    const qmomkit::PhaseSpaceHierarchy classical({2, 3}, {0, 1});
+    const qmomkit::PhaseSpaceHierarchy hyperbolic({2, 3}, {0, 1}, families_of({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic}));
+
+    assert(!qmomkit::internal::same_hierarchy(classical, hyperbolic));
+    assert(qmomkit::internal::same_hierarchy(
+        hyperbolic, qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1}, families_of({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic}))));
+}
+
+bool layout_contains(const qmomkit::CqmomMomentLayout& layout, const qmomkit::MultiIndex& index)
+{
+    return std::find(layout.required_indices.begin(), layout.required_indices.end(), index) != layout.required_indices.end();
+}
+
+void test_hyperbolic_coordinates_change_the_required_moments()
+{
+    // At level l, the earlier axes span the parent orders K_j of their
+    // coordinate, n_j for classical and n_j + 1 for hyperbolic, and the active
+    // axis the S_l moments its family reads, so the layout holds
+    // S_0 + sum over l >= 1 of (K_0 ... K_{l-1}) (S_l - 1) moments.
+    const qmomkit::CqmomMomentLayout classical = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 1}, {0, 1}));
+    assert(classical.required_indices.size() == 4 + 2 * 1);
+    assert(!layout_contains(classical, {2, 1}));
+
+    // A hyperbolic parent with node count 2 adds the parent order 2 to the
+    // mixed moments of its child and its own moment of order 4.
+    const qmomkit::CqmomMomentLayout parent = qmomkit::create_cqmom_moment_layout(
+        qmomkit::PhaseSpaceHierarchy({2, 1}, {0, 1}, families_of({qmomkit::QmomFamily::hyperbolic, qmomkit::QmomFamily::classical})));
+    assert(parent.required_indices.size() == 5 + 3 * 1);
+    assert(layout_contains(parent, {4, 0}));
+    assert(layout_contains(parent, {2, 1}));
+
+    // A hyperbolic last coordinate with node count 2 reads the conditional
+    // moments up to order 4 at each of the classical parent's two nodes.
+    const qmomkit::CqmomMomentLayout child = qmomkit::create_cqmom_moment_layout(
+        qmomkit::PhaseSpaceHierarchy({2, 2}, {0, 1}, families_of({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic})));
+    assert(child.required_indices.size() == 4 + 2 * 4);
+    assert(layout_contains(child, {1, 4}));
+    assert(!layout_contains(child, {2, 1}));
+}
+
+void test_branch_layouts_below_a_hyperbolic_coordinate()
+{
+    // The children of a hyperbolic coordinate with node count 2 are
+    // conditioned on up to three nodes. An adaptive tree therefore holds a
+    // child case for every parent node count up to three, and a fixed tree
+    // for three only.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1}, {0, 1}, families_of({qmomkit::QmomFamily::hyperbolic, qmomkit::QmomFamily::classical}));
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+
+    const auto adaptive = qmomkit::internal::create_prepared_cqmom_metadata(layout, true);
+    const std::vector<qmomkit::internal::BranchMomentChildLayout>& adaptive_cases = adaptive->root_branch_layout->child_layouts_by_parent_node_count;
+    assert(adaptive_cases.size() == 4);
+    for (std::size_t parent_node_count = 1; parent_node_count <= 3; ++parent_node_count)
+    {
+        assert(adaptive_cases[parent_node_count].child_layout != nullptr);
+        assert(adaptive_cases[parent_node_count].parent_node_count == parent_node_count);
+    }
+
+    const auto fixed = qmomkit::internal::create_prepared_cqmom_metadata(layout, false);
+    const std::vector<qmomkit::internal::BranchMomentChildLayout>& fixed_cases = fixed->root_branch_layout->child_layouts_by_parent_node_count;
+    assert(fixed_cases.size() == 4);
+    assert(fixed_cases[1].child_layout == nullptr && fixed_cases[2].child_layout == nullptr);
+    assert(fixed_cases[3].child_layout != nullptr);
+    // One column per child moment, orders 0 and 1, each with the parent
+    // orders 0, 1 and 2.
+    assert(fixed_cases[3].rhs_columns.size() == 2);
+    for (const qmomkit::internal::BranchMomentRhsColumn& column : fixed_cases[3].rhs_columns)
+    {
+        assert(column.parent_offsets_by_order.size() == 3);
+    }
+}
+
+void test_recursive_adaptive_reduces_roundoff_deterministic_hyperbolic_branch()
+{
+    // The rule of test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch
+    // with phase-space dimension 1 hyperbolic. The branch of dimension 1 at
+    // path {0, 0} holds a single point, so its conditional moments lie on the
+    // boundary up to the rounding of the conditional solve. With the scale of
+    // its coordinate in the rounding test, HyQMOM reduces the branch to one
+    // node.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2, 2}, {0, 2, 1, 3},
+                                                 families_of({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic,
+                                                              qmomkit::QmomFamily::classical, qmomkit::QmomFamily::classical}));
+    const std::vector<std::size_t> extents = hierarchy.moment_extents();
+    const std::vector<double> weights{0.45 * 0.3, 0.45 * 0.7, 0.55 * 0.3, 0.55 * 0.7};
+    const std::vector<std::vector<double>> abscissas{{-0.5, -0.5, 1.0, 1.0}, {0.0, 0.0, 3.0, 3.0}, {-1.0, 2.0, -1.0, 2.0}, {-0.5, 1.0, -3.5, -2.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{true}, qmomkit::CqmomDiagnosticLevel::detailed));
+    assert(result.ok());
+    bool found_branch = false;
+    for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostics : result.diagnostics)
+    {
+        if (diagnostics.conditioning_level == 2 && diagnostics.path == qmomkit::ConditioningPath({0, 0}))
+        {
+            found_branch = true;
+            assert(diagnostics.phase_space_dimension == 1);
+            assert(diagnostics.requested_node_count == 3);
+            assert(diagnostics.actual_node_count == 1);
+            assert(diagnostics.adaptive_node_count_reduced);
+        }
+    }
+    assert(found_branch);
 }
 
 void test_generalized_options_of_classical_coordinates_are_accepted()
@@ -2281,7 +2417,13 @@ int main(const int argc, char** argv)
             {"maximum_node_counts_of_classical_coordinates_are_the_node_counts",
              test_maximum_node_counts_of_classical_coordinates_are_the_node_counts},
             {"hierarchy_families_of_the_wrong_length_are_rejected", test_hierarchy_families_of_the_wrong_length_are_rejected},
-            {"hierarchy_rejects_non_classical_families", test_hierarchy_rejects_non_classical_families},
+            {"hierarchy_rejects_generalized_families", test_hierarchy_rejects_generalized_families},
+            {"hyperbolic_coordinates_hold_one_node_more", test_hyperbolic_coordinates_hold_one_node_more},
+            {"same_hierarchy_compares_families", test_same_hierarchy_compares_families},
+            {"hyperbolic_coordinates_change_the_required_moments", test_hyperbolic_coordinates_change_the_required_moments},
+            {"branch_layouts_below_a_hyperbolic_coordinate", test_branch_layouts_below_a_hyperbolic_coordinate},
+            {"recursive_adaptive_reduces_roundoff_deterministic_hyperbolic_branch",
+             test_recursive_adaptive_reduces_roundoff_deterministic_hyperbolic_branch},
             {"generalized_options_of_classical_coordinates_are_accepted", test_generalized_options_of_classical_coordinates_are_accepted},
             {"hierarchy_with_families_validates_node_counts_and_conditioning_order",
              test_hierarchy_with_families_validates_node_counts_and_conditioning_order},

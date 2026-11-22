@@ -10,12 +10,16 @@ picture is in [Concepts](../user/3_concepts.md#qmom-and-cqmom).
 The hierarchy stores node counts in phase-space order, and the conditioning
 order is a separate permutation that only sets the traversal; see
 [Numerical conventions](numerical_conventions.md). Below, $c_l$ is the
-coordinate at conditioning level $l$ and $N_l$ its configured node count.
+coordinate at conditioning level $l$, $N_l$ its node count and $K_l$ its
+maximum node count.
 
-Every inversion of CQMOM is classical: the hierarchy accepts only `classical`
-coordinates ([Counts of a coordinate](#counts-of-a-coordinate)), and a
-`CqmomCase` holds `QmomOptions`, which carry no family
-([QMOM families](qmom_families.md)).
+Each coordinate is `classical` or `hyperbolic`
+([Counts of a coordinate](#counts-of-a-coordinate)). A branch of a `classical`
+coordinate is inverted by the Wheeler inversion of [QMOM](qmom.md), and a
+branch of a `hyperbolic` coordinate by HyQMOM or by a classical quadrature of at
+most $N_l$ nodes
+([QMOM families](qmom_families.md#hyperbolic-coordinates-in-cqmom)). A
+`CqmomCase` holds `QmomOptions`, which carry no family.
 
 ## The recursion
 
@@ -25,9 +29,12 @@ needs, indexed in conditioning order with $c_l$ first.
 
 1. **Root.** The root slice is the required moment data, with each
    multi-index permuted into conditioning order. Its leading sequence
-   $M_{k\,e_{c_0}}$, $k<2N_0$, is the marginal of $c_0$, which the Wheeler
-   algorithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]
-   inverts as in [QMOM](qmom.md). The root weights add up to $M_{0,\ldots,0}$.
+   $M_{k\,e_{c_0}}$, $k<S_0$, is the marginal of $c_0$, with $S_l=2N_l$ moments
+   for a `classical` coordinate and $S_l=2N_l+1$ for a `hyperbolic` one. The
+   marginal of a `classical` coordinate is inverted by the Wheeler algorithm
+   [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)] as in
+   [QMOM](qmom.md), and the marginal of a `hyperbolic` coordinate by HyQMOM.
+   The root weights add up to $M_{0,\ldots,0}$.
 2. **Conditional moments.** For a nonterminal branch whose inversion accepted
    $n$ nodes $\xi_i$ with weights $w_i$, the slices of its $n$ children solve
    one weighted Vandermonde system with one column per trailing multi-index $q$:
@@ -43,12 +50,13 @@ needs, indexed in conditioning order with $c_l$ first.
    coordinates; row $i$ of $C$ is the slice of child $i$. All columns
    are solved together by `solve_conditional_vandermonde_system`;
    [Linear algebra](linear_algebra.md) describes how. Only parent orders
-   $p<n$ enter, so a branch with fewer nodes than configured solves a square
-   system of its own size. Column $q=0$ reproduces moments that Wheeler
-   matched, so $C_{i,0}=1$ up to rounding: child slices are normalized
-   conditional moments, and weights below the root are conditional
+   $p<n$ enter, so a branch with fewer nodes than its maximum node count solves
+   a square system of its own size. Column $q=0$ reproduces moments that the
+   inversion matched, so $C_{i,0}=1$ up to rounding: child slices are
+   normalized conditional moments, and weights below the root are conditional
    probabilities.
-3. **Next level.** Wheeler inverts the leading sequence of every child slice.
+3. **Next level.** The leading sequence of every child slice is inverted as
+   at the root, by the family of its coordinate.
    Conditional moments carry the rounding of the solve that produced them,
    relative to the scale of their coordinate rather than to their own
    magnitude, so in adaptive mode each inversion receives that scale
@@ -69,29 +77,38 @@ conditional step is the file-local `reconstruct_child_slices`.
 The hierarchy holds the family of each coordinate, a `CoordinateFamily` in
 `HierarchyFamilies`, which `families()` returns with one entry per phase-space
 dimension. A hierarchy built without families, or with empty families, has
-`classical` coordinates only, and the constructor refuses any other family.
+`classical` coordinates only. The constructor accepts `classical` and
+`hyperbolic` coordinates and refuses `generalized` ones.
 
 Each coordinate has two counts. Its node count $N_l$, `node_counts()` and
 `node_count(dimension)`, is the node count of its reconstruction: it fixes the
-moments the coordinate requires and bounds the count requested from Wheeler.
-Its maximum node count, `maximum_node_counts()`, is the largest number of nodes
-its quadrature holds: it fixes the node structure. For a `classical` coordinate
-the two are equal. The code reads each count for its own purpose:
+moments the coordinate requires. Its maximum node count $K_l$,
+`maximum_node_counts()`, is the largest number of nodes its quadrature holds:
+it fixes the node structure. $K_l=N_l$ for a `classical` coordinate and
+$K_l=N_l+1$ for a `hyperbolic` one. The code reads each count for its own
+purpose:
 
 | Use | Count | Read through |
 | --- | --- | --- |
-| Node structure: storage, flat node indices, path bounds, the enumeration of nodes, active branch counts and their ceilings | maximum node count | `maximum_node_counts()`, `total_nodes()` |
-| The node count requested from Wheeler and from the bounded selection | at most $N_l$ | a branch's ceiling: the maximum node count, or the count recorded for the branch |
-| The moments of the coordinate while it is the active axis | $2N_l$ | `moment_extents()` |
-| The parent orders of the mixed moments of its children | $N_l$ | `node_count(dimension)` |
+| Node structure: storage, flat node indices, path bounds, the enumeration of nodes, active branch counts and their ceilings | $K_l$ | `maximum_node_counts()`, `total_nodes()` |
+| The number of nodes a branch may return | at most $K_l$ | a branch's ceiling: the maximum node count, or the count recorded for the branch |
+| The node count passed to HyQMOM | $N_l$ | `node_counts()` |
+| The moments of the coordinate while it is the active axis | $S_l$: $2N_l$, or $2N_l+1$ for `hyperbolic` | `moment_extents()` |
+| The parent orders of the mixed moments of its children | $0,\ldots,K_l-1$ | `maximum_node_counts()` |
 
-A branch's ceiling is a count of nodes of the quadrature. It serves as the node
-count of the reconstruction because the two counts are equal for a `classical`
-coordinate.
+A branch's ceiling is a count of nodes of the quadrature. For a `classical`
+coordinate, it is the node count requested from Wheeler and from the bounded
+selection. For a `hyperbolic` coordinate, the ceiling decides the inversion by
+the count rule of a QMOM state
+([Phase-space evolution](phase_space_evolution.md#node-counts)). The ceiling
+$N_l+1$ asks for HyQMOM with node count $N_l$, and a ceiling $c\le N_l$ asks for
+the classical inversion with at most $c$ nodes. A branch therefore grows
+through the classical counts to the $N_l+1$ nodes of HyQMOM, one node at a time.
 
 Every check that compares two hierarchies, those of layouts, of prepared
 metadata and of quadratures, goes through `internal::same_hierarchy`, which
-compares the node counts and the conditioning order.
+compares the node counts, the conditioning order and the family of each
+coordinate.
 
 ## Required moments
 
@@ -100,14 +117,14 @@ $l$ it enumerates, in conditioning order:
 
 | Coordinates | Orders | Reason |
 | --- | --- | --- |
-| $c_j$, $j<l$ | $0,\ldots,N_j-1$ | rows of the conditional systems at earlier levels |
-| $c_l$ | $0,\ldots,2N_l-1$ | the Wheeler sequence at level $l$ |
+| $c_j$, $j<l$ | $0,\ldots,K_j-1$ | rows of the conditional systems at earlier levels |
+| $c_l$ | $0,\ldots,S_l-1$ | the sequence inverted at level $l$ |
 | $c_j$, $j>l$ | $0$ | not yet reached |
 
 The union over levels, deduplicated in first-occurrence order, is stored in
 phase-space order in `CqmomMomentLayout::required_indices`. Each level adds the
 indices whose order in $c_l$ is positive, so the layout holds
-$2N_0 + \sum_{l\ge1}\bigl(\prod_{j<l}N_j\bigr)(2N_l-1)$ moments; both the set
+$S_0 + \sum_{l\ge1}\bigl(\prod_{j<l}K_j\bigr)(S_l-1)$ moments; both the set
 and its size depend on the conditioning order. The layout is the same in
 adaptive mode, where a reduced branch reads only part of it.
 
@@ -125,20 +142,22 @@ values in stored order without lookups.
 
 ### Branch layouts
 
-`create_branch_moment_layout` turns a slice's indices into lookup metadata: the
-offsets of the Wheeler sequence, a table from each multi-index to its position,
-and, for each parent node count, a *child case*: the slice offsets that form
-each right-hand-side column and the child slice's own layout, built recursively.
-Child cases depend only on the parent node count, so every branch with the same
-accepted count uses the same one. A fixed layout has a child case only for the
-configured count; an adaptive layout has one for every count from one to the
-configured maximum.
+`create_branch_moment_layout` turns a slice's indices, with the maximum node
+count of each level, into lookup metadata: the offsets of the Wheeler sequence,
+a table from each multi-index to its position, and, for each parent node count,
+a *child case*: the slice offsets that form each right-hand-side column and the
+child slice's own layout, built recursively. The maximum node counts are passed
+in, since the extent $2N_l+1$ of a `hyperbolic` coordinate does not determine
+its $N_l+1$ nodes. Child cases depend only on the parent node count, so every
+branch with the same accepted count uses the same one. A fixed layout has a
+child case only for the maximum node count; an adaptive layout has one for
+every count from one to the maximum node count.
 
 ## Fixed and adaptive reconstruction
 
 `QmomOptions::adaptive` decides both whether each Wheeler inversion may
 reduce its node count and whether branches may differ in size. In fixed mode, a
-branch that returns any other count than its configured one fails with
+branch that returns any other count than its maximum node count fails with
 `qmom_failed`. In adaptive mode, each branch accepts at most its ceiling, and
 the children of a reduced branch use the child case of the accepted count. The
 two storage layouts are in
@@ -148,8 +167,8 @@ two storage layouts are in
 
 A reconstruction that creates an adaptive `CqmomState` records one
 `CqmomActiveBranchCount` per accepted branch at every level: the level, the
-parent path, the phase-space dimension, the configured count and the accepted
-count.
+parent path, the phase-space dimension, the maximum node count, in the field
+`configured_node_count`, and the accepted count.
 
 A later reconstruction can receive these records.
 `validate_active_branch_counts` then checks, in one pass over the sorted
@@ -159,14 +178,14 @@ in another order are sorted into a copy first, and a malformed set is
 `invalid_input`. A fixed reconstruction ignores the records.
 `recursive_branch_node_count_limit` makes each branch's recorded count its
 ceiling. If growth is allowed, which only the post-source reconstruction does, a
-branch that returns exactly its recorded count, below its configured maximum,
-also tries one more node. It keeps that quadrature only if Wheeler returns all
-of its nodes.
+branch that returns exactly its recorded count, below its maximum node count,
+also tries one more node. It keeps that quadrature only if the inversion
+returns all of its nodes.
 
 A branch whose accepted count differs from its record has different children:
 they condition on other nodes, so the records below it do not describe them.
 The traversal therefore drops the records of its whole subtree, and those
-branches are reconstructed up to their configured counts. Which
+branches are reconstructed up to their maximum node counts. Which
 reconstructions of phase-space evolution pass the records, and whether they
 allow growth, is in
 [Phase-space evolution](phase_space_evolution.md#node-counts).
@@ -174,8 +193,9 @@ allow growth, is in
 ### Bounds
 
 `CqmomAbscissaBounds` holds one optional `AbscissaBounds` per phase-space
-dimension, or nothing at all. A non-empty vector of the wrong length, or an
-interval that is not finite with lower below upper, is `invalid_input`. Every
+dimension, or nothing at all. A non-empty vector of the wrong length, an
+interval that is not finite with lower below upper, or bounds on a `hyperbolic`
+coordinate, which HyQMOM does not take, are `invalid_input`. Every
 branch of a bounded coordinate goes through the same `select_bounded_quadrature`
 as QMOM, with that branch's ceiling, recorded count and growth permission; see
 [QMOM](qmom.md#abscissa-bounds).
@@ -186,7 +206,7 @@ as QMOM, with that branch's ceiling, recorded count and growth permission; see
 required moment layout, the root branch layout with every child case below
 it, and the adaptive flag. It holds no moment values, quadratures, or solver
 workspaces, and depends only on the hierarchy and the flag. The adaptive
-structure holds a child case for every count Wheeler can return, so it too is
+structure holds a child case for every count a branch can return, so it too is
 built once and never depends on the moments.
 
 `CqmomPreparedCase` builds it once in its constructor, which throws
@@ -199,8 +219,8 @@ through a `std::shared_ptr<const PreparedCqmomMetadata>` with:
 - every case from `config::with_initial_moments(...)`, which keeps the
   hierarchy and the flag and so stays compatible.
 
-`prepared_cqmom_metadata_is_compatible` compares node counts, conditioning
-order, required indices and the flag; a prepared case or state given
+`prepared_cqmom_metadata_is_compatible` compares the hierarchies through
+`same_hierarchy`, the required indices and the flag; a prepared case or state given
 incompatible metadata throws `std::invalid_argument`. Every reconstruction of
 a prepared case or state, including those inside evolution steps, goes
 through `compute_cqmom_internal`, which takes the metadata of the lineage by
@@ -241,7 +261,7 @@ nothing there.
 | `CqmomStatus` | Cause |
 | --- | --- |
 | `invalid_input` | Invalid conditional options or diagnostic level, a layout or values that do not fit the hierarchy, non-finite moments, invalid bounds or active counts, node counts whose $2N$ overflows. |
-| `qmom_failed` | A branch's Wheeler inversion failed, or a fixed branch returned another count. |
+| `qmom_failed` | A branch's inversion failed, or a fixed branch returned another count. |
 | `conditional_moment_failed` | A branch's conditional system could not be solved or had non-finite inputs. |
 
 `failed_phase_space_dimension` is the coordinate of the failing level and has

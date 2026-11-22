@@ -63,10 +63,17 @@ struct CqmomMomentRateValidationMessages
     std::string finite_values;
 };
 
+// Two hierarchies are the same when their node counts and their conditioning
+// orders are equal. Every check that compares hierarchies goes through this
+// function.
+[[nodiscard]] inline bool same_hierarchy(const PhaseSpaceHierarchy& lhs, const PhaseSpaceHierarchy& rhs)
+{
+    return lhs.node_counts() == rhs.node_counts() && lhs.conditioning_order() == rhs.conditioning_order();
+}
+
 [[nodiscard]] inline bool same_cqmom_layout(const CqmomMomentLayout& lhs, const CqmomMomentLayout& rhs)
 {
-    return lhs.hierarchy.node_counts() == rhs.hierarchy.node_counts() && lhs.hierarchy.conditioning_order() == rhs.hierarchy.conditioning_order() &&
-           lhs.required_indices == rhs.required_indices;
+    return same_hierarchy(lhs.hierarchy, rhs.hierarchy) && lhs.required_indices == rhs.required_indices;
 }
 
 [[nodiscard]] inline bool multi_index_within_extents(const MultiIndexView index, const std::vector<std::size_t>& extents)
@@ -88,9 +95,7 @@ struct CqmomMomentRateValidationMessages
 inline void validate_cqmom_moment_layout_matches_expected(const CqmomMomentLayout& layout, const CqmomMomentLayout& expected_layout,
                                                           const std::string& message)
 {
-    if (layout.hierarchy.node_counts() != expected_layout.hierarchy.node_counts() ||
-        layout.hierarchy.conditioning_order() != expected_layout.hierarchy.conditioning_order() ||
-        layout.required_indices != expected_layout.required_indices)
+    if (!same_hierarchy(layout.hierarchy, expected_layout.hierarchy) || layout.required_indices != expected_layout.required_indices)
     {
         throw std::invalid_argument(message);
     }

@@ -1,6 +1,7 @@
 #include "internal/recursive_quadrature.hpp"
 
 #include "internal/coordinate_scales.hpp"
+#include "internal/cqmom_validation.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
@@ -347,6 +348,21 @@ template <typename Function> void assert_throws_out_of_range(Function function)
     catch (const std::out_of_range&)
     {
         threw = true;
+    }
+    assert(threw);
+}
+
+template <typename Function> void assert_throws_invalid_argument_with_message(Function function, const std::string& expected_message)
+{
+    bool threw = false;
+    try
+    {
+        function();
+    }
+    catch (const std::invalid_argument& error)
+    {
+        threw = true;
+        assert(std::string(error.what()) == expected_message);
     }
     assert(threw);
 }
@@ -1324,6 +1340,114 @@ void test_invalid_hierarchy_inputs()
     assert_throws_invalid_argument([] { (void)qmomkit::PhaseSpaceHierarchy({2, 3, 2}, {0, 1, 3}); });
 }
 
+void test_hierarchy_without_families_holds_classical_entries()
+{
+    const qmomkit::PhaseSpaceHierarchy one_argument({3, 2});
+    const qmomkit::PhaseSpaceHierarchy two_arguments({3, 2}, {1, 0});
+    const qmomkit::PhaseSpaceHierarchy empty_families({3, 2}, {1, 0}, qmomkit::HierarchyFamilies{});
+
+    for (const qmomkit::PhaseSpaceHierarchy* hierarchy : {&one_argument, &two_arguments, &empty_families})
+    {
+        assert(hierarchy->families().coordinates.size() == 2);
+        for (const qmomkit::CoordinateFamily& coordinate : hierarchy->families().coordinates)
+        {
+            assert(coordinate.family == qmomkit::QmomFamily::classical);
+            assert(coordinate.generalized_options.node_count == 0);
+        }
+    }
+
+    assert(qmomkit::internal::same_hierarchy(empty_families, two_arguments));
+    assert(empty_families.node_counts() == two_arguments.node_counts());
+    assert(empty_families.maximum_node_counts() == two_arguments.maximum_node_counts());
+    assert(empty_families.conditioning_order() == two_arguments.conditioning_order());
+    assert(empty_families.total_nodes() == two_arguments.total_nodes());
+    assert(empty_families.moment_extents() == two_arguments.moment_extents());
+}
+
+void test_maximum_node_counts_of_classical_coordinates_are_the_node_counts()
+{
+    // Unequal node counts and a non-default conditioning order, with explicit
+    // classical entries. The node structure follows the node counts, as the
+    // multi-index functions over those counts give it.
+    const std::vector<std::vector<std::size_t>> node_counts{{3}, {2, 3}, {2, 3, 4}};
+    const std::vector<std::vector<std::size_t>> conditioning_orders{{0}, {1, 0}, {2, 0, 1}};
+    for (std::size_t test_case = 0; test_case < node_counts.size(); ++test_case)
+    {
+        const std::vector<std::size_t>& counts = node_counts[test_case];
+        const qmomkit::HierarchyFamilies families{std::vector<qmomkit::CoordinateFamily>(counts.size())};
+        const qmomkit::PhaseSpaceHierarchy hierarchy(counts, conditioning_orders[test_case], families);
+        const qmomkit::PhaseSpaceHierarchy without_families(counts, conditioning_orders[test_case]);
+
+        assert(hierarchy.maximum_node_counts() == counts);
+        assert(hierarchy.total_nodes() == qmomkit::product_extents(counts));
+        for (std::size_t flat_index = 0; flat_index < hierarchy.total_nodes(); ++flat_index)
+        {
+            const qmomkit::MultiIndex node_index = qmomkit::unflatten_multi_index(flat_index, counts);
+            assert(hierarchy.flatten_node_index(node_index) == flat_index);
+            assert_vector_equal(hierarchy.unflatten_node_index(flat_index), node_index);
+        }
+        assert(qmomkit::enumerate_quadrature_node_multi_indices(hierarchy) == qmomkit::enumerate_quadrature_node_multi_indices(without_families));
+    }
+}
+
+void test_hierarchy_families_of_the_wrong_length_are_rejected()
+{
+    const std::string message = "Hierarchy families must be empty or contain one entry per phase-space dimension.";
+    assert_throws_invalid_argument_with_message(
+        [] { (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1}, qmomkit::HierarchyFamilies{{qmomkit::CoordinateFamily{}}}); }, message);
+    assert_throws_invalid_argument_with_message(
+        [] { (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1}, qmomkit::HierarchyFamilies{std::vector<qmomkit::CoordinateFamily>(3)}); }, message);
+}
+
+void test_hierarchy_rejects_non_classical_families()
+{
+    const std::string message = "CQMOM supports only classical coordinates.";
+    for (const qmomkit::QmomFamily family : {qmomkit::QmomFamily::hyperbolic, qmomkit::QmomFamily::generalized})
+    {
+        assert_throws_invalid_argument_with_message(
+            [family]
+            {
+                qmomkit::HierarchyFamilies families{std::vector<qmomkit::CoordinateFamily>(2)};
+                families.coordinates[1].family = family;
+                families.coordinates[1].generalized_options.node_count = 9;
+                (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1}, families);
+            },
+            message);
+    }
+}
+
+void test_generalized_options_of_classical_coordinates_are_accepted()
+{
+    // A classical coordinate ignores the settings of the generalized family, as
+    // QmomCase does, so settings that a generalized coordinate would refuse, a
+    // node count not above its own and an infinite nu, do not reject it.
+    qmomkit::HierarchyFamilies families{std::vector<qmomkit::CoordinateFamily>(2)};
+    families.coordinates[0].generalized_options = {1, qmomkit::GeneralizedContinuation::normal, std::numeric_limits<double>::infinity()};
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3}, {0, 1}, families);
+
+    assert(hierarchy.families().coordinates[0].family == qmomkit::QmomFamily::classical);
+    assert(hierarchy.maximum_node_counts() == std::vector<std::size_t>({2, 3}));
+}
+
+void test_hierarchy_with_families_validates_node_counts_and_conditioning_order()
+{
+    const qmomkit::HierarchyFamilies families{std::vector<qmomkit::CoordinateFamily>(2)};
+    assert_throws_invalid_argument([&families] { (void)qmomkit::PhaseSpaceHierarchy({2, 0}, {0, 1}, families); });
+    assert_throws_invalid_argument_with_message([&families] { (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 0}, families); },
+                                                "Conditioning order must not contain duplicate dimensions.");
+    assert_throws_invalid_argument_with_message([&families] { (void)qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 2}, families); },
+                                                "Conditioning order contains an out-of-range dimension.");
+}
+
+void test_same_hierarchy_compares_node_counts_and_conditioning_order()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3}, {0, 1});
+
+    assert(qmomkit::internal::same_hierarchy(hierarchy, qmomkit::PhaseSpaceHierarchy({2, 3}, {0, 1})));
+    assert(!qmomkit::internal::same_hierarchy(hierarchy, qmomkit::PhaseSpaceHierarchy({2, 2}, {0, 1})));
+    assert(!qmomkit::internal::same_hierarchy(hierarchy, qmomkit::PhaseSpaceHierarchy({2, 3}, {1, 0})));
+}
+
 void test_invalid_index_inputs()
 {
     assert_throws_invalid_argument([] { (void)qmomkit::flatten_multi_index({0}, {2, 3}); });
@@ -2153,6 +2277,15 @@ int main(const int argc, char** argv)
             {"conditioning_path_view_maps_to_phase_space_node_index", test_conditioning_path_view_maps_to_phase_space_node_index},
             {"conditioning_path_maps_to_phase_space_node_index", test_conditioning_path_maps_to_phase_space_node_index},
             {"invalid_hierarchy_inputs", test_invalid_hierarchy_inputs},
+            {"hierarchy_without_families_holds_classical_entries", test_hierarchy_without_families_holds_classical_entries},
+            {"maximum_node_counts_of_classical_coordinates_are_the_node_counts",
+             test_maximum_node_counts_of_classical_coordinates_are_the_node_counts},
+            {"hierarchy_families_of_the_wrong_length_are_rejected", test_hierarchy_families_of_the_wrong_length_are_rejected},
+            {"hierarchy_rejects_non_classical_families", test_hierarchy_rejects_non_classical_families},
+            {"generalized_options_of_classical_coordinates_are_accepted", test_generalized_options_of_classical_coordinates_are_accepted},
+            {"hierarchy_with_families_validates_node_counts_and_conditioning_order",
+             test_hierarchy_with_families_validates_node_counts_and_conditioning_order},
+            {"same_hierarchy_compares_node_counts_and_conditioning_order", test_same_hierarchy_compares_node_counts_and_conditioning_order},
             {"invalid_index_inputs", test_invalid_index_inputs},
             {"recursive_failure_diagnostics_identify_failing_branch", test_recursive_failure_diagnostics_identify_failing_branch},
             {"recursive_dense_and_bp_equivalence_fixed", test_recursive_dense_and_bp_equivalence_fixed},

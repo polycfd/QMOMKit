@@ -55,9 +55,13 @@ velocity vectors, the coordinates within each node follow it too.
 
 `PhaseSpaceHierarchy` holds the node counts in that order, together with
 `conditioning_order`, a permutation in which `conditioning_order[l]` is the
-dimension reconstructed at level `l`. The default is the identity. The
-constructor rejects no node counts, a zero node count, a total node count
-beyond `std::size_t`, and an order that is not a permutation.
+dimension reconstructed at level `l`, and the family of each coordinate, from
+which it derives the maximum node counts
+([CQMOM](cqmom.md#counts-of-a-coordinate)). The default order is the identity,
+and the default family is `classical`. The constructor rejects no node counts,
+a zero node count, a total node count beyond `std::size_t`, an order that is
+not a permutation, families that are neither empty nor one entry per
+dimension, and a family other than `classical`.
 
 The conditioning order changes the reconstruction, never the meaning of an
 index or a node count: every per-coordinate index, from multi-index components
@@ -166,17 +170,17 @@ Terms the [user guide](../user/3_concepts.md#terms) does not define:
 | active node count | Nodes that a branch or a QMOM state uses; at most the configured count, or for a QMOM state its family's maximum. |
 | base node count | `QmomResult::base_node_count` and `QmomState::base_node_count()`, the number of nodes $k\le N$ of the classical quadrature on which a QMOM quadrature rests. It is the number of nodes for `classical`, $N$ for the $N+1$ nodes of `hyperbolic`, $k$ for the $N_G$ nodes of `generalized` continued from $k$ nodes, and 0 for a failed result. A value below $N$ shows an adaptive reduction in every family. It is also the node count the evolution passes when it reconstructs a state at its own count ([Phase-space evolution](phase_space_evolution.md#node-counts)). |
 | canonical moments | Moments recomputed from an accepted quadrature; a state stores these, not the moments it was given. |
-| ceiling | The largest node count a branch may return in one reconstruction, apart from the growth trial: its recorded active count when a state's counts are passed in, otherwise its configured count. |
+| ceiling | The largest node count a branch may return in one reconstruction, apart from the growth trial: its recorded active count when a state's counts are passed in, otherwise the maximum node count of its coordinate. |
 | child case | Internal layout data for the children of a branch with a given node count ([CQMOM](cqmom.md#branch-layouts)). |
 | conditional moments | Moments of later coordinates conditioned on a node of earlier ones, from a conditional Vandermonde solve. |
 | conditioning level | Position `l` in the conditioning order. |
 | conditioning path | `ConditioningPath`: the node index chosen at each level from the root to a node. |
-| configured node count | Node count of a dimension in the hierarchy: the maximum of every branch. For QMOM, the case's `node_count` $N$; `maximum_node_count()` is the family's maximum. |
+| configured node count | Node count of a dimension in the hierarchy, `node_counts()`, the node count of its reconstruction. For a `classical` coordinate it is also the maximum of every branch, the maximum node count, which `CqmomActiveBranchCount::configured_node_count` records. For QMOM, the case's `node_count` $N$. |
 | full tensor | `RawMomentTensor`: every moment in a rectangular box; an input or output format that cases and states never hold. |
 | growth | A branch trying one more node than its active count, allowed only in the post-source reconstruction. |
 | local weight | Weight from one branch inversion; terminal weights are products of local weights. |
 | marginal moments | Moments with every order zero except one. |
-| maximum node count | `QmomState::maximum_node_count()`, the largest number of nodes a QMOM state's quadrature can have. Its case fixes it at $N$ for `classical`, $N+1$ for `hyperbolic` and $N_G$ for `generalized`. |
+| maximum node count | The largest number of nodes a quadrature can have. For a QMOM state, `QmomState::maximum_node_count()`, which its case fixes at $N$ for `classical`, $N+1$ for `hyperbolic` and $N_G$ for `generalized`. For a coordinate of a CQMOM hierarchy, `PhaseSpaceHierarchy::maximum_node_counts()`, the maximum of every branch, which equals the configured node count for a `classical` coordinate. |
 | parent path | Conditioning path of the node on which a branch is conditioned; its length is the level of the branch. |
 | prepared metadata | `internal::PreparedCqmomMetadata`: the immutable branch structure that a prepared case shares with its states and derived cases. |
 | required layout | The user guide's *layout*, `CqmomMomentLayout`: the moments a hierarchy's reconstruction reads, in a fixed order. |

@@ -144,7 +144,8 @@ struct CqmomDiagnostics
 /**
  * Current active node count for one recursive CQMOM branch.
  *
- * `configured_node_count` is the fixed maximum from the phase-space hierarchy.
+ * `configured_node_count` is the maximum node count of the branch's coordinate,
+ * `PhaseSpaceHierarchy::maximum_node_counts()`.
  * `active_node_count` is the current branch-local count observed in an
  * adaptive ragged quadrature. `parent_path` is ordered by conditioning level
  * and has length `conditioning_level`.

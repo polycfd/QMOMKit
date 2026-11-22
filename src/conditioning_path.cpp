@@ -56,7 +56,7 @@ MultiIndex ConditioningPathView::phase_space_node_index(const PhaseSpaceHierarch
     {
         const std::size_t phase_space_dimension = hierarchy.conditioning_order()[level];
         const std::size_t node = node_indices_[level];
-        if (node >= hierarchy.node_count(phase_space_dimension))
+        if (node >= hierarchy.maximum_node_counts()[phase_space_dimension])
         {
             throw std::out_of_range("Conditioning path node index is outside the hierarchy.");
         }

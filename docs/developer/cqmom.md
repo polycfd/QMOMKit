@@ -12,8 +12,10 @@ order is a separate permutation that only sets the traversal; see
 [Numerical conventions](numerical_conventions.md). Below, $c_l$ is the
 coordinate at conditioning level $l$ and $N_l$ its configured node count.
 
-Every inversion of CQMOM is classical: a `CqmomCase` holds `QmomOptions`,
-which carry no family ([QMOM families](qmom_families.md)).
+Every inversion of CQMOM is classical: the hierarchy accepts only `classical`
+coordinates ([Counts of a coordinate](#counts-of-a-coordinate)), and a
+`CqmomCase` holds `QmomOptions`, which carry no family
+([QMOM families](qmom_families.md)).
 
 ## The recursion
 
@@ -61,6 +63,35 @@ in `internal::RecursiveQuadrature`, which only tests read. The driver is
 `compute_recursive_quadrature_from_validated_moment_data` in
 [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp); the
 conditional step is the file-local `reconstruct_child_slices`.
+
+## Counts of a coordinate
+
+The hierarchy holds the family of each coordinate, a `CoordinateFamily` in
+`HierarchyFamilies`, which `families()` returns with one entry per phase-space
+dimension. A hierarchy built without families, or with empty families, has
+`classical` coordinates only, and the constructor refuses any other family.
+
+Each coordinate has two counts. Its node count $N_l$, `node_counts()` and
+`node_count(dimension)`, is the node count of its reconstruction: it fixes the
+moments the coordinate requires and bounds the count requested from Wheeler.
+Its maximum node count, `maximum_node_counts()`, is the largest number of nodes
+its quadrature holds: it fixes the node structure. For a `classical` coordinate
+the two are equal. The code reads each count for its own purpose:
+
+| Use | Count | Read through |
+| --- | --- | --- |
+| Node structure: storage, flat node indices, path bounds, the enumeration of nodes, active branch counts and their ceilings | maximum node count | `maximum_node_counts()`, `total_nodes()` |
+| The node count requested from Wheeler and from the bounded selection | at most $N_l$ | a branch's ceiling: the maximum node count, or the count recorded for the branch |
+| The moments of the coordinate while it is the active axis | $2N_l$ | `moment_extents()` |
+| The parent orders of the mixed moments of its children | $N_l$ | `node_count(dimension)` |
+
+A branch's ceiling is a count of nodes of the quadrature. It serves as the node
+count of the reconstruction because the two counts are equal for a `classical`
+coordinate.
+
+Every check that compares two hierarchies, those of layouts, of prepared
+metadata and of quadratures, goes through `internal::same_hierarchy`, which
+compares the node counts and the conditioning order.
 
 ## Required moments
 
@@ -245,6 +276,8 @@ the layout checks. Source contexts and output writers use the public functions.
 | Function | File | Role |
 | --- | --- | --- |
 | `compute_cqmom`, `compute_cqmom_internal` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public entries; status and diagnostics mapping. |
+| `PhaseSpaceHierarchy`, `enumerate_quadrature_node_multi_indices` | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Families, counts and node indices. |
+| `same_hierarchy` | [`src/internal/cqmom_validation.hpp`](../../src/internal/cqmom_validation.hpp) | Comparison of hierarchies. |
 | `create_cqmom_moment_layout`, `extract_cqmom_moments`, `create_cqmom_moment_data` | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Required moments. |
 | `create_branch_moment_layout`, `create_prepared_cqmom_metadata` | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Branch layouts and prepared metadata. |
 | `compute_recursive_quadrature_from_moment_data`, `..._from_trusted_moment_data` | [`src/recursive_quadrature.cpp`](../../src/recursive_quadrature.cpp) | Checked and trusted entries into the recursion. |

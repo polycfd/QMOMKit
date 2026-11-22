@@ -591,11 +591,223 @@ void test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_cont
     assert(beta_result.abscissas.front() > 0.0 && beta_result.abscissas.back() < 2.0);
 }
 
-void test_cqmom_rejects_the_qmom_family_key()
+// The full tensor of the raw moments of weighted points over the given
+// extents. points[q] holds the coordinates of point q in phase-space order.
+qmomkit::RawMomentTensor tensor_of_points(const std::vector<std::size_t>& extents, const std::vector<double>& weights,
+                                          const std::vector<std::vector<double>>& points)
 {
-    const auto configured =
-        qmomkit::config::parse_cqmom("[phase_space]\nnode_counts = 2, 2\nqmom_family = hyperbolic\n[moments]\nextents = 4, 4\n", "c.qmom");
-    assert(configured.error() == "c.qmom:3: Unknown key 'phase_space.qmom_family'.");
+    std::vector<double> values(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat = 0; flat < values.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, extents);
+        for (std::size_t point = 0; point < weights.size(); ++point)
+        {
+            double contribution = weights[point];
+            for (std::size_t dimension = 0; dimension < extents.size(); ++dimension)
+            {
+                contribution *= std::pow(points[point][dimension], static_cast<int>(index[dimension]));
+            }
+            values[flat] += contribution;
+        }
+    }
+    return {extents, values};
+}
+
+// A CQMOM file with node counts 2, 2, the given [phase_space] lines from line
+// 3 on, and the full tensor as explicit moments, printed so that every value
+// reads back exactly.
+std::string cqmom_file_with_tensor(const std::string& phase_space_lines, const qmomkit::RawMomentTensor& tensor)
+{
+    std::ostringstream text;
+    text.precision(17);
+    text << "[phase_space]\nnode_counts = 2, 2\n"
+         << phase_space_lines << "\n[moments]\nextents = " << tensor.extents[0] << ", " << tensor.extents[1] << '\n';
+    for (std::size_t flat = 0; flat < tensor.values.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, tensor.extents);
+        text << "M[" << index[0] << "," << index[1] << "] = " << tensor.values[flat] << '\n';
+    }
+    return text.str();
+}
+
+// Four points of the second coordinate at each of two values of the first,
+// over the extents of a classical first and a hyperbolic second coordinate
+// with node count 2.
+qmomkit::RawMomentTensor hyperbolic_last_tensor()
+{
+    return tensor_of_points({4, 5}, std::vector<double>(8, 0.125),
+                            {{-0.5, -1.0}, {-0.5, 0.0}, {-0.5, 0.5}, {-0.5, 2.0}, {1.5, -2.0}, {1.5, -0.5}, {1.5, 1.0}, {1.5, 1.5}});
+}
+
+qmomkit::PhaseSpaceHierarchy hierarchy_with_families(const std::vector<qmomkit::QmomFamily>& families,
+                                                     std::vector<std::size_t> conditioning_order = {0, 1})
+{
+    qmomkit::HierarchyFamilies hierarchy_families;
+    for (const qmomkit::QmomFamily family : families)
+    {
+        hierarchy_families.coordinates.push_back({family});
+    }
+    return qmomkit::PhaseSpaceHierarchy({2, 2}, std::move(conditioning_order), hierarchy_families);
+}
+
+void test_cqmom_qmom_family_key_sets_the_coordinate_families()
+{
+    // A CQMOM file gives the family of each coordinate in phase-space order. A
+    // hyperbolic coordinate with node count 2 holds up to three nodes and its
+    // layout reads its moment of order 4. Classical entries give the hierarchy
+    // of a file without the key.
+    const qmomkit::RawMomentTensor tensor = hyperbolic_last_tensor();
+    const std::string text = cqmom_file_with_tensor("qmom_family = classical, hyperbolic\n", tensor);
+    const auto configured = qmomkit::config::parse_cqmom(text, "f.qmom");
+    const auto prepared = qmomkit::config::parse_cqmom_prepared(text, "f.qmom");
+    assert(configured.ok() && prepared.ok());
+    for (const qmomkit::PhaseSpaceHierarchy* hierarchy : {&configured.value().moments.layout.hierarchy, &prepared.value().hierarchy()})
+    {
+        assert(hierarchy->families().coordinates.size() == 2);
+        assert(hierarchy->families().coordinates[0].family == qmomkit::QmomFamily::classical);
+        assert(hierarchy->families().coordinates[1].family == qmomkit::QmomFamily::hyperbolic);
+        assert(hierarchy->maximum_node_counts() == std::vector<std::size_t>({2, 3}));
+    }
+    const qmomkit::CqmomMomentLayout expected_layout =
+        qmomkit::create_cqmom_moment_layout(hierarchy_with_families({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic}));
+    assert(configured.value().moments.layout.required_indices == expected_layout.required_indices);
+    assert(configured.value().moments.moment({0, 4}) == tensor.values[4]);
+
+    const auto classical = qmomkit::config::parse_cqmom(cqmom_file_with_tensor("qmom_family = classical, classical\n", tensor), "f.qmom");
+    const auto without_key = qmomkit::config::parse_cqmom(cqmom_file_with_tensor("", tensor), "f.qmom");
+    assert(classical.ok() && without_key.ok());
+    const qmomkit::PhaseSpaceHierarchy& classical_hierarchy = classical.value().moments.layout.hierarchy;
+    assert(classical_hierarchy.families().coordinates[0].family == qmomkit::QmomFamily::classical);
+    assert(classical_hierarchy.families().coordinates[1].family == qmomkit::QmomFamily::classical);
+    assert(classical_hierarchy.maximum_node_counts() == without_key.value().moments.layout.hierarchy.maximum_node_counts());
+    assert(classical.value().moments.layout.required_indices == without_key.value().moments.layout.required_indices);
+    assert(classical.value().moments.values == without_key.value().moments.values);
+}
+
+void test_cqmom_file_with_hyperbolic_coordinates_matches_the_case_built_in_code()
+{
+    // The case of a file and the case built in code from the same moments
+    // agree bit for bit in their moments, their quadrature and their initial
+    // state, for a hyperbolic parent and for a hyperbolic last coordinate.
+    struct Case
+    {
+        std::string families_line;
+        qmomkit::PhaseSpaceHierarchy hierarchy;
+        qmomkit::RawMomentTensor tensor;
+    };
+    const std::vector<Case> cases{
+        {"qmom_family = hyperbolic, classical\n", hierarchy_with_families({qmomkit::QmomFamily::hyperbolic, qmomkit::QmomFamily::classical}),
+         tensor_of_points({5, 4}, {0.15, 0.15, 0.225, 0.225, 0.125, 0.125},
+                          {{-1.0, -1.0}, {-1.0, 0.0}, {0.25, -0.375}, {0.25, 0.625}, {1.5, 0.25}, {1.5, 1.25}})},
+        {"qmom_family = classical, hyperbolic\n", hierarchy_with_families({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic}),
+         hyperbolic_last_tensor()},
+    };
+    for (const Case& c : cases)
+    {
+        const auto configured = qmomkit::config::parse_cqmom_prepared(cqmom_file_with_tensor(c.families_line, c.tensor), "f.qmom");
+        assert(configured.ok());
+        const qmomkit::CqmomCase built{qmomkit::extract_cqmom_moments(c.tensor, qmomkit::create_cqmom_moment_layout(c.hierarchy))};
+        const qmomkit::CqmomPreparedCase prepared{built};
+
+        const qmomkit::CqmomResult from_file = qmomkit::compute_cqmom(configured.value());
+        const qmomkit::CqmomResult in_code = qmomkit::compute_cqmom(prepared);
+        assert(from_file.ok() && in_code.ok());
+        assert(from_file.quadrature.weights() == in_code.quadrature.weights());
+        assert(from_file.quadrature.abscissas() == in_code.quadrature.abscissas());
+        assert(from_file.quadrature.terminal_paths() == in_code.quadrature.terminal_paths());
+        assert(configured.value().initial_state().moment_values() == prepared.initial_state().moment_values());
+        assert(qmomkit::config::parse_cqmom(cqmom_file_with_tensor(c.families_line, c.tensor)).value().moments.values == built.moments.values);
+    }
+}
+
+void test_cqmom_initial_condition_reads_the_moments_of_a_hyperbolic_coordinate()
+{
+    // An independent product initializes the moments of the hierarchy with the
+    // families of the file, the moment of order 4 of the hyperbolic coordinate
+    // included: number_density (mu^4 + 6 mu^2 sigma^2 + 3 sigma^4) for the
+    // normal distribution of the second coordinate.
+    const std::string text = R"(
+[phase_space]
+node_counts = 2, 2
+qmom_family = classical, hyperbolic
+
+[initial]
+type = independent_product
+number_density = 2.5
+
+[initial.dimension.0]
+family = gamma
+shape = 3.0
+scale = 0.2
+
+[initial.dimension.1]
+family = normal
+mean = -0.5
+standard_deviation = 1.25
+)";
+    const auto configured = qmomkit::config::parse_cqmom(text);
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(text);
+    assert(configured.ok() && initial.ok());
+    const auto expected = qmomkit::config::initialize_cqmom_moments(
+        initial.value(), hierarchy_with_families({qmomkit::QmomFamily::classical, qmomkit::QmomFamily::hyperbolic}));
+    assert(expected.ok());
+    assert(configured.value().moments.layout.required_indices == expected.value().layout.required_indices);
+    assert(configured.value().moments.values == expected.value().values);
+    assert(std::abs(configured.value().moments.moment({0, 4}) - 2.5 * 9.73046875) <= 1.0e-13 * 2.5 * 9.73046875);
+}
+
+void test_cqmom_qmom_family_needs_one_entry_per_dimension()
+{
+    const std::string message = "f.qmom:3: phase_space.qmom_family must contain one entry per phase-space dimension.";
+    for (const std::string line : {"qmom_family = hyperbolic\n", "qmom_family = classical, hyperbolic, classical\n"})
+    {
+        assert(qmomkit::config::parse_cqmom(cqmom_file_with_tensor(line, hyperbolic_last_tensor()), "f.qmom").error() == message);
+        assert(qmomkit::config::parse_cqmom_prepared(cqmom_file_with_tensor(line, hyperbolic_last_tensor()), "f.qmom").error() == message);
+    }
+}
+
+void test_cqmom_qmom_family_takes_classical_or_hyperbolic_entries()
+{
+    // The generalized family is refused like a misspelt name.
+    const std::string message = "f.qmom:3: phase_space.qmom_family must contain classical or hyperbolic entries.";
+    for (const std::string line : {"qmom_family = classical, hyperbolical\n", "qmom_family = classical, generalized\n"})
+    {
+        assert(qmomkit::config::parse_cqmom(cqmom_file_with_tensor(line, hyperbolic_last_tensor()), "f.qmom").error() == message);
+        assert(qmomkit::config::parse_cqmom_prepared(cqmom_file_with_tensor(line, hyperbolic_last_tensor()), "f.qmom").error() == message);
+    }
+}
+
+void test_cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds_from_a_file()
+{
+    // Bounds on the hyperbolic coordinate are refused at the line of
+    // support_lower, as in a QMOM file. Bounds on the classical coordinate of
+    // the same file are kept, and none on the hyperbolic coordinate is no
+    // bound.
+    const std::string families = "qmom_family = classical, hyperbolic\n";
+    const qmomkit::RawMomentTensor tensor = hyperbolic_last_tensor();
+    const auto bounded_hyperbolic =
+        qmomkit::config::parse_cqmom(cqmom_file_with_tensor(families + "support_lower = none, -5\nsupport_upper = none, 5\n", tensor), "f.qmom");
+    assert(bounded_hyperbolic.error() == "f.qmom:4: The hyperbolic QMOM family takes no abscissa bounds.");
+
+    const auto bounded_classical =
+        qmomkit::config::parse_cqmom_prepared(cqmom_file_with_tensor(families + "support_lower = -1, none\nsupport_upper = 2, none\n", tensor));
+    assert(bounded_classical.ok());
+    assert(bounded_classical.value().abscissa_bounds()[0].has_value() && !bounded_classical.value().abscissa_bounds()[1].has_value());
+    assert(qmomkit::compute_cqmom(bounded_classical.value()).ok());
+
+    assert(qmomkit::config::parse_cqmom(cqmom_file_with_tensor(families + "support_lower = none, none\nsupport_upper = none, none\n", tensor)).ok());
+}
+
+void test_cqmom_initial_condition_parser_accepts_the_qmom_family_key()
+{
+    // The initial condition needs no family, so its parser accepts the key and
+    // leaves its value to the case parsers, as it does for conditioning_order.
+    const std::string rest = "\n[initial]\ntype = independent_product\nnumber_density = 1.0\n\n[initial.dimension.0]\nfamily = normal\nmean = 0.0\n"
+                             "standard_deviation = 1.0\n\n[initial.dimension.1]\nfamily = normal\nmean = 0.0\nstandard_deviation = 1.0\n";
+    for (const std::string line : {"qmom_family = classical, hyperbolic\n", "qmom_family = hyperbolical\n"})
+    {
+        assert(qmomkit::config::parse_cqmom_initial_condition("[phase_space]\nnode_counts = 2, 2\n" + line + rest).ok());
+    }
 }
 
 void test_qmom_distribution_initialization_matches_direct_api()
@@ -4879,7 +5091,16 @@ int main(const int argc, char** argv)
             {"qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_continuation",
              test_qmom_generalized_abscissa_bounds_are_refused_only_with_the_normal_continuation},
             {"qmom_family_takes_no_abscissa_bounds", test_qmom_family_takes_no_abscissa_bounds},
-            {"cqmom_rejects_the_qmom_family_key", test_cqmom_rejects_the_qmom_family_key},
+            {"cqmom_qmom_family_key_sets_the_coordinate_families", test_cqmom_qmom_family_key_sets_the_coordinate_families},
+            {"cqmom_file_with_hyperbolic_coordinates_matches_the_case_built_in_code",
+             test_cqmom_file_with_hyperbolic_coordinates_matches_the_case_built_in_code},
+            {"cqmom_initial_condition_reads_the_moments_of_a_hyperbolic_coordinate",
+             test_cqmom_initial_condition_reads_the_moments_of_a_hyperbolic_coordinate},
+            {"cqmom_qmom_family_needs_one_entry_per_dimension", test_cqmom_qmom_family_needs_one_entry_per_dimension},
+            {"cqmom_qmom_family_takes_classical_or_hyperbolic_entries", test_cqmom_qmom_family_takes_classical_or_hyperbolic_entries},
+            {"cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds_from_a_file",
+             test_cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds_from_a_file},
+            {"cqmom_initial_condition_parser_accepts_the_qmom_family_key", test_cqmom_initial_condition_parser_accepts_the_qmom_family_key},
             {"qmom_distribution_initialization_matches_direct_api", test_qmom_distribution_initialization_matches_direct_api},
             {"all_supported_distribution_families_parse", test_all_supported_distribution_families_parse},
             {"qmom_mixture_initialization_matches_direct_api", test_qmom_mixture_initialization_matches_direct_api},

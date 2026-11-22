@@ -1,0 +1,16 @@
+[phase_space]
+node_counts = 1, 2
+qmom_family = classical, generalized
+
+[moments]
+extents = 2, 5
+M[0,0] = 1.0
+M[0,1] = 0.375
+M[0,2] = 1.3125
+M[0,3] = 1.78125
+M[0,4] = 4.265625
+M[1,0] = 0.5
+M[1,1] = 0.1875
+M[1,2] = 0.65625
+M[1,3] = 0.890625
+M[1,4] = 2.1328125

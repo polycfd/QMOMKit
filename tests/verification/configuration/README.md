@@ -25,7 +25,13 @@ deliberate fault:
 - `cqmom_invalid_vandermonde_solver`\*: `solver = structured`;
 - `cqmom_missing_phase_space`: no `[phase_space]` section;
 - `cqmom_invalid_conditioning_order`\*: `conditioning_order = 0, 0`;
-- `cqmom_incomplete_tensor`: $M_{1,1}$ is missing.
+- `cqmom_incomplete_tensor`: $M_{1,1}$ is missing;
+- `cqmom_invalid_family`\*: `qmom_family = classical, generalized`, a family
+  that CQMOM coordinates do not take;
+- `cqmom_hyperbolic_abscissa_bounds`\*: bounds on the hyperbolic coordinate,
+  reported at the line of `support_lower`;
+- `cqmom_hyperbolic_insufficient_moments`: extent 4 on a hyperbolic axis with
+  node count two, whose moment of order 4 is missing.
 
 Each case checks that loading fails, that no value is returned, and that the
 error contains the file path and a fragment of the expected message; checking

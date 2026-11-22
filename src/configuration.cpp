@@ -1154,8 +1154,8 @@ bool has_mixture_component_sections(const ParsedFile& parsed, const std::string&
 std::vector<std::string> cqmom_explicit_allowed_keys()
 {
     return with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.conditioning_order",
-                                      "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive", "cqmom.diagnostic_level",
-                                      "vandermonde.solver", "vandermonde.rcond", "moments.extents"},
+                                      "phase_space.qmom_family", "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive",
+                                      "cqmom.diagnostic_level", "vandermonde.solver", "vandermonde.rcond", "moments.extents"},
                                      RealizabilitySettings::cqmom);
 }
 
@@ -1560,6 +1560,57 @@ std::optional<QmomFamily> parse_qmom_family(ParsedFile& parsed, const std::strin
     add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line,
               "phase_space.qmom_family must be classical, hyperbolic or generalized.");
     return std::nullopt;
+}
+
+// The families of the coordinates of a CQMOM file from [phase_space]
+// qmom_family, a list with one entry per coordinate in phase-space order, each
+// classical or hyperbolic. Without the key, the families are empty, which makes
+// every coordinate classical. A list of the wrong length and an entry of
+// another name are errors, and give no families.
+std::optional<HierarchyFamilies> parse_cqmom_families(ParsedFile& parsed, const std::string& source_name, const std::size_t dimensions)
+{
+    const Entry* entry = find_entry(parsed, "phase_space.qmom_family");
+    if (entry == nullptr)
+    {
+        return HierarchyFamilies{};
+    }
+    HierarchyFamilies families;
+    bool known_names = true;
+    std::istringstream stream(entry->value);
+    std::string name;
+    while (std::getline(stream, name, ','))
+    {
+        const std::string family = trim(name);
+        if (family == "classical")
+        {
+            families.coordinates.push_back({QmomFamily::classical});
+        }
+        else if (family == "hyperbolic")
+        {
+            families.coordinates.push_back({QmomFamily::hyperbolic});
+        }
+        else
+        {
+            families.coordinates.emplace_back();
+            known_names = false;
+        }
+    }
+    const bool one_per_dimension = families.coordinates.size() == dimensions;
+    if (!one_per_dimension)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, entry->line,
+                  "phase_space.qmom_family must contain one entry per phase-space dimension.");
+    }
+    if (!known_names)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line,
+                  "phase_space.qmom_family must contain classical or hyperbolic entries.");
+    }
+    if (!one_per_dimension || !known_names)
+    {
+        return std::nullopt;
+    }
+    return families;
 }
 
 [[nodiscard]] const char* qmom_family_name(const QmomFamily family)
@@ -2308,6 +2359,22 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
                   "conditioning_order must be a permutation of the phase-space dimensions.");
     }
     std::optional<CqmomAbscissaBounds> coordinate_support = parse_coordinate_support(parsed, source_name, node_counts.size());
+    std::optional<HierarchyFamilies> families = node_counts.empty() ? std::nullopt : parse_cqmom_families(parsed, source_name, node_counts.size());
+    // HyQMOM is defined on the real line. A file reports bounds on a hyperbolic
+    // coordinate at the line of support_lower, as a QMOM file does, and
+    // compute_cqmom refuses them for a case built in code.
+    if (families.has_value() && coordinate_support.has_value() && !coordinate_support->empty())
+    {
+        for (std::size_t dimension = 0; dimension < families->coordinates.size(); ++dimension)
+        {
+            if (families->coordinates[dimension].family == QmomFamily::hyperbolic && (*coordinate_support)[dimension].has_value())
+            {
+                add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, find_entry(parsed, "phase_space.support_lower")->line,
+                          "The hyperbolic QMOM family takes no abscissa bounds.");
+                break;
+            }
+        }
+    }
 
     if (!node_counts.empty())
     {
@@ -2320,12 +2387,13 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
 
     try
     {
-        ParsedCqmomCaseSettings settings{PhaseSpaceHierarchy{std::move(node_counts), std::move(conditioning_order)},
-                                         qmom_options.value_or(QmomOptions{}),
-                                         diagnostic_level.value_or(CqmomDiagnosticLevel::none),
-                                         vandermonde_solver.value_or(VandermondeSolver::automatic),
-                                         moore_penrose_rcond.value_or(1.0e-14),
-                                         coordinate_support.value_or(CqmomAbscissaBounds{})};
+        ParsedCqmomCaseSettings settings{
+            PhaseSpaceHierarchy{std::move(node_counts), std::move(conditioning_order), std::move(families).value_or(HierarchyFamilies{})},
+            qmom_options.value_or(QmomOptions{}),
+            diagnostic_level.value_or(CqmomDiagnosticLevel::none),
+            vandermonde_solver.value_or(VandermondeSolver::automatic),
+            moore_penrose_rcond.value_or(1.0e-14),
+            coordinate_support.value_or(CqmomAbscissaBounds{})};
         return ConfigurationResult<ParsedCqmomCaseSettings>{std::move(settings)};
     }
     catch (const std::exception& error)

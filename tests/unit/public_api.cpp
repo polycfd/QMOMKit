@@ -698,6 +698,34 @@ void test_cqmom_candidate_layouts_must_match_the_coordinate_families()
     assert(replaced.error() == "Unable to replace CQMOM initial moments: " + message);
 }
 
+void test_cqmom_coordinate_policy_reads_the_moments_of_a_hyperbolic_coordinate()
+{
+    // The marginal of a hyperbolic coordinate with node count 2 holds its
+    // moments up to order 4. With m_4 = 0 and m_2 > 0, m_0 m_4 < m_2^2, so those
+    // five moments are not realizable, while the first four are the moments of
+    // three points. A policy on the hyperbolic coordinate rejects the moments
+    // before any reconstruction; as a classical coordinate, whose layout ends at
+    // m_3, the same tensor passes the same policy.
+    const qmomkit::PhaseSpaceHierarchy hyperbolic = classical_then_hyperbolic_hierarchy();
+    const qmomkit::PhaseSpaceHierarchy classical({2, 2});
+    qmomkit::RawMomentTensor moments = six_point_moments(hyperbolic);
+    moments.values[qmomkit::flatten_multi_index({0, 4}, moments.extents)] = 0.0;
+    qmomkit::RealizabilityPolicy policy;
+    policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+
+    const qmomkit::CqmomPreparedCase hyperbolic_case{cqmom_case_from_tensor(hyperbolic, six_point_moments(hyperbolic))};
+    const qmomkit::CqmomStateCandidate rejected = hyperbolic_case.state_candidate(
+        qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hyperbolic)), {std::nullopt, policy});
+    assert(rejected.status == qmomkit::StateCandidateStatus::realizability_rejected);
+    assert(rejected.rejected_coordinate == std::optional<std::size_t>(1));
+    assert(!rejected.reconstruction_status.has_value());
+
+    const qmomkit::CqmomPreparedCase classical_case{cqmom_case_from_tensor(classical, six_point_moments(hyperbolic))};
+    assert(classical_case
+               .state_candidate(qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(classical)), {std::nullopt, policy})
+               .ok());
+}
+
 void test_cqmom_moment_layout_two_dimensional_reduced_set()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -3296,6 +3324,8 @@ int main(const int argc, char** argv)
             {"cqmom_state_candidate_reports_failures_without_throwing", test_cqmom_state_candidate_reports_failures_without_throwing},
             {"cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds", test_cqmom_hyperbolic_coordinate_takes_no_abscissa_bounds},
             {"cqmom_candidate_layouts_must_match_the_coordinate_families", test_cqmom_candidate_layouts_must_match_the_coordinate_families},
+            {"cqmom_coordinate_policy_reads_the_moments_of_a_hyperbolic_coordinate",
+             test_cqmom_coordinate_policy_reads_the_moments_of_a_hyperbolic_coordinate},
             {"cqmom_case_public_api_rejects_missing_values", test_cqmom_case_public_api_rejects_missing_values},
             {"cqmom_case_public_api_rejects_non_finite_values", test_cqmom_case_public_api_rejects_non_finite_values},
             {"cqmom_case_public_api_rejects_invalid_options", test_cqmom_case_public_api_rejects_invalid_options},

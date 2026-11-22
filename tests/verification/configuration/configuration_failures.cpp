@@ -12,8 +12,10 @@
 //   Vandermonde solver, a moment set that cannot support the requested node
 //   count, for the classical and the hyperbolic family, an unknown QMOM
 //   family, abscissa bounds with the hyperbolic family, a repeated dimension
-//   in the conditioning order, an incomplete moment tensor. The expected
-//   error is written beside each case. There is no numerical reference
+//   in the conditioning order, an incomplete moment tensor, and for CQMOM a
+//   family other than classical or hyperbolic, abscissa bounds on a
+//   hyperbolic coordinate and a tensor without the moment of order 2n of a
+//   hyperbolic coordinate. The expected error is written beside each case. There is no numerical reference
 //   because no case should be produced.
 //
 // Pass criteria
@@ -183,6 +185,19 @@ int main(const int argc, char** argv)
         // The full tensor of raw moments must be complete. Missing tensor
         // entries are rejected before the CQMOM case is exposed to the caller.
         {"cqmom_incomplete_tensor.qmom", Loader::cqmom, "The full tensor of raw moments is incomplete; it is missing 1 of its 4 entries."},
+
+        // A CQMOM coordinate is classical or hyperbolic. The generalized family
+        // must not fall back to the classical family.
+        {"cqmom_invalid_family.qmom", Loader::cqmom, "phase_space.qmom_family must contain classical or hyperbolic entries.", 3},
+
+        // HyQMOM is defined on the real line, so a hyperbolic coordinate takes
+        // no abscissa bounds, reported at the line of support_lower as in a
+        // QMOM file.
+        {"cqmom_hyperbolic_abscissa_bounds.qmom", Loader::cqmom, "The hyperbolic QMOM family takes no abscissa bounds.", 4},
+
+        // A hyperbolic coordinate with node count 2 reads its moment of order
+        // 4, which a tensor with extent 4 on that axis does not hold.
+        {"cqmom_hyperbolic_insufficient_moments.qmom", Loader::cqmom, "The full tensor of raw moments does not contain a required CQMOM moment."},
     };
 
     bool matched = false;

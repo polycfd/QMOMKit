@@ -38,6 +38,7 @@ and expected output. In order of increasing scope:
 | [`gqmom_1d_catalyst_deactivation_with-mc`](../../examples/gqmom_1d_catalyst_deactivation_with-mc/README.md) | Coking of catalyst particles and their removal above a critical coked fraction with the `beta` continuation of GQMOM and classical QMOM beside a particle simulation. |
 | **Physical models** (with a Monte Carlo reference) | |
 | [`cqmom_2d_bubbles_cavitation`](../../examples/cqmom_2d_bubbles_cavitation/README.md) | Nonlinear node advection of a cavitating bubble population. |
+| [`cqmom_2d_hyperbolic_drag_dispersion_with-mc`](../../examples/cqmom_2d_hyperbolic_drag_dispersion_with-mc/README.md) | A `hyperbolic` velocity coordinate in CQMOM, in both conditioning orders, under drag and turbulent dispersion. |
 | [`cqmom_3d_droplets_condensation-nucleation`](../../examples/cqmom_3d_droplets_condensation-nucleation/README.md) | Condensation and nucleation as a boundary contribution. |
 | [`cqmom_4d_particles_breakage_recoil`](../../examples/cqmom_4d_particles_breakage_recoil/README.md) | A breakage source evaluated over the nodes of the stage quadrature. |
 | [`cqmom_5d_particles_breakage_heat-transfer`](../../examples/cqmom_5d_particles_breakage_heat-transfer/README.md) | A source needing fractional moments. |

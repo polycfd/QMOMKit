@@ -90,8 +90,8 @@ F^{-}_{k} = \sum_{i} w_i \min(\lambda_i, 0)^{k+1}.
 ```
 
 Inside the realizable set, the weights are positive. For a classical
-quadrature, the two copies of each abscissa share its weight and the mean has
-weight zero, so the flux is that of the nodes.
+quadrature, the two copies of each abscissa share its weight and the mean of
+the abscissas has weight zero, so the flux is that of the nodes.
 
 The [`hyqmom_characteristic_speeds`](../../examples/hyqmom_characteristic_speeds/README.md)
 example computes the speeds of Fig. 1 of Fox & Laurent (2022) and their

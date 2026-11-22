@@ -16,7 +16,7 @@ or in a file with `[phase_space] qmom_family = hyperbolic`.
 | Family | Use it for | Moments for node count $N$ | Nodes | Bounds | Used with |
 | --- | --- | --- | --- | --- | --- |
 | `classical` | the default, any coordinate | $m_0, \ldots, m_{2N-1}$ | up to $N$ | yes | QMOM, CQMOM |
-| `hyperbolic` | a velocity coordinate whose moments your code transports in physical space | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | QMOM |
+| `hyperbolic` | a velocity coordinate whose moments your code transports in physical space | $m_0, \ldots, m_{2N}$ | up to $N + 1$ | no | QMOM, CQMOM |
 | `generalized` | source terms that $N$ nodes evaluate poorly | $m_0, \ldots, m_{2N}$ | up to $N_G > N$ | with `gamma`, `lognormal` or `beta` | QMOM |
 
 How each family reconstructs its quadrature is described in the developer
@@ -98,6 +98,45 @@ example computes the speeds of Fig. 1 of Fox & Laurent (2022) and their
 weights, and
 [`hyqmom_1d_drag_bgk-collisions`](../../examples/hyqmom_1d_drag_bgk-collisions/README.md)
 evolves a velocity distribution with the hyperbolic family.
+
+### Hyperbolic coordinates in CQMOM
+
+In a CQMOM hierarchy, each coordinate has its own family, `classical` or
+`hyperbolic`:
+
+```cpp
+qmomkit::HierarchyFamilies families;
+families.coordinates = {{qmomkit::QmomFamily::hyperbolic}, {qmomkit::QmomFamily::classical}};
+const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1}, families);
+```
+
+or in a file with `[phase_space] qmom_family = hyperbolic, classical`, one
+entry per coordinate in phase-space order. CQMOM does not take the
+`generalized` family.
+
+A hyperbolic coordinate with node count $N$ reads its moments up to order $2N$,
+so a full tensor needs the extent $2N + 1$ on its axis. It holds up to $N + 1$
+nodes in each branch, the count `hierarchy.maximum_node_counts()` gives for
+sizing storage, and it takes no bounds. As in QMOM, a branch takes the HyQMOM
+quadrature inside the realizable set. On or outside its boundary, an adaptive
+branch takes a classical quadrature, and a fixed reconstruction fails with
+`qmom_failed`. An adaptive branch gains at most one node per step, through the
+classical node counts up to $N$ and then to the $N + 1$ nodes of HyQMOM. If
+your code needs the full $N + 1$ nodes, for example for its own transport,
+check that every entry of `active_branch_counts()` whose
+`phase_space_dimension` is the coordinate has an `active_node_count` equal to
+its `configured_node_count`, the maximum node count. A fixed state holds them
+in every branch.
+
+Below a hyperbolic parent, the conditional moments at its nodes are exact when
+they are polynomials of degree at most $N$ in the parent coordinate, and can
+otherwise be non-realizable at a node. Adaptive mode then reduces that branch,
+and the state keeps the moments of the reduced quadrature. Fixed mode fails,
+even when the weight of the node is negligible
+([developer docs](../developer/qmom_families.md#hyperbolic-coordinates-in-cqmom)).
+The
+[`cqmom_2d_hyperbolic_drag_dispersion_with-mc`](../../examples/cqmom_2d_hyperbolic_drag_dispersion_with-mc/README.md)
+example runs one case in both conditioning orders.
 
 ## Generalized
 

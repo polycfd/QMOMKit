@@ -195,7 +195,7 @@ In adaptive mode a state remembers how many nodes each branch currently has.
 Node advection never changes these counts; only the reconstruction after a
 source step does. There a branch may lose nodes, or gain one if the moments
 support it. In CQMOM, when a branch's node count changes, the branches below it
-condition on other nodes and start from their configured maximum. Node counts
+condition on other nodes and start from their maximum node count. Node counts
 therefore shrink readily, and a branch that keeps its parent grows by at most
 one node per step.
 

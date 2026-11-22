@@ -42,7 +42,7 @@ string.
 | `names` | none | One label per coordinate, for the reader; QMOMKit does not use them. | — |
 | `conditioning_order` | `0, 1, …` | CQMOM conditioning order. | `PhaseSpaceHierarchy` |
 | `support_lower`, `support_upper` | none | Interval the nodes must lie in, per coordinate; `none` for no bound. Both or neither, finite, `lower < upper`. | `abscissa_bounds` |
-| `qmom_family` | `classical` | QMOM only: `classical`, `hyperbolic` or `generalized` ([QMOM families](7_qmom_families.md)). | `QmomCase::family` |
+| `qmom_family` | `classical` | QMOM: `classical`, `hyperbolic` or `generalized`. CQMOM: one entry per coordinate, `classical` or `hyperbolic` ([QMOM families](7_qmom_families.md)). | `QmomCase::family`, `PhaseSpaceHierarchy` |
 | `generalized_node_counts` | required with `generalized` | Number of nodes $N_G$ of the GQMOM quadrature, a single value greater than `node_counts`. | `QmomCase::generalized_options.node_count` |
 | `generalized_continuation` | `normal` | GQMOM continuation of the recurrence, `normal`, `gamma`, `lognormal` or `beta`. | `QmomCase::generalized_options.continuation` |
 | `generalized_nu` | `1` | Tail parameter $\nu$ of the `normal` GQMOM continuation, any finite number. Not allowed with `gamma`, `lognormal` or `beta`. | `QmomCase::generalized_options.nu` |
@@ -52,7 +52,7 @@ string.
 | Key | Meaning |
 | --- | --- |
 | `values` | QMOM: raw moments $m_0, m_1, \ldots$, at least as many as the family needs, $2N$ for `classical` and $2N + 1$ for `hyperbolic` and `generalized`. |
-| `extents`, `M[i,j,…]` | CQMOM: tensor extents, at least twice each coordinate's node count, then one `M[i,j,…] = value` line for every entry within them. |
+| `extents`, `M[i,j,…]` | CQMOM: tensor extents, at least twice each coordinate's node count, plus one for a `hyperbolic` coordinate, then one `M[i,j,…] = value` line for every entry within them. |
 
 ### `[initial]`
 
@@ -151,7 +151,7 @@ function.
 | --- | --- | --- |
 | Load a configuration | `config::load_qmom`, `load_cqmom_prepared`, `load_cqmom`, `load_*_options`, their `parse_*` forms, `with_initial_moments` | `configuration.hpp` |
 | Generate moments | `compute_raw_moments` | `distributions.hpp` |
-| Set up CQMOM moments | `create_cqmom_moment_layout`, `extract_cqmom_moments`, `create_cqmom_moment_data` | `cqmom.hpp` |
+| Set up a CQMOM hierarchy and its moments | `PhaseSpaceHierarchy`, `HierarchyFamilies`, `create_cqmom_moment_layout`, `extract_cqmom_moments`, `create_cqmom_moment_data` | `phase_space_hierarchy.hpp`, `cqmom.hpp` |
 | Reconstruct | `compute_qmom`, `compute_cqmom` | `qmom.hpp`, `cqmom.hpp` |
 | Create a state | `initial_state()`, `state_candidate(...)` | `qmom.hpp`, `cqmom.hpp` |
 | Read a state | `moment_values()`, `moment_indices()`, `moment(index)`, `quadrature()`, `maximum_node_count()`, `active_node_count()`, `base_node_count()`, `family()`, `generalized_options()`, `active_branch_counts()` | `qmom.hpp`, `cqmom.hpp` |
@@ -231,7 +231,7 @@ These throw instead of returning a status:
 | --- | --- |
 | `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed or any of them is not finite; for a `CqmomCase` also `std::invalid_argument` for a layout that is not the required layout of its hierarchy |
 | Every function that reconstructs a `generalized` quadrature: `compute_qmom(...)`, `initial_state()`, `state_candidate(...)` and the QMOM evolution functions | `std::bad_alloc` or `std::length_error` when the $N_G \times N_G$ eigenproblem of GQMOM does not fit in memory |
-| `PhaseSpaceHierarchy` constructor | `std::invalid_argument` for no node counts, a zero node count, an invalid conditioning order, or too many nodes in total |
+| `PhaseSpaceHierarchy` constructor | `std::invalid_argument` for no node counts, a zero node count, an invalid conditioning order, families whose number differs from that of the node counts, a `generalized` coordinate, or too many nodes in total |
 | `CqmomPreparedCase` constructor | `std::invalid_argument` for a layout that is not the required layout of its hierarchy; wrong values show up when the case is used |
 | `extract_cqmom_moments(...)` | `std::invalid_argument` when the tensor's rank or value count is wrong; `std::out_of_range` when it lacks a required moment |
 | `create_cqmom_moment_data(...)` | `std::invalid_argument` when the result failed, or its indices, count or values do not match the layout |
@@ -247,13 +247,15 @@ These throw instead of returning a status:
 | --- | --- |
 | `Moment sequence has fewer than 2*n entries.` | $N$ nodes need $2N$ moments. Supply more, request fewer nodes, or raise `maximum_order`. |
 | `Moment sequence has fewer than 2*n+1 entries.` | The `hyperbolic` and `generalized` families with node count $N$ need $2N + 1$ moments. |
-| `The hyperbolic QMOM family takes no abscissa bounds.` | HyQMOM is defined on the real line. Remove the bounds, or `support_lower` and `support_upper` from the file, or use the classical family. |
+| `The hyperbolic QMOM family takes no abscissa bounds.` | HyQMOM is defined on the real line. Remove the bounds, or `support_lower` and `support_upper` from the file, set the entries of a hyperbolic CQMOM coordinate to `none`, or use the classical family. |
 | `The normal continuation of the generalized QMOM family takes no abscissa bounds.` | GQMOM with the `normal` continuation is defined on the real line. Remove the bounds, or `support_lower` and `support_upper` from the file, or use the `gamma`, `lognormal` or `beta` continuation or the classical family. |
 | `The generalized node count must exceed node_count.` | Set `generalized_options.node_count` of the case, which has no default, above the node count $N$. |
 | `The generalized parameter nu must be finite.` | With the `normal` continuation, set `generalized_options.nu` of the case to a finite number. |
 | `Unsupported generalized continuation.` | Set `generalized_options.continuation` of the case to a value of `GeneralizedContinuation`, `normal`, `gamma`, `lognormal` or `beta`. |
 | `phase_space.generalized_node_counts must exceed phase_space.node_counts.` | Set $N_G > N$. |
-| `phase_space.qmom_family must be classical, hyperbolic or generalized.` | Set one of the three families; `[phase_space] qmom_family` takes a single value. |
+| `phase_space.qmom_family must be classical, hyperbolic or generalized.` | Set one of the three families; in a QMOM file, `[phase_space] qmom_family` takes a single value. |
+| `phase_space.qmom_family must contain one entry per phase-space dimension.` | In a CQMOM file, give one family per coordinate. |
+| `phase_space.qmom_family must contain classical or hyperbolic entries.` | A CQMOM coordinate is `classical` or `hyperbolic`. |
 | `QMOM requires at least 2 * node_count moments.` | Give $2N$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N - 1$. |
 | `QMOM requires at least 2 * node_count + 1 moments for the hyperbolic family.` | Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |
 | `QMOM requires at least 2 * node_count + 1 moments for the generalized family.` | GQMOM with node count $N$ reads $m_0, \ldots, m_{2N}$. Give $2N + 1$ moments, or leave `[initial] maximum_order` out so that it defaults to $2N$. |

@@ -231,7 +231,7 @@ These throw instead of returning a status:
 | --- | --- |
 | `initial_state()` | `std::runtime_error` when the moments of the case cannot be reconstructed or any of them is not finite; for a `CqmomCase` also `std::invalid_argument` for a layout that is not the required layout of its hierarchy |
 | Every function that reconstructs a `generalized` quadrature: `compute_qmom(...)`, `initial_state()`, `state_candidate(...)` and the QMOM evolution functions | `std::bad_alloc` or `std::length_error` when the $N_G \times N_G$ eigenproblem of GQMOM does not fit in memory |
-| `PhaseSpaceHierarchy` constructor | `std::invalid_argument` for no node counts, a zero node count, an invalid conditioning order, families whose number differs from that of the node counts, a `generalized` coordinate, or too many nodes in total |
+| `PhaseSpaceHierarchy` constructor | `std::invalid_argument` for no node counts, a zero node count, an invalid conditioning order, families that are neither empty nor one per coordinate, a `generalized` coordinate, or too many nodes in total |
 | `CqmomPreparedCase` constructor | `std::invalid_argument` for a layout that is not the required layout of its hierarchy; wrong values show up when the case is used |
 | `extract_cqmom_moments(...)` | `std::invalid_argument` when the tensor's rank or value count is wrong; `std::out_of_range` when it lacks a required moment |
 | `create_cqmom_moment_data(...)` | `std::invalid_argument` when the result failed, or its indices, count or values do not match the layout |

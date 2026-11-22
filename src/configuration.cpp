@@ -1566,7 +1566,8 @@ std::optional<QmomFamily> parse_qmom_family(ParsedFile& parsed, const std::strin
 // qmom_family, a list with one entry per coordinate in phase-space order, each
 // classical or hyperbolic. Without the key, the families are empty, which makes
 // every coordinate classical. A list of the wrong length and an entry of
-// another name are errors, and give no families.
+// another name, the empty entry after a trailing comma included, are errors,
+// and give no families.
 std::optional<HierarchyFamilies> parse_cqmom_families(ParsedFile& parsed, const std::string& source_name, const std::size_t dimensions)
 {
     const Entry* entry = find_entry(parsed, "phase_space.qmom_family");
@@ -1594,6 +1595,10 @@ std::optional<HierarchyFamilies> parse_cqmom_families(ParsedFile& parsed, const 
             families.coordinates.emplace_back();
             known_names = false;
         }
+    }
+    if (entry->value.back() == ',')
+    {
+        known_names = false;
     }
     const bool one_per_dimension = families.coordinates.size() == dimensions;
     if (!one_per_dimension)

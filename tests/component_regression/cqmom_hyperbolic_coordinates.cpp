@@ -140,16 +140,23 @@ qmomkit::RawMomentTensor three_coordinate_moments(const qmomkit::PhaseSpaceHiera
 void test_branch_grows_one_node_per_source_step_to_the_hyperbolic_rule()
 {
     // The coordinate x is classical with node count 1, and y is hyperbolic
-    // with node count 2. The state starts from one point, so the branch of y holds one node. Each
-    // source step carries the moments onto those of four points with the same
-    // x, which are interior. The branch grows by one node per step, from one
-    // node to the classical rule of two nodes and then to the three nodes of
-    // HyQMOM, and it never jumps from one node to three.
+    // with node count 2. The state starts from one point, so the branch of y
+    // holds one node. Each source step carries the moments onto those of four
+    // points with the same x, which are interior. The branch grows by one node
+    // per step, from one node to the classical rule of two nodes and then to
+    // the three nodes of HyQMOM, and it never jumps from one node to three. The
+    // four points are not symmetric about their mean, so the classical rule of
+    // two nodes differs from the two nodes of HyQMOM with node count 1.
     const qmomkit::PhaseSpaceHierarchy hierarchy = hierarchy_of({1, 2}, {0, 1}, {QmomFamily::classical, QmomFamily::hyperbolic});
-    const qmomkit::RawMomentTensor four_points = moments_of(hierarchy, {0.25, 0.25, 0.25, 0.25}, {{0.5, -1.0}, {0.5, 0.0}, {0.5, 1.0}, {0.5, 2.0}});
+    const qmomkit::RawMomentTensor four_points = moments_of(hierarchy, {0.25, 0.25, 0.25, 0.25}, {{0.5, -1.0}, {0.5, 0.0}, {0.5, 0.5}, {0.5, 2.0}});
     qmomkit::CqmomState state = qmomkit::CqmomPreparedCase{case_of(hierarchy, moments_of(hierarchy, {1.0}, {{0.5, 0.25}}), true)}.initial_state();
     QMOMKIT_VERIFY_CHECK(active_count(state, 1, qmomkit::ConditioningPath{{0}}) == 1);
 
+    // The marginal moments of y are its conditional moments at the one node
+    // of x, whose weight is 1.
+    const qmomkit::QmomResult classical_two_nodes =
+        qmomkit::compute_qmom(qmomkit::MomentSet({four_points.values[0], four_points.values[1], four_points.values[2], four_points.values[3]}), 2);
+    QMOMKIT_VERIFY_CHECK(classical_two_nodes.ok() && classical_two_nodes.weights.size() == 2);
     for (std::size_t step = 1; step <= 4; ++step)
     {
         const qmomkit::CqmomPhaseSpaceEvolutionResult result =
@@ -158,6 +165,14 @@ void test_branch_grows_one_node_per_source_step_to_the_hyperbolic_rule()
         const std::size_t expected = std::min<std::size_t>(1 + step, 3);
         QMOMKIT_VERIFY_CHECK(active_count(result.state, 1, qmomkit::ConditioningPath{{0}}) == expected);
         QMOMKIT_VERIFY_CHECK(result.state.quadrature().total_nodes() == expected);
+        if (expected == 2)
+        {
+            for (std::size_t node = 0; node < 2; ++node)
+            {
+                QMOMKIT_VERIFY_NEAR(result.state.quadrature().weights()[node], classical_two_nodes.weights[node], 1.0e-12);
+                QMOMKIT_VERIFY_NEAR(result.state.quadrature().abscissas()[1][node], classical_two_nodes.abscissas[node], 1.0e-12);
+            }
+        }
         state = result.state;
     }
     const qmomkit::CqmomResult hyperbolic = qmomkit::compute_cqmom(case_of(hierarchy, four_points, true));

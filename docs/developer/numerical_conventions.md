@@ -36,8 +36,9 @@ varying fastest. For extents $n_0, \ldots, n_{D-1}$:
 It throws for a rank mismatch, a component outside its extent, or an overflow.
 
 Maximum orders are inclusive: a maximum order $K$ gives an extent $K + 1$.
-`PhaseSpaceHierarchy::moment_extents()` is $2N_d$ in dimension $d$. The
-required layout from `create_cqmom_moment_layout` is a subset of that box.
+`PhaseSpaceHierarchy::moment_extents()` is $2N_d$ in dimension $d$, or
+$2N_d+1$ for a `hyperbolic` coordinate. The required layout from
+`create_cqmom_moment_layout` is a subset of that box.
 Its entries are listed level by level of the conditioning order, and each is a
 multi-index in phase-space order. The layout depends only on the hierarchy;
 [CQMOM](cqmom.md) derives it.
@@ -61,7 +62,7 @@ which it derives the maximum node counts
 and the default family is `classical`. The constructor rejects no node counts,
 a zero node count, a total node count beyond `std::size_t`, an order that is
 not a permutation, families that are neither empty nor one entry per
-dimension, and a family other than `classical`.
+dimension, and a `generalized` family.
 
 The conditioning order changes the reconstruction, never the meaning of an
 index or a node count: every per-coordinate index, from multi-index components
@@ -86,7 +87,7 @@ terminal node `j`, the product of the local weights along its path.
 | | Fixed (`adaptive = false`) | Adaptive (default) |
 | --- | --- | --- |
 | `has_rectangular_storage()` | `true` | `false`, even when no branch reduced |
-| Terminal order | Row-major over `node_counts()` in phase-space order, as `flatten_node_index` | Lexicographic in the conditioning path |
+| Terminal order | Row-major over `maximum_node_counts()` in phase-space order, as `flatten_node_index` | Lexicographic in the conditioning path |
 | `weight(node_index)`, `abscissa(d, node_index)`, `node(...)` | Valid | Throw `std::logic_error` |
 | `CqmomState::active_branch_counts()` | Empty | One record per branch |
 

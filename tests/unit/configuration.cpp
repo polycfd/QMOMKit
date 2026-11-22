@@ -768,9 +768,11 @@ void test_cqmom_qmom_family_needs_one_entry_per_dimension()
 
 void test_cqmom_qmom_family_takes_classical_or_hyperbolic_entries()
 {
-    // The generalized family is refused like a misspelt name.
+    // The generalized family is refused like a misspelt name, and a trailing
+    // comma like an empty entry, as in node_counts and names.
     const std::string message = "f.qmom:3: phase_space.qmom_family must contain classical or hyperbolic entries.";
-    for (const std::string line : {"qmom_family = classical, hyperbolical\n", "qmom_family = classical, generalized\n"})
+    for (const std::string line :
+         {"qmom_family = classical, hyperbolical\n", "qmom_family = classical, generalized\n", "qmom_family = classical, hyperbolic,\n"})
     {
         assert(qmomkit::config::parse_cqmom(cqmom_file_with_tensor(line, hyperbolic_last_tensor()), "f.qmom").error() == message);
         assert(qmomkit::config::parse_cqmom_prepared(cqmom_file_with_tensor(line, hyperbolic_last_tensor()), "f.qmom").error() == message);

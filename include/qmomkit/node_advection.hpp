@@ -28,8 +28,8 @@ namespace qmomkit
  * meaning is assigned to any coordinate by the library.
  *
  * Evaluating all nodes together keeps the cost of one right-hand-side
- * evaluation independent of the terminal node count, which is the product of
- * the per-dimension node counts.
+ * evaluation independent of the terminal node count, which is at most the
+ * product of the maximum node counts of the coordinates.
  */
 using PhaseSpaceVelocity = std::function<void(double, const std::vector<double>&, std::vector<double>&, std::size_t)>;
 

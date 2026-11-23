@@ -677,8 +677,7 @@ void test_cqmom_qmom_family_key_sets_the_coordinate_families()
     const auto without_key = qmomkit::config::parse_cqmom(cqmom_file_with_tensor("", tensor), "f.qmom");
     assert(classical.ok() && without_key.ok());
     const qmomkit::PhaseSpaceHierarchy& classical_hierarchy = classical.value().moments.layout.hierarchy;
-    assert(classical_hierarchy.families().coordinates[0].family == qmomkit::QmomFamily::classical);
-    assert(classical_hierarchy.families().coordinates[1].family == qmomkit::QmomFamily::classical);
+    assert(classical_hierarchy.families().coordinates.empty());
     assert(classical_hierarchy.maximum_node_counts() == without_key.value().moments.layout.hierarchy.maximum_node_counts());
     assert(classical.value().moments.layout.required_indices == without_key.value().moments.layout.required_indices);
     assert(classical.value().moments.values == without_key.value().moments.values);

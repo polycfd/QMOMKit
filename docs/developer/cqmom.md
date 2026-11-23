@@ -75,10 +75,15 @@ conditional step is the file-local `reconstruct_child_slices`.
 ## Counts of a coordinate
 
 The hierarchy holds the family of each coordinate, a `CoordinateFamily` in
-`HierarchyFamilies`, which `families()` returns with one entry per phase-space
-dimension. A hierarchy built without families, or with empty families, has
-`classical` coordinates only. The constructor accepts `classical` and
-`hyperbolic` coordinates and refuses `generalized` ones.
+`HierarchyFamilies`, which `families()` returns. The constructor accepts
+`classical` and `hyperbolic` coordinates and refuses `generalized` ones. When
+every coordinate is `classical`, the families are empty, also for a hierarchy
+built with `classical` entries, and otherwise they hold one entry per
+phase-space dimension. A hierarchy is copied into every layout, quadrature and
+state, several times per step, so an all-classical hierarchy stores neither
+families nor maximum node counts, and `maximum_node_counts()` returns its node
+counts. Code that reads the family of one coordinate goes through
+`internal::coordinate_family`.
 
 Each coordinate has two counts. Its node count $N_l$, `node_counts()` and
 `node_count(dimension)`, is the node count of its reconstruction: it fixes the

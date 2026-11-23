@@ -74,7 +74,7 @@ public:
     }
     [[nodiscard]] const std::vector<std::size_t>& maximum_node_counts() const noexcept
     {
-        return maximum_node_counts_;
+        return maximum_node_counts_.empty() ? node_counts_ : maximum_node_counts_;
     }
     [[nodiscard]] const std::vector<std::size_t>& conditioning_order() const noexcept
     {
@@ -88,8 +88,9 @@ public:
     [[nodiscard]] std::size_t node_count(std::size_t dimension) const;
 
     /**
-     * The families of the coordinates, with one entry per phase-space
-     * dimension, also when the hierarchy was built without families.
+     * The families of the coordinates, which are empty when every coordinate is
+     * `classical`, also when the hierarchy was built with `classical` entries,
+     * and otherwise hold one entry per phase-space dimension.
      */
     [[nodiscard]] const HierarchyFamilies& families() const noexcept;
 
@@ -110,6 +111,10 @@ public:
     [[nodiscard]] MultiIndex unflatten_node_index(std::size_t flat_index) const;
 
 private:
+    // A hierarchy is copied into every layout, quadrature and state, several
+    // times per step of an evolution. When every coordinate is classical,
+    // families_ and maximum_node_counts_ stay empty, so that a copy allocates
+    // no more than the node counts and the conditioning order.
     std::vector<std::size_t> node_counts_;
     std::vector<std::size_t> conditioning_order_;
     HierarchyFamilies families_;

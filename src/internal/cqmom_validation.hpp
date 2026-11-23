@@ -63,9 +63,19 @@ struct CqmomMomentRateValidationMessages
     std::string finite_values;
 };
 
+// The family of one coordinate of a hierarchy, whose families are empty when
+// every coordinate is classical.
+[[nodiscard]] inline QmomFamily coordinate_family(const PhaseSpaceHierarchy& hierarchy, const std::size_t dimension)
+{
+    const std::vector<CoordinateFamily>& coordinates = hierarchy.families().coordinates;
+    return coordinates.empty() ? QmomFamily::classical : coordinates[dimension].family;
+}
+
 // Two hierarchies are the same when their node counts, their conditioning
-// orders and the families of their coordinates are equal. Every check that
-// compares hierarchies goes through this function.
+// orders and the families of their coordinates are equal. The families of a
+// hierarchy are empty exactly when every coordinate is classical, so families
+// of different sizes differ in a family. Every check that compares hierarchies
+// goes through this function.
 [[nodiscard]] inline bool same_hierarchy(const PhaseSpaceHierarchy& lhs, const PhaseSpaceHierarchy& rhs)
 {
     if (lhs.node_counts() != rhs.node_counts() || lhs.conditioning_order() != rhs.conditioning_order())
@@ -74,6 +84,10 @@ struct CqmomMomentRateValidationMessages
     }
     const std::vector<CoordinateFamily>& lhs_families = lhs.families().coordinates;
     const std::vector<CoordinateFamily>& rhs_families = rhs.families().coordinates;
+    if (lhs_families.size() != rhs_families.size())
+    {
+        return false;
+    }
     for (std::size_t dimension = 0; dimension < lhs_families.size(); ++dimension)
     {
         if (lhs_families[dimension].family != rhs_families[dimension].family)

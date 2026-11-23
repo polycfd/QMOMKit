@@ -443,14 +443,14 @@ void validate_conditioning_order(const std::vector<std::size_t>& order, const st
     return hierarchy.maximum_node_counts()[dimension];
 }
 
-// Returns the families with one entry per dimension. Empty families make every
-// coordinate classical. The settings of the generalized family are kept as
-// given and ignored for a classical coordinate.
+// Returns the families, empty when every coordinate is classical and otherwise
+// with one entry per dimension. Empty families make every coordinate
+// classical. Families that are kept keep the settings of the generalized family
+// as given, which a classical coordinate ignores.
 [[nodiscard]] HierarchyFamilies validated_families(HierarchyFamilies families, const std::size_t dimensions)
 {
     if (families.coordinates.empty())
     {
-        families.coordinates.resize(dimensions);
         return families;
     }
     if (families.coordinates.size() != dimensions)
@@ -464,7 +464,9 @@ void validate_conditioning_order(const std::vector<std::size_t>& order, const st
             throw std::invalid_argument("CQMOM supports only classical and hyperbolic coordinates.");
         }
     }
-    return families;
+    const bool all_classical = std::all_of(families.coordinates.begin(), families.coordinates.end(),
+                                           [](const CoordinateFamily& coordinate) { return coordinate.family == QmomFamily::classical; });
+    return all_classical ? HierarchyFamilies{} : families;
 }
 
 [[nodiscard]] std::vector<std::size_t> ordered_extents(const std::vector<std::size_t>& extents, const std::vector<std::size_t>& order)
@@ -868,7 +870,7 @@ void validate_active_branch_counts(const PhaseSpaceHierarchy& hierarchy, const s
         {
             continue;
         }
-        if (hierarchy.families().coordinates[dimension].family == QmomFamily::hyperbolic)
+        if (internal::coordinate_family(hierarchy, dimension) == QmomFamily::hyperbolic)
         {
             message = "The hyperbolic QMOM family takes no abscissa bounds.";
             return false;
@@ -1119,28 +1121,31 @@ std::vector<MultiIndex> enumerate_multi_indices(const std::vector<std::size_t>& 
 
 PhaseSpaceHierarchy::PhaseSpaceHierarchy(std::vector<std::size_t> node_counts)
     : node_counts_(std::move(node_counts)), conditioning_order_(default_conditioning_order(node_counts_.size())),
-      families_{std::vector<CoordinateFamily>(node_counts_.size())}, maximum_node_counts_(node_counts_),
-      total_nodes_(product_extents(maximum_node_counts_))
+      total_nodes_(product_extents(node_counts_))
 {
     validate_conditioning_order(conditioning_order_, node_counts_.size());
 }
 
 PhaseSpaceHierarchy::PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, std::vector<std::size_t> conditioning_order)
-    : node_counts_(std::move(node_counts)), conditioning_order_(std::move(conditioning_order)),
-      families_{std::vector<CoordinateFamily>(node_counts_.size())}, maximum_node_counts_(node_counts_),
-      total_nodes_(product_extents(maximum_node_counts_))
+    : node_counts_(std::move(node_counts)), conditioning_order_(std::move(conditioning_order)), total_nodes_(product_extents(node_counts_))
 {
     validate_conditioning_order(conditioning_order_, node_counts_.size());
 }
 
-// The delegated constructor sets the maximum node counts of classical
-// coordinates. A hyperbolic coordinate with node count n holds up to n + 1
-// nodes, and the total follows the maximum node counts.
+// The delegated constructor leaves the families and the maximum node counts
+// empty, which makes every coordinate classical. A hyperbolic coordinate with
+// node count n holds up to n + 1 nodes, and the total follows the maximum node
+// counts.
 PhaseSpaceHierarchy::PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, std::vector<std::size_t> conditioning_order,
                                          HierarchyFamilies families)
     : PhaseSpaceHierarchy(std::move(node_counts), std::move(conditioning_order))
 {
     families_ = validated_families(std::move(families), number_of_dimensions());
+    if (families_.coordinates.empty())
+    {
+        return;
+    }
+    maximum_node_counts_ = node_counts_;
     for (std::size_t dimension = 0; dimension < number_of_dimensions(); ++dimension)
     {
         if (families_.coordinates[dimension].family == QmomFamily::hyperbolic)
@@ -1173,7 +1178,7 @@ std::vector<std::size_t> PhaseSpaceHierarchy::moment_extents() const
     for (std::size_t dimension = 0; dimension < node_counts_.size(); ++dimension)
     {
         const std::optional<std::size_t> extent =
-            internal::qmom_required_moment_count(node_counts_[dimension], families_.coordinates[dimension].family);
+            internal::qmom_required_moment_count(node_counts_[dimension], internal::coordinate_family(*this, dimension));
         if (!extent.has_value())
         {
             throw std::invalid_argument("Index extents overflow size_t.");
@@ -1189,12 +1194,12 @@ std::size_t PhaseSpaceHierarchy::flatten_node_index(const MultiIndexView node_in
     {
         throw std::invalid_argument("Node multi-index rank must match the hierarchy dimension.");
     }
-    return flatten_multi_index(node_index, maximum_node_counts_);
+    return flatten_multi_index(node_index, maximum_node_counts());
 }
 
 MultiIndex PhaseSpaceHierarchy::unflatten_node_index(const std::size_t flat_index) const
 {
-    return unflatten_multi_index(flat_index, maximum_node_counts_);
+    return unflatten_multi_index(flat_index, maximum_node_counts());
 }
 
 CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarchy)
@@ -1655,7 +1660,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     {
         const std::size_t phase_space_dimension = request.hierarchy.conditioning_order()[level];
         const std::size_t maximum_node_count = request.hierarchy.maximum_node_counts()[phase_space_dimension];
-        const QmomFamily family = request.hierarchy.families().coordinates[phase_space_dimension].family;
+        const QmomFamily family = coordinate_family(request.hierarchy, phase_space_dimension);
         const std::size_t node_count = request.hierarchy.node_counts()[phase_space_dimension];
         const double coordinate_scale = level == 0 ? 0.0 : coordinate_scales[phase_space_dimension];
         std::vector<BranchState> next_branches;

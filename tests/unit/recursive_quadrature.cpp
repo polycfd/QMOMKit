@@ -1343,22 +1343,23 @@ void test_invalid_hierarchy_inputs()
     assert_throws_invalid_argument([] { (void)qmomkit::PhaseSpaceHierarchy({2, 3, 2}, {0, 1, 3}); });
 }
 
-void test_hierarchy_without_families_holds_classical_entries()
+void test_all_classical_hierarchies_hold_empty_families()
 {
+    // A hierarchy whose coordinates are all classical holds empty families,
+    // whether it was built without families, with empty families or with
+    // classical entries, and its maximum node counts are its node counts.
     const qmomkit::PhaseSpaceHierarchy one_argument({3, 2});
     const qmomkit::PhaseSpaceHierarchy two_arguments({3, 2}, {1, 0});
     const qmomkit::PhaseSpaceHierarchy empty_families({3, 2}, {1, 0}, qmomkit::HierarchyFamilies{});
+    const qmomkit::PhaseSpaceHierarchy classical_entries({3, 2}, {1, 0}, qmomkit::HierarchyFamilies{std::vector<qmomkit::CoordinateFamily>(2)});
 
-    for (const qmomkit::PhaseSpaceHierarchy* hierarchy : {&one_argument, &two_arguments, &empty_families})
+    for (const qmomkit::PhaseSpaceHierarchy* hierarchy : {&one_argument, &two_arguments, &empty_families, &classical_entries})
     {
-        assert(hierarchy->families().coordinates.size() == 2);
-        for (const qmomkit::CoordinateFamily& coordinate : hierarchy->families().coordinates)
-        {
-            assert(coordinate.family == qmomkit::QmomFamily::classical);
-            assert(coordinate.generalized_options.node_count == 0);
-        }
+        assert(hierarchy->families().coordinates.empty());
+        assert(hierarchy->maximum_node_counts() == hierarchy->node_counts());
     }
 
+    assert(qmomkit::internal::same_hierarchy(classical_entries, two_arguments));
     assert(qmomkit::internal::same_hierarchy(empty_families, two_arguments));
     assert(empty_families.node_counts() == two_arguments.node_counts());
     assert(empty_families.maximum_node_counts() == two_arguments.maximum_node_counts());
@@ -1561,7 +1562,7 @@ void test_generalized_options_of_classical_coordinates_are_accepted()
     families.coordinates[0].generalized_options = {1, qmomkit::GeneralizedContinuation::normal, std::numeric_limits<double>::infinity()};
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3}, {0, 1}, families);
 
-    assert(hierarchy.families().coordinates[0].family == qmomkit::QmomFamily::classical);
+    assert(hierarchy.families().coordinates.empty());
     assert(hierarchy.maximum_node_counts() == std::vector<std::size_t>({2, 3}));
 }
 
@@ -2413,7 +2414,7 @@ int main(const int argc, char** argv)
             {"conditioning_path_view_maps_to_phase_space_node_index", test_conditioning_path_view_maps_to_phase_space_node_index},
             {"conditioning_path_maps_to_phase_space_node_index", test_conditioning_path_maps_to_phase_space_node_index},
             {"invalid_hierarchy_inputs", test_invalid_hierarchy_inputs},
-            {"hierarchy_without_families_holds_classical_entries", test_hierarchy_without_families_holds_classical_entries},
+            {"all_classical_hierarchies_hold_empty_families", test_all_classical_hierarchies_hold_empty_families},
             {"maximum_node_counts_of_classical_coordinates_are_the_node_counts",
              test_maximum_node_counts_of_classical_coordinates_are_the_node_counts},
             {"hierarchy_families_of_the_wrong_length_are_rejected", test_hierarchy_families_of_the_wrong_length_are_rejected},

@@ -9,6 +9,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-23
+
 ### Added
 
 - HyQMOM (Fox & Laurent, 2022) as the `hyperbolic` QMOM family, selected
@@ -95,5 +97,6 @@ First public release.
   target `qmomkit_monte_carlo::qmomkit_monte_carlo`, which computes
   finite-sample reference solutions to compare QMOMKit results against.
 
-[Unreleased]: https://github.com/polycfd/QMOMKit/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/polycfd/QMOMKit/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/polycfd/QMOMKit/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/polycfd/QMOMKit/releases/tag/v1.0.0

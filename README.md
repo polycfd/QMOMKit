@@ -6,6 +6,7 @@
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml/badge.svg" alt="CI-Indentation"></a>
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/consumers.yml/badge.svg" alt="CI-Consumers"></a>
 <a href="https://www.doi.org/10.48550/arXiv.2610.36189"><img src="https://img.shields.io/badge/Paper-arXiv 2610.36189-red.svg" alt="Paper: arXiv 2610.36189"></a>
+<a href="https://doi.org/10.5281/zenodo.23728105"><img src="https://img.shields.io/badge/DOI-10.5281/zenodo.23728105-blue.svg" alt="DOI: 10.5281/zenodo.23728105"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 
 **QMOMKit is a C++ library implementing quadrature-based moment methods to represent and evolve number density functions in phase space.**

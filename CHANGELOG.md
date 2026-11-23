@@ -9,6 +9,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- HyQMOM for individual coordinates of a CQMOM hierarchy. Each coordinate is
+  `classical` or `hyperbolic`, selected in C++ with `HierarchyFamilies` and
+  the new three-argument `PhaseSpaceHierarchy` constructor, or in a file with
+  a `[phase_space] qmom_family` list of one entry per coordinate in
+  phase-space order. A `hyperbolic` coordinate with node count N reads its
+  moments up to order 2N, holds up to N + 1 nodes in each branch and takes no
+  abscissa bounds. A new example runs one case with a hyperbolic velocity
+  coordinate in both conditioning orders, with a Monte Carlo reference.
+- `PhaseSpaceHierarchy::families()`, the families of the coordinates, which
+  are empty when every coordinate is `classical`, and
+  `PhaseSpaceHierarchy::maximum_node_counts()`, the largest number of nodes
+  that a branch of each coordinate can hold, N + 1 for a `hyperbolic`
+  coordinate and N for a `classical` one.
+
 ## [1.1.0] - 2026-11-23
 
 ### Added

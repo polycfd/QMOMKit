@@ -153,8 +153,10 @@ moments it needs; `[qmom]` keeps the options that apply to every coordinate
 alike, which `parse_qmom_options_from_parsed` reads for the case, the CQMOM case
 settings and the evolution options. In a CQMOM file, the key is a list in
 phase-space order with one entry per coordinate, each `classical` or
-`hyperbolic`, which `parse_cqmom_families` reads into the `HierarchyFamilies`
-of the hierarchy. Without the key, every coordinate is `classical`. A list of
+`hyperbolic`, which `parse_cqmom_families` reads and passes to the hierarchy,
+whose families are empty when every coordinate is `classical`
+([CQMOM](cqmom.md#counts-of-a-coordinate)). Without the key, every coordinate
+is `classical`. A list of
 another length, and an entry of another name, `generalized` included, are
 errors at the line of the key. `parse_cqmom_case_settings` then refuses
 abscissa bounds on a `hyperbolic` coordinate at the line of `support_lower`, as

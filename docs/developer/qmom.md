@@ -3,9 +3,10 @@
 QMOM turns the raw moments $m_0,\ldots,m_{2N-1}$ of a one-dimensional number
 density into an $N$-node Gauss quadrature with the Wheeler algorithm
 [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. The same
-inversion reconstructs every one-dimensional sequence of a `classical`
-coordinate in recursive [CQMOM](cqmom.md). This is the classical family; the
-others are in [QMOM families](qmom_families.md). Public usage is in
+inversion reconstructs every one-dimensional sequence of recursive
+[CQMOM](cqmom.md), except where a `hyperbolic` coordinate holds the $N+1$ nodes
+of HyQMOM. This is the classical family; the others are in
+[QMOM families](qmom_families.md). Public usage is in
 [Moments and quadrature](../user/4_moments_and_quadrature.md#reconstruct);
 moment and ordering conventions are in
 [Numerical conventions](numerical_conventions.md).
@@ -147,8 +148,9 @@ has a `.qmom` key
 `compute_quadrature(...)` and `compute_qmom(...)` use $s=0$: given moments
 carry no solve rounding. CQMOM conditional moments do, so their inversion,
 `internal::compute_conditional_quadrature`, or
-`internal::compute_hyperbolic_conditional_quadrature` for a `hyperbolic`
-coordinate ([QMOM families](qmom_families.md#hyperbolic-coordinates-in-cqmom)),
+`internal::compute_hyperbolic_conditional_quadrature` for the HyQMOM quadrature
+of a `hyperbolic` coordinate
+([QMOM families](qmom_families.md#hyperbolic-coordinates-in-cqmom)),
 receives a positive $s$ in adaptive mode
 ([CQMOM](cqmom.md#the-recursion)): `cqmom_coordinate_scales`
 ([`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp)) takes
@@ -211,6 +213,6 @@ whether the vectors are empty.
 | `compute_qmom` | [`src/public_api.cpp`](../../src/public_api.cpp) | Public entry; family and bounds dispatch, status mapping. |
 | `compute_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public low-level Wheeler inversion, $s=0$. |
 | `compute_wheeler_recurrence` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Public Wheeler recurrence and rounding bounds, $s=0$. |
-| `compute_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Inversion of the CQMOM conditional moments of a `classical` coordinate with scale $s$. |
+| `compute_conditional_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Inversion of CQMOM conditional moments with scale $s$, for every branch except those that take the HyQMOM quadrature of a `hyperbolic` coordinate. |
 | `select_bounded_quadrature` | [`src/wheeler.cpp`](../../src/wheeler.cpp) | Bounds acceptance for QMOM and CQMOM. |
 | `cqmom_coordinate_scales` | [`src/coordinate_scales.cpp`](../../src/coordinate_scales.cpp) | Coordinate scales $s$. |

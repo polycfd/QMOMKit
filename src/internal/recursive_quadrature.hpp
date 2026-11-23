@@ -51,9 +51,9 @@ struct BranchMomentLayout
     // `indices` compares whole vectors, which is why this is materialized once
     // per layout instead: the child-case builder performs one lookup per RHS
     // column per parent node count, and an adaptive layout builds a case for
-    // every node count Wheeler could realize.
+    // every node count a branch can return.
     std::vector<std::pair<std::size_t, std::size_t>> offsets_by_code;
-    // Child solve layouts keyed by the parent node count realized by Wheeler.
+    // Child solve layouts keyed by the parent node count a branch returned.
     std::vector<BranchMomentChildLayout> child_layouts_by_parent_node_count;
 };
 

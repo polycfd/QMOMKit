@@ -35,14 +35,16 @@ All names start with `component_regression_`.
   and the drag case also recovers its nodes; the conditional moments of one
   branch of the drag case also give back its two velocities and their
   conditional weights with 1D QMOM.
-- `cqmom_hyperbolic_coordinates_*` (4): hierarchies with `hyperbolic`
+- `cqmom_hyperbolic_coordinates_*` (5): hierarchies with `hyperbolic`
   coordinates. An adaptive branch that starts from one point grows by one node
-  per source step, through the classical rule of two nodes to the three nodes
-  of HyQMOM, and never from one node to three. `CqmomCase` and
-  `CqmomPreparedCase` agree bit for bit, and so do replaced moments and the
-  case built from them, for three hyperbolic coordinates, whose middle one is
-  both a child and a parent. A fixed hyperbolic branch on the boundary fails
-  as `qmom_failed` through `compute_cqmom(...)`, `state_candidate(...)` and the
+  per source step, through the classical rule of two nodes to the three nodes of
+  HyQMOM, and never from one node to three. Node advection with a constant
+  velocity moves every node by the same distance and keeps every weight and node
+  count, for a hyperbolic parent and child, fixed and adaptive. `CqmomCase` and
+  `CqmomPreparedCase` agree bit for bit, and so do replaced moments and the case
+  built from them, for three hyperbolic coordinates, whose middle one is both a
+  child and a parent. A fixed hyperbolic branch on the boundary fails as
+  `qmom_failed` through `compute_cqmom(...)`, `state_candidate(...)` and the
   post-source reconstruction.
 - `cqmom_physical_transport`: a fixture of unknown provenance, so it pins
   behavior, not correctness. Adaptive reconstruction collapses each terminal

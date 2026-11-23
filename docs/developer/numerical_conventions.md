@@ -56,13 +56,13 @@ velocity vectors, the coordinates within each node follow it too.
 
 `PhaseSpaceHierarchy` holds the node counts in that order, together with
 `conditioning_order`, a permutation in which `conditioning_order[l]` is the
-dimension reconstructed at level `l`, and the family of each coordinate, from
-which it derives the maximum node counts
-([CQMOM](cqmom.md#counts-of-a-coordinate)). The default order is the identity,
-and the default family is `classical`. The constructor rejects no node counts,
-a zero node count, a total node count beyond `std::size_t`, an order that is
-not a permutation, families that are neither empty nor one entry per
-dimension, and a `generalized` family.
+dimension reconstructed at level `l`, and the families of the coordinates,
+empty when every coordinate is `classical`, from which it derives the maximum
+node counts ([CQMOM](cqmom.md#counts-of-a-coordinate)). The default order is
+the identity, and the default family is `classical`. The constructor rejects
+no node counts, a zero node count, a total node count beyond `std::size_t`, an
+order that is not a permutation, families that are neither empty nor one entry
+per dimension, and a `generalized` family.
 
 The conditioning order changes the reconstruction, never the meaning of an
 index or a node count: every per-coordinate index, from multi-index components

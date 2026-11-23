@@ -184,6 +184,67 @@ void test_branch_grows_one_node_per_source_step_to_the_hyperbolic_rule()
     }
 }
 
+void test_advection_moves_the_nodes_of_hyperbolic_coordinates()
+{
+    // Node advection with a constant velocity moves every node by the same
+    // distance and keeps every weight and node count, for a hyperbolic parent
+    // and a hyperbolic child, in fixed and in adaptive mode. A fixed state keeps
+    // its rectangular storage over the maximum node counts. The points are a
+    // product of three values of x and two of y, so every branch holds its
+    // maximum node count.
+    const std::vector<double> drift{0.5, -0.25};
+    const double duration = 0.2;
+    const qmomkit::PhaseSpaceVelocity velocity =
+        [drift](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        for (std::size_t entry = 0; entry < coordinates.size(); ++entry)
+        {
+            velocities[entry] = drift[entry % dimensions];
+        }
+    };
+    std::vector<double> weights;
+    std::vector<std::vector<double>> points;
+    for (const double x : {-1.0, 0.25, 1.5})
+    {
+        for (const double y : {-0.5, 1.0})
+        {
+            weights.push_back(1.0 / 6.0);
+            points.push_back({x, y});
+        }
+    }
+    for (const std::vector<std::size_t>& order : {std::vector<std::size_t>{0, 1}, std::vector<std::size_t>{1, 0}})
+    {
+        for (const bool adaptive : {false, true})
+        {
+            const qmomkit::PhaseSpaceHierarchy hierarchy = hierarchy_of({2, 2}, order, {QmomFamily::hyperbolic, QmomFamily::classical});
+            const qmomkit::CqmomState state =
+                qmomkit::CqmomPreparedCase{case_of(hierarchy, moments_of(hierarchy, weights, points), adaptive)}.initial_state();
+            const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_advection(state, 0.0, duration, velocity);
+            QMOMKIT_VERIFY_CHECK(result.ok());
+
+            const qmomkit::CqmomQuadrature& before = state.quadrature();
+            const qmomkit::CqmomQuadrature& after = result.state.quadrature();
+            QMOMKIT_VERIFY_CHECK(before.total_nodes() == 6 && after.total_nodes() == 6);
+            QMOMKIT_VERIFY_CHECK(after.has_rectangular_storage() == !adaptive);
+            QMOMKIT_VERIFY_CHECK(after.weights() == before.weights());
+            for (std::size_t dimension = 0; dimension < 2; ++dimension)
+            {
+                for (std::size_t node = 0; node < 6; ++node)
+                {
+                    QMOMKIT_VERIFY_NEAR(after.abscissas()[dimension][node], before.abscissas()[dimension][node] + drift[dimension] * duration,
+                                        1.0e-12);
+                }
+            }
+            QMOMKIT_VERIFY_CHECK(result.state.active_branch_counts().size() == state.active_branch_counts().size());
+            for (std::size_t branch = 0; branch < state.active_branch_counts().size(); ++branch)
+            {
+                QMOMKIT_VERIFY_CHECK(result.state.active_branch_counts()[branch].active_node_count ==
+                                     state.active_branch_counts()[branch].active_node_count);
+            }
+        }
+    }
+}
+
 void test_open_and_prepared_cases_agree_for_hyperbolic_coordinates()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy = three_coordinate_hierarchy();
@@ -275,6 +336,7 @@ int main(const int argc, char** argv)
         argc, argv,
         {
             {"branch_grows_one_node_per_source_step_to_the_hyperbolic_rule", test_branch_grows_one_node_per_source_step_to_the_hyperbolic_rule},
+            {"advection_moves_the_nodes_of_hyperbolic_coordinates", test_advection_moves_the_nodes_of_hyperbolic_coordinates},
             {"open_and_prepared_cases_agree_for_hyperbolic_coordinates", test_open_and_prepared_cases_agree_for_hyperbolic_coordinates},
             {"moment_replacement_for_hyperbolic_coordinates", test_moment_replacement_for_hyperbolic_coordinates},
             {"fixed_hyperbolic_failure_propagates_as_qmom_failed", test_fixed_hyperbolic_failure_propagates_as_qmom_failed},

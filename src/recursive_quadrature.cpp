@@ -294,8 +294,8 @@ std::shared_ptr<const PreparedCqmomMetadata> create_prepared_cqmom_metadata(Cqmo
 {
     validate_fixed_cqmom_moment_layout(moment_layout, "Prepared CQMOM metadata requires the canonical CQMOM moment layout.");
     // An adaptive tree is built the same way, only wider: create_branch_moment_layout
-    // materializes a child case for every parent node count Wheeler could
-    // realize, so the result covers every runtime outcome and depends on nothing
+    // materializes a child case for every parent node count a branch can
+    // return, so the result covers every runtime outcome and depends on nothing
     // but the hierarchy. That is what makes it cacheable rather than rebuilt per
     // reconstruction.
     std::shared_ptr<const BranchMomentLayout> root_branch_layout = create_ordered_root_layout(moment_layout, adaptive_branch_counts);

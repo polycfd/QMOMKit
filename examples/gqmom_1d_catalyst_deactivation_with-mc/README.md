@@ -102,7 +102,7 @@ $t = 10$:
   M4     0.246441   —          0.246272
 ```
 
-GQMOM is within 0.3% of the Monte Carlo moments. Classical QMOM ends with 21%
+GQMOM is within 0.4% of the Monte Carlo moments. Classical QMOM ends with 21%
 fewer particles and moments 24 to 29% lower than the Monte Carlo run. Its two
 nodes start at $\theta = 0.23$ and $0.63$, and its upper node reaches
 $\theta_c$ only between $t = 6$ and $7$. Until then, classical QMOM removes no

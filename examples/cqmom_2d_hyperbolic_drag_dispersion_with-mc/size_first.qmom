@@ -1,0 +1,58 @@
+# Two-dimensional CQMOM case in (u, d), the particle velocity in m/s and the
+# particle diameter in m. velocity_first.qmom is the same case with the other
+# conditioning order.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
+[phase_space]
+names = u, d
+# The node count of each coordinate.
+node_counts = 2, 2
+# The velocity uses HyQMOM, which reads the moments up to order 2n = 4 and holds
+# up to n + 1 = 3 nodes. The diameter uses classical QMOM with up to 2 nodes.
+qmom_family = hyperbolic, classical
+# The diameter is the parent: CQMOM inverts the diameter first, then the
+# velocity conditioned on each diameter node. velocity_first.qmom inverts the
+# velocity first.
+conditioning_order = 1, 0
+
+# Adaptive reconstruction, the default, lets each branch use fewer nodes than
+# its maximum where the moments support fewer.
+[qmom]
+adaptive = true
+
+[time_integration]
+# Half a step of drag by node advection, the dispersion source over the whole
+# step, and a second half step of drag.
+scheme = strang
+
+[initial]
+# The marginals are normalized individually, then combined and scaled once by
+# the number density below, in particles per cubic meter. The particles do not
+# interact, so the number density only scales the moments.
+type = independent_product
+number_density = 1.0
+# The raw moments the sample provides, up to these orders per coordinate. Both
+# conditioning orders read velocity moments up to order 4 and diameter moments
+# up to order 3.
+maximum_orders = 4, 3
+
+# Particles nearly at rest relative to the ground.
+[initial.dimension.0]
+family = normal
+mean = 0.0
+standard_deviation = 0.02
+
+# Diameters with a median of 20 micrometers, ln(2e-5) = -10.8198.
+[initial.dimension.1]
+family = lognormal
+mu_log = -10.819778284410283
+sigma_log = 0.35
+
+# The output interval in seconds. The QMOMKit run names its moment and
+# quadrature files after this file.
+[output]
+directory = output
+write_moments = true
+write_quadrature = true
+interval = 0.001

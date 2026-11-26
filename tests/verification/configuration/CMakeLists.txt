@@ -12,6 +12,9 @@ set(configuration_failure_cases
     cqmom_missing_phase_space.qmom
     cqmom_invalid_conditioning_order.qmom
     cqmom_incomplete_tensor.qmom
+    cqmom_invalid_family.qmom
+    cqmom_hyperbolic_abscissa_bounds.qmom
+    cqmom_hyperbolic_insufficient_moments.qmom
 )
 
 foreach(case_name IN LISTS configuration_failure_cases)

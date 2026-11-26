@@ -144,7 +144,8 @@ struct CqmomDiagnostics
 /**
  * Current active node count for one recursive CQMOM branch.
  *
- * `configured_node_count` is the fixed maximum from the phase-space hierarchy.
+ * `configured_node_count` is the maximum node count of the branch's coordinate,
+ * `PhaseSpaceHierarchy::maximum_node_counts()`.
  * `active_node_count` is the current branch-local count observed in an
  * adaptive ragged quadrature. `parent_path` is ordered by conditioning level
  * and has length `conditioning_level`.
@@ -208,7 +209,9 @@ struct CqmomMomentData
  * `qmom_options.adaptive` decides whether the reconstruction is adaptive: every
  * marginal and conditional inversion and every branch node count adapt
  * together, and the quadrature uses ragged storage. With it false, every
- * branch keeps its configured node count and the storage is rectangular.
+ * branch keeps the maximum node count of its coordinate,
+ * `PhaseSpaceHierarchy::maximum_node_counts()`, and the storage is
+ * rectangular.
  */
 struct CqmomCase
 {

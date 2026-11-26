@@ -59,7 +59,8 @@ they return only part of it. The initial-condition parsers
 unknown keys and sections in the whole file as well, and check
 `[time_integration]`, `[output]` and `node_counts`. They leave unchecked what
 only a case reads: the value of `[qmom] adaptive`, `conditioning_order`, the
-abscissa bounds, the values of the `generalized_*` keys, the coordinate indices
+`qmom_family` of a CQMOM file, the abscissa bounds, the values of the
+`generalized_*` keys, the coordinate indices
 of the realizability sections, and whether the moments suffice for the node
 counts. The option parsers check their own sections, the QMOM evolution options
 also the `[qmom]` keys, and ignore the rest, so one file can serve all of them.
@@ -136,19 +137,30 @@ its family reads, $2N$ for `classical` or $2N + 1$ for `hyperbolic` and
 `generalized`, the count `internal::qmom_required_moment_count` gives. Before
 that, the parser refuses abscissa bounds that the family does not take, at the
 line of `support_lower` ([QMOM families](qmom_families.md)). A CQMOM explicit
-tensor must be complete within its `extents`, and the case keeps only the
-moments its layout requires ([CQMOM](cqmom.md)). Options without a key, such as
-`QmomOptions::cutoff` or the source-step retries, keep their C++ defaults.
+tensor must be complete within its `extents` and hold every moment of the
+layout, up to order $2N$ on the axis of a `hyperbolic` coordinate, and the case
+keeps only the moments its layout requires ([CQMOM](cqmom.md)). Options
+without a key, such as `QmomOptions::cutoff` or the source-step retries, keep
+their C++ defaults.
 
-The QMOM family, `[phase_space] qmom_family`, is read by one helper,
-`parse_qmom_family`, which gives `classical` when the key is absent:
+The QMOM family of a QMOM file, `[phase_space] qmom_family`, is read by one
+helper, `parse_qmom_family`, which gives `classical` when the key is absent:
 `parse_qmom` sets it as the family of the case, and
 `parse_qmom_initial_condition` validates it whatever its path and infers the
 default `initial.maximum_order` from it, one less than the family's count. It is
 a `[phase_space]` key because it describes the coordinate, including how many
 moments it needs; `[qmom]` keeps the options that apply to every coordinate
 alike, which `parse_qmom_options_from_parsed` reads for the case, the CQMOM case
-settings and the evolution options. CQMOM files do not accept the key.
+settings and the evolution options. In a CQMOM file, the key is a list in
+phase-space order with one entry per coordinate, each `classical` or
+`hyperbolic`, which `parse_cqmom_families` reads and passes to the hierarchy,
+whose families are empty when every coordinate is `classical`
+([CQMOM](cqmom.md#counts-of-a-coordinate)). Without the key, every coordinate
+is `classical`. A list of
+another length, and an entry of another name, `generalized` included, are
+errors at the line of the key. `parse_cqmom_case_settings` then refuses
+abscissa bounds on a `hyperbolic` coordinate at the line of `support_lower`, as
+for QMOM, where `compute_cqmom` would refuse them for a case built in code.
 `parse_generalized_options` reads the `[phase_space]` keys of the generalized
 family, `generalized_node_counts`, required and above `node_counts`,
 `generalized_continuation` and `generalized_nu`, for `parse_qmom`. With another

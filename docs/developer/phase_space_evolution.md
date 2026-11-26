@@ -25,7 +25,7 @@ access classes ([Architecture](architecture.md#public-and-internal-boundary)).
 Creating a state reconstructs the quadrature once and then sums the stored
 moments from it (`qmom_state_candidate` and `cqmom_state_candidate` in
 [`src/public_api.cpp`](../../src/public_api.cpp)). QMOM reconstructs at the
-case's node count; CQMOM starts every branch from its configured maximum. With
+case's node count; CQMOM starts every branch from its maximum node count. With
 $n$ active classical QMOM nodes, the stored $m_0, \ldots, m_{2n-1}$ reproduce
 the given moments to rounding and every higher one is that of the quadrature;
 $n$ is below `maximum_node_count()` when an adaptive reconstruction dropped
@@ -282,7 +282,7 @@ Active node counts follow one policy:
 - **Source stages**: a stage reconstruction uses the state's counts as
   ceilings, so a CQMOM branch or a `classical` or `hyperbolic` state may lose
   nodes but never grows. Only the branches below a branch that lost nodes,
-  which condition on other nodes, start from their configured maximum. A
+  which condition on other nodes, start from their maximum node count. A
   `generalized` state's stage reconstruction rests on at most its base node
   count, but continues to $N_G$ nodes wherever the stage moments are interior
   and, for the gamma, lognormal and beta continuations, the continued nodes
@@ -319,7 +319,7 @@ Active node counts follow one policy:
   which for its classical quadrature is the base node count. The mechanism,
   including the reset below a branch whose count changed, is in
   [CQMOM](cqmom.md#active-branch-counts).
-- **Created states** start from the configured maximum ([States](#states)).
+- **Created states** start from the maximum node count ([States](#states)).
 
 Counts therefore shrink readily and grow by at most one node per branch and
 source step. `diagnostics.cqmom_node_count_transitions` records each branch

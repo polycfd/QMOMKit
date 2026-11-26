@@ -107,8 +107,7 @@ void validate_generalized_exponent(const double exponent)
 [[nodiscard]] CqmomMomentData reconstruct_cqmom_moments_impl(const CqmomQuadrature& quadrature, const CqmomMomentLayout& layout,
                                                              const bool trusted_metadata)
 {
-    if (!trusted_metadata && (layout.hierarchy.node_counts() != quadrature.hierarchy().node_counts() ||
-                              layout.hierarchy.conditioning_order() != quadrature.hierarchy().conditioning_order()))
+    if (!trusted_metadata && !internal::same_hierarchy(layout.hierarchy, quadrature.hierarchy()))
     {
         throw std::invalid_argument("CQMOM moment layout hierarchy must match the quadrature hierarchy.");
     }

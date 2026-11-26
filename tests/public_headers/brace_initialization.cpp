@@ -19,6 +19,10 @@ namespace public_header_brace_initialization
     // The base node count follows the four older members of the result.
     [[maybe_unused]] const qmomkit::QmomResult result{{0.5}, {1.0}, qmomkit::QmomStatus::success, ""};
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({1, 1}));
+    // The settings of the generalized family follow the family of a
+    // coordinate, and later members follow the coordinates of the families.
+    const qmomkit::CoordinateFamily coordinate{qmomkit::QmomFamily::classical};
+    [[maybe_unused]] const qmomkit::HierarchyFamilies families{{coordinate, coordinate}};
     [[maybe_unused]] const qmomkit::CqmomCase cqmom_case{qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size(), 1.0)}};
     [[maybe_unused]] const qmomkit::RealizabilityPolicy policy{qmomkit::RealizabilityCheckMode::FinalOnly};
     const qmomkit::SspRk3Options ssp_rk3_options{true};

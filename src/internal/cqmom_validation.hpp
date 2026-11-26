@@ -63,10 +63,44 @@ struct CqmomMomentRateValidationMessages
     std::string finite_values;
 };
 
+// The family of one coordinate of a hierarchy, whose families are empty when
+// every coordinate is classical.
+[[nodiscard]] inline QmomFamily coordinate_family(const PhaseSpaceHierarchy& hierarchy, const std::size_t dimension)
+{
+    const std::vector<CoordinateFamily>& coordinates = hierarchy.families().coordinates;
+    return coordinates.empty() ? QmomFamily::classical : coordinates[dimension].family;
+}
+
+// Two hierarchies are the same when their node counts, their conditioning
+// orders and the families of their coordinates are equal. The families of a
+// hierarchy are empty exactly when every coordinate is classical, so families
+// of different sizes differ in a family. Every check that compares hierarchies
+// goes through this function.
+[[nodiscard]] inline bool same_hierarchy(const PhaseSpaceHierarchy& lhs, const PhaseSpaceHierarchy& rhs)
+{
+    if (lhs.node_counts() != rhs.node_counts() || lhs.conditioning_order() != rhs.conditioning_order())
+    {
+        return false;
+    }
+    const std::vector<CoordinateFamily>& lhs_families = lhs.families().coordinates;
+    const std::vector<CoordinateFamily>& rhs_families = rhs.families().coordinates;
+    if (lhs_families.size() != rhs_families.size())
+    {
+        return false;
+    }
+    for (std::size_t dimension = 0; dimension < lhs_families.size(); ++dimension)
+    {
+        if (lhs_families[dimension].family != rhs_families[dimension].family)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 [[nodiscard]] inline bool same_cqmom_layout(const CqmomMomentLayout& lhs, const CqmomMomentLayout& rhs)
 {
-    return lhs.hierarchy.node_counts() == rhs.hierarchy.node_counts() && lhs.hierarchy.conditioning_order() == rhs.hierarchy.conditioning_order() &&
-           lhs.required_indices == rhs.required_indices;
+    return same_hierarchy(lhs.hierarchy, rhs.hierarchy) && lhs.required_indices == rhs.required_indices;
 }
 
 [[nodiscard]] inline bool multi_index_within_extents(const MultiIndexView index, const std::vector<std::size_t>& extents)
@@ -88,9 +122,7 @@ struct CqmomMomentRateValidationMessages
 inline void validate_cqmom_moment_layout_matches_expected(const CqmomMomentLayout& layout, const CqmomMomentLayout& expected_layout,
                                                           const std::string& message)
 {
-    if (layout.hierarchy.node_counts() != expected_layout.hierarchy.node_counts() ||
-        layout.hierarchy.conditioning_order() != expected_layout.hierarchy.conditioning_order() ||
-        layout.required_indices != expected_layout.required_indices)
+    if (!same_hierarchy(layout.hierarchy, expected_layout.hierarchy) || layout.required_indices != expected_layout.required_indices)
     {
         throw std::invalid_argument(message);
     }
